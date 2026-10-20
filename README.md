@@ -20,10 +20,6 @@ Full feature list: [docs/FEATURES.md](docs/FEATURES.md).
 
 - [Development: build and run from source](docs/DEVELOPMENT.md)
 - [Features](docs/FEATURES.md)
-- [iOS installation](guides/IOS_INSTALLATION.md)
-- [iOS sideload](guides/IOS_SIDELOAD.md)
-- [iOS Shortcuts](guides/IOS_SHORTCUTS.md)
-- [Apple Watch setup](guides/WATCH_SETUP.md)
 - [AI coach](guides/AI_COACH.md)
 - [Tasker integration](guides/TASKER_INTEGRATION.md)
 - [Buzz meanings](guides/BUZZ_MEANINGS.md)

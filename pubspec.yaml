@@ -692,18 +692,8 @@ dev_dependencies:
   # someone else's `pub upgrade` rather than on a deliberate one here.
   sqflite_common: 2.5.8
 
-# Run with `dart run flutter_launcher_icons`. TWO THINGS TO KNOW BEFORE YOU DO:
-#
-#   · 0.13.1 rewrites ios/Runner.xcodeproj/project.pbxproj with a regex that
-#     matches ANY `ASSETCATALOG_COMPILER_*` setting and overwrites its value
-#     with the app-icon name. On this project that silently sets
-#     GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS, GLOBAL_ACCENT_COLOR_NAME and
-#     WIDGET_BACKGROUND_COLOR_NAME to "AppIcon" on the widget and watch targets.
-#     `git checkout -- ios/Runner.xcodeproj/project.pbxproj` afterwards: the one
-#     setting it needs to write (APPICON_NAME = AppIcon) is already correct, and
-#     the alternate-icon settings next to it must survive.
-#   · It does NOT generate the alternate icon. AppIconBW.appiconset is built by
-#     hand from assets/images/icon_bw.png at the same slots as AppIcon.
+# Run with `dart run flutter_launcher_icons` (Android only: this build has no
+# iOS target).
 #
 # adaptive_icon_foreground is a PRE-INSET copy of the icon, not the icon itself.
 # Android composites both layers on a 108 dp canvas and every launcher mask
@@ -712,9 +702,7 @@ dev_dependencies:
 # it is build-time input only.
 flutter_launcher_icons:
   android: "launcher_icon"
-  ios: true
   image_path: "assets/images/icon.png"
-  remove_alpha_ios: true
   # The icon's own plate, so the ring the mask leaves around the artwork is the
   # same colour as the artwork's edge rather than the old cream.
   adaptive_icon_background: "#21351A"

@@ -22,37 +22,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('platform config: Firebase auto-collection is off by default', () {
-    final plist = File('ios/Runner/Info.plist').readAsStringSync();
     final manifest =
         File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
-
-    /// The Info.plist value immediately following [key].
-    String? plistValueAfter(String key) {
-      final i = plist.indexOf('<key>$key</key>');
-      if (i < 0) return null;
-      final rest = plist.substring(i + '<key>$key</key>'.length);
-      final m = RegExp(r'<(true|false|string|integer)\s*/?>').firstMatch(rest);
-      return m?.group(1);
-    }
-
-    for (final key in const [
-      'FIREBASE_ANALYTICS_COLLECTION_ENABLED',
-      'FirebaseCrashlyticsCollectionEnabled',
-      'firebase_performance_collection_enabled',
-    ]) {
-      test('Info.plist sets $key to false', () {
-        expect(plistValueAfter(key), 'false',
-            reason: 'iOS would auto-collect before consent exists');
-      });
-    }
-
-    test('Info.plist does not use the PERMANENT deactivation keys', () {
-      // Those cannot be re-enabled at runtime, which would break the opt-in
-      // path entirely rather than gate it.
-      expect(plist, isNot(contains('FIREBASE_ANALYTICS_COLLECTION_DEACTIVATED')));
-      expect(plist,
-          isNot(contains('firebase_performance_collection_deactivated')));
-    });
 
     for (final key in const [
       'firebase_analytics_collection_enabled',
