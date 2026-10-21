@@ -502,7 +502,6 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
         l?.healthTabExplore ?? 'Explore',
         l?.healthTabTrends ?? 'Trends',
         l?.healthTabVitals ?? 'Vitals',
-        l?.healthTabLabs ?? 'Labs',
       ];
   late int _tab = widget.tab;
 
@@ -639,7 +638,6 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
     setState(() => _tab = i);
     if (i == 1) _loadExplore();
     if (i == 3) _loadVitals();
-    if (i == 4) _loadLabs();
   }
 
   @override
@@ -661,8 +659,7 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
           0 => _overview(c, d),
           1 => _explore(c),
           2 => _trends(c, d),
-          3 => _vitals(c, d),
-          _ => _labs(c),
+          _ => _vitals(c, d),
         },
     ]);
   }
@@ -931,18 +928,13 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
       // medication and cycle were each used by a handful of people, so they
       // share a row and the screen behind it keeps its own tabs.
       Section(
-        l?.healthWellbeingTitle ?? 'Mind, habits and medication',
+        l?.wellnessTabHabits ?? 'Habits & Journal',
         detailLinkRow(
             c,
-            LucideIcons.wind,
-            l?.wellnessTabMind ?? 'Mind',
-            // Cycle is a tab there only while cycle tracking is on.
-            _cycleTrackingOn(c)
-                ? (l?.healthWellbeingAllSubCycle ??
-                    'Breathing, mood, the journal, habits, medication and cycle')
-                : (l?.healthWellbeingAllSub ??
-                    'Breathing, mood, the journal, habits and medication'),
-            () => go(c, const WellnessScreen(initialTab: 0))),
+            LucideIcons.bookOpen,
+            l?.wellnessTabHabits ?? 'Habits',
+            l?.healthWellbeingHabitsSub ?? 'Daily habits, counted as days kept',
+            () => go(c, const WellnessScreen())),
       ),
 
       // THERE IS NO "BODY COMPOSITION" SECTION, AND THE NEXT PERSON SHOULD NOT

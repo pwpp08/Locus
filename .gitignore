@@ -48,7 +48,9 @@ app.*.map.json
 
 # secrets / build-time env
 .env
-.env.local
+database_export/
+.env
+database_export/.local
 ios/Config/Signing.xcconfig
 
 # stray dumps / archives never belong in assets

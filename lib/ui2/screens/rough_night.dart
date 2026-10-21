@@ -302,18 +302,7 @@ Future<RoughNight?> loadRoughNight(
     }
   } catch (_) {/* the rollup fails closed; so does this */}
 
-  // LUTEAL PHASE — `getCycle().phase` is TODAY'S phase and only today's, which
-  // is one of the reasons the host offers this card for last night alone.
-  try {
-    final cycle = await repo.getCycle();
-    if (cycle['enabled'] == true && cycle['phase'] == 'luteal') {
-      knows.add(
-        l?.roughNightLuteal ??
-            'You are in the luteal phase, which lifts resting heart rate and '
-                'skin temperature by itself.',
-      );
-    }
-  } catch (_) {/* cycle tracking off, or nothing logged */}
+
 
   // WARM ROOM — only when the temp sign is one of the ones that fired. The
   // channel is relative ADC, so this is "warmer than your usual", never a

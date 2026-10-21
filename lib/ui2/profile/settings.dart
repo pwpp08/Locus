@@ -696,13 +696,7 @@ class MoreSettingsView extends StatelessWidget {
                   // Opt-in, and it says what it does rather than what it is
                   // about — "Cycle tracking" alone leaves you guessing whether
                   // switching it off throws the entries away.
-                  SetRow(LucideIcons.droplet, C.pink,
-                      l?.settingsCycleTrackingRowTitle ?? 'Cycle tracking',
-                      sub: l?.settingsCycleTrackingRowSubHealth ??
-                          'Adds Cycle to Health. Off hides it and keeps '
-                              'everything already logged',
-                      value: cycleTracking ? on : off,
-                      onTap: onToggleCycleTracking),
+
                 ]),
                 settingsGroup(c, l?.settingsGroupData ?? 'Data', [
                   SetRow(LucideIcons.download, C.green,

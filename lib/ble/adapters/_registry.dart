@@ -1020,21 +1020,9 @@ const BandEntry kMiScale2 = BandEntry.notify(
 bool _looksLikeMiScale2(String lowercaseName) => lowercaseName == 'mi scale2';
 
 /// Every band this build can see. Order is match order during discovery.
+// WHOOP 4.0 only
 const List<BandEntry> kBandRegistry = <BandEntry>[
   kWhoopGen4,
-  kWhoopGen5,
-  kBleHrs,
-  kOura,
-  kPolarPmd,
-  kCoros,
-  kUltrahuman,
-  kMiBand234,
-  kPebble,
-  kColmi,
-  kGarmin,
-  kThermometer,
-  kMiScaleComposition,
-  kMiScale2,
 ];
 
 /// The bands the OFFLOAD ENGINE can drive, and the bands iOS provisions

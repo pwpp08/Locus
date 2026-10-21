@@ -164,10 +164,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
     final repo = app.repo;
     final db = await LocalDb.instance;
 
-    final meds = await MedDb.defs(db);
-    final doses = await MedDb.dosesForDay(db, _date);
-    final adherence = await MedDb.adherenceWindow(db, days: 7);
-    final breathing = await app.breathingHistory(limit: 5);
+    // Meds and breathing removed; keeping load fast and focused on journal & habits
 
     var stress = const <String, dynamic>{};
     var insights = const <String, dynamic>{};
@@ -214,10 +211,10 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
 
     if (!stillNewest(#wellness, t)) return;
     setState(() {
-      _meds = meds;
-      _slots = slotsForDay(meds, _date, doses, now: DateTime.now());
-      _adherence = adherence;
-      _breathing = breathing;
+      _meds = const [];
+      _slots = const [];
+      _adherence = (taken: 0, of: 0);
+      _breathing = const [];
       _stress = stress;
       _insights = insights;
       _drivers = driverRows;
@@ -243,77 +240,24 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
           ? const Center(child: CircularProgressIndicator())
           : _recovery(c);
     }
-    final last = _breathing.isEmpty ? null : _breathing.first;
-    // `select`, not `watch`: AppState ticks at ~1 Hz during a live session and
-    // this screen only cares about the one bool.
-    final showCycle =
-        c.select<AppState, bool>((a) => a.cycleTrackingEnabled);
-    final labels = [
-      l?.wellnessTabMind ?? 'Mind',
-      l?.wellnessTabRecovery ?? 'Sleep plan',
-      l?.wellnessTabHabits ?? 'Habits',
-      l?.wellnessTabMedication ?? 'Medication',
-      l?.wellnessTabCycle ?? 'Cycle',
-    ];
-    // Logical indices on screen. The sleep plan (1) lives on the Sleep tab.
-    final visible = [0, 2, 3, if (showCycle) 4];
-    // Switching Cycle off while standing on it lands on Medication, not Mind.
-    final tab = visible.contains(_tab) ? _tab : (_tab == 4 ? 3 : 0);
     final p = P.of(c);
-    // Same rule as Workout: the LIST drops its side padding and hands it to
-    // every child except the hero, which is how that one runs edge to edge.
-    // The card cannot escape its own parent — a negative margin asserts and an
-    // OverflowBox takes an unbounded height in a scroll view and blanks the
-    // whole tab. Padding the siblings is ordinary layout and does neither.
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
         child: Column(children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: S.x4),
-            child: NavBar(l?.wellnessTitle ?? 'Wellness'),
+            child: NavBar(l?.wellnessTabHabits ?? 'Habits & Journal'),
           ),
           Expanded(child: ListView(
-      padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x16),
-      children: [
-          SubTabs([for (final i in visible) labels[i]], visible.indexOf(tab),
-              (i) => setState(() => _tab = visible[i]),
-              color: C.domMind),
-          const SizedBox(height: S.x5),
-          if (_loading)
-            const Center(child: CircularProgressIndicator())
-          else ...[
-            // Mind is the only tab here with something to START. The other
-            // four are logs and reviews, and a "begin" card over a medication
-            // list would be an invitation to nothing.
-            if (tab == 0) ...[
-              StartCard(
-                label: l?.wellnessStartASitting ?? 'START A SITTING',
-                // What the picker actually offers. Three, not the number of
-                // things on this tab.
-                count: kBreathPatterns.length,
-                noun: l?.wellnessExercisesNoun ?? 'exercises',
-                sub: last == null
-                    ? (l?.wellnessPickOneAndGo ?? 'Pick one and go')
-                    : (l?.wellnessLastMinutes(
-                            (_reading(last['seconds']) ?? 0) ~/ 60) ??
-                        'Last: ${(_reading(last['seconds']) ?? 0) ~/ 60} min'),
-                art: Art.wellness,
-                accent: C.domMind,
-                onTap: () async {
-                  await Navigator.of(c).push(
-                    MaterialPageRoute<void>(
-                        builder: (_) => const CalmBreathing()),
-                  );
-                  await _load();
-                },
-              ),
-              const SizedBox(height: S.x4),
+            padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x16),
+            children: [
+              if (_loading)
+                const Center(child: CircularProgressIndicator())
+              else
+                _habitsTab(c),
             ],
-            [_mind, _recovery, _habitsTab, _medication, _cycle][tab](c),
-          ],
-      ],
-    )),
+          )),
         ]),
       ),
     );
@@ -569,6 +513,20 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        ActionCard(
+          l?.wellnessWriteTheDayDown ?? 'Write the day down',
+          _journalSubtitle(l),
+          l?.wellnessOpen ?? 'Open',
+          LucideIcons.notebookPen,
+          C.blue,
+          onTap: () async {
+            await Navigator.of(c).push(
+              MaterialPageRoute<void>(builder: (_) => const JournalCompose()),
+            );
+            await _load();
+          },
+        ),
+        const SizedBox(height: S.x4),
         for (final h in _habits)
           Padding(
             padding: const EdgeInsets.only(bottom: S.x3),
