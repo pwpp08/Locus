@@ -5,6 +5,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' show BluetoothDevice;
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/ble/adapters/_registry.dart';
 import 'package:openstrap_edge/ble/hrs_link.dart';
@@ -86,7 +87,11 @@ void main() {
       expect(find.text('Polar H10'), findsOneWidget);
       // sensorIcon('oura') => circleDot, everything else => heartPulse — the
       // whole point of stamping `entryId` onto a mixed-type scan result.
-      expect(find.byIcon(LucideIcons.circleDot), findsOneWidget);
+      // Since the drawn art landed, a ring (sensorArt('oura') => Art.ring)
+      // shows its picture and no glyph; a generic HR strap has no drawing and
+      // keeps the heartPulse icon.
+      expect(find.byType(SvgPicture), findsOneWidget);
+      expect(find.byIcon(LucideIcons.circleDot), findsNothing);
       expect(find.byIcon(LucideIcons.heartPulse), findsOneWidget);
     });
 
