@@ -13,7 +13,6 @@ void main() {
 
   group('AccountProfile serialization & Google Auth', () {
     test('serializes and deserializes Google profile attributes', () {
-      final now = DateTime.now();
       const profile = AccountProfile(
         email: 'user@gmail.com',
         displayName: 'Test User',
