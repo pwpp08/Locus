@@ -1,6 +1,6 @@
 # Locus
 
-Locus is a fork of [OpenStrap Edge](https://github.com/OpenStrap/edge), the local-first health app for wearables, under the same AGPL-3.0 licence. It is not the official OpenStrap app and is not endorsed by or affiliated with the OpenStrap project. The sections below are inherited from upstream and still describe it; they are being updated.
+Locus is a local-first health app for wearables, under the AGPL-3.0 licence. 
 
 A health app for your wearables. No subscription, no fees, private by default.
 
@@ -11,8 +11,6 @@ A health app for your wearables. No subscription, no fees, private by default.
 ## Devices
 
 **Supported:** WHOOP 4.0, 5.0, MG.
-
-**Being built:** Oura Ring, Garmin, Pebble, Colmi, Ultrahuman, Mi Band and more.
 
 Full feature list: [docs/FEATURES.md](docs/FEATURES.md).
 
@@ -44,4 +42,4 @@ describe compatibility.
 
 ## License
 
-AGPL-3.0. See [LICENSE](LICENSE). The OpenStrap name and logo: [TRADEMARKS.md](TRADEMARKS.md).
+AGPL-3.0.
