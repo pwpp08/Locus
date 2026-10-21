@@ -23,8 +23,8 @@ abstract final class Wearing {
 
 /// A learned factor outside this band means the reference went wrong (phone
 /// in a drawer, counter reset storm), not that the counter is that far off.
-const double kStepFactorMin = 0.5;
-const double kStepFactorMax = 2.0;
+const double kStepFactorMin = 0.1;
+const double kStepFactorMax = 35.0;
 
 /// Pseudo-days of factor 1.0 blended into the fit.
 const double kStepFactorPriorWeight = 3.0;

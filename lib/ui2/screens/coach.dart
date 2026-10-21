@@ -790,6 +790,8 @@ List<_Preset> _presets(BuildContext c) {
   final local = AppLocalizations.of(c)?.coachLocalSub ??
       'On this network. Nothing leaves your machine.';
   return <_Preset>[
+    _Preset('Google Gemini', 'generativelanguage.googleapis.com',
+        'https://generativelanguage.googleapis.com/v1beta/openai'),
     _Preset('Ollama', local, 'http://localhost:11434/v1', local: true),
     _Preset('LM Studio', local, 'http://localhost:1234/v1', local: true),
     _Preset('OpenAI', 'api.openai.com', 'https://api.openai.com/v1'),
@@ -896,7 +898,15 @@ class _CoachSetupState extends State<CoachSetup> {
       _msg = null;
     });
     try {
-      final ids = await CoachEngine.fetchModels(_base.text, _key.text);
+      var ids = await CoachEngine.fetchModels(_base.text, _key.text);
+      if (ids.isEmpty && _base.text.contains('googleapis.com')) {
+        ids = const [
+          'gemini-2.5-flash',
+          'gemini-1.5-flash',
+          'gemini-1.5-pro',
+          'gemini-2.0-flash',
+        ];
+      }
       if (!mounted) return;
       final l = AppLocalizations.of(context);
       setState(() {
@@ -1005,8 +1015,18 @@ class _CoachSetupState extends State<CoachSetup> {
                                 _msg = null;
                                 _base.text = preset.baseUrl;
                                 _api = CoachApi.defaultFor(preset.baseUrl);
-                                _models = const [];
-                                _model = '';
+                                if (preset.baseUrl.contains('googleapis.com')) {
+                                  _models = const [
+                                    'gemini-2.5-flash',
+                                    'gemini-1.5-flash',
+                                    'gemini-1.5-pro',
+                                    'gemini-2.0-flash',
+                                  ];
+                                  _model = 'gemini-2.5-flash';
+                                } else {
+                                  _models = const [];
+                                  _model = '';
+                                }
                               }),
                               child: Row(
                                 children: [

@@ -216,6 +216,12 @@ class LocalDb {
   static Database? _db;
   static String dbName = 'openstrap.db';
 
+  /// The absolute on-disk path to the SQLite database file.
+  static Future<String> databaseFilePath() async {
+    final dir = await getDatabasesPath();
+    return p.join(dir, dbName);
+  }
+
   /// Workout sensors (adapter ids) whose rule-R6 flag is on, admitted inside
   /// a session window only ([sessionWindowRows]). Loaded from the flags by
   /// `refreshSessionSensorSources` (compute/inputs/canonical.dart); empty

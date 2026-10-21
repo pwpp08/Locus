@@ -1023,6 +1023,7 @@ bool _looksLikeMiScale2(String lowercaseName) => lowercaseName == 'mi scale2';
 // WHOOP 4.0 only
 const List<BandEntry> kBandRegistry = <BandEntry>[
   kWhoopGen4,
+  kWhoopGen5,
 ];
 
 /// The bands the OFFLOAD ENGINE can drive, and the bands iOS provisions

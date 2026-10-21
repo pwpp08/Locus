@@ -20,6 +20,7 @@ import '../ui2.dart';
 import '../screens/coach.dart' show CoachSetup, coachSubtitle;
 import '../screens/home_screen.dart' show deviceBatteryOf;
 import 'data.dart';
+import 'account_screen.dart';
 import 'devices.dart';
 import 'settings.dart';
 
@@ -402,6 +403,10 @@ class ProfileHomeView extends StatelessWidget {
                       onTap: () => _pickLanguage(c))),
                 ]),
                 settingsGroup(c, l?.profileYourDataGroup ?? 'Your data', [
+                  SetRow(LucideIcons.cloud, C.blue,
+                      'Cloud account',
+                      sub: 'Online backup and data sync',
+                      onTap: () => goto(c, const AccountScreen())),
                   SetRow(LucideIcons.database, C.green,
                       l?.profileStorage ?? 'Storage',
                       value: s?.storageBytes == null

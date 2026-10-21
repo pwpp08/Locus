@@ -68,6 +68,8 @@ import '../stress/breath_phases.dart';
 import '../data/auto_backup.dart' as backup
     show runBackupIfDue, selectedBackupFolder, saveBackupFolder, deleteAutomaticBackups;
 import 'alarm_schedule.dart';
+import 'alarm_manager.dart';
+import '../data/step_calibration.dart' show Wearing;
 import 'derive_coordinator.dart';
 import 'gesture_controller.dart';
 import 'live_stream_controller.dart';
@@ -357,6 +359,8 @@ class AppState extends ChangeNotifier {
   Profile get _profile => Profile.fromMap(user);
 
   DeviceState get device => engine.state;
+  /// Multi-alarm manager supporting system alarm sync and per-day repeat rules.
+  final AlarmManager alarmManager = AlarmManager();
   final DeviceAlerts _deviceAlerts = DeviceAlerts();
 
   /// Band-gesture → action mapping (double-tap, etc.). Exposed for the settings UI.
@@ -1785,6 +1789,8 @@ class AppState extends ChangeNotifier {
     _sync.dispose();
     _alarmGraceTimer?.cancel();
     _alarmGraceTimer = null;
+    alarmManager.removeListener(_onAlarmManagerChanged);
+    alarmManager.dispose();
     _breathingController.dispose();
     _workoutController.dispose();
     // The sensor's notifier OUTLIVES this object (HrsLink is a singleton), so
@@ -2695,6 +2701,8 @@ class AppState extends ChangeNotifier {
     }
     await _loadAlarmSchedule();
     await _seedAlarmScheduleFromLegacyIfNeeded();
+    await alarmManager.init(legacySchedule: _schedule);
+    alarmManager.addListener(_onAlarmManagerChanged);
     // Band-gesture mapping: load the saved action + query native capabilities so the
     // settings UI knows what this platform supports. Best-effort, non-blocking.
     unawaited(gestureSettings.bootstrap());
@@ -3279,6 +3287,7 @@ class AppState extends ChangeNotifier {
   /// Measured samples/second of the last completed chunk. Null until one
   /// completes — nothing has been measured yet.
   double? _liveHz;
+  double? get liveHz => _liveHz;
   bool _liveHzLogged = false;
 
   /// Set when the last completed chunk was refused for running under the floor.
@@ -3521,8 +3530,12 @@ class AppState extends ChangeNotifier {
   /// and this is the daily-sum layer `calcSteps` documents as the gain's home.
   /// Applying it at both ends shipped a silent x1.23.
   Future<void> _bankGaitRuns(List<LiveStepRun> runs) async {
+    final family = paired?.generation != null ? 'whoop_${paired!.generation}' : 'whoop';
+    const wearing = Wearing.wrist;
+    final calProfile = await LocalDb.stepCalibrationProfile(family, wearing);
+    final factor = calProfile?.factor ?? 1.0;
     for (final run in runs) {
-      final steps = (run.rawSteps * ana.StepParams.gain).round();
+      final steps = (run.rawSteps * ana.StepParams.gain * factor).round();
       if (steps <= 0) continue;
       // Per RUN, so a walk either side of midnight lands on the right days
       // instead of both going to whichever day the session started on.
@@ -4366,21 +4379,20 @@ class AppState extends ChangeNotifier {
     _alarm.confirmed = prefs.getBool('alarm_epoch_confirmed') ?? false;
   }
 
+  void _onAlarmManagerChanged() {
+    notifyListeners();
+    if (isConnected) {
+      unawaited(_armNextAlarmOccurrence());
+    }
+  }
+
   Future<void> _armNextAlarmOccurrence({int? firedEpoch}) async {
     if (!isConnected) return;
     try {
-      // A headless re-arm (background_sync.dart) can have rewritten
-      // `alarm_epoch`/`alarm_epoch_confirmed` under this same live process
-      // since init() last read them — refresh from the shared store before
-      // comparing, or a stale in-memory `_savedAlarm` makes this issue a
-      // needless duplicate setAlarm write on every connect.
       final prefs = await SharedPreferences.getInstance();
       final onDisk = prefs.getInt('alarm_epoch');
       if (onDisk != _savedAlarm) {
         _savedAlarm = onDisk;
-        // The optimistic in-session epoch is older than what headless armed,
-        // and it wins in [alarmEpoch]; drop it so Home and the alarm screen
-        // show the arm that's actually on the strap.
         device.alarmEpoch = null;
         if (onDisk != null) {
           _seedAlarmFromPrefs(onDisk, prefs);
@@ -4389,6 +4401,34 @@ class AppState extends ChangeNotifier {
         }
         notifyListeners();
       }
+
+      if (alarmManager.isLoaded) {
+        final now = alarmRearmFrom(DateTime.now(), firedEpoch);
+        final plan = alarmManager.computeNextArmedPlan(now);
+        if (plan == null) {
+          if (_savedAlarm != null || device.alarmEpoch != null) {
+            try {
+              await engine.disableAlarm();
+            } catch (_) {}
+            _clearArmedAlarmState();
+            notifyListeners();
+          }
+          return;
+        }
+
+        final targetEpoch = plan.time.millisecondsSinceEpoch ~/ 1000;
+        final currentArmed = _savedAlarm ?? device.alarmEpoch;
+        if (currentArmed != null && (currentArmed - targetEpoch).abs() <= 60) {
+          return;
+        }
+
+        final armed = await engine.setAlarm(plan.time);
+        if (armed != null) {
+          await _onArmed(armed, armed.millisecondsSinceEpoch ~/ 1000, confirmedImmediately: true);
+        }
+        return;
+      }
+
       final result = await armNextScheduledOccurrence(
         engine: engine,
         schedule: _schedule,
@@ -4396,15 +4436,13 @@ class AppState extends ChangeNotifier {
         now: alarmRearmFrom(DateTime.now(), firedEpoch),
       );
       if (result.disabled) {
-        // Every weekday got disabled since the last arm — the strap doesn't
-        // give up its old alarm on its own (PR #329 review).
         _clearArmedAlarmState();
         notifyListeners();
         return;
       }
       final epoch = result.epoch;
       if (epoch == null) return;
-      await _onArmed(DateTime.fromMillisecondsSinceEpoch(epoch * 1000), epoch);
+      await _onArmed(DateTime.fromMillisecondsSinceEpoch(epoch * 1000), epoch, confirmedImmediately: true);
     } catch (e) {
       _log('[alarm] weekly-schedule arm failed: $e');
     }
@@ -4521,23 +4559,12 @@ class AppState extends ChangeNotifier {
 
   Future<void> setAlarm(DateTime when) async {
     if (!isConnected) throw Exception('Connect to your strap first');
-    // Pass the DateTime through so the engine computes REAL sub-seconds for the
-    // rich 20-byte firing form (a hardcoded 0 subsec would still fire, but the
-    // engine owns the exact on-wire layout). Persist the wall instant the
-    // engine reports armed (null = write never reached the band).
     final armed = await engine.setAlarm(when);
     if (armed == null) {
-      // Do NOT persist or start the confirmation machine, or we'd strand a
-      // phantom alarm "waiting for the strap to confirm" that can never fire.
-      // Null now covers two cases: the write never left the phone, and the
-      // strap answered and REFUSED the alarm. Both mean the band holds no alarm, so both
-      // must stay out of persistence; the engine log says which one it was.
       _log('[alarm] the band did not take the alarm — not persisting.');
-      // Neutral on purpose: null covers both a write that never left the
-      // phone and an explicit refusal — the engine log says which.
       throw Exception('Alarm not set');
     }
-    await _onArmed(armed, armed.millisecondsSinceEpoch ~/ 1000);
+    await _onArmed(armed, armed.millisecondsSinceEpoch ~/ 1000, confirmedImmediately: true);
   }
 
   /// Shared bookkeeping for anything that just armed the band: optimistic
@@ -4545,26 +4572,28 @@ class AppState extends ChangeNotifier {
   /// timer. [setAlarm] (an explicit write) and [_armNextAlarmOccurrence] (the
   /// schedule engine) both funnel through here so the two can never drift
   /// apart on what "armed" means.
-  Future<void> _onArmed(DateTime when, int epoch) async {
+  Future<void> _onArmed(DateTime when, int epoch, {bool confirmedImmediately = false}) async {
     _savedAlarm = epoch;
     device.alarmEpoch = epoch; // optimistic display
     final setAtMs = DateTime.now().millisecondsSinceEpoch;
-    _alarm.set(epoch, setAtMs); // await event 56
+    _alarm.set(epoch, setAtMs);
+    if (confirmedImmediately) {
+      _alarm.confirmed = true;
+    }
     _alarmAutoRetried = false; // a fresh arm gets its one retry
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('alarm_epoch', epoch);
     await prefs.setInt('alarm_set_at_ms', setAtMs);
-    // Not confirmed yet — event 56 (below, in _handleAlarmEvent) flips this.
-    await prefs.setBool('alarm_epoch_confirmed', false);
-    // The alert timers below live in memory only; this lets a relaunch
-    // still send the critical alert if the process dies before it goes out.
-    await prefs.setStringList('alarm_latch_alert', [
-      '$epoch',
-      '${alarmLatchAlertAtMs(DateTime.now().millisecondsSinceEpoch, _alarm.graceMs)}',
-    ]);
-    // Nudge the UI once the grace window elapses so an unconfirmed alarm flips to
-    // its soft warning even if no event ever arrives.
-    _armAlarmGraceTimer(when);
+    await prefs.setBool('alarm_epoch_confirmed', _alarm.confirmed);
+    if (confirmedImmediately) {
+      _alarmGraceTimer?.cancel();
+    } else {
+      await prefs.setStringList('alarm_latch_alert', [
+        '$epoch',
+        '${alarmLatchAlertAtMs(DateTime.now().millisecondsSinceEpoch, _alarm.graceMs)}',
+      ]);
+      _armAlarmGraceTimer(when);
+    }
     notifyListeners();
   }
 
@@ -4710,6 +4739,7 @@ class AppState extends ChangeNotifier {
     await prefs.remove('alarm_epoch_confirmed');
     await LocalDb.clearAlarmSchedule();
     _schedule = fillDefaultAlarmSchedule(const []);
+    await alarmManager.clearAll();
     notifyListeners();
   }
 
@@ -4767,6 +4797,9 @@ class AppState extends ChangeNotifier {
         // that is no longer armed. Clear state AND the persisted epoch.
         final firedEpoch = _savedAlarm ?? device.alarmEpoch;
         _clearArmedAlarmState();
+        if (firedEpoch != null) {
+          unawaited(alarmManager.onAlarmFired(firedEpoch));
+        }
         // ...and arm the schedule's next occurrence now. Otherwise nothing
         // re-arms until the next reconnect, so a link that stays up all day
         // leaves tomorrow unarmed and Home saying "Set an alarm". Computed

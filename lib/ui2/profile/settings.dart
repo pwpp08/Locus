@@ -36,6 +36,9 @@ import '../../telemetry/health_uploader.dart';
 import '../../theme/theme_controller.dart';
 import '../ui2.dart';
 import 'alarm.dart';
+import '../screens/coach.dart';
+import '../screens/step_calibration_screen.dart';
+import 'account_screen.dart';
 import 'band_notifications.dart';
 import 'data.dart';
 import 'gallery.dart';
@@ -631,6 +634,10 @@ class MoreSettingsView extends StatelessWidget {
                       sub: l?.settingsAlarmRowSub ??
                           'Buzzes on your wrist, on the band’s own clock',
                       onTap: onAlarm),
+                  SetRow(LucideIcons.footprints, C.teal,
+                      'Step counter calibration',
+                      sub: 'Calibrate Whoop step algorithm with a guided walk test',
+                      onTap: () => goto(c, const StepCalibrationScreen())),
                   // Off by default — an existing user did not ask their band
                   // to start buzzing mid-workout. The target-zone row below
                   // only appears once this is on; a target for an alert
@@ -674,6 +681,10 @@ class MoreSettingsView extends StatelessWidget {
                           'What may interrupt you, quiet hours, and off '
                               'switches for all of them',
                       onTap: onNotifications),
+                  SetRow(LucideIcons.sparkles, C.purple,
+                      'AI Coach & Gemini settings',
+                      sub: 'Configure AI model, Gemini API key, and prompt behavior',
+                      onTap: () => goto(c, const CoachSetup())),
                   SetRow(LucideIcons.ruler, C.blue,
                       l?.settingsUnitsRowTitle ?? 'Units',
                       value: units, onTap: onCycleUnits),
@@ -699,6 +710,10 @@ class MoreSettingsView extends StatelessWidget {
 
                 ]),
                 settingsGroup(c, l?.settingsGroupData ?? 'Data', [
+                  SetRow(LucideIcons.cloud, C.blue,
+                      'Cloud account & sync',
+                      sub: 'Sign in to sync, backup, and restore your Whoop data',
+                      onTap: () => goto(c, const AccountScreen())),
                   SetRow(LucideIcons.download, C.green,
                       l?.settingsExportBackupImportRowTitle ??
                           'Export, backup, import',

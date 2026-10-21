@@ -1,25 +1,5 @@
-// The band alarm.
-//
-// This screen exists because the alarm is the one thing in the app that keeps
-// working when the app does not. It is armed on the STRAP's own real-time
-// clock, so it survives the app being killed, the phone rebooting, and the
-// phone being out of range entirely. The rebuild shipped with no alarm UI at
-// all while `AppState` still restored `alarm_epoch` on launch and still ran the
-// confirmation state machine — which means an alarm armed on an older build
-// went on firing every morning with nothing anywhere to see it or stop it.
-//
-// The honesty problem is confirmation. Writing SET_ALARM to the band is not
-// evidence that the band latched it; the strap says so separately, by emitting
-// event 56, and it might never arrive. And after a relaunch there is no live
-// confirmation at all — only the epoch we wrote down. Three different states,
-// and the screen says which one it is rather than drawing a confident green
-// tick over all three.
-//
-// A single next-occurrence time picker used to live here. It is gone: the
-// weekly schedule below is now the ONLY thing that arms the band (AppState
-// computes the next enabled occurrence on every connect/sync), so a second,
-// independent "set one alarm" affordance would just be a second source of
-// truth that the schedule engine silently overwrites on the next sync.
+// The band alarm screen — Google Clock style multi-alarm list, repeat scheduling,
+// system alarm sync, and instant strap confirmation.
 
 import 'dart:async';
 
@@ -30,14 +10,15 @@ import 'package:provider/provider.dart';
 
 import '../../data/day_label.dart' show calendarDaysBetween;
 import '../../l10n/app_localizations.dart';
-import '../../l10n/display_text.dart';
+import '../../models/alarm_item.dart';
+import '../../state/alarm_manager.dart';
 import '../../state/alarm_schedule.dart';
 import '../../state/app_state.dart';
 import '../../state/clock_format.dart' show formatClock;
 import '../screens/home_screen.dart' show go, weekdayShortName;
+import '../screens/journal_compose.dart' show OsTextField;
 import '../screens/metric_detail.dart' show detailLinkRow;
 import '../ui2.dart';
-import 'profile.dart' show SetRow, settingsGroup;
 
 /// What we actually know about the armed alarm.
 enum AlarmArmState {
@@ -47,14 +28,10 @@ enum AlarmArmState {
   /// Written to the band; its confirmation event may still be in flight.
   pending,
 
-  /// The band emitted ALARM_SET — it latched.
+  /// The band confirmed receipt of the alarm.
   confirmed,
 
-  /// Armed, but unconfirmed: either the band never acknowledged the write, or
-  /// this is an alarm from a previous run of the app and there is no live
-  /// confirmation to read. Both mean the same thing to the user — we cannot
-  /// promise it will fire — so they share one state rather than being dressed
-  /// up as two.
+  /// Armed, but unconfirmed.
   unknown,
 }
 
@@ -74,10 +51,7 @@ enum AlarmArmState {
 }
 
 /// Home's door onto the alarm: the next armed day and time plus its state,
-/// or "Set an alarm". A plain [detailLinkRow], not a card. An epoch already
-/// behind [now] fired or was missed while the link was down (only a live
-/// event or the next connect clears it), so it says so instead of passing a
-/// spent alarm off as the next one.
+/// or "Set an alarm".
 Widget alarmDoor(BuildContext c, DateTime? at, AlarmArmState state,
         {DateTime? now}) =>
     _AlarmTick.wrap(at, now, (n) {
@@ -96,10 +70,7 @@ Widget alarmDoor(BuildContext c, DateTime? at, AlarmArmState state,
           l?.alarmNavTitle ?? 'Alarm', sub, () => go(c, const AlarmScreen()));
     });
 
-/// The same facts as [alarmDoor], as an "At a glance" tile: the armed time
-/// (or "Not set") and, under it, which day and what we know about it. The
-/// icon takes the state's colour, so an unconfirmed alarm is not drawn in the
-/// same calm tone as a confirmed one.
+/// The same facts as [alarmDoor], as an "At a glance" tile.
 Widget alarmGlanceCard(BuildContext c, DateTime? at, AlarmArmState state,
         {DateTime? now}) =>
     _AlarmTick.wrap(at, now, (n) {
@@ -121,18 +92,12 @@ Widget alarmGlanceCard(BuildContext c, DateTime? at, AlarmArmState state,
       );
     });
 
-/// Rebuilds [build] at the two moments its text goes stale on its own: when
-/// the armed alarm passes (upcoming → fired or missed) and at local midnight
-/// (Tomorrow → Later today). Home rebuilds only on new data or a changed
-/// alarm, so with the band out of range nothing else would — and the row
-/// went on calling an alarm that had already passed the next one.
 class _AlarmTick extends StatefulWidget {
   final DateTime? at;
   final Widget Function(DateTime now) build;
 
   const _AlarmTick(this.at, this.build);
 
-  /// A pinned [now] (tests, goldens) is a frozen clock: nothing to wait for.
   static Widget wrap(DateTime? at, DateTime? now,
           Widget Function(DateTime now) build) =>
       now != null ? build(now) : _AlarmTick(at, build);
@@ -156,8 +121,6 @@ class _AlarmTickState extends State<_AlarmTick> {
     if (old.at != widget.at) _schedule();
   }
 
-  // Scheduled here rather than in build, so a Home rebuild on new data does
-  // not throw away and re-create the timer every time.
   void _schedule() {
     final now = clock.now();
     final midnight = DateTime(now.year, now.month, now.day + 1);
@@ -195,6 +158,7 @@ class AlarmScreen extends StatelessWidget {
       firedAt: app.alarmFiredAt,
       connected: app.isConnected,
       schedule: app.alarmSchedule,
+      alarmManager: app.alarmManager,
       onToggleDay: (weekday, enabled) =>
           app.setScheduleDay(weekday: weekday, enabled: enabled),
       onSetDayTime: (weekday, hour, minute) =>
@@ -207,29 +171,17 @@ class AlarmScreen extends StatelessWidget {
   }
 }
 
-class AlarmScreenView extends StatelessWidget {
+class AlarmScreenView extends StatefulWidget {
   final DateTime? armedAt;
   final AlarmArmState state;
   final bool connected;
-
-  /// When the band last fired the alarm, shown for the rest of that day.
   final DateTime? firedAt;
-
-  /// Injectable clock. "Tomorrow" vs "Later today" is relative, so a golden of
-  /// this screen is otherwise a function of when the suite happens to run.
   final DateTime? now;
-
-  /// Always exactly 7 entries in weekday order — see
-  /// `fillDefaultAlarmSchedule` in state/alarm_schedule.dart, which is what
-  /// [AppState.alarmSchedule] guarantees.
   final List<AlarmScheduleEntry> schedule;
+  final AlarmManager? alarmManager;
 
-  /// All four talk to the band or its schedule and all throw when it is not
-  /// connected — the screen reports the failure rather than pretending it
-  /// worked.
   final Future<void> Function(int weekday, bool enabled)? onToggleDay;
-  final Future<void> Function(int weekday, int hour, int minute)?
-      onSetDayTime;
+  final Future<void> Function(int weekday, int hour, int minute)? onSetDayTime;
   final Future<void> Function(int weekday, int minutes)? onSetSmartWindow;
   final Future<void> Function()? onTest, onCancel;
 
@@ -241,6 +193,7 @@ class AlarmScreenView extends StatelessWidget {
     this.firedAt,
     this.now,
     this.schedule = const [],
+    this.alarmManager,
     this.onToggleDay,
     this.onSetDayTime,
     this.onSetSmartWindow,
@@ -249,219 +202,8 @@ class AlarmScreenView extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    final l = AppLocalizations.of(c);
-    final at = armedAt;
-    final fired = firedAt;
-    final anyDayEnabled = schedule.any((d) => d.enabled);
-    return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: S.x4),
-            child: NavBar(l?.alarmNavTitle ?? 'Alarm',
-                sub: l?.alarmNavSub ?? 'Wakes you on the band, not the phone'),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
-              children: [
-                if (fired != null &&
-                    calendarDaysBetween(fired, now ?? DateTime.now()) == 0) ...[
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Pill(
-                        l?.alarmFiredAt(_hhmm(fired)) ??
-                            'Fired at ${_hhmm(fired)}', C.green,
-                        icon: LucideIcons.alarmClockCheck),
-                  ),
-                  const SizedBox(height: S.x3),
-                ],
-                if (at != null) ...[
-                  Surface(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(l?.alarmNextLabel ?? 'NEXT',
-                              style: F.over.copyWith(color: p.ink3)),
-                          const SizedBox(height: S.x1),
-                          Text(_dayAndTime(c, at),
-                              style: F.n48.copyWith(color: p.ink)),
-                          Text(_whichDay(c, at, now ?? DateTime.now()),
-                              style: F.cap.copyWith(color: p.ink2)),
-                          const SizedBox(height: S.x3),
-                          Pill(_localizedStateLabel(c, state), _stateColor(state),
-                              icon: _stateIcon(state)),
-                        ]),
-                  ),
-                  if (_stateDetail(c, state) case final detail?) ...[
-                    const SizedBox(height: S.x3),
-                    StatusCard(_stateHeadline(c, state), detail,
-                        icon: _stateIcon(state)),
-                  ],
-                  const SizedBox(height: S.x4),
-                ],
-                if (!connected)
-                  StatusCard(
-                    l?.alarmNotConnectedTitle ?? 'The band is not connected',
-                    l?.alarmNotConnectedBody ??
-                        'Changing, testing or cancelling the alarm needs a live connection. An alarm that is already set still works; it lives on the band.',
-                    icon: LucideIcons.bluetoothOff,
-                  )
-                else ...[
-                  settingsGroup(c, l?.alarmScheduleGroup ?? 'Weekly schedule', [
-                    for (final day in schedule) ...[
-                      SetRow(
-                          LucideIcons.calendarDays,
-                          C.orange,
-                          _weekdayLabel(c, day.weekday),
-                          value: day.enabled
-                              ? (l?.stateOn ?? 'On')
-                              : (l?.stateOff ?? 'Off'),
-                          chevron: false,
-                          onTap: () =>
-                              onToggleDay?.call(day.weekday, !day.enabled)),
-                      if (day.enabled) ...[
-                        SetRow(LucideIcons.clock, C.blue,
-                            l?.alarmWakeTimeRowTitle ?? 'Wake time',
-                            value: _hhmmOf(day.hour, day.minute),
-                            chevron: false,
-                            onTap: () => _pickDayTime(c, day)),
-                        SetRow(LucideIcons.moon, C.purple, 'Smart wake',
-                            value: day.smartWindowMinutes == 0
-                                ? (l?.stateOff ?? 'Off')
-                                : '${day.smartWindowMinutes} min early',
-                            chevron: false,
-                            onTap: () => _pickSmartWindow(c, day)),
-                      ],
-                    ],
-                  ]),
-                  const SizedBox(height: S.x3),
-                  if (at != null) ...[
-                    BigButton(l?.alarmTestTheBuzz ?? 'Test the buzz',
-                        icon: LucideIcons.vibrate,
-                        color: C.blue,
-                        soft: true,
-                        onTap: () => _run(
-                            c, onTest, l?.alarmBuzzingTheBand ?? 'Buzzing the band')),
-                    const SizedBox(height: S.x3),
-                  ],
-                  if (at != null || anyDayEnabled)
-                    BigButton(l?.alarmCancelTheAlarm ?? 'Cancel the alarm',
-                        icon: LucideIcons.bellOff,
-                        color: C.red,
-                        soft: true,
-                        onTap: () => _run(
-                            c, onCancel, l?.alarmCancelled ?? 'Alarm cancelled')),
-                ],
-              ],
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
+  State<AlarmScreenView> createState() => _AlarmScreenViewState();
 
-  Future<void> _pickDayTime(BuildContext c, AlarmScheduleEntry day) async {
-    final picked = await showTimePicker(
-      context: c,
-      initialTime: TimeOfDay(hour: day.hour, minute: day.minute),
-    );
-    if (picked == null || !c.mounted) return;
-    await _run(
-        c,
-        () => onSetDayTime!(day.weekday, picked.hour, picked.minute),
-        AppLocalizations.of(c)?.alarmSentToBand ?? 'Alarm sent to the band');
-  }
-
-  /// Off, or how many minutes before [day]'s wake time the band may buzz
-  /// early once light sleep is detected. Capped at 45 min — the standard
-  /// window size other wearables with this feature use — and [day]'s
-  /// hour:minute NEVER changes: it stays the hard fallback, armed on the
-  /// band exactly as before.
-  Future<void> _pickSmartWindow(BuildContext c, AlarmScheduleEntry day) async {
-    final picked = await showDialog<int>(
-      context: c,
-      builder: (ctx) => SimpleDialog(
-        title: Text(uiText(ctx, 'Smart wake window')),
-        children: [0, 15, 30, 45]
-            .map(
-              (m) => SimpleDialogOption(
-                onPressed: () => Navigator.pop(ctx, m),
-                child: Text(
-                  m == 0
-                      ? uiText(ctx, 'Off')
-                      : AppLocalizations.of(
-                              ctx,
-                            )?.supplementSmartWindowMinutes(m) ??
-                            '$m min before wake time',
-                ),
-              ),
-            )
-            .toList(),
-      ),
-    );
-    if (picked == null || !c.mounted) return;
-    await _run(
-      c,
-      () => onSetSmartWindow!(day.weekday, picked),
-      picked == 0
-          ? uiText(c, 'Smart wake off')
-          : uiText(
-              c,
-              'Smart wake on — the band still buzzes at the wake time either way',
-            ),
-    );
-  }
-
-  /// Run a band/schedule write and report what happened. Every one of these
-  /// throws when the band is not connected, and silence would read as success.
-  static Future<void> _run(
-      BuildContext c, Future<void> Function()? action, String ok) async {
-    if (action == null) return;
-    try {
-      await action();
-      if (c.mounted) _say(c, ok);
-    } catch (e) {
-      if (c.mounted) _say(c, '$e'.replaceFirst('Exception: ', ''));
-    }
-  }
-
-  static void _say(BuildContext c, String msg) =>
-      ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(msg)));
-
-  static String _hhmm(DateTime d) => _hhmmOf(d.hour, d.minute);
-
-  static String _hhmmOf(int hour, int minute) => formatClock(hour, minute);
-
-  /// "Tue 07:30" — the weekday plus the time, both from the ARMED instant
-  /// (not merely from the schedule row), so this never claims a day the band
-  /// hasn't actually latched yet.
-  static String _dayAndTime(BuildContext c, DateTime at) =>
-      '${weekdayShortName(at.weekday, AppLocalizations.of(c))} ${_hhmm(at)}';
-
-  /// Short weekday label for a schedule row. [weekday] is the 0=Mon..6=Sun
-  /// convention `AlarmScheduleEntry` uses; `weekdayShortName` wants
-  /// `DateTime.weekday` (1=Mon..7=Sun), hence the `+ 1`.
-  static String _weekdayLabel(BuildContext c, int weekday) =>
-      weekdayShortName(weekday + 1, AppLocalizations.of(c));
-
-  static String _whichDay(BuildContext c, DateTime d, DateTime now) {
-    final l = AppLocalizations.of(c);
-    final days = calendarDaysBetween(now, d);
-    if (days < 0) {
-      return l?.alarmInThePast ??
-          'In the past — it has already fired or been missed';
-    }
-    if (days == 0) return l?.alarmLaterToday ?? 'Later today';
-    if (days == 1) return l?.alarmTomorrow ?? 'Tomorrow';
-    return l?.alarmInDays(days) ?? 'In $days days';
-  }
-
-  // Kept context-free and @visibleForTesting: the arm-state contract this
-  // guards ("only `confirmed` may claim it") is tested without a widget tree.
   @visibleForTesting
   static String stateLabel(AlarmArmState s) => switch (s) {
         AlarmArmState.confirmed => 'Confirmed',
@@ -494,30 +236,545 @@ class AlarmScreenView extends StatelessWidget {
         AlarmArmState.none => LucideIcons.alarmClock,
       };
 
-  static String _stateHeadline(BuildContext c, AlarmArmState s) {
+  static String _hhmm(DateTime d) => _hhmmOf(d.hour, d.minute);
+
+  static String _hhmmOf(int hour, int minute) => formatClock(hour, minute);
+
+  static String _dayAndTime(BuildContext c, DateTime at) =>
+      '${weekdayShortName(at.weekday, AppLocalizations.of(c))} ${_hhmm(at)}';
+
+  static String _whichDay(BuildContext c, DateTime d, DateTime now) {
     final l = AppLocalizations.of(c);
-    return switch (s) {
-      AlarmArmState.confirmed =>
-        l?.alarmHeadlineConfirmed ?? 'The band has this alarm',
-      AlarmArmState.pending =>
-        l?.alarmHeadlinePending ?? 'Sent — waiting for the band to confirm',
-      AlarmArmState.unknown =>
-        l?.alarmHeadlineUnknown ?? 'We cannot tell whether this will fire',
-      AlarmArmState.none => l?.alarmHeadlineNone ?? 'No alarm is set',
-    };
+    final days = calendarDaysBetween(now, d);
+    if (days < 0) {
+      return l?.alarmInThePast ??
+          'In the past — it has already fired or been missed';
+    }
+    if (days == 0) return l?.alarmLaterToday ?? 'Later today';
+    if (days == 1) return l?.alarmTomorrow ?? 'Tomorrow';
+    return l?.alarmInDays(days) ?? 'In $days days';
+  }
+}
+
+class _AlarmScreenViewState extends State<AlarmScreenView> {
+  String _timeUntilNext(DateTime? at, DateTime now) {
+    if (at == null) return 'No alarm set';
+    final diff = at.difference(now);
+    if (diff.isNegative) return 'Alarm passed';
+    final hours = diff.inHours;
+    final minutes = diff.inMinutes % 60;
+    if (hours == 0) {
+      return 'Next alarm in $minutes minutes';
+    }
+    return 'Next alarm in $hours hours $minutes minutes';
   }
 
-  static String? _stateDetail(BuildContext c, AlarmArmState s) {
+  Future<void> _editAlarm(BuildContext context, AlarmItem alarm) async {
+    final mgr = widget.alarmManager;
+    if (mgr == null) return;
+
+    TimeOfDay pickedTime = TimeOfDay(hour: alarm.hour, minute: alarm.minute);
+    Set<int> selectedDays = Set.from(alarm.days);
+    final labelCtrl = TextEditingController(text: alarm.label);
+    int smartMin = alarm.smartWindowMinutes;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final p = P.of(ctx);
+          return Container(
+            decoration: BoxDecoration(
+              color: p.card,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: EdgeInsets.fromLTRB(
+              S.x4,
+              S.x4,
+              S.x4,
+              MediaQuery.of(ctx).viewInsets.bottom + S.x6,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: p.ink3.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: S.x4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Edit Alarm', style: F.n24.copyWith(color: p.ink)),
+                      IconButton(
+                        icon: const Icon(LucideIcons.trash2, color: C.red),
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          await mgr.deleteAlarm(alarm.id);
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: S.x3),
+                  // Time Picker Display
+                  Center(
+                    child: GestureDetector(
+                      onTap: () async {
+                        final t = await showTimePicker(
+                          context: ctx,
+                          initialTime: pickedTime,
+                        );
+                        if (t != null) {
+                          setSheetState(() => pickedTime = t);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: S.x6, vertical: S.x4),
+                        decoration: BoxDecoration(
+                          color: p.wash(C.blue),
+                          borderRadius: R.rMd,
+                        ),
+                        child: Text(
+                          formatClock(pickedTime.hour, pickedTime.minute),
+                          style: F.n48.copyWith(
+                            color: C.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: S.x4),
+                  // Recurrence preset chips
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildPresetChip(
+                          'Ring once',
+                          selectedDays.isEmpty,
+                          () => setSheetState(() => selectedDays.clear()),
+                          p,
+                        ),
+                        const SizedBox(width: S.x2),
+                        _buildPresetChip(
+                          'Weekdays',
+                          selectedDays.length == 5 &&
+                              !selectedDays.contains(6) &&
+                              !selectedDays.contains(7),
+                          () => setSheetState(
+                              () => selectedDays = {1, 2, 3, 4, 5}),
+                          p,
+                        ),
+                        const SizedBox(width: S.x2),
+                        _buildPresetChip(
+                          'Every day',
+                          selectedDays.length == 7,
+                          () => setSheetState(
+                              () => selectedDays = {1, 2, 3, 4, 5, 6, 7}),
+                          p,
+                        ),
+                        const SizedBox(width: S.x2),
+                        _buildPresetChip(
+                          'Custom',
+                          selectedDays.isNotEmpty &&
+                              selectedDays.length != 5 &&
+                              selectedDays.length != 7,
+                          null,
+                          p,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: S.x4),
+                  // Day circles row: S M T W T F S
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildDayCircle(7, 'S', selectedDays, setSheetState, p),
+                      _buildDayCircle(1, 'M', selectedDays, setSheetState, p),
+                      _buildDayCircle(2, 'T', selectedDays, setSheetState, p),
+                      _buildDayCircle(3, 'W', selectedDays, setSheetState, p),
+                      _buildDayCircle(4, 'T', selectedDays, setSheetState, p),
+                      _buildDayCircle(5, 'F', selectedDays, setSheetState, p),
+                      _buildDayCircle(6, 'S', selectedDays, setSheetState, p),
+                    ],
+                  ),
+                  const SizedBox(height: S.x4),
+                  OsTextField(
+                    controller: labelCtrl,
+                    label: 'Alarm Label',
+                    hint: 'Wake up',
+                  ),
+                  const SizedBox(height: S.x4),
+                  // Smart wake option
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Smart wake early window',
+                              style: F.body.copyWith(
+                                  fontWeight: FontWeight.w600, color: p.ink)),
+                          Text('Buzzes during light sleep',
+                              style: F.cap.copyWith(color: p.ink3)),
+                        ],
+                      ),
+                      DropdownButton<int>(
+                        value: smartMin,
+                        underline: const SizedBox.shrink(),
+                        items: const [
+                          DropdownMenuItem(value: 0, child: Text('Off')),
+                          DropdownMenuItem(value: 15, child: Text('15 min early')),
+                          DropdownMenuItem(value: 30, child: Text('30 min early')),
+                          DropdownMenuItem(value: 45, child: Text('45 min early')),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setSheetState(() => smartMin = v);
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: S.x6),
+                  BigButton(
+                    'Save Alarm',
+                    icon: LucideIcons.check,
+                    color: C.blue,
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      final updated = alarm.copyWith(
+                        hour: pickedTime.hour,
+                        minute: pickedTime.minute,
+                        label: labelCtrl.text.trim().isNotEmpty
+                            ? labelCtrl.text.trim()
+                            : 'Alarm',
+                        days: selectedDays,
+                        smartWindowMinutes: smartMin,
+                      );
+                      await mgr.updateAlarm(updated);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPresetChip(
+      String label, bool selected, VoidCallback? onTap, P p) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x2),
+        decoration: BoxDecoration(
+          color: selected ? C.blue : p.wash(p.ink3),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: F.cap.copyWith(
+            color: selected ? Colors.white : p.ink,
+            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDayCircle(
+      int dayNumber, String label, Set<int> days, StateSetter setSheetState, P p) {
+    final active = days.contains(dayNumber);
+    return GestureDetector(
+      onTap: () {
+        setSheetState(() {
+          if (active) {
+            days.remove(dayNumber);
+          } else {
+            days.add(dayNumber);
+          }
+        });
+      },
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: active ? C.blue : p.wash(p.ink3),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: F.cap.copyWith(
+            color: active ? Colors.white : p.ink2,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _createNewAlarm(BuildContext context) async {
+    final mgr = widget.alarmManager;
+    if (mgr == null) return;
+    final newAlarm = AlarmItem(
+      id: 'alarm_${DateTime.now().millisecondsSinceEpoch}',
+      hour: 7,
+      minute: 0,
+      label: 'Wake up',
+      enabled: true,
+      days: {1, 2, 3, 4, 5},
+    );
+    await mgr.addAlarm(newAlarm);
+    if (context.mounted) {
+      await _editAlarm(context, newAlarm);
+    }
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
     final l = AppLocalizations.of(c);
-    return switch (s) {
-      AlarmArmState.confirmed => l?.alarmDetailConfirmed ??
-          'The band reported that it latched the alarm.',
-      AlarmArmState.pending => l?.alarmDetailPending ??
-          'The write reached the band. Its confirmation usually arrives within '
-              'a few seconds.',
-      AlarmArmState.unknown => l?.alarmDetailUnknown ??
-          'This is the time the app last sent, but the band never confirmed it. Set it again while connected if you need to be sure.',
-      AlarmArmState.none => null,
-    };
+    final at = widget.armedAt;
+    final fired = widget.firedAt;
+    final now = widget.now ?? DateTime.now();
+    final mgr = widget.alarmManager;
+    final alarms = mgr?.alarms ?? const [];
+
+    return Scaffold(
+      backgroundColor: p.bg,
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: C.blue,
+        foregroundColor: Colors.white,
+        shape: const CircleBorder(),
+        onPressed: () => _createNewAlarm(c),
+        child: const Icon(LucideIcons.plus, size: 28),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: S.x4),
+              child: NavBar(
+                l?.alarmNavTitle ?? 'Alarm',
+                sub: _timeUntilNext(at, now),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, 90),
+                children: [
+                  if (fired != null &&
+                      calendarDaysBetween(fired, now) == 0) ...[
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Pill(
+                          l?.alarmFiredAt(AlarmScreenView._hhmm(fired)) ??
+                              'Fired at ${AlarmScreenView._hhmm(fired)}',
+                          C.green,
+                          icon: LucideIcons.alarmClockCheck),
+                    ),
+                    const SizedBox(height: S.x3),
+                  ],
+
+                  // Sync with System Alarms toggle card
+                  Surface(
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: p.wash(C.blue),
+                          child: const Icon(LucideIcons.smartphone,
+                              color: C.blue, size: 20),
+                        ),
+                        const SizedBox(width: S.x3),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Sync with system alarms',
+                                style: F.body.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: p.ink,
+                                ),
+                              ),
+                              Text(
+                                mgr?.syncSystem == true &&
+                                        mgr?.systemAlarmTime != null
+                                    ? 'Next: ${AlarmScreenView._hhmm(mgr!.systemAlarmTime!)}'
+                                    : 'Auto-sync from your phone\'s Clock app',
+                                style: F.cap.copyWith(color: p.ink3),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch.adaptive(
+                          value: mgr?.syncSystem ?? false,
+                          activeTrackColor: C.blue,
+                          onChanged: (val) => mgr?.setSyncSystem(val),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: S.x4),
+
+                  // Alarms List (Screenshot 2 style)
+                  if (alarms.isNotEmpty) ...[
+                    for (final alarm in alarms) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: S.x3),
+                        child: Surface(
+                          elevation: 0,
+                          onTap: () => _editAlarm(c, alarm),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      formatClock(alarm.hour, alarm.minute),
+                                      style: F.n48.copyWith(
+                                        color: alarm.enabled
+                                            ? p.ink
+                                            : p.ink3.withValues(alpha: 0.5),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: S.x1),
+                                    Text(
+                                      '${alarm.repeatSummary()} | ${alarm.label}',
+                                      style: F.cap.copyWith(
+                                        color: alarm.enabled
+                                            ? p.ink2
+                                            : p.ink3.withValues(alpha: 0.5),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Switch.adaptive(
+                                value: alarm.enabled,
+                                activeTrackColor: C.blue,
+                                onChanged: (v) =>
+                                    mgr?.toggleAlarm(alarm.id, v),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ] else ...[
+                    StatusCard(
+                      'No Alarms Created',
+                      'Tap the + button below to create your first alarm.',
+                      icon: LucideIcons.alarmClock,
+                    ),
+                    const SizedBox(height: S.x4),
+                  ],
+
+                  // Strap Armed Status Card
+                  if (at != null) ...[
+                    const SizedBox(height: S.x2),
+                    Surface(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(l?.alarmNextLabel ?? 'ARMED ON STRAP',
+                                  style: F.over.copyWith(color: p.ink3)),
+                              Pill(
+                                AlarmScreenView._localizedStateLabel(c, widget.state),
+                                AlarmScreenView._stateColor(widget.state),
+                                icon: AlarmScreenView._stateIcon(widget.state),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: S.x2),
+                          Text(AlarmScreenView._dayAndTime(c, at),
+                              style: F.n24.copyWith(color: p.ink)),
+                          Text(
+                              AlarmScreenView._whichDay(
+                                  c, at, widget.now ?? DateTime.now()),
+                              style: F.cap.copyWith(color: p.ink2)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: S.x4),
+                  ],
+
+                  if (!widget.connected)
+                    StatusCard(
+                      l?.alarmNotConnectedTitle ?? 'The band is not connected',
+                      l?.alarmNotConnectedBody ??
+                          'Changing, testing or cancelling the alarm needs a live connection. An alarm that is already set still works; it lives on the band.',
+                      icon: LucideIcons.bluetoothOff,
+                    )
+                  else ...[
+                    if (at != null) ...[
+                      BigButton(
+                        l?.alarmTestTheBuzz ?? 'Test the buzz',
+                        icon: LucideIcons.vibrate,
+                        color: C.blue,
+                        soft: true,
+                        onTap: () => _runAction(
+                            c,
+                            widget.onTest,
+                            l?.alarmBuzzingTheBand ?? 'Buzzing the band'),
+                      ),
+                      const SizedBox(height: S.x3),
+                    ],
+                    if (at != null || alarms.any((a) => a.enabled))
+                      BigButton(
+                        l?.alarmCancelTheAlarm ?? 'Cancel the alarm',
+                        icon: LucideIcons.bellOff,
+                        color: C.red,
+                        soft: true,
+                        onTap: () => _runAction(
+                            c,
+                            widget.onCancel,
+                            l?.alarmCancelled ?? 'Alarm cancelled'),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Future<void> _runAction(
+      BuildContext c, Future<void> Function()? action, String ok) async {
+    if (action == null) return;
+    try {
+      await action();
+      if (c.mounted) {
+        ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(ok)));
+      }
+    } catch (e) {
+      if (c.mounted) {
+        ScaffoldMessenger.of(c).showSnackBar(
+            SnackBar(content: Text('$e'.replaceFirst('Exception: ', ''))));
+      }
+    }
   }
 }

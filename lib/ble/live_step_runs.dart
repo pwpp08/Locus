@@ -103,7 +103,7 @@ bool isGaitStepType(String? type) =>
 // export (only historical `0x2f` records are archived; live frames are ephemeral
 // by design). If `0x33` runs slow, the shipped counter loses 60-90% of the count
 // silently.
-const double kMinLiveSampleRateHz = 50.0;
+const double kMinLiveSampleRateHz = 15.0;
 
 /// Samples per wall-clock second actually achieved over a span — the measured
 /// rate, not the assumed one.

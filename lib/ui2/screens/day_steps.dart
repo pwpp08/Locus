@@ -38,6 +38,7 @@ import '../../models/metric.dart' show whyFromNote;
 import '../activity/catalogue.dart' show activityByName;
 import '../profile/devices.dart' show bandLabelFor;
 import '../ui2.dart';
+import 'step_calibration_screen.dart';
 import 'home_screen.dart' show clockOfTs, prettyDay, repoOf, thousands;
 import 'metric_detail.dart'
     show dayNavLabel, dayNavRow, detailScaffold, pickDay;
@@ -309,6 +310,47 @@ class _DayStepsDetailState extends State<DayStepsDetail> {
         _chart(c, p, d),
         Section(l?.dayStepsThroughDay ?? 'Through the day', _rows(c, p, d)),
       ],
+      const SizedBox(height: S.x4),
+      Surface(
+        child: Padding(
+          padding: const EdgeInsets.all(S.x4),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: C.teal.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(LucideIcons.footprints, color: C.teal, size: 20),
+              ),
+              const SizedBox(width: S.x3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Step counter calibration',
+                      style: F.head.copyWith(color: p.ink),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Calibrate Whoop vs watch with a guided 1000-step walk test',
+                      style: F.cap.copyWith(color: p.ink3),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: S.x2),
+              OutlinedButton(
+                onPressed: () => Navigator.of(c).push(MaterialPageRoute(builder: (_) => const StepCalibrationScreen())),
+                child: const Text('Calibrate'),
+              ),
+            ],
+          ),
+        ),
+      ),
     ]);
   }
 

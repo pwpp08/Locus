@@ -37,6 +37,7 @@ object NativeChannels {
     private const val DEVICE_ACTIONS_CHANNEL = "openstrap/device_actions"
     private const val ANDROID_BG_CHANNEL = "openstrap/android_background"
     private const val BLE_NATIVE_CHANNEL = "openstrap/ble_native"
+    private const val SYSTEM_ALARM_CHANNEL = "openstrap/system_alarm"
     const val TASKER_CHANNEL = "openstrap/tasker"
     const val ACTION_DOUBLE_TAP = "wtf.openstrap.openstrap_edge.DOUBLE_TAP"
     private const val TASKER_TOKEN_KEY = "tasker_auth_token"
@@ -205,6 +206,31 @@ object NativeChannels {
         // BroadcastReceiver wrote. Dart must go through this channel instead
         // of SharedPreferences.getInstance() to see/clear the pending buzz, or
         // to read the per-install auth token TaskerReceiver requires.
+        MethodChannel(engine.dartExecutor.binaryMessenger, SYSTEM_ALARM_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getNextAlarmClock" -> {
+                        try {
+                            val alarmManager = app.getSystemService(Context.ALARM_SERVICE) as? android.app.AlarmManager
+                            val next = alarmManager?.nextAlarmClock
+                            if (next != null) {
+                                result.success(
+                                    mapOf(
+                                        "triggerTime" to next.triggerTime,
+                                        "package" to (next.showIntent?.creatorPackage ?: "")
+                                    )
+                                )
+                            } else {
+                                result.success(null)
+                            }
+                        } catch (e: Exception) {
+                            result.error("ALARM_ERROR", e.message, null)
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
         MethodChannel(engine.dartExecutor.binaryMessenger, TASKER_CHANNEL)
             .setMethodCallHandler { call, result ->
                 val prefs = app.getSharedPreferences("openstrap_runtime", Context.MODE_PRIVATE)
