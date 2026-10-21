@@ -92,7 +92,7 @@ jobs:
         with:
           persist-credentials: false   # nothing here writes to the repo
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
