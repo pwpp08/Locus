@@ -10,18 +10,15 @@ import '../../l10n/display_text.dart';
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:provider/provider.dart';
 
 import '../../compute/findings.dart';
 import '../../data/day_label.dart';
 import '../../data/db.dart';
 import '../../data/lab_catalogue.dart';
 import '../../data/local_repository.dart';
-import '../../import/journal_csv_import.dart' show isValidDayLabel;
 import '../../l10n/app_localizations.dart';
 import '../../models/metric.dart';
 import '../../models/payloads.dart' show todayHeadlineOf;
-import '../../state/app_state.dart';
 import '../profile/profile.dart' show ProfileAvatar;
 import '../profile/wearable_numbers.dart'
     show WearableCells, kHealthWearableRows;
@@ -507,7 +504,6 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
 
   HealthData? _d;
   VitalsData? _v;
-  LabsData? _l;
   ExploreData? _e;
   bool _loading = true;
 
@@ -516,7 +512,6 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
     super.initState();
     _d = widget.data;
     _v = widget.vitals;
-    _l = widget.labs;
     _e = widget.explore;
     if (widget.data != null) {
       _loading = false;
@@ -543,10 +538,6 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
   void reload() {
     _load();
     if (hasRead(#vitals)) _loadVitals(force: true);
-    if (hasRead(#labs)) {
-      _l = null;
-      _loadLabs();
-    }
     if (hasRead(#explore)) {
       _e = null;
       _loadExplore();
@@ -572,7 +563,7 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
   /// spinner, so swallowing the error left the tab spinning silently for as
   /// long as the user stayed on it — there was no absent state on that path at
   /// all, whatever the old comment here said.
-  bool _vFailed = false, _lFailed = false, _eFailed = false;
+  bool _vFailed = false, _eFailed = false;
 
   /// The day the Vitals tab is showing, once the user has steered off the
   /// default. Null means "whatever the loader resolves", which is today.
@@ -595,17 +586,6 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
   void _goVitalsDay(String day) {
     setState(() => _vDay = day);
     _loadVitals(force: true);
-  }
-
-  Future<void> _loadLabs() async {
-    if (_l != null) return;
-    final t = beginRead(#labs);
-    try {
-      final l = await LabsData.load();
-      if (stillNewest(#labs, t)) setState(() => (_l = l, _lFailed = false));
-    } catch (_) {
-      if (stillNewest(#labs, t)) setState(() => _lFailed = true);
-    }
   }
 
   /// The one card both failed reads render. Not "nothing logged yet" — a read
@@ -1409,412 +1389,4 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
     );
   }
 
-  // ─────────────── LABS ───────────────
-  Widget _labs(BuildContext c) {
-    final p = P.of(c);
-    final loc = AppLocalizations.of(c);
-    final l = _l;
-    if (l == null) {
-      return _lFailed
-          ? _readFailed(loc?.healthWhatLabResults ?? 'lab results', () {
-              setState(() => _lFailed = false);
-              _loadLabs();
-            })
-          : const Padding(
-              padding: EdgeInsets.only(top: S.x8),
-              child: Center(child: CircularProgressIndicator()),
-            );
-    }
-
-    final sex = (_d?.profile['sex'])?.toString();
-    // Newest draw per marker. `labResults` is already taken_on DESC.
-    final latest = <String, Map<String, dynamic>>{};
-    for (final r in l.results) {
-      latest.putIfAbsent(r['marker'].toString(), () => r);
-    }
-    final byKey = {for (final m in l.markers) m.key: m};
-    // A stored result with no number is not a measurement — it is dropped, the
-    // way MonoTable drops an empty row. A bare em-dash in a lab column reads as
-    // "the assay failed", which is a claim about your blood.
-    final rows = latest.values.where((r) => r['value'] is num).toList()
-      ..sort((a, b) => (byKey[a['marker']]?.label ?? '')
-          .compareTo(byKey[b['marker']]?.label ?? ''));
-    final lastDraw = l.results.isEmpty ? null : l.results.first['taken_on'];
-    // Markers the user named themselves — the only ones whose DEFINITION is
-    // theirs to remove. A catalogue marker is the app's and stays.
-    final mine = l.markers.where((m) => m.custom).toList();
-    final counts = <String, int>{};
-    for (final r in l.results) {
-      final k = r['marker'].toString();
-      counts[k] = (counts[k] ?? 0) + 1;
-    }
-
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      if (rows.isEmpty)
-        StatusCard(
-          loc?.healthNoLabResults ?? 'No lab results',
-          loc?.healthNoLabResultsBody ??
-              'Nothing logged. Anything you add here stays on this device, '
-                  'and anything you remove is gone from it.',
-          icon: LucideIcons.testTube,
-        )
-      else ...[
-        Surface(
-          pad: const EdgeInsets.symmetric(horizontal: S.x4),
-          child: Column(children: [
-            for (var i = 0; i < rows.length; i++) ...[
-              if (i > 0) Divider(color: p.line, height: 1),
-              _lab(p, byKey[rows[i]['marker'].toString()], rows[i], sex,
-                  () => _removeResult(byKey[rows[i]['marker'].toString()],
-                      rows[i], l)),
-            ],
-          ]),
-        ),
-        const SizedBox(height: S.x3),
-        Text(
-            loc?.healthLastPanel(lastDraw?.toString() ?? '') ??
-                'Last panel ${lastDraw ?? ''} · logged by hand',
-            style: F.over.copyWith(color: p.ink3)),
-      ],
-      if (mine.isNotEmpty) _myMarkers(p, mine, counts),
-      const SizedBox(height: S.x4),
-      BigButton(loc?.healthAddAResult ?? 'Add a result',
-          icon: LucideIcons.plus,
-          color: C.blue,
-          soft: true,
-          onTap: () => _addLab(c, l)),
-      const SizedBox(height: S.x4),
-      // The app never prints "abnormal" anywhere, so it does not need to say
-      // it does not. What the user cannot know without being told is that the
-      // range shown here is not the range their own lab used.
-      Text(loc?.healthRangesDifferByLab ??
-              'Ranges differ by lab. Use the one on your report.',
-          style: F.over.copyWith(color: p.ink3, height: 1.6)),
-    ]);
-  }
-
-  String _markerName(LabMarker? m, String fallback) => m == null
-      ? fallback
-      : m.custom
-      ? m.label
-      : uiText(context, m.label);
-
-  Widget _lab(P p, LabMarker? m, Map<String, dynamic> r, String? sex,
-      VoidCallback onRemove) {
-    final l = AppLocalizations.of(context);
-    final v = (r['value'] as num?)?.toDouble();
-    final unit = (r['unit'] ?? m?.unit ?? '').toString();
-    final range = m?.rangeFor(sex);
-    final inRange = v == null || m == null ? null : m.inRange(v, sex: sex);
-
-    // The whole row is the control, with the bin as its affordance — the same
-    // shape a logged meal takes, and it costs no width, which at 3x text is
-    // the difference between a row that fits and one that overflows.
-    return Pressable(
-      onTap: onRemove,
-      semanticLabel:
-          l?.healthRemoveMarkerFrom(
-            _markerName(m, r['marker'].toString()),
-            r['taken_on'].toString(),
-          ) ??
-          'Remove ${m?.label ?? r['marker']} from ${r['taken_on']}',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: S.x3),
-        child: Row(children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(
-              // No interval means NO OPINION — a grey dot, never a green one.
-              color: inRange == null
-                  ? p.ink3
-                  : (inRange ? p.on(C.green) : p.on(C.orange)),
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: S.x3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _markerName(m, r['marker'].toString()),
-                    style: F.body.copyWith(color: p.ink),
-                  ),
-              Text(
-                  range == null
-                      ? (l?.healthNoReferenceInterval(r['taken_on'].toString()) ??
-                          'No reference interval · ${r['taken_on']}')
-                      : (l?.healthTypicalRange(_num(range.low), _num(range.high),
-                              r['taken_on'].toString()) ??
-                          'Typical ${_num(range.low)}–${_num(range.high)} · '
-                              '${r['taken_on']}'),
-                  style: F.over.copyWith(color: p.ink3)),
-            ]),
-          ),
-          const SizedBox(width: S.x2),
-          Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(v == null ? '' : (m?.format(v) ?? v.toString()),
-                    style: F.n17.copyWith(
-                        color: inRange == false ? p.on(C.orange) : p.ink)),
-                const SizedBox(width: 3),
-                Text(unit, style: F.over.copyWith(color: p.ink3)),
-              ]),
-          // This is the user's own blood work in an app that keeps it on their
-          // phone; being able to take it back out is the premise, not a setting.
-          const SizedBox(width: S.x2),
-          Icon(LucideIcons.trash2, size: I.sm, color: p.ink3),
-        ]),
-      ),
-    );
-  }
-
-  /// One reading of one marker on one date. Named in full before it goes:
-  /// there is no undo here, and a generic "are you sure?" over a column of
-  /// blood results is how the wrong one is lost.
-  Future<void> _removeResult(
-      LabMarker? m, Map<String, dynamic> r, LabsData l) async {
-    final loc = AppLocalizations.of(context);
-    final marker = r['marker'].toString();
-    final takenOn = r['taken_on'].toString();
-    final label = _markerName(m, marker);
-    final v = (r['value'] as num).toDouble();
-    final unit = (r['unit'] ?? m?.unit ?? '').toString();
-    // The row on screen is the NEWEST draw of its marker, so an earlier one
-    // takes its place rather than the marker disappearing — which without
-    // being told reads as the delete having failed.
-    final older = l.results.firstWhere(
-      (o) => o['marker'] == marker && o['taken_on'] != takenOn,
-      orElse: () => const <String, dynamic>{},
-    )['taken_on'];
-
-    final ok = await confirmRemove(
-      context,
-      title: loc?.healthRemoveLabelFrom(label, takenOn) ??
-          'Remove $label from $takenOn?',
-      body: (loc?.healthRemoveLabBody(m?.format(v) ?? _num(v), unit) ??
-              'The ${m?.format(v) ?? _num(v)} $unit you logged for that draw. '
-                  'It leaves this device and there is no undo.') +
-          (older == null
-              ? ''
-              : (loc?.healthRemoveLabOlderNote(older) ??
-                  ' Your $older draw stays, and shows here instead.')),
-    );
-    if (!ok || !mounted) return;
-    await LocalDb.deleteLabResult(marker, takenOn);
-    _l = null;
-    await _loadLabs();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(older == null
-          ? (loc?.healthRemovedNoneLeft(label, takenOn) ??
-              'Removed $label from $takenOn. No $label results left.')
-          : (loc?.healthRemovedShowingOlder(label, takenOn, older) ??
-              'Removed $label from $takenOn. Showing your $older draw now.')),
-    ));
-  }
-
-  /// Markers the user named. Only the DEFINITION is theirs to remove here —
-  /// see [_removeMarker] for why one holding results is refused.
-  Widget _myMarkers(P p, List<LabMarker> mine, Map<String, int> counts) {
-    final l = AppLocalizations.of(context);
-    return Section(
-      l?.healthMarkersYouNamed ?? 'Markers you named',
-      Surface(
-        pad: const EdgeInsets.symmetric(horizontal: S.x4),
-        child: Column(children: [
-          for (var i = 0; i < mine.length; i++) ...[
-            if (i > 0) Divider(color: p.line, height: 1),
-            Pressable(
-              semanticLabel: l?.healthRemoveTheMarker(mine[i].label) ??
-                  'Remove the ${mine[i].label} marker',
-              onTap: () => _removeMarker(mine[i], counts[mine[i].key] ?? 0),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: S.x3),
-                child: Row(children: [
-                  Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(mine[i].label,
-                              style: F.body.copyWith(color: p.ink)),
-                          Text(
-                              (counts[mine[i].key] ?? 0) == 0
-                                  ? (l?.healthNothingLoggedUnderIt ??
-                                      'Nothing logged under it')
-                                  : (l?.healthResultsCount(
-                                          counts[mine[i].key] ?? 0,
-                                          mine[i].unit) ??
-                                      '${counts[mine[i].key]} '
-                                          '${(counts[mine[i].key] ?? 0) == 1 ? 'result' : 'results'} · '
-                                          '${mine[i].unit}'),
-                              style: F.over.copyWith(color: p.ink3)),
-                        ]),
-                  ),
-                  const SizedBox(width: S.x2),
-                  Icon(LucideIcons.trash2, size: I.sm, color: p.ink3),
-                ]),
-              ),
-            ),
-          ],
-        ]),
-      ),
-    );
-  }
-
-  /// Removing a marker DEFINITION, which is not the same act as removing its
-  /// readings — `deleteLabMarkerDef` deliberately leaves those alone, because
-  /// they were real draws and each row carries its own unit.
-  ///
-  /// But this screen labels a result THROUGH its marker, so a definition
-  /// deleted out from under one leaves the reading rendering as its raw
-  /// storage key with no interval. Both ways out of that are worse than this
-  /// one: deleting the readings too destroys blood work nobody asked to
-  /// destroy, and keeping them degrades a number this app calls absolute. So
-  /// a marker that still holds results is refused, and says how to proceed —
-  /// the results are one screen up, each removable on its own.
-  Future<void> _removeMarker(LabMarker m, int results) async {
-    final l = AppLocalizations.of(context);
-    if (results > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(l?.healthStillHoldsResults(results, m.label) ??
-            '${m.label} still holds $results '
-                '${results == 1 ? 'result' : 'results'}. Remove those first — '
-                'the marker is what labels them.'),
-      ));
-      return;
-    }
-    final ok = await confirmRemove(
-      context,
-      title: l?.healthRemoveMarkerQ(m.label) ?? 'Remove ${m.label}?',
-      body: l?.healthRemoveMarkerBody ??
-          'It leaves the marker list, so you can no longer log it. Nothing '
-              'measured goes with it — you have no results under it.',
-    );
-    if (!ok || !mounted) return;
-    await LocalDb.deleteLabMarkerDef(m.key);
-    _l = null;
-    await _loadLabs();
-  }
-
-  String _num(double v) =>
-      v == v.roundToDouble() ? v.round().toString() : v.toStringAsFixed(1);
-
-  /// Deliberately plain. Entering blood work is a rare, careful act; it does
-  /// not need a designed flow, it needs the marker, the number and the date.
-  Future<void> _addLab(BuildContext c, LabsData l) async {
-    final loc = AppLocalizations.of(c);
-    var marker = l.markers.first;
-    // Plain strings, not controllers: the fields own theirs, so nothing here
-    // is disposed while the dialog is still animating out.
-    var valueText = '';
-    var takenOnText = todayLabel();
-
-    final ok = await showDialog<bool>(
-      context: c,
-      builder: (dc) => StatefulBuilder(
-        builder: (dc, setLocal) => AppDialog(
-          title: loc?.healthAddAResult ?? 'Add a result',
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Unlabelled it announces only its current value — a marker
-                // name, with no statement of what the field is.
-                Semantics(
-                  label: loc?.healthMarkerLabel ?? 'Marker',
-                  child: DropdownButton<LabMarker>(
-                    isExpanded: true,
-                    value: marker,
-                    items: [
-                      for (final m in l.markers)
-                        DropdownMenuItem(
-                          value: m,
-                          child: Text(_markerName(m, m.label)),
-                        ),
-                    ],
-                    onChanged: (m) => setLocal(() => marker = m ?? marker),
-                  ),
-                ),
-              AppField(
-                onChanged: (s) => valueText = s,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                label: loc?.healthValueUnit(marker.unit) ??
-                        'Value (${marker.unit})',
-              ),
-              AppField(
-                initialValue: takenOnText,
-                onChanged: (s) => takenOnText = s,
-                label: loc?.healthDateDrawn ?? 'Date drawn (YYYY-MM-DD)',
-              ),
-            ]),
-          ),
-          actions: [
-            BigButton(loc?.actionCancel ?? 'Cancel', soft: true, onTap: () => Navigator.of(dc).pop(false)),
-            BigButton(loc?.actionSave ?? 'Save', onTap: () => Navigator.of(dc).pop(true)),
-          ],
-        ),
-      ),
-    );
-
-    if (ok != true || !mounted) return;
-    // Blood work typed by hand is exactly the input nobody notices is missing,
-    // so nothing here fails quietly: the dialog used to close on Save and the
-    // result was dropped whenever the value carried its unit ("78 ng/mL") or
-    // the date was written the other way round.
-    final v = Typed.of(valueText);
-    final date = takenOnText.trim();
-    // Strict, not DateTime.tryParse: that takes '20250101' and rolls
-    // '2026-02-30' into March, and the raw text is the sort key and half the
-    // primary key, so a compact date sorted above every dashed one.
-    // A future draw is refused like the CSV import does: it is a typo far
-    // more often than a real blood test, and as the newest row it would sit
-    // on top of every real result.
-    final error = v.value == null
-        ? (loc?.healthValueMustBeNumber ??
-            'The value needs to be a number on its own, without the unit. '
-                'Nothing was saved.')
-        : !isValidDayLabel(date)
-            ? (loc?.healthDateFormatError ??
-                'The date needs to be YYYY-MM-DD. Nothing was saved.')
-            : date.compareTo(todayLabel()) > 0
-                ? (loc?.healthDateInFuture ??
-                    'That date is after today. Nothing was saved.')
-                : null;
-    if (error != null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error)));
-      return;
-    }
-    try {
-      await LocalDb.putLabResult(
-        marker: marker.key,
-        takenOn: date,
-        value: v.value!,
-        unit: marker.unit,
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(loc?.healthCouldNotSaveIt(e.toString()) ??
-                'Could not save it: $e')));
-      }
-      return;
-    }
-    _l = null;
-    await _loadLabs();
-  }
-}
-
-/// Whether the wellness screen shows its Cycle tab. False where no AppState
-/// is provided (widget tests that build the Health tab on its own).
-bool _cycleTrackingOn(BuildContext c) {
-  try {
-    return c.select<AppState, bool>((a) => a.cycleTrackingEnabled);
-  } on ProviderNotFoundException {
-    return false;
-  }
 }

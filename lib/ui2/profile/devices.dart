@@ -48,26 +48,16 @@ import '../../ble/adapters/_registry.dart'
         BandEntry,
         kBandRegistry,
         kBleHrs,
-        kColmi,
-        kCoros,
-        kGarmin,
-        kMiBand234,
-        kMiScale2,
-        kMiScaleComposition,
-        kOura,
-        kPebble,
         kPolarPmd,
-        kThermometer,
-        kUltrahuman,
         declaredSignals;
 import '../../ble/adapters/signals.dart' show InputSignal, kRankedSignals;
 import '../../ble/colmi_link.dart' show ColmiLink;
 import '../../ble/coros_link.dart' show CorosLink;
 import '../../ble/garmin_link.dart' show GarminLink;
 import '../../ble/hrs_link.dart' show HrsLink, HrsReading;
-import '../../ble/miband_link.dart' show MiBand234Link, pairMiBand234;
+import '../../ble/miband_link.dart' show MiBand234Link;
 import '../../ble/oura_link.dart'
-    show OuraLink, OuraSyncCategory, pairOuraRing;
+    show OuraLink, OuraSyncCategory;
 import '../../ble/pebble_link.dart' show PebbleLink;
 import '../../ble/polar_pmd_link.dart' show PolarPmdLink;
 import '../../ble/session_link.dart' show SessionLink;
