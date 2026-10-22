@@ -3754,7 +3754,7 @@ class AppState extends ChangeNotifier {
           category: NotifCategory.device,
           title: 'Charge your strap before bed',
           body: f.drainPctPerHour != null && f.currentPct != null
-              ? BatteryForecast.smartBedtimeWarning(
+              ? BatteryForecaster.smartBedtimeWarning(
                   currentPct: f.currentPct!,
                   drainPerHour: f.drainPctPerHour!,
                   bedtime: DateTime(now.year, now.month, now.day, prefs.quietStartMin ~/ 60, prefs.quietStartMin % 60),

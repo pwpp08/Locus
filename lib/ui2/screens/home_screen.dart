@@ -2608,11 +2608,12 @@ Widget firstWeekCard(BuildContext c,
 /// once a model was configured, so a new user never learned there was a
 /// coach. Not set up, the chip says what it is for and opens the setup.
 Widget coachChip(BuildContext c) {
-  final ready = coachReady(c);
-  if (!ready) return const SizedBox.shrink(); // AI setup hidden into settings
   final p = P.of(c);
   final l = AppLocalizations.of(c);
-  final text = l?.homeAskCoach ?? 'Ask the coach';
+  final ready = coachReady(c);
+  final text = ready
+      ? (l?.homeAskCoach ?? 'Ask the coach')
+      : (l?.homeCoachSetUpChip ?? 'Ask questions about your data: set up the coach');
   return Align(
     alignment: Alignment.centerLeft,
     child: Pressable(

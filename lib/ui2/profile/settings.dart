@@ -817,18 +817,17 @@ class MoreSettingsView extends StatelessWidget {
                   SetRow(LucideIcons.downloadCloud, C.blue,
                       'Check for updates',
                       sub: 'Check GitHub releases for new versions',
-                      onTap: () => UpdateService.instance.check(context, manual: true)),
+                      onTap: () => UpdateService.instance.check(c, manual: true)),
                   StatefulBuilder(
-                    builder: (context, setSubState) {
+                    builder: (ctx, setSubState) {
                       final auto = Prefs.getBool('auto_check_updates', true);
                       return SetRow(LucideIcons.refreshCw, C.green,
                           'Auto-check on startup',
                           value: auto ? on : off,
                           chevron: false,
-                          onTap: () async {
-                            await Prefs.setBool('auto_check_updates', !auto);
+                          onTap: () {
+                            Prefs.setBool('auto_check_updates', !auto);
                             setSubState(() {});
-                            setState(() {});
                           });
                     },
                   ),

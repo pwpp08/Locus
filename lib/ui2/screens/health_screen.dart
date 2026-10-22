@@ -336,14 +336,7 @@ class LabsData {
 /// is how two screens end up disagreeing about what a metric is called.
 class _CatRow {
   final String key, series, blurb;
-
-  /// Only an import writes this series, so with no history the row is left
-  /// out entirely instead of being listed as not measured yet.
-  final bool importOnly;
-  const _CatRow(this.key, this.series, this.blurb, {this.importOnly = false});
-
-  bool shown(Map<String, int> counts) =>
-      !importOnly || (counts[series] ?? 0) > 0;
+  const _CatRow(this.key, this.series, this.blurb);
 }
 
 class _Cat {
@@ -1283,7 +1276,6 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
     var have = 0, total = 0;
     for (final f in _catalogue) {
       for (final r in f.rows) {
-        if (!r.shown(e.counts)) continue;
         total++;
         if ((e.counts[r.series] ?? 0) > 0) have++;
       }
@@ -1318,7 +1310,7 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
     ];
     final none = [
       for (final r in f.rows)
-        if ((counts[r.series] ?? 0) == 0 && r.shown(counts)) r,
+        if ((counts[r.series] ?? 0) == 0) r,
     ];
 
     return Section(

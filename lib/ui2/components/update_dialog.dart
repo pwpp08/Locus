@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../updater/update_service.dart';
-import '../tokens.dart';
+import '../ui2.dart';
 
 class UpdateDialog extends StatelessWidget {
   final ReleaseInfo release;
@@ -39,7 +39,7 @@ class UpdateDialog extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: p.surface,
+        color: p.card,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border.all(color: p.line, width: 0.5),
       ),
@@ -82,7 +82,7 @@ class UpdateDialog extends StatelessWidget {
                     children: [
                       Text(
                         'New Update Available',
-                        style: F.title.copyWith(color: p.ink),
+                        style: F.t2.copyWith(color: p.ink),
                       ),
                       Text(
                         'v$currentVersion  ➔  ${release.tagName}',
@@ -102,7 +102,7 @@ class UpdateDialog extends StatelessWidget {
             if (release.title.isNotEmpty) ...[
               Text(
                 release.title,
-                style: F.sub.copyWith(
+                style: F.body.copyWith(
                   color: p.ink,
                   fontWeight: FontWeight.w600,
                 ),

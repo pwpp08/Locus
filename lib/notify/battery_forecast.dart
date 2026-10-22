@@ -390,7 +390,7 @@ class BatteryForecaster {
     required double drainPerHour,
   }) {
     final hours = drainPerHour > 0 ? (currentPct / drainPerHour).round() : 24;
-    return '~$hours\h left on your WHOOP - recharge tonight.';
+    return '~$hours' 'h left on your WHOOP - recharge tonight.';
   }
 
   /// Generates contextual notification:

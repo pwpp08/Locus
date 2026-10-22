@@ -1,11 +1,13 @@
 // update_service.dart — checks for and downloads new GitHub releases for Locus.
 
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../ui2/components/update_dialog.dart';
 
 class ReleaseInfo {
   final String tagName;
@@ -247,5 +249,33 @@ class UpdateService extends ChangeNotifier {
       debugPrint('[updater] Failed to launch download URL: $e');
       return false;
     }
+  }
+
+  Future<void> check(BuildContext context, {bool manual = false}) async {
+    final res = await checkForUpdates(force: manual);
+    if (!context.mounted) return;
+    if (res.hasUpdate && res.latestRelease != null) {
+      UpdateDialog.show(
+        context,
+        release: res.latestRelease!,
+        currentVersion: res.currentVersion,
+      );
+    } else if (manual) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            res.error != null
+                ? 'Check failed: ${res.error}'
+                : 'Locus is up to date (v${res.currentVersion})',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> checkOnStartup(BuildContext context) async {
+    final auto = await isAutoCheckEnabled();
+    if (!auto || !context.mounted) return;
+    await check(context, manual: false);
   }
 }

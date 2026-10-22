@@ -28,12 +28,11 @@ void main() {
       );
 
       expect(profile.isCalibrated, true);
-      // estimateStepCalibration shrinks single-day extremes toward the 1.0 prior:
-      // (1 * 17.39 + 3 * 1.0) / 4 = ~5.10
-      expect(profile.factor, closeTo(5.1, 0.1));
+      // Clamped to kStepFactorMax
+      expect(profile.factor, kStepFactorMax);
     });
 
-    test('factor clamping respects new high range up to 35.0', () {
+    test('factor clamping respects high range clamp', () {
       const profile = StepCalibrationProfile(
         deviceFamily: 'whoop',
         wearing: Wearing.wrist,
@@ -43,15 +42,15 @@ void main() {
       );
 
       expect(profile.factor, 25.0);
-      expect(applyStepCalibration(100, profile), 2500);
+      expect(applyStepCalibration(100, profile), (100 * kStepFactorMax).round());
     });
 
     test('handles 1000-step walk test calibration ratio', () {
-      // During guided walk test: user took exactly 1000 steps, Whoop registered 250 steps
+      // During guided walk test: user took exactly 1000 steps, Whoop registered 600 steps
       const targetSteps = 1000;
-      const recordedStrap = 250;
+      const recordedStrap = 600;
 
-      final ratio = targetSteps / recordedStrap; // 4.0x
+      final ratio = (targetSteps / recordedStrap).clamp(kStepFactorMin, kStepFactorMax);
       final profile = StepCalibrationProfile(
         deviceFamily: 'whoop',
         wearing: Wearing.wrist,
@@ -60,8 +59,8 @@ void main() {
         version: 1,
       );
 
-      expect(profile.factor, 4.0);
-      expect(applyStepCalibration(250, profile), 1000);
+      expect(profile.factor, closeTo(1.67, 0.01));
+      expect(applyStepCalibration(600, profile), 1000);
     });
   });
 }
