@@ -63,6 +63,7 @@ import '../../state/clock_format.dart' show formatClockOf;
 import '../../state/units_controller.dart';
 import '../../theme/theme_switcher.dart' show themedRoute;
 import '../activity/day_strain.dart' show DayStrainDetail;
+import 'battery_detail_screen.dart';
 import '../profile/alarm.dart'
     show AlarmArmState, alarmArmOf, alarmDoor, alarmGlanceCard;
 import '../profile/devices.dart' show formatDayTime;
@@ -276,12 +277,20 @@ Widget? batteryLine(BuildContext c) {
   final (pct, charging) = battery;
   final p = P.of(c);
   final color = lowBattery(pct, charging) ? p.on(C.red) : p.ink3;
-  return Row(mainAxisSize: MainAxisSize.min, children: [
-    Icon(charging ? LucideIcons.batteryCharging : LucideIcons.battery,
-        size: I.sm, color: color),
-    const SizedBox(width: 3),
-    Text('${pct.round()}%', style: F.cap.copyWith(color: color)),
-  ]);
+  return GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onTap: () {
+      Navigator.of(c).push(
+        MaterialPageRoute(builder: (_) => const BatteryDetailScreen()),
+      );
+    },
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(charging ? LucideIcons.batteryCharging : LucideIcons.battery,
+          size: I.sm, color: color),
+      const SizedBox(width: 3),
+      Text('${pct.round()}%', style: F.cap.copyWith(color: color)),
+    ]),
+  );
 }
 
 /// The status line as Home renders it, so the loading / failed / bare paths

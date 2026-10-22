@@ -206,8 +206,8 @@ object NativeChannels {
         // BroadcastReceiver wrote. Dart must go through this channel instead
         // of SharedPreferences.getInstance() to see/clear the pending buzz, or
         // to read the per-install auth token TaskerReceiver requires.
-        MethodChannel(engine.dartExecutor.binaryMessenger, SYSTEM_ALARM_CHANNEL)
-            .setMethodCallHandler { call, result ->
+        val alarmChannel = MethodChannel(engine.dartExecutor.binaryMessenger, SYSTEM_ALARM_CHANNEL)
+        alarmChannel.setMethodCallHandler { call, result ->
                 when (call.method) {
                     "getNextAlarmClock" -> {
                         try {
@@ -230,6 +230,20 @@ object NativeChannels {
                     else -> result.notImplemented()
                 }
             }
+
+        val alarmFilter = android.content.IntentFilter(android.app.AlarmManager.ACTION_NEXT_ALARM_CLOCK_CHANGED)
+        val alarmReceiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                Handler(Looper.getMainLooper()).post {
+                    alarmChannel.invokeMethod("onNextAlarmChanged", null)
+                }
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            app.registerReceiver(alarmReceiver, alarmFilter, Context.RECEIVER_EXPORTED)
+        } else {
+            app.registerReceiver(alarmReceiver, alarmFilter)
+        }
 
         MethodChannel(engine.dartExecutor.binaryMessenger, TASKER_CHANNEL)
             .setMethodCallHandler { call, result ->

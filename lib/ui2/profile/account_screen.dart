@@ -1,6 +1,7 @@
 // account_screen.dart — Cloud account login, registration, and data backup/sync.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -71,8 +72,15 @@ class _AccountScreenState extends State<AccountScreen> {
     } catch (e) {
       if (mounted) {
         String msg = '$e'.replaceFirst('Exception: ', '').replaceFirst('ArgumentError: ', '');
-        if (msg.contains('ApiException: 10') || msg.contains('developer_error') || msg.contains('clientConfigurationError')) {
-          msg = 'Google Sign-In requires an OAuth Client ID and SHA-1 fingerprint in Google Cloud Console for wtf.openstrap.openstrap_edge. You can also sign in directly with email below.';
+        if (msg.contains('ApiException: 10') ||
+            msg.contains('developer_error') ||
+            msg.contains('clientConfigurationError') ||
+            msg.contains('authId required') ||
+            msg.contains('serverClientId')) {
+          _showGoogleSetupDialog(
+            initialNotice: 'Google Cloud configuration issue ($msg). Check that SHA-1 matches and OAuth Client ID is authorized for wtf.openstrap.openstrap_edge.',
+          );
+          return;
         }
         setState(() {
           _error = msg;
@@ -81,6 +89,140 @@ class _AccountScreenState extends State<AccountScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _showGoogleSetupDialog({String? initialNotice}) async {
+    final p = P.of(context);
+    final currentClientId = await AccountService.instance.getGoogleServerClientId();
+    final clientIdCtrl = TextEditingController(text: currentClientId);
+
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: p.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: S.x4,
+                right: S.x4,
+                top: S.x5,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + S.x6,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(LucideIcons.keyRound, size: 22, color: C.blue),
+                        const SizedBox(width: S.x2),
+                        Text(
+                          'Google Sign-In Setup',
+                          style: F.t2.copyWith(color: p.ink, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: S.x2),
+                    Text(
+                      'Android Credential Manager requires an OAuth 2.0 Web Client ID to authenticate with Google.',
+                      style: F.body.copyWith(color: p.ink2),
+                    ),
+                    if (initialNotice != null) ...[
+                      const SizedBox(height: S.x3),
+                      StatusCard('Notice', initialNotice, icon: LucideIcons.info),
+                    ],
+                    const SizedBox(height: S.x4),
+                    Text('1. Package Name (for Android Client ID)',
+                        style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: S.x1),
+                    _buildCopyTile(p, 'wtf.openstrap.openstrap_edge'),
+                    const SizedBox(height: S.x3),
+                    Text('2. Release SHA-1 Fingerprint',
+                        style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: S.x1),
+                    _buildCopyTile(p, '24:5D:74:DE:5D:01:72:28:7A:1D:FC:D1:94:69:B6:AD:40:1D:DF:F6'),
+                    const SizedBox(height: S.x4),
+                    Text('3. Web Application Client ID',
+                        style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: S.x1),
+                    OsTextField(
+                      controller: clientIdCtrl,
+                      hint: 'xxxxxx-xxxxxx.apps.googleusercontent.com',
+                      label: 'OAuth Web Client ID',
+                    ),
+                    const SizedBox(height: S.x4),
+                    BigButton(
+                      'Save Client ID',
+                      icon: LucideIcons.save,
+                      color: C.blue,
+                      onTap: () async {
+                        final val = clientIdCtrl.text.trim();
+                        await AccountService.instance.setGoogleServerClientId(val.isNotEmpty ? val : null);
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Google Client ID updated!')),
+                          );
+                          if (val.isNotEmpty) {
+                            _loginWithGoogle();
+                          }
+                        }
+                      },
+                    ),
+                    const SizedBox(height: S.x3),
+                    Center(
+                      child: Text(
+                        'Or sign in with email and password below — no Google Cloud setup required.',
+                        textAlign: TextAlign.center,
+                        style: F.cap.copyWith(color: p.ink3),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCopyTile(P p, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x2),
+      decoration: BoxDecoration(
+        color: p.bg,
+        borderRadius: R.rMd,
+        border: Border.all(color: p.line),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: SelectableText(
+              text,
+              style: F.cap.copyWith(color: p.ink, fontFamily: 'monospace'),
+            ),
+          ),
+          IconButton(
+            icon: Icon(LucideIcons.copy, size: 16, color: p.ink2),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: text));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Copied to clipboard')),
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _login() async {
@@ -310,32 +452,43 @@ class _AccountScreenState extends State<AccountScreen> {
                     ),
                     const SizedBox(height: S.x4),
                     // Sign in with Google Button
-                    InkWell(
-                      onTap: _loading ? null : _loginWithGoogle,
-                      borderRadius: R.rMd,
-                      child: Container(
-                        width: double.infinity,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: p.card,
-                          borderRadius: R.rMd,
-                          border: Border.all(color: p.line),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SvgPicture.string(_kGoogleLogoSvg, width: 20, height: 20),
-                            const SizedBox(width: S.x3),
-                            Text(
-                              _loading ? 'Connecting...' : 'Sign in with Google',
-                              style: F.body.copyWith(
-                                color: p.ink,
-                                fontWeight: FontWeight.w600,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: _loading ? null : _loginWithGoogle,
+                            borderRadius: R.rMd,
+                            child: Container(
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: p.card,
+                                borderRadius: R.rMd,
+                                border: Border.all(color: p.line),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SvgPicture.string(_kGoogleLogoSvg, width: 20, height: 20),
+                                  const SizedBox(width: S.x3),
+                                  Text(
+                                    _loading ? 'Connecting...' : 'Sign in with Google',
+                                    style: F.body.copyWith(
+                                      color: p.ink,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: S.x2),
+                        IconButton(
+                          icon: Icon(LucideIcons.settings2, size: 20, color: p.ink2),
+                          tooltip: 'Google Sign-In Settings',
+                          onPressed: () => _showGoogleSetupDialog(),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: S.x4),
                     Row(

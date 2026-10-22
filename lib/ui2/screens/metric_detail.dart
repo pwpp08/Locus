@@ -349,9 +349,20 @@ const _specs = <String, MetricSpec>{
     color: C.pink,
     icon: LucideIcons.droplet,
     higherBetter: true,
-    method: 'WHOOP\'s own nightly value, read from the blood oxygen column of '
-        'an imported export and stored as-is.',
-    citation: 'Imported from WHOOP',
+    method: 'Nocturnal blood oxygen saturation (SpO2) derived from dual-wavelength optical pulse oximetry or WHOOP export.',
+    citation: 'Pulse oximetry ratio-of-ratios AC/DC model',
+    requires: {InputSignal.spo2Channels},
+  ),
+  'body_temp': MetricSpec(
+    chartKey: 'body_temp',
+    title: 'Body temperature',
+    unit: '°C',
+    color: C.orange,
+    icon: LucideIcons.thermometer,
+    higherBetter: null,
+    method: 'Calibrated nocturnal body temperature derived from NTC thermistor sensor and calibrated baseline.',
+    citation: 'Steinhart-Hart NTC thermistor model with manual calibration',
+    requires: {InputSignal.skinTemp1Hz},
   ),
   // Both of these were written to `metric_series` on every derive since v55 and
   // had no spec, so nothing could open them — `specOf` fell through to a

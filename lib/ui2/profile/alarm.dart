@@ -38,6 +38,17 @@ enum AlarmArmState {
 /// The armed instant and what we know about it. Shared by this screen and
 /// Home's door so the two can never disagree. Reading it arms nothing.
 (DateTime?, AlarmArmState) alarmArmOf(AppState app) {
+  final plan = app.alarmManager.computeNextArmedPlan(DateTime.now());
+  if (plan != null) {
+    return (
+      plan.time,
+      app.alarmConfirmed
+          ? AlarmArmState.confirmed
+          : app.alarmPending
+              ? AlarmArmState.pending
+              : AlarmArmState.unknown,
+    );
+  }
   final epoch = app.alarmEpoch;
   if (epoch == null) return (null, AlarmArmState.none);
   return (

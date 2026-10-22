@@ -1,6 +1,7 @@
 // system_alarm.dart — reads the next scheduled alarm clock from the host OS
 // (Android AlarmManager.getNextAlarmClock()), so Whoop can wake with the phone.
 
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/services.dart';
 
@@ -16,10 +17,29 @@ class SystemAlarmInfo {
 
 abstract class SystemAlarmBridge {
   static const MethodChannel _channel = MethodChannel('openstrap/system_alarm');
+  static final StreamController<void> _alarmChangeController =
+      StreamController<void>.broadcast();
+  static bool _handlerInitialized = false;
+
+  static Stream<void> get onSystemAlarmChanged {
+    _initHandler();
+    return _alarmChangeController.stream;
+  }
+
+  static void _initHandler() {
+    if (_handlerInitialized) return;
+    _handlerInitialized = true;
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'onNextAlarmChanged') {
+        _alarmChangeController.add(null);
+      }
+    });
+  }
 
   /// Reads the next scheduled system alarm clock trigger time, if any.
   /// Returns null if no alarm is scheduled, on non-Android platforms, or on error.
   static Future<SystemAlarmInfo?> getNextSystemAlarm() async {
+    _initHandler();
     if (!Platform.isAndroid) return null;
     try {
       final res = await _channel.invokeMethod<Map>('getNextAlarmClock');

@@ -387,8 +387,7 @@ const _catalogue = <_Cat>[
   _Cat('Breathing', [
     _CatRow('resp_rate', 'resp_rate', 'Breaths per minute, recovered from beat timing'),
     _CatRow('brv', 'brv_cv', 'How much that rate varies across the night'),
-    _CatRow('spo2', 'spo2', "WHOOP's own derived value, carried from an import",
-        importOnly: true),
+    _CatRow('spo2', 'spo2', 'Nightly blood oxygen saturation measured during sleep'),
   ]),
   _Cat('Movement & load', [
     _CatRow('steps', 'steps', 'Counted by a pedometer, never modelled'),

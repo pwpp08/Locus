@@ -28,6 +28,7 @@ class AlarmManager extends ChangeNotifier {
   bool _syncSystem = false;
   DateTime? _cachedSystemAlarmTime;
   bool _loaded = false;
+  StreamSubscription<void>? _systemAlarmSub;
 
   List<AlarmItem> get alarms => List.unmodifiable(_alarms);
   bool get syncSystem => _syncSystem;
@@ -65,6 +66,13 @@ class AlarmManager extends ChangeNotifier {
     if (_syncSystem) {
       await refreshSystemAlarm();
     }
+
+    _systemAlarmSub?.cancel();
+    _systemAlarmSub = SystemAlarmBridge.onSystemAlarmChanged.listen((_) {
+      if (_syncSystem) {
+        refreshSystemAlarm();
+      }
+    });
 
     _loaded = true;
     notifyListeners();
@@ -128,8 +136,18 @@ class AlarmManager extends ChangeNotifier {
 
   Future<DateTime?> refreshSystemAlarm() async {
     final info = await SystemAlarmBridge.getNextSystemAlarm();
+    final prev = _cachedSystemAlarmTime;
     _cachedSystemAlarmTime = info?.triggerTime;
+    if (prev != _cachedSystemAlarmTime) {
+      notifyListeners();
+    }
     return _cachedSystemAlarmTime;
+  }
+
+  @override
+  void dispose() {
+    _systemAlarmSub?.cancel();
+    super.dispose();
   }
 
   Future<void> addAlarm(AlarmItem item) async {

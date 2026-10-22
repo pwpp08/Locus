@@ -16,6 +16,7 @@ import 'state/prefs.dart';
 import 'telemetry/telemetry_service.dart';
 import 'theme/theme_controller.dart';
 import 'theme/theme_switcher.dart';
+import 'updater/update_service.dart';
 import 'widget/widget_service.dart';
 import 'ui2/activity/catalogue.dart';
 import 'ui2/activity/live.dart';
@@ -93,6 +94,7 @@ class _OpenStrapAppState extends State<OpenStrapApp> with WidgetsBindingObserver
       unawaited(context.read<CoachConfig>().refreshKeyOnResume());
       app.maybeFinishFromLiveActivity();
       unawaited(app.maybeStopBreathingFromLiveActivity());
+      app.alarmManager.refreshSystemAlarm();
       app.refreshAppStatus(); // re-check OTA + admin banner on every foreground
       app.runCadenceChecks(); // evening wind-down / weekly recap nudges (best-effort)
       // A Siri "start breathing" App Intent may have just foregrounded an
@@ -524,6 +526,7 @@ class _ShellState extends State<_Shell> {
       // never saw one.
       _markOnboarded();
       _consume();
+      UpdateService.instance.checkOnStartup(context);
     });
   }
 

@@ -7457,6 +7457,18 @@ class LocalDb {
     return db.query('band_battery', orderBy: 'ts DESC', limit: limit);
   }
 
+  /// Battery samples within a time range (oldest first) for charting.
+  static Future<List<Map<String, dynamic>>> bandBatteryRange(
+      {required int startSec, required int endSec}) async {
+    final db = await instance;
+    return db.query(
+      'band_battery',
+      where: 'ts >= ? AND ts <= ?',
+      whereArgs: [startSec, endSec],
+      orderBy: 'ts ASC',
+    );
+  }
+
   /// A simple, honest battery-health readout derived from the stored series.
   ///   - `full_charge_mv`: the highest millivolts ever seen while charging (a
   ///     pack's full-charge voltage sags over its life);

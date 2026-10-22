@@ -514,10 +514,15 @@ class CoachEngine {
     required void Function(CoachItem) onItem,
     required void Function(String?) onStatus,
     required Future<bool> Function(ActionRequest) confirm,
+    void Function(String delta)? onDelta,
   }) async {
     _sending++;
     try {
-      await _send(userText, onItem: onItem, onStatus: onStatus, confirm: confirm);
+      await _send(userText,
+          onItem: onItem,
+          onStatus: onStatus,
+          confirm: confirm,
+          onDelta: onDelta);
     } finally {
       _sending--;
       if (_sending == 0 && _disposeRequested) dispose();
@@ -529,6 +534,7 @@ class CoachEngine {
     required void Function(CoachItem) onItem,
     required void Function(String?) onStatus,
     required Future<bool> Function(ActionRequest) confirm,
+    void Function(String delta)? onDelta,
   }) async {
     void emit(CoachItem it) { transcript.add(it); onItem(it); }
     emit(CoachItem.user(userText));
@@ -543,7 +549,7 @@ class CoachEngine {
         ..._history,
       ];
 
-      final reply = await _chat(messages);
+      final reply = await _chat(messages, onDelta: onDelta);
       final toolCalls = (reply['tool_calls'] as List?) ?? const [];
       final content = (reply['content'] as String?)?.trim();
       final responseState = <String, dynamic>{
@@ -632,14 +638,17 @@ class CoachEngine {
   }
 
   // ── provider call ────────────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> _chat(List<Map<String, dynamic>> messages) =>
+  Future<Map<String, dynamic>> _chat(
+    List<Map<String, dynamic>> messages, {
+    void Function(String delta)? onDelta,
+  }) =>
       postChat(config, {
         'model': config.model,
         'messages': messages,
         'tools': _toolDefs,
         'tool_choice': 'auto',
         'temperature': 0.3,
-      }, client: _http);
+      }, client: _http, onDelta: onDelta);
 
   /// True when [model] names a Claude version that rejects OpenAI sampling
   /// params (temperature/top_p/top_k) with a 400: Opus >= 4.7, Sonnet and
@@ -681,6 +690,7 @@ class CoachEngine {
     CoachConfig config,
     Map<String, dynamic> body, {
     http.Client? client,
+    void Function(String delta)? onDelta,
   }) async {
     final c = client ?? http.Client();
     final model = body['model'] as String? ?? '';
@@ -714,13 +724,82 @@ class CoachEngine {
           'time range, or start a new chat.',
         );
       }
+
+      final uri = Uri.parse('$apiBase/${api.endpoint}');
+      final headers = {
+        if (config.hasKey) 'Authorization': 'Bearer ${config.apiKey}',
+        'content-type': 'application/json',
+      };
+
+      if (onDelta != null && api == CoachApi.chatCompletions) {
+        try {
+          final streamBody = {...body, 'stream': true};
+          final req = http.Request('POST', uri)
+            ..headers.addAll(headers)
+            ..body = jsonEncode(streamBody);
+          final streamedResponse = await c.send(req).timeout(config.requestTimeout);
+          if (streamedResponse.statusCode == 200) {
+            final buffer = StringBuffer();
+            final toolCallBuffers = <int, Map<String, dynamic>>{};
+            await for (final chunk in streamedResponse.stream.transform(utf8.decoder).transform(const LineSplitter())) {
+              final line = chunk.trim();
+              if (line.isEmpty || line == 'data: [DONE]') continue;
+              if (line.startsWith('data: ')) {
+                final jsonStr = line.substring(6).trim();
+                try {
+                  final j = jsonDecode(jsonStr);
+                  if (j is Map) {
+                    final choices = j['choices'] as List?;
+                    if (choices != null && choices.isNotEmpty) {
+                      final delta = choices[0]['delta'] as Map?;
+                      if (delta != null) {
+                        final textChunk = delta['content'] as String?;
+                        if (textChunk != null && textChunk.isNotEmpty) {
+                          buffer.write(textChunk);
+                          onDelta(textChunk);
+                        }
+                        final tcList = delta['tool_calls'] as List?;
+                        if (tcList != null) {
+                          for (final tc in tcList) {
+                            if (tc is Map) {
+                              final idx = (tc['index'] as num?)?.toInt() ?? 0;
+                              final cur = toolCallBuffers[idx] ??= <String, dynamic>{
+                                'id': tc['id'] ?? '',
+                                'type': tc['type'] ?? 'function',
+                                'function': <String, dynamic>{'name': '', 'arguments': ''},
+                              };
+                              if (tc['id'] != null) cur['id'] = tc['id'];
+                              final fn = tc['function'] as Map?;
+                              if (fn != null) {
+                                final curFn = cur['function'] as Map<String, dynamic>;
+                                if (fn['name'] != null) curFn['name'] = '${curFn['name']}${fn['name']}';
+                                if (fn['arguments'] != null) curFn['arguments'] = '${curFn['arguments']}${fn['arguments']}';
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                } catch (_) {}
+              }
+            }
+            final assembledToolCalls = toolCallBuffers.values.toList();
+            return {
+              'role': 'assistant',
+              'content': buffer.toString(),
+              if (assembledToolCalls.isNotEmpty) 'tool_calls': assembledToolCalls,
+            };
+          }
+        } catch (_) {
+          // Fall back to non-streaming POST
+        }
+      }
+
       final resp = await c
           .post(
-            Uri.parse('$apiBase/${api.endpoint}'),
-            headers: {
-              if (config.hasKey) 'Authorization': 'Bearer ${config.apiKey}',
-              'content-type': 'application/json',
-            },
+            uri,
+            headers: headers,
             body: payload,
           )
           .timeout(config.requestTimeout);

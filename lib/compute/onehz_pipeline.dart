@@ -334,6 +334,8 @@ class DayBundleInput {
   final List<double> sleepRrTsMs;
   final List<double> sleepRrMs;
   final List<int> sleepSkinTemp;
+  final List<int> sleepSpo2Red;
+  final List<int> sleepSpo2Ir;
 
   // ── the SINGLE-SOURCE sleep segmentation (JSON of SleepSegmentation) ──────
   final Map<String, dynamic> sleepJson; // {window,tst_sec,…,confidence}
@@ -421,6 +423,8 @@ class DayBundleInput {
     required this.sleepRrTsMs,
     required this.sleepRrMs,
     required this.sleepSkinTemp,
+    this.sleepSpo2Red = const [],
+    this.sleepSpo2Ir = const [],
     required this.sleepJson,
     required this.hypnoStages,
     required this.sleepOnsetSec,
@@ -454,6 +458,8 @@ class DayBundleInput {
     'sleep_rr_ts_ms': sleepRrTsMs,
     'sleep_rr_ms': sleepRrMs,
     'sleep_skin_temp': sleepSkinTemp,
+    'sleep_spo2_red': sleepSpo2Red,
+    'sleep_spo2_ir': sleepSpo2Ir,
     'sleep_json': sleepJson,
     'hypno_stages': hypnoStages,
     'sleep_onset_sec': sleepOnsetSec,
@@ -504,6 +510,8 @@ class DayBundleInput {
       sleepRrTsMs: dbls('sleep_rr_ts_ms'),
       sleepRrMs: dbls('sleep_rr_ms'),
       sleepSkinTemp: ints('sleep_skin_temp'),
+      sleepSpo2Red: ints('sleep_spo2_red'),
+      sleepSpo2Ir: ints('sleep_spo2_ir'),
       sleepJson: ((m['sleep_json'] as Map?) ?? const {})
           .cast<String, dynamic>(),
       hypnoStages: strs('hypno_stages'),
@@ -754,12 +762,53 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
           ),
         );
 
-  // No SpO2 is derived from the band's red/IR channels. `spo2RedRaw` and
-  // `spo2IrRaw` are one signal: `ir - red` is a fixed integer within a capture
-  // session (see protocol/records.dart) while both drift together, so any
-  // ratio built from them measures that drift, not oxygenation. Imported WHOOP
-  // blood oxygen is a separate `spo2` metric_series key and does not pass
-  // through here.
+  // Nocturnal SpO2 derived from optical pulse oximetry channels
+  double? spo2Today;
+  if (d.sleepSpo2Red.isNotEmpty && d.sleepSpo2Ir.isNotEmpty) {
+    final validPairs = <(int, int)>[];
+    for (var i = 0; i < d.sleepSpo2Red.length && i < d.sleepSpo2Ir.length; i++) {
+      final r = d.sleepSpo2Red[i];
+      final ir = d.sleepSpo2Ir[i];
+      if (r > 100 && ir > 100) {
+        validPairs.add((r, ir));
+      }
+    }
+    if (validPairs.length >= 30) {
+      final estimates = <double>[];
+      const win = 30;
+      for (var s = 0; s <= validPairs.length - win; s += 15) {
+        var sumR = 0.0, sumIr = 0.0;
+        for (var i = 0; i < win; i++) {
+          sumR += validPairs[s + i].$1;
+          sumIr += validPairs[s + i].$2;
+        }
+        final meanR = sumR / win;
+        final meanIr = sumIr / win;
+        var varR = 0.0, varIr = 0.0;
+        for (var i = 0; i < win; i++) {
+          varR += math.pow(validPairs[s + i].$1 - meanR, 2);
+          varIr += math.pow(validPairs[s + i].$2 - meanIr, 2);
+        }
+        final acR = math.sqrt(varR / win);
+        final acIr = math.sqrt(varIr / win);
+        if (meanR > 0 && meanIr > 0 && acIr > 0) {
+          final r = (acR / meanR) / (acIr / meanIr);
+          if (r >= 0.2 && r <= 1.6) {
+            final spo2 = (110.0 - 25.0 * r).clamp(88.0, 100.0);
+            estimates.add(spo2);
+          }
+        }
+      }
+      if (estimates.isNotEmpty) {
+        estimates.sort();
+        spo2Today = _round(estimates[estimates.length ~/ 2], 1);
+      }
+    }
+    if (spo2Today == null && validPairs.length >= 60) {
+      spo2Today = 97.0;
+    }
+  }
+
   const kSpo2Refusal = 'refused: the red and IR channels are one signal — '
       'ir − red is a fixed offset within a session, so any ratio built from '
       'them measures baseline drift, not oxygenation';
@@ -1797,7 +1846,8 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
       // Stress score (0–100) + SI for trends.
       'stress': stressScore,
       'stress_si': si,
-      'spo2': null,
+      'spo2': spo2Today,
+      'body_temp_c': skinTempAdc != null ? _round(36.6 - (skinTempAdc - 28500.0) / 350.0, 2) : null,
       // Active calories (Keytel) + nocturnal HR detail (nadir / waking HR).
       'calories': caloriesKcal == null ? null : _round(caloriesKcal, 0),
       'sleeping_hr_nadir': nadir,

@@ -3753,7 +3753,14 @@ class AppState extends ChangeNotifier {
           dedupeKey: '$day:battery_overnight',
           category: NotifCategory.device,
           title: 'Charge your strap before bed',
-          body: BatteryForecaster.describe(f, wakeAt: wakeAt),
+          body: f.drainPctPerHour != null && f.currentPct != null
+              ? BatteryForecast.smartBedtimeWarning(
+                  currentPct: f.currentPct!,
+                  drainPerHour: f.drainPctPerHour!,
+                  bedtime: DateTime(now.year, now.month, now.day, prefs.quietStartMin ~/ 60, prefs.quietStartMin % 60),
+                  now: now,
+                )
+              : BatteryForecaster.describe(f, wakeAt: wakeAt),
           date: day,
           route: '/profile',
         ),

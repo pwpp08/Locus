@@ -75,6 +75,7 @@ import '../../state/app_state.dart';
 import '../../state/clock_format.dart' show formatClockOf;
 import '../pairing/device_picker.dart' show DevicePickerScreen;
 import '../onboarding/profile_setup.dart' show formatDay;
+import '../screens/battery_detail_screen.dart';
 import '../ui2.dart';
 import 'profile.dart';
 import 'settings.dart' show backToRoot;
@@ -2283,6 +2284,12 @@ class DeviceDetailView extends StatelessWidget {
                       SetRow(LucideIcons.batteryMedium, C.green,
                           l?.devicesBattery ?? 'Battery',
                           value: battery == null ? '' : '${battery.round()}%',
+                          onTap: () {
+                            Navigator.of(c).push(
+                              MaterialPageRoute(
+                                  builder: (_) => const BatteryDetailScreen()),
+                            );
+                          },
                           // L11 — the band's own charge history, on the row
                           // that already exists rather than a new one. Within
                           // THIS band only: `charge_cycles` counts times it went

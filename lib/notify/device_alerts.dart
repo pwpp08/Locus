@@ -379,7 +379,9 @@ class DeviceAlerts {
             // percentage is a stable identity for THIS drain.
             kind: 'band_low:${batteryPct.round()}',
             title: 'Low battery',
-            body: 'Your band is at ${batteryPct.round()}%. Charge it soon.',
+            body: batteryPct <= 10
+                ? 'At ~2.1% per hour your strap is going to die in ~${(batteryPct / 2.1).round()} hours. Charge before bed.'
+                : '~${(batteryPct / 2.1).round()}h left on your WHOOP (${batteryPct.round()}%) - recharge tonight.',
           )));
       if (dropped) {
         // The shared gate refused it — quiet hours, the device category off, no

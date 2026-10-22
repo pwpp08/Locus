@@ -113,6 +113,7 @@ class CoachScreen extends StatefulWidget {
 class _CoachScreenState extends State<CoachScreen> {
   CoachEngine? _engine;
   final List<CoachItem> _items = [];
+  CoachItem? _streamingItem;
   final _input = TextEditingController();
   final _scroll = ScrollController();
   bool _busy = false;
@@ -199,9 +200,30 @@ class _CoachScreenState extends State<CoachScreen> {
       // the user has popped the screen.
       await engine.send(
         t,
+        onDelta: (delta) {
+          if (!mounted) return;
+          setState(() {
+            _status = null;
+            if (_streamingItem == null) {
+              _streamingItem = CoachItem.assistant(delta);
+              _items.add(_streamingItem!);
+            } else {
+              final newContent = '${_streamingItem!.text ?? ''}$delta';
+              _streamingItem = CoachItem.assistant(newContent);
+              _items[_items.length - 1] = _streamingItem!;
+            }
+          });
+          _scrollDown();
+        },
         onItem: (it) {
           if (!mounted) return;
-          setState(() => _items.add(it));
+          setState(() {
+            if (it.kind == CoachItemKind.assistant && _streamingItem != null) {
+              _items.removeLast();
+              _streamingItem = null;
+            }
+            _items.add(it);
+          });
           _scrollDown();
         },
         onStatus: (s) {
@@ -227,6 +249,7 @@ class _CoachScreenState extends State<CoachScreen> {
         });
       }
     } finally {
+      _streamingItem = null;
       if (mounted) {
         setState(() {
           _busy = false;

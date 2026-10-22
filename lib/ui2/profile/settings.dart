@@ -38,6 +38,8 @@ import '../ui2.dart';
 import 'alarm.dart';
 import '../screens/coach.dart';
 import '../screens/step_calibration_screen.dart';
+import '../screens/temperature_calibration_screen.dart';
+import '../../updater/update_service.dart';
 import 'account_screen.dart';
 import 'band_notifications.dart';
 import 'data.dart';
@@ -638,6 +640,10 @@ class MoreSettingsView extends StatelessWidget {
                       'Step counter calibration',
                       sub: 'Calibrate Whoop step algorithm with a guided walk test',
                       onTap: () => goto(c, const StepCalibrationScreen())),
+                  SetRow(LucideIcons.thermometer, C.rose,
+                      'Temperature calibration',
+                      sub: 'Calibrate body temperature baseline with a reference reading',
+                      onTap: () => goto(c, const TemperatureCalibrationScreen())),
                   // Off by default — an existing user did not ask their band
                   // to start buzzing mid-workout. The target-zone row below
                   // only appears once this is on; a target for an alert
@@ -808,6 +814,24 @@ class MoreSettingsView extends StatelessWidget {
                     SetRow(LucideIcons.info, C.n500,
                         l?.settingsVersionRowTitle ?? 'Version',
                         value: version, chevron: false, onTap: onVersionTap),
+                  SetRow(LucideIcons.downloadCloud, C.blue,
+                      'Check for updates',
+                      sub: 'Check GitHub releases for new versions',
+                      onTap: () => UpdateService.instance.check(context, manual: true)),
+                  StatefulBuilder(
+                    builder: (context, setSubState) {
+                      final auto = Prefs.getBool('auto_check_updates', true);
+                      return SetRow(LucideIcons.refreshCw, C.green,
+                          'Auto-check on startup',
+                          value: auto ? on : off,
+                          chevron: false,
+                          onTap: () async {
+                            await Prefs.setBool('auto_check_updates', !auto);
+                            setSubState(() {});
+                            setState(() {});
+                          });
+                    },
+                  ),
                   // Where the licences of what this app uses are written out
                   // in full. Open Food Facts' ODbL asks for the notice to be
                   // reachable, not only for the credit beside the numbers.

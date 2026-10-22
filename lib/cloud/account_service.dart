@@ -87,6 +87,8 @@ class AccountProfile {
 
 class AccountService extends ChangeNotifier {
   static const String _kAccountPrefs = 'user_cloud_account_v1';
+  static const String defaultGoogleServerClientId =
+      '579904951534-mglo187fml8bmgpidtu5ht675ocee2a7.apps.googleusercontent.com';
   static final AccountService instance = AccountService._();
   AccountService._();
 
@@ -119,11 +121,33 @@ class AccountService extends ChangeNotifier {
   Future<void> _ensureGsi() async {
     if (_gsiInitialized) return;
     try {
-      await GoogleSignIn.instance.initialize();
+      final effectiveClientId = await getGoogleServerClientId();
+      await GoogleSignIn.instance.initialize(
+        serverClientId: effectiveClientId,
+      );
       _gsiInitialized = true;
     } catch (e) {
       debugPrint('[account] GoogleSignIn init error: $e');
     }
+  }
+
+  Future<void> setGoogleServerClientId(String? id) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (id == null || id.trim().isEmpty || id.trim() == defaultGoogleServerClientId) {
+      await prefs.remove('google_server_client_id');
+    } else {
+      await prefs.setString('google_server_client_id', id.trim());
+    }
+    _gsiInitialized = false;
+    await _ensureGsi();
+    notifyListeners();
+  }
+
+  Future<String> getGoogleServerClientId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final custom = prefs.getString('google_server_client_id')?.trim();
+    if (custom != null && custom.isNotEmpty) return custom;
+    return defaultGoogleServerClientId;
   }
 
   Future<void> signInWithGoogle({String? customServerUrl}) async {

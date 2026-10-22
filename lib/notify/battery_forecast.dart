@@ -383,4 +383,27 @@ class BatteryForecaster {
     if (empty == null) return null;
     return math.max(0, empty.difference(now).inMinutes) ~/ 60;
   }
+
+  /// Generates contextual notification: "~23h left on your WHOOP - recharge tonight."
+  static String smartRechargeWarning({
+    required double currentPct,
+    required double drainPerHour,
+  }) {
+    final hours = drainPerHour > 0 ? (currentPct / drainPerHour).round() : 24;
+    return '~$hours\h left on your WHOOP - recharge tonight.';
+  }
+
+  /// Generates contextual notification:
+  /// "At ~5.4% per hour your strap is going to die in 4 hours, and your bedtime is in 3. Charge before bed."
+  static String smartBedtimeWarning({
+    required double currentPct,
+    required double drainPerHour,
+    required DateTime bedtime,
+    required DateTime now,
+  }) {
+    final hoursToDie = drainPerHour > 0 ? (currentPct / drainPerHour).round() : 4;
+    final hoursToBed = math.max(1, bedtime.difference(now).inHours);
+    final rateStr = drainPerHour.toStringAsFixed(1);
+    return 'At ~$rateStr% per hour your strap is going to die in $hoursToDie hours, and your bedtime is in $hoursToBed. Charge before bed.';
+  }
 }

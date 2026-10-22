@@ -5226,6 +5226,8 @@ class DerivationEngine {
       sleepRrTsMs: sleepSub.rrTsMs,
       sleepRrMs: sleepSub.rrMs,
       sleepSkinTemp: sleepSub.skinTemp,
+      sleepSpo2Red: sleepSub.spo2Red,
+      sleepSpo2Ir: sleepSub.spo2Ir,
       sleepJson: day.sleepJson,
       hypnoStages: day.hypnoStages,
       sleepOnsetSec: day.sleepOnsetSec,
