@@ -201,6 +201,19 @@ class DeriveScheduler {
       unawaited(_refreshSnapshot());
       return;
     }
+    // If a settle timer is already active, do not continuously cancel and push
+    // it back on every new sample or record, which would starve derivation
+    // indefinitely when packets arrive frequently. Upgrade to heavy settle if
+    // a heavy job arrived.
+    if (_timer != null && _timer!.isActive) {
+      if (_pendingHeavy) {
+        _timer!.cancel();
+        _timer = Timer(heavySettle, () {
+          unawaited(_drain());
+        });
+      }
+      return;
+    }
     _timer?.cancel();
     _timer = Timer(_pendingHeavy ? heavySettle : lightSettle, () {
       unawaited(_drain());

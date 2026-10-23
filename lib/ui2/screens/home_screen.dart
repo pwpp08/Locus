@@ -1730,7 +1730,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   /// gets the same connecting/syncing feedback as every other one. Returns
   /// null when none of the three phases apply, so the caller falls through
   /// to its own "nothing yet" copy.
-  Widget? _phaseStatusCard(BuildContext c, AppLocalizations? l) {
+  Widget? _phaseStatusCard(BuildContext c, AppLocalizations? l, {bool sleepComputed = false}) {
     final syncing = syncingNowOf(c);
     final deriving = derivingOf(c);
     // The tap latch is otherwise cleared only by its 20s grace timer — if
@@ -1755,7 +1755,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         leading: spinner,
       );
     }
-    if (deriving) {
+    if (deriving && !sleepComputed) {
       return StatusCard(
         l?.homeAnalyzingTitle ?? 'Crunching last night\'s numbers',
         l?.homeAnalyzingBody ?? 'The data is in — sleep, recovery and strain '
@@ -2000,7 +2000,11 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       // only on a bare day, so yesterday's rings sat on screen during a sync
       // with nothing but a grey "Synced through" line to say anything moved.
       if (!bare && isToday)
-        if (_phaseStatusCard(c, l) case final phase?) ...[
+        if (_phaseStatusCard(
+          c,
+          l,
+          sleepComputed: !bare && (d.sleepMin.value != null || d.readiness.value != null),
+        ) case final phase?) ...[
           phase,
           const SizedBox(height: S.x3),
         ],

@@ -559,6 +559,12 @@ class CoachEngine {
           '_responses_model': reply['_responses_model'],
         if (reply['_responses_api_base'] is String)
           '_responses_api_base': reply['_responses_api_base'],
+        if (reply['extra_content'] != null)
+          'extra_content': reply['extra_content'],
+        if (reply['thought_signature'] != null)
+          'thought_signature': reply['thought_signature'],
+        if (reply['thoughtSignature'] != null)
+          'thoughtSignature': reply['thoughtSignature'],
       };
 
       if (toolCalls.isEmpty) {
@@ -741,6 +747,8 @@ class CoachEngine {
           if (streamedResponse.statusCode == 200) {
             final buffer = StringBuffer();
             final toolCallBuffers = <int, Map<String, dynamic>>{};
+            dynamic extraContent;
+            dynamic thoughtSignature;
             await for (final chunk in streamedResponse.stream.transform(utf8.decoder).transform(const LineSplitter())) {
               final line = chunk.trim();
               if (line.isEmpty || line == 'data: [DONE]') continue;
@@ -749,10 +757,22 @@ class CoachEngine {
                 try {
                   final j = jsonDecode(jsonStr);
                   if (j is Map) {
+                    if (j['extra_content'] != null) extraContent = j['extra_content'];
+                    if (j['thought_signature'] != null) thoughtSignature = j['thought_signature'];
+                    if (j['thoughtSignature'] != null) thoughtSignature = j['thoughtSignature'];
                     final choices = j['choices'] as List?;
                     if (choices != null && choices.isNotEmpty) {
+                      final firstChoice = choices[0] as Map?;
+                      if (firstChoice != null) {
+                        if (firstChoice['extra_content'] != null) extraContent = firstChoice['extra_content'];
+                        if (firstChoice['thought_signature'] != null) thoughtSignature = firstChoice['thought_signature'];
+                        if (firstChoice['thoughtSignature'] != null) thoughtSignature = firstChoice['thoughtSignature'];
+                      }
                       final delta = choices[0]['delta'] as Map?;
                       if (delta != null) {
+                        if (delta['extra_content'] != null) extraContent = delta['extra_content'];
+                        if (delta['thought_signature'] != null) thoughtSignature = delta['thought_signature'];
+                        if (delta['thoughtSignature'] != null) thoughtSignature = delta['thoughtSignature'];
                         final textChunk = delta['content'] as String?;
                         if (textChunk != null && textChunk.isNotEmpty) {
                           buffer.write(textChunk);
@@ -769,11 +789,23 @@ class CoachEngine {
                                 'function': <String, dynamic>{'name': '', 'arguments': ''},
                               };
                               if (tc['id'] != null) cur['id'] = tc['id'];
+                              for (final entry in tc.entries) {
+                                final k = entry.key.toString();
+                                if (k != 'index' && k != 'function' && k != 'id' && k != 'type') {
+                                  cur[k] = entry.value;
+                                }
+                              }
                               final fn = tc['function'] as Map?;
                               if (fn != null) {
                                 final curFn = cur['function'] as Map<String, dynamic>;
                                 if (fn['name'] != null) curFn['name'] = '${curFn['name']}${fn['name']}';
                                 if (fn['arguments'] != null) curFn['arguments'] = '${curFn['arguments']}${fn['arguments']}';
+                                for (final entry in fn.entries) {
+                                  final k = entry.key.toString();
+                                  if (k != 'name' && k != 'arguments') {
+                                    curFn[k] = entry.value;
+                                  }
+                                }
                               }
                             }
                           }
@@ -789,6 +821,8 @@ class CoachEngine {
               'role': 'assistant',
               'content': buffer.toString(),
               if (assembledToolCalls.isNotEmpty) 'tool_calls': assembledToolCalls,
+              if (extraContent != null) 'extra_content': extraContent,
+              if (thoughtSignature != null) 'thought_signature': thoughtSignature,
             };
           }
         } catch (_) {
