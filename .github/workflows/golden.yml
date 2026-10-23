@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: commit to generate from (default: the pushed one)
+        description: 'commit to generate from; empty means the pushed commit'
         required: false
         default: ''
   push:
