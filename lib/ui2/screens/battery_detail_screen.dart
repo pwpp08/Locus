@@ -103,7 +103,7 @@ class _BatteryDetailScreenState extends State<BatteryDetailScreen> {
               padding: const EdgeInsets.all(S.x5),
               decoration: BoxDecoration(
                 color: isCharging ? p.wash(C.green) : p.wash(C.blue),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: R.rLg,
                 border: Border.all(color: p.line.withValues(alpha: 0.6)),
               ),
               child: Column(
@@ -135,10 +135,10 @@ class _BatteryDetailScreenState extends State<BatteryDetailScreen> {
                         ],
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x1),
                         decoration: BoxDecoration(
                           color: isCharging ? C.green.withValues(alpha: 0.2) : p.wash(p.ink),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: R.rMd,
                         ),
                         child: Text(
                           isCharging ? 'Charging' : (hoursLeft != null ? '~$hoursLeft h left' : 'Discharging'),
@@ -154,7 +154,7 @@ class _BatteryDetailScreenState extends State<BatteryDetailScreen> {
 
                   // Battery progress track
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: R.rSm,
                     child: LinearProgressIndicator(
                       value: currentPct != null ? (currentPct / 100.0).clamp(0.0, 1.0) : 0.0,
                       minHeight: 8,
@@ -216,7 +216,7 @@ class _BatteryDetailScreenState extends State<BatteryDetailScreen> {
               padding: const EdgeInsets.all(S.x4),
               decoration: BoxDecoration(
                 color: p.card,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: R.rLg,
                 border: Border.all(color: p.line),
               ),
               child: Column(
@@ -257,10 +257,18 @@ class _BatteryDetailScreenState extends State<BatteryDetailScreen> {
                               height: 200,
                               child: LayoutBuilder(
                                 builder: (ctx, constraints) {
-                                  return GestureDetector(
-                                    onPanDown: (d) => _handleTouch(d.localPosition.dx, constraints.maxWidth),
-                                    onPanUpdate: (d) => _handleTouch(d.localPosition.dx, constraints.maxWidth),
-                                    onPanEnd: (_) => setState(() => _touchedIndex = null),
+                                  return Scrubber(
+                                    hold: true,
+                                    value: _touchedIndex == null || _samples.length < 2
+                                        ? null
+                                        : _touchedIndex! / (_samples.length - 1),
+                                    onChanged: _handleTouch,
+                                    onEnd: () => setState(() => _touchedIndex = null),
+                                    label: 'Battery level',
+                                    describe: (v) {
+                                      final s = _samples[_indexAt(v)];
+                                      return '${s.pct.round()}% at ${formatClockOf(DateTime.fromMillisecondsSinceEpoch(s.tsSec * 1000))}';
+                                    },
                                     child: CustomPaint(
                                       size: Size(constraints.maxWidth, 200),
                                       painter: _BatteryChartPainter(
@@ -284,7 +292,7 @@ class _BatteryDetailScreenState extends State<BatteryDetailScreen> {
               padding: const EdgeInsets.all(S.x4),
               decoration: BoxDecoration(
                 color: p.wash(p.ink3).withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: R.rMd,
                 border: Border.all(color: p.line.withValues(alpha: 0.6)),
               ),
               child: Column(
@@ -326,11 +334,12 @@ class _BatteryDetailScreenState extends State<BatteryDetailScreen> {
     );
   }
 
-  void _handleTouch(double dx, double width) {
-    if (_samples.isEmpty || width <= 0) return;
-    final fraction = (dx / width).clamp(0.0, 1.0);
-    final index = (fraction * (_samples.length - 1)).round();
-    setState(() => _touchedIndex = index);
+  int _indexAt(double fraction) =>
+      (fraction.clamp(0.0, 1.0) * (_samples.length - 1)).round();
+
+  void _handleTouch(double fraction) {
+    if (_samples.isEmpty) return;
+    setState(() => _touchedIndex = _indexAt(fraction));
   }
 }
 
@@ -358,9 +367,8 @@ class _BatteryChartPainter extends CustomPainter {
       ..color = palette.line.withValues(alpha: 0.5)
       ..strokeWidth = 0.5;
 
-    final textStyle = TextStyle(
+    final textStyle = F.over.copyWith(
       color: palette.ink3.withValues(alpha: 0.6),
-      fontSize: 10,
     );
 
     for (final pct in [0, 25, 50, 75, 100]) {
@@ -468,7 +476,7 @@ class _BatteryChartPainter extends CustomPainter {
       canvas.drawCircle(
         Offset(x, y),
         2,
-        Paint()..color = Colors.white,
+        Paint()..color = palette.card,
       );
     }
 

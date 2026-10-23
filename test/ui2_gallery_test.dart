@@ -25,8 +25,9 @@ Widget _wrap(Widget child) => MaterialApp(
 /// bottom of the screen passes whether the row is there or not — including
 /// the one that has to fail if the gallery ever ships visible.
 void _tallPhone(WidgetTester tester) {
-  // 2800, not 2400: Volt spacing (§5.1) made the settings list taller.
-  tester.view.physicalSize = const Size(390 * 3, 2800 * 3);
+  // 3400, not 2800: the calibration, update and device-compare rows made the
+  // settings list taller again (2800 itself was 2400 before Volt spacing, §5.1).
+  tester.view.physicalSize = const Size(390 * 3, 3400 * 3);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
 }

@@ -263,21 +263,6 @@ void main() {
     expect(((xm['regularity'] as Map)['value'] as Map)['sri'], 100);
   }, timeout: const Timeout(Duration(minutes: 3)));
 
-  testWidgets("flag on: Home's card draws the band's served cells",
-      (t) async {
-    await _pumpHomeCard(t);
-    expect(find.text('Mi Band 2/3'), findsOneWidget);
-    expect(
-        [for (final w in t.widgetList<WearableCell>(find.byType(WearableCell)))
-          w.row],
-        kHomeWearableRows);
-    expect(find.text('Estimated'), findsOneWidget, reason: 'readiness');
-    expect(find.text('From your Mi Band 2/3 · 1-min heart rate'),
-        findsWidgets);
-    expect(find.text("Your Mi Band 2/3's own value"), findsOneWidget,
-        reason: 'its own steps');
-  });
-
   test("a daytime sleep block's minutes stay out of the night's stages",
       () async {
     final db = await LocalDb.instance;

@@ -277,8 +277,8 @@ Widget? batteryLine(BuildContext c) {
   final (pct, charging) = battery;
   final p = P.of(c);
   final color = lowBattery(pct, charging) ? p.on(C.red) : p.ink3;
-  return GestureDetector(
-    behavior: HitTestBehavior.opaque,
+  return Pressable(
+    semanticLabel: 'Battery details',
     onTap: () {
       Navigator.of(c).push(
         MaterialPageRoute(builder: (_) => const BatteryDetailScreen()),

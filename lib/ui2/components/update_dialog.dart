@@ -58,7 +58,7 @@ class UpdateDialog extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: S.x4),
                 decoration: BoxDecoration(
                   color: p.ink3.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: R.rPill,
                 ),
               ),
             ),
@@ -139,13 +139,13 @@ class UpdateDialog extends StatelessWidget {
                 padding: const EdgeInsets.all(S.x3),
                 decoration: BoxDecoration(
                   color: p.wash(p.ink3).withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: R.rMd,
                   border: Border.all(color: p.line.withValues(alpha: 0.5)),
                 ),
                 child: SingleChildScrollView(
                   child: Text(
                     release.body.trim(),
-                    style: F.body.copyWith(color: p.ink, fontSize: 13),
+                    style: F.cap.copyWith(color: p.ink),
                   ),
                 ),
               ),
@@ -153,36 +153,19 @@ class UpdateDialog extends StatelessWidget {
             ],
 
             // Action Buttons
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: C.blue,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              icon: const Icon(LucideIcons.download, size: 18),
-              label: Text(
-                release.apkUrl != null ? 'Download APK Update' : 'View on GitHub',
-                style: F.body.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              onPressed: () {
+            BigButton(
+              release.apkUrl != null ? 'Download APK Update' : 'View on GitHub',
+              icon: LucideIcons.download,
+              color: C.blue,
+              onTap: () {
                 UpdateService.startDownload(release);
                 Navigator.of(context).pop();
               },
             ),
             const SizedBox(height: S.x2),
 
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Later',
-                style: F.body.copyWith(color: p.ink3),
-              ),
+            Center(
+              child: TextAction('Later', () => Navigator.of(context).pop()),
             ),
           ],
         ),

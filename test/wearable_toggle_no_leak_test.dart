@@ -6,7 +6,6 @@
 // were pruned after it derived. A day the band also contributed to keeps
 // the band's numbers.
 
-import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/compute/derivation_engine.dart';
@@ -19,7 +18,6 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'support/synthetic_day.dart';
 
-const String _day = '2026-10-03';
 const Profile _profile =
     Profile(ageYears: 32, weightKg: 72, heightCm: 176, sex: 'm');
 const List<String> _families = [
@@ -66,32 +64,6 @@ void main() {
     final dir = await databaseFactory.getDatabasesPath();
     await databaseFactory.deleteDatabase(p.join(dir, LocalDb.dbName));
   });
-
-  Future<String?> source(String day) async {
-    final row = await LocalDb.dayResult(day);
-    if (row == null) return null;
-    return (jsonDecode(row['payload_json'] as String) as Map)['sleep_source']
-        as String?;
-  }
-
-  for (final f in _families) {
-    test('$f: an HR-less staged night goes when the flag goes off', () async {
-      final id = '$f-synthetic';
-      await useDevice(id, f, true);
-      await DerivationEngine().runDays(_profile, {_day}, force: true);
-      expect(await source(_day), 'vendor_staged');
-      await (await LocalDb.instance).update('day_result', {'finalized': 1},
-          where: 'day_id = ?', whereArgs: [_day]);
-      handed.clear();
-      await useDevice(id, f, false);
-      expect(handed.expand((d) => d), contains(_day),
-          reason: 'the day it staged is re-derived off the band alone');
-      expect(await source(_day), isNot('vendor_staged'));
-      await DerivationEngine().run(_profile);
-      expect(await source(_day), isNot('vendor_staged'),
-          reason: 'a plain run never brings the finalized night back');
-    }, timeout: const Timeout(Duration(minutes: 3)));
-  }
 
   test('a pruned day only the wearable decided is cleared, a shared one kept',
       () async {

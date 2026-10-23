@@ -11,24 +11,12 @@ import 'package:openstrap_protocol/openstrap_protocol.dart';
 
 void main() {
   test('ids are unique and stable — they are stamped as device_family', () {
-    expect(
-        kBandRegistry.map((e) => e.id).toList(),
-        <String>[
-          'gen4',
-          'gen5',
-          'ble_hrs',
-          'oura',
-          'polar_pmd',
-          'coros',
-          'ultrahuman',
-          'miband234',
-          'pebble',
-          'colmi',
-          'garmin',
-          'thermometer',
-          'miscale_bc',
-          'miscale2',
-        ]);
+    // This build scans for the two WHOOP generations only: `kBandRegistry` was
+    // trimmed to them when the app was narrowed to WHOOP. The other entries
+    // still exist as constants (their adapter tests pump them directly) but
+    // are not scanned for or paired. Adding one back means adding its id here.
+    expect(kBandRegistry.map((e) => e.id).toList(), <String>['gen4', 'gen5']);
+    expect(kBandRegistry.map((e) => e.id).toSet(), hasLength(kBandRegistry.length));
   });
 
   test('D1 — the scan service list is exactly the two WHOOP services', () {

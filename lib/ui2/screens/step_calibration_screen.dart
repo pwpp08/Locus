@@ -56,7 +56,7 @@ class _StepCalibrationScreenState extends State<StepCalibrationScreen> {
     });
 
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+    _pollTimer = Timer.periodic(Motion.tick, (t) {
       if (!mounted || !_testing) return;
       final currentApp = context.read<AppState>();
       setState(() {

@@ -455,9 +455,8 @@ class _AccountScreenState extends State<AccountScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: InkWell(
+                          child: Pressable(
                             onTap: _loading ? null : _loginWithGoogle,
-                            borderRadius: R.rMd,
                             child: Container(
                               height: 50,
                               decoration: BoxDecoration(

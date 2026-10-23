@@ -331,7 +331,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                       height: 4,
                       decoration: BoxDecoration(
                         color: p.ink3.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(2),
+                        borderRadius: R.rPill,
                       ),
                     ),
                   ),
@@ -352,7 +352,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                   const SizedBox(height: S.x3),
                   // Time Picker Display
                   Center(
-                    child: GestureDetector(
+                    child: Pressable(
                       onTap: () async {
                         final t = await showTimePicker(
                           context: ctx,
@@ -574,11 +574,11 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
               ? 'Working on your band. Pick a pattern in each alarm.'
               : 'Some WHOOP 4 firmware never fires a custom-pattern alarm, so '
                   'alarms use the standard buzz until you test it here.',
-          TextButton(
-            onPressed: _testing || widget.onTestPattern == null
+          TextAction(
+            _testing ? 'Testing' : 'Test',
+            _testing || widget.onTestPattern == null
                 ? null
                 : () => _runPatternTest(c),
-            child: Text(_testing ? 'Testing' : 'Test'),
           ),
         ),
       ]),
@@ -604,28 +604,21 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
         content: Text('Test alarm set for ${AlarmScreenView._hhmm(at)}. '
             'Keep the band on and wait for double pulses.')));
     // Ask once the buzz has had time to run.
-    final wait = at.add(const Duration(seconds: 50)).difference(DateTime.now());
+    final wait = at.add(Motion.tick * 50).difference(DateTime.now());
     await Future<void>.delayed(wait.isNegative ? Duration.zero : wait);
     if (!mounted) {
       await widget.onFinishPatternTest?.call(null);
       return;
     }
-    final buzzed = await showDialog<bool>(
-      context: context,
-      builder: (d) => AlertDialog(
-        title: const Text('Did the band buzz?'),
-        content: const Text('Double pulses, starting about a minute after you '
-            'pressed Test.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(d).pop(false),
-              child: const Text('No')),
-          TextButton(
-              onPressed: () => Navigator.of(d).pop(true),
-              child: const Text('Yes')),
-        ],
-      ),
+    final choice = await AppDialog.show(
+      context,
+      title: 'Did the band buzz?',
+      body: 'Double pulses, starting about a minute after you pressed Test.',
+      primary: 'Yes',
+      secondary: 'No',
     );
+    // Dismissed without answering is "abandoned", not "no".
+    final buzzed = choice == null ? null : choice == DialogChoice.primary;
     await widget.onFinishPatternTest?.call(buzzed);
     if (!mounted) return;
     setState(() => _testing = false);
@@ -638,18 +631,18 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
 
   Widget _buildPresetChip(
       String label, bool selected, VoidCallback? onTap, P p) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x2),
         decoration: BoxDecoration(
           color: selected ? C.blue : p.wash(p.ink3),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: R.rMd,
         ),
         child: Text(
           label,
           style: F.cap.copyWith(
-            color: selected ? Colors.white : p.ink,
+            color: selected ? p.inkOn(C.blue) : p.ink,
             fontWeight: selected ? FontWeight.bold : FontWeight.normal,
           ),
         ),
@@ -660,7 +653,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
   Widget _buildDayCircle(
       int dayNumber, String label, Set<int> days, StateSetter setSheetState, P p) {
     final active = days.contains(dayNumber);
-    return GestureDetector(
+    return Pressable(
       onTap: () {
         setSheetState(() {
           if (active) {
@@ -681,7 +674,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
         child: Text(
           label,
           style: F.cap.copyWith(
-            color: active ? Colors.white : p.ink2,
+            color: active ? p.inkOn(C.blue) : p.ink2,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -720,10 +713,10 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
       backgroundColor: p.bg,
       floatingActionButton: FloatingActionButton(
         backgroundColor: C.blue,
-        foregroundColor: Colors.white,
+        foregroundColor: p.inkOn(C.blue),
         shape: const CircleBorder(),
         onPressed: () => _createNewAlarm(c),
-        child: const Icon(LucideIcons.plus, size: 28),
+        child: const Icon(LucideIcons.plus, size: I.lg),
       ),
       body: SafeArea(
         child: Column(
@@ -737,7 +730,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, 90),
+                padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x16 + S.x6),
                 children: [
                   if (fired != null &&
                       calendarDaysBetween(fired, now) == 0) ...[

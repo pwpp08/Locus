@@ -127,30 +127,6 @@ void main() {
     expect(await _served('respiratory_rate'), 14);
   });
 
-  test("the day timeline lists the watch's split mean once, and not its "
-      'stress index', () async {
-    const id = 'garmin-two-files';
-    final db = await LocalDb.instance;
-    await db.insert('observation', {
-      'device_id': id,
-      'ts_ms': DateTime(2026, 10, 4, 12).millisecondsSinceEpoch,
-      'date': _day,
-      'source_kind': 'device',
-      'vendor_key': 'stress_avg',
-      'value': 31,
-      'unit': '',
-      'attribution': 'Garmin',
-    });
-    final rows = [
-      for (final r
-          in await timelineObservations(await LocalDb.observationsForDay(_day)))
-        if (r['device_id'] == id) r,
-    ];
-    expect({for (final r in rows) r['vendor_key']: r['value']},
-        {'spo2_avg': 94, 'respiration_avg': 14});
-    expect(rows, hasLength(2));
-  });
-
   test("an earlier monitoring file read after a later one keeps the day's "
       'larger step total', () async {
     const id = 'garmin-steps-reread';

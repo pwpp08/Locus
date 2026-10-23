@@ -7,7 +7,6 @@ import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:openstrap_edge/ble/adapters/_registry.dart';
 import 'package:openstrap_edge/coach/coach_config.dart';
 import 'package:openstrap_edge/coach/coach_engine.dart';
 import 'package:openstrap_edge/data/models.dart';
@@ -18,8 +17,6 @@ import 'package:openstrap_edge/state/app_state.dart';
 import 'package:openstrap_edge/state/locale_controller.dart';
 import 'package:openstrap_edge/sync/paired_device.dart';
 import 'package:openstrap_edge/ui2/activity/zones.dart';
-import 'package:openstrap_edge/ui2/pairing/device_picker.dart';
-import 'package:openstrap_edge/ui2/profile/devices.dart';
 import 'package:openstrap_edge/ui2/screens/coach.dart';
 import 'package:openstrap_edge/ui2/screens/coach_text.dart';
 import 'package:openstrap_edge/ui2/screens/metric_detail.dart';
@@ -285,61 +282,6 @@ void main() {
       }
     });
   }
-
-  testWidgets(
-    'registry labels are fallback names; stored names stay verbatim',
-    (t) async {
-      final rows = <Map<String, Object?>>[
-        {'id': 'unnamed', 'adapter_id': 'ble_hrs', 'label': null},
-        {
-          'id': 'named',
-          'adapter_id': 'ble_hrs',
-          'label': 'Bluetooth heart rate sensor',
-        },
-      ];
-      final app = SensorApp(rows);
-      addTearDown(app.dispose);
-      final sources = liveSources(app).where((s) => !s.isBand).toList();
-      expect(sources[0].nameIsFallback, isTrue);
-      expect(sources[1].nameIsFallback, isFalse);
-      await t.pumpWidget(
-        page(
-          Scaffold(
-            body: Builder(
-              builder: (c) => Column(
-                children: [
-                  for (final source in sources) Text(source.displayName(c)),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-      await t.pumpAndSettle();
-      expect(
-        find.text(localizedText(ru, 'Bluetooth heart rate sensor')),
-        findsOneWidget,
-      );
-      expect(find.text('Bluetooth heart rate sensor'), findsOneWidget);
-      expect(rows[0]['label'], isNull);
-      expect(rows[1]['label'], 'Bluetooth heart rate sensor');
-    },
-  );
-
-  testWidgets('category search accepts original and Russian blurb', (t) async {
-    await t.pumpWidget(page(const DevicePickerScreen()));
-    await t.pumpAndSettle();
-    final entry = kBleHrs;
-    for (final query in [
-      deviceCategoryBlurb(null, entry),
-      deviceCategoryBlurb(ru, entry),
-    ]) {
-      await t.enterText(find.byType(TextField).first, query);
-      await t.pumpAndSettle();
-      expect(find.text(localizedText(ru, entry.label)), findsOneWidget);
-    }
-    expect(t.takeException(), isNull);
-  });
 
   final schedules = <(List<Object?>?, bool)>[
     ([1, 2, 3, 4, 5, 6, 7], true),

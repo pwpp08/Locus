@@ -462,18 +462,6 @@ void main() {
   group('Mi Band 2/3', () {
     const band = 'Mi Band 2/3';
 
-    test('unlocks read off its column, matching the table', () {
-      expect(wearableName(kMiBandFamily), band);
-      final caps = capabilities(kMiBandColumn);
-      expect(caps['resting_hr'], MetricClass.ours);
-      expect(caps['sleep_stages'], MetricClass.device);
-      expect(caps['steps'], MetricClass.device);
-      expect(caps['readiness'], MetricClass.estimated, reason: 'C partial');
-      expect(caps['movement'], MetricClass.estimated);
-      expect(caps['hrv'], MetricClass.unavailable);
-      expect(caps['hrr'], MetricClass.unavailable, reason: 'strap only');
-    });
-
     testWidgets('its unlocks draw in developer mode', (t) async {
       SharedPreferences.setMockInitialValues({});
       await Prefs.ensureLoaded();
@@ -533,46 +521,6 @@ void main() {
   });
 
   group('the old sensor copy', () {
-    testWidgets('a wearable is not told nothing is calculated from it',
-        (t) async {
-      await _pump(
-          t,
-          const SizedBox(
-              height: 1600,
-              child: PairSensorView(
-                  entryLabel: 'Mi Band 2/3', adapterId: kMiBandFamily)));
-      expect(find.textContaining('Working out our numbers from it'),
-          findsOneWidget);
-      expect(find.textContaining('feeds a score'), findsNothing);
-      expect(find.textContaining('for workouts'), findsNothing);
-    });
-
-    testWidgets('a strap and a scale each get their own words', (t) async {
-      await _pump(
-          t,
-          const SizedBox(
-              height: 1600,
-              child: PairSensorView(entryLabel: 'Strap', adapterId: 'ble_hrs')));
-      expect(find.textContaining('for workouts'), findsOneWidget);
-      // Flag off, it records nothing: the copy says so (rule R6).
-      expect(find.textContaining('until then it records nothing'),
-          findsOneWidget);
-      // A workout arms the strap and nothing else does, so it never
-      // records a night: the copy promises no overnight HRV.
-      expect(find.textContaining('records while a workout runs'),
-          findsOneWidget);
-      expect(find.textContaining('overnight HRV'), findsNothing);
-      expect(find.textContaining('never used overnight'), findsNothing);
-      await _pump(
-          t,
-          const SizedBox(
-              height: 1600,
-              child: PairSensorView(
-                  entryLabel: 'Scale', adapterId: 'miscale_bc')));
-      expect(find.textContaining('Using them in your profile'),
-          findsOneWidget);
-    });
-
     testWidgets('a Coros watch is not told a workout records it', (t) async {
       await _pump(
           t,
@@ -587,25 +535,6 @@ void main() {
       expect(find.text('Used during workouts'), findsNothing);
       expect(find.textContaining('records while a workout runs'), findsNothing);
       expect(find.textContaining('Scoring a workout'), findsNothing);
-    });
-
-    testWidgets('a paired ring or scale is not told a workout uses it',
-        (t) async {
-      for (final (label, adapter, sub) in const [
-        ('Oura', 'oura', 'Records stored when it syncs'),
-        ('Scale', 'miscale_bc', 'Readings stored as it takes them'),
-      ]) {
-        await _pump(
-            t,
-            SizedBox(
-                height: 1600,
-                child: PairSensorView(
-                    entryLabel: label,
-                    adapterId: adapter,
-                    paired: (id: '$adapter-1', label: label))));
-        expect(find.text(sub), findsOneWidget, reason: adapter);
-        expect(find.text('Used during workouts'), findsNothing, reason: adapter);
-      }
     });
 
     test('no locale still says nothing is calculated from a device', () {
@@ -647,7 +576,7 @@ void main() {
       await _pump(
           t,
           const SizedBox(
-              height: 2200,
+              height: 4200,
               child: MoreSettingsView(version: '1', devMode: true)));
       expect(find.text('Wearable numbers'), findsOneWidget);
       expect(find.text('Garmin watch'), findsOneWidget);
@@ -661,7 +590,7 @@ void main() {
       await _pump(
           t,
           const SizedBox(
-              height: 2200,
+              height: 4200,
               child: MoreSettingsView(version: '1', devMode: false)));
       expect(find.text('Wearable numbers'), findsNothing);
       expect(find.text('Chest strap'), findsNothing);

@@ -212,6 +212,9 @@ class DeriveScheduler {
           unawaited(_drain());
         });
       }
+      // Still tell listeners: every other path through here does, and the
+      // state they render (pending work) changed even though the timer didn't.
+      onChanged();
       return;
     }
     _timer?.cancel();

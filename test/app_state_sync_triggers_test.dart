@@ -52,7 +52,11 @@ void main() {
       await rig.app.forceResync();
       expect(rig.engine.events, ['requestHistorySync', 'runSync:180']);
       await rig.jobQueued('derive_light');
-      await rig.settleDerive(const Duration(seconds: 8));
+      // The settle timer from the open is still pending (2 s, heavy), and the
+      // scheduler no longer restarts a running timer for every new request —
+      // that starved derivation under a steady flow of records — so the light
+      // job rides on it instead of arming a fresh 8 s one.
+      await rig.settleDerive();
       await rig.quiesce();
       expect(await rig.jobTypes(), ['derive_light']);
       expect(ticks.ticks, 3, reason: 'its own notify and two from the scheduler queueing the job');
@@ -134,7 +138,11 @@ void main() {
       expect(rig.engine.events, ['requestForegroundSync', 'runSync:180']);
       expect(_logged(rig, 'Foreground catch-up: 3 records pulled.'), isTrue);
       await rig.jobQueued('derive_light');
-      await rig.settleDerive(const Duration(seconds: 8));
+      // The settle timer from the open is still pending (2 s, heavy), and the
+      // scheduler no longer restarts a running timer for every new request —
+      // that starved derivation under a steady flow of records — so the light
+      // job rides on it instead of arming a fresh 8 s one.
+      await rig.settleDerive();
       await rig.quiesce();
       expect(ticks.ticks, 3, reason: 'its own notify and two from the scheduler queueing the job');
       ticks.stop();

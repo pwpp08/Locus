@@ -36,6 +36,26 @@ const List<int> kHrWithTwoRr = <int>[
   0x00, 0x02, // 512 ticks = 500 ms
 ];
 
+/// Every notify-class entry the matching logic must still order and tell
+/// apart, in the registry's old match order. NOT `kBandRegistry`: this build
+/// only scans for WHOOP, so its non-framed list is empty and a test over it
+/// would assert nothing. These functions are pure over whatever list they are
+/// handed, and the entries still ship for the day one is re-enabled.
+final List<BandEntry> _notifyEntries = <BandEntry>[
+  kBleHrs,
+  kOura,
+  kPolarPmd,
+  kCoros,
+  kUltrahuman,
+  kMiBand234,
+  kPebble,
+  kColmi,
+  kGarmin,
+  kThermometer,
+  kMiScaleComposition,
+  kMiScale2,
+];
+
 void main() {
   group('substrate write', () {
     const deviceId = 'hrs-0a1b2c3d';
@@ -460,7 +480,7 @@ void main() {
   test('connected-device lookup: specific, then generic hr, then polar pmd',
       () {
     final order = HrsLink.systemDeviceQueryOrder(
-        kBandRegistry.where((e) => !e.isFramed).toList());
+        _notifyEntries);
     expect(order.last.id, kPolarPmd.id);
     expect(order.indexOf(kBleHrs), lessThan(order.indexOf(kPolarPmd)));
     expect(order.indexOf(kCoros), lessThan(order.indexOf(kBleHrs)));
@@ -471,7 +491,7 @@ void main() {
   test('connected-device lookup: shared or 16-bit services follow generic hr',
       () {
     final order = HrsLink.systemDeviceQueryOrder(
-        kBandRegistry.where((e) => !e.isFramed).toList());
+        _notifyEntries);
     for (final e in [kThermometer, kMiScaleComposition, kMiScale2]) {
       expect(order.indexOf(kBleHrs), lessThan(order.indexOf(e)), reason: e.id);
     }
@@ -479,7 +499,7 @@ void main() {
 
   group('scan identity', () {
     final hr = Guid(kHeartRateServiceUuid);
-    final notify = kBandRegistry.where((e) => !e.isFramed).toList();
+    final notify = _notifyEntries;
 
     // A Polar advertises 0x180D and its name, never the PMD service.
     test('a Polar optical sensor on 0x180D is routed to PMD, not generic HR',

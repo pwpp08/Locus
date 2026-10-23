@@ -78,7 +78,7 @@ class _WatchCompareScreenState extends State<WatchCompareScreen> {
 
   /// The read window: the calendar day plus the evening before, so a night
   /// that started before midnight is read whole.
-  DateTime get _readStart => _dayStart.subtract(const Duration(hours: 12));
+  DateTime get _readStart => DateTime(_day.year, _day.month, _day.day, -12);
 
   Future<void> _load() async {
     setState(() {
@@ -156,8 +156,9 @@ class _WatchCompareScreenState extends State<WatchCompareScreen> {
   }
 
   void _shiftDay(int by) {
-    final next = _day.add(Duration(days: by));
-    if (next.isAfter(DateTime.now())) return;
+    final next = DateTime(_day.year, _day.month, _day.day + by, 12);
+    // By calendar day, not instant: today at noon is "today" at 08:00 too.
+    if (dayLabelOf(next).compareTo(todayLabel()) > 0) return;
     setState(() => _day = next);
     _load();
   }

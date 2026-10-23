@@ -337,6 +337,13 @@ const _notComponents = {
   // device flags in the database, and opens a confirm sheet that re-derives.
   // Pumped off a real database by device_use_switch_test.dart.
   'DeviceUseSwitch',
+  // Scaffold routes and a sheet that need the database, AppState, the network or
+  // Health Connect, which a gallery sweep has none of: the battery chart reads
+  // `band_battery`; the step-calibration walk test polls the live IMU and the
+  // account screen talks to Google sign-in; the update dialog is a release
+  // fetched from GitHub; the device comparison reads Health Connect.
+  'BatteryDetailScreen', 'StepCalibrationScreen', 'AccountScreen',
+  'UpdateDialog', 'WatchCompareScreen',
   // The double-tap picker. A Scaffold route whose whole content is decided by
   // what the OS answered to a method channel, so a gallery case would be a
   // photograph of a fixture rather than of the screen. Rendered instead by
