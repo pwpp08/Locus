@@ -821,8 +821,8 @@ class CoachEngine {
               'role': 'assistant',
               'content': buffer.toString(),
               if (assembledToolCalls.isNotEmpty) 'tool_calls': assembledToolCalls,
-              if (extraContent != null) 'extra_content': extraContent,
-              if (thoughtSignature != null) 'thought_signature': thoughtSignature,
+              'extra_content': ?extraContent,
+              'thought_signature': ?thoughtSignature,
             };
           }
         } catch (_) {
