@@ -1,0 +1,39 @@
+name: golden
+
+# ONE-OFF. Regenerates the WHOOP freeze goldens (UTC, +05:30, -04:00) and the
+# two-device fixture golden on the runner's Linux, which is the only place the
+# per-zone TZ runs can be reproduced, and uploads them as an artifact. Delete
+# this file once the regenerated goldens are committed.
+
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/golden.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  golden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.6
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Regenerate under each zone
+        run: |
+          TZ=UTC GENERATE_GOLDEN=1 flutter test --concurrency=1 test/whoop_freeze_golden_test.dart test/two_device_fixture_test.dart
+          TZ=Asia/Kolkata GENERATE_GOLDEN=1 flutter test --concurrency=1 test/whoop_freeze_golden_test.dart
+          TZ=America/New_York GENERATE_GOLDEN=1 flutter test --concurrency=1 test/whoop_freeze_golden_test.dart
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goldens
+          path: |
+            test/fixtures/whoop_freeze/*.json
+            test/fixtures/two_device_day_expected.json

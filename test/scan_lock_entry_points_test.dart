@@ -35,7 +35,8 @@ void main() {
     final pattern = RegExp(r'FlutterBluePlus\.(start|stop)Scan');
     final offenders = <String>[];
     for (final f in dartFiles) {
-      final rel = f.path.replaceFirst(RegExp(r'^\./'), '');
+      final rel =
+          f.path.replaceAll('\\', '/').replaceFirst(RegExp(r'^\./'), '');
       if (_allowlist.contains(rel)) continue;
       for (final line in f.readAsStringSync().split('\n')) {
         if (_pureComment.hasMatch(line)) continue;
@@ -55,7 +56,8 @@ void main() {
     final pattern = RegExp(r'FlutterBluePlus\.isScanning');
     final offenders = <String>[];
     for (final f in dartFiles) {
-      final rel = f.path.replaceFirst(RegExp(r'^\./'), '');
+      final rel =
+          f.path.replaceAll('\\', '/').replaceFirst(RegExp(r'^\./'), '');
       if (_allowlist.contains(rel)) continue;
       for (final line in f.readAsStringSync().split('\n')) {
         if (_pureComment.hasMatch(line)) continue;

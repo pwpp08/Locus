@@ -199,11 +199,13 @@ void main() {
           tick.fire();
         }
         expect(w.caloriesOrNull, isNotNull);
-        // Two seconds' worth of wall clock billed: a real (tiny) kcal figure
-        // that rounds to 0 on the gauge - scored, which is not the same as
-        // absent.
+        // A real kcal figure - scored, which is not the same as absent. How
+        // SMALL it is depends on the clock: the 120 ticks fire back to back, so
+        // a fine-grained clock bills about two seconds of wall time (a figure
+        // that rounds to 0 on the gauge) while a coarse one (Windows) sees the
+        // same timestamp twice and bills each tick's fallback second. So no
+        // assertion on the rounded value here.
         expect(w.calories, greaterThan(0));
-        expect(w.caloriesOrNull, 0);
         expect(w.strain, isNotNull);
         await finish(app);
       });

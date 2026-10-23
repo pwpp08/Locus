@@ -52,8 +52,14 @@ void main() {
   // Today's night, scored (so the ring shows today's overnight), with NO
   // readiness of its own; the crossday rollup says today is settled.
   Future<void> seed({required bool nullRow}) async {
+    // 07:00 local today, NOT `now - 13 h`: that landed before 03:00 (which the
+    // pin refuses, `kMinPinWakeHour`) when the test ran between 13:00 and 16:00,
+    // and on yesterday's date when it ran before 13:00. The night itself is
+    // settled by the wall-clock give-up (no window in the payload and no band
+    // edge, so the edge is 0), which holds at any hour.
+    final n = DateTime.now();
     final wakeSec =
-        DateTime.now().millisecondsSinceEpoch ~/ 1000 - 13 * 3600;
+        DateTime(n.year, n.month, n.day, 7).millisecondsSinceEpoch ~/ 1000;
     final db = await LocalDb.instance;
     await db.delete('day_result');
     await db.delete('metric_series');
@@ -70,8 +76,7 @@ void main() {
           },
         },
       }),
-      // The night's wake, which the pin must match to be trusted. Far enough
-      // back that the night has settled on the give-up clock.
+      // The night's wake, which the pin must match to be trusted.
       windowJson: jsonEncode({'offset_ms': wakeSec * 1000}),
       // `putDayResult` writes the series map as given; with no readiness key
       // the day has no readiness row at all.

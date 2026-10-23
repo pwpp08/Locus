@@ -15,10 +15,11 @@ void main() {
     final bad = RegExp(r'''import\s+['"](package:(firebase_|mobile_scanner)|.*firebase_options\.dart)''');
     final offenders = [
       for (final f in Directory('lib').listSync(recursive: true).whereType<File>())
+        // Forward slashes, so the allowlist matches on Windows too.
         if (f.path.endsWith('.dart') &&
-            !seams.contains(f.path) &&
+            !seams.contains(f.path.replaceAll('\\', '/')) &&
             bad.hasMatch(f.readAsStringSync()))
-          f.path,
+          f.path.replaceAll('\\', '/'),
     ];
     expect(offenders, isEmpty);
   });

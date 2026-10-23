@@ -683,7 +683,11 @@ Future<List<String>> _extractCsvMembers(
     );
   }
 
+  // Every rejection below happens AFTER a successful decode and BEFORE the
+  // try/finally that closes `input`, so each closes it itself: a handle left
+  // open leaks a descriptor and blocks the temp directory's cleanup.
   if (archive.files.length > _kMaxArchiveMembers) {
+    await input.close();
     throw ImportFormatException(
       '“$name” holds ${archive.files.length} entries, which is far more than '
       'any $flavor export — refusing to unpack it.',
@@ -698,6 +702,7 @@ Future<List<String>> _extractCsvMembers(
   final declaredBytes =
       csvFiles.fold<int>(0, (sum, f) => sum + (f.size > 0 ? f.size : 0));
   if (declaredBytes > _kMaxUncompressedBytes) {
+    await input.close();
     throw ImportFormatException(
       '“$name” unpacks to more than '
       '${(declaredBytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB of '
@@ -706,6 +711,7 @@ Future<List<String>> _extractCsvMembers(
   }
 
   if (csvFiles.isEmpty) {
+    await input.close();
     throw ImportFormatException(
       '“$name” is an archive with no CSV files inside '
       '(${archive.files.length} entr${archive.files.length == 1 ? 'y' : 'ies'}). '
