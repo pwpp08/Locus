@@ -7,6 +7,11 @@ name: golden
 
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: commit to generate from (default: the pushed one)
+        required: false
+        default: ''
   push:
     paths: ['.github/workflows/golden.yml']
 
@@ -19,6 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
@@ -33,7 +39,7 @@ jobs:
           TZ=America/New_York GENERATE_GOLDEN=1 flutter test --concurrency=1 test/whoop_freeze_golden_test.dart
       - uses: actions/upload-artifact@v4
         with:
-          name: goldens
+          name: goldens-${{ github.run_id }}
           path: |
             test/fixtures/whoop_freeze/*.json
             test/fixtures/two_device_day_expected.json
