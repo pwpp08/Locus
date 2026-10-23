@@ -178,6 +178,9 @@ class AlarmScreen extends StatelessWidget {
           app.setScheduleDay(weekday: weekday, smartWindowMinutes: minutes),
       onTest: app.testAlarmBuzz,
       onCancel: app.disableAlarm,
+      onTestPattern: app.startAlarmPatternTest,
+      onFinishPatternTest: (buzzed) =>
+          app.finishAlarmPatternTest(buzzed: buzzed),
     );
   }
 }
@@ -196,6 +199,13 @@ class AlarmScreenView extends StatefulWidget {
   final Future<void> Function(int weekday, int minutes)? onSetSmartWindow;
   final Future<void> Function()? onTest, onCancel;
 
+  /// Arm a custom-pattern test alarm a minute out; returns when it will fire,
+  /// or null when the band did not take it.
+  final Future<DateTime?> Function(AlarmBuzz buzz)? onTestPattern;
+
+  /// End the test: true = it buzzed, false = it did not, null = abandoned.
+  final Future<void> Function(bool? buzzed)? onFinishPatternTest;
+
   const AlarmScreenView({
     super.key,
     this.armedAt,
@@ -210,6 +220,8 @@ class AlarmScreenView extends StatefulWidget {
     this.onSetSmartWindow,
     this.onTest,
     this.onCancel,
+    this.onTestPattern,
+    this.onFinishPatternTest,
   });
 
   @override
@@ -288,6 +300,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
     Set<int> selectedDays = Set.from(alarm.days);
     final labelCtrl = TextEditingController(text: alarm.label);
     int smartMin = alarm.smartWindowMinutes;
+    AlarmBuzz buzz = alarm.buzz;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -458,6 +471,29 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: S.x4),
+                  Text('Buzz pattern',
+                      style: F.body.copyWith(
+                          fontWeight: FontWeight.w600, color: p.ink)),
+                  const SizedBox(height: S.x2),
+                  Wrap(
+                    spacing: S.x2,
+                    runSpacing: S.x2,
+                    children: [
+                      for (final b in AlarmBuzz.values)
+                        _buildPresetChip(b.label, buzz == b,
+                            () => setSheetState(() => buzz = b), p),
+                    ],
+                  ),
+                  const SizedBox(height: S.x2),
+                  Text(
+                    buzz == AlarmBuzz.standard || mgr.richVerified
+                        ? buzz.description
+                        : '${buzz.description}. Not tested on your band yet: '
+                            'until you run the pattern test on the alarm '
+                            'screen, this alarm uses the standard buzz.',
+                    style: F.cap.copyWith(color: p.ink3, height: 1.4),
+                  ),
                   const SizedBox(height: S.x6),
                   BigButton(
                     'Save Alarm',
@@ -473,6 +509,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                             : 'Alarm',
                         days: selectedDays,
                         smartWindowMinutes: smartMin,
+                        buzz: buzz,
                       );
                       await mgr.updateAlarm(updated);
                     },
@@ -484,6 +521,119 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
         },
       ),
     );
+  }
+
+  bool _testing = false;
+
+  /// Shake-to-stop and the custom-pattern test, together: both are about how
+  /// the band wakes you, and both have a condition the user must know about.
+  Widget _buzzCard(BuildContext c, P p, AlarmManager mgr) {
+    Widget row(IconData icon, Color col, String title, String sub,
+            Widget trailing) =>
+        Row(children: [
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: p.wash(col),
+            child: Icon(icon, color: col, size: 20),
+          ),
+          const SizedBox(width: S.x3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: F.body
+                        .copyWith(fontWeight: FontWeight.w600, color: p.ink)),
+                Text(sub, style: F.cap.copyWith(color: p.ink3, height: 1.4)),
+              ],
+            ),
+          ),
+          const SizedBox(width: S.x2),
+          trailing,
+        ]);
+    return Surface(
+      child: Column(children: [
+        row(
+          LucideIcons.vibrate,
+          C.orange,
+          'Shake to stop',
+          'Shake your wrist to silence the buzz. Needs the phone near and '
+              'connected at alarm time; a double tap on the band always works.',
+          Switch.adaptive(
+            value: mgr.shakeToStop,
+            activeTrackColor: C.blue,
+            onChanged: (v) => mgr.setShakeToStop(v),
+          ),
+        ),
+        Divider(height: S.x6, color: p.line),
+        row(
+          LucideIcons.audioWaveform,
+          C.blue,
+          'Custom buzz patterns',
+          mgr.richVerified
+              ? 'Working on your band. Pick a pattern in each alarm.'
+              : 'Some WHOOP 4 firmware never fires a custom-pattern alarm, so '
+                  'alarms use the standard buzz until you test it here.',
+          TextButton(
+            onPressed: _testing || widget.onTestPattern == null
+                ? null
+                : () => _runPatternTest(c),
+            child: Text(_testing ? 'Testing' : 'Test'),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Future<void> _runPatternTest(BuildContext c) async {
+    final messenger = ScaffoldMessenger.of(c);
+    setState(() => _testing = true);
+    DateTime? at;
+    try {
+      at = await widget.onTestPattern!(AlarmBuzz.pulse);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('$e')));
+    }
+    if (at == null) {
+      if (mounted) setState(() => _testing = false);
+      messenger.showSnackBar(const SnackBar(
+          content: Text('The band did not take the test alarm.')));
+      return;
+    }
+    messenger.showSnackBar(SnackBar(
+        content: Text('Test alarm set for ${AlarmScreenView._hhmm(at)}. '
+            'Keep the band on and wait for double pulses.')));
+    // Ask once the buzz has had time to run.
+    final wait = at.add(const Duration(seconds: 50)).difference(DateTime.now());
+    await Future<void>.delayed(wait.isNegative ? Duration.zero : wait);
+    if (!mounted) {
+      await widget.onFinishPatternTest?.call(null);
+      return;
+    }
+    final buzzed = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Did the band buzz?'),
+        content: const Text('Double pulses, starting about a minute after you '
+            'pressed Test.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(d).pop(false),
+              child: const Text('No')),
+          TextButton(
+              onPressed: () => Navigator.of(d).pop(true),
+              child: const Text('Yes')),
+        ],
+      ),
+    );
+    await widget.onFinishPatternTest?.call(buzzed);
+    if (!mounted) return;
+    setState(() => _testing = false);
+    if (buzzed == false) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Your band does not fire custom patterns. Alarms '
+              'will keep using the standard buzz.')));
+    }
   }
 
   Widget _buildPresetChip(
@@ -642,6 +792,8 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: S.x3),
+                  if (mgr != null) _buzzCard(c, p, mgr),
                   const SizedBox(height: S.x4),
 
                   // Alarms List (Screenshot 2 style)

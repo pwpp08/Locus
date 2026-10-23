@@ -35,6 +35,7 @@ import 'inputs/garmin_inputs.dart'
 import 'hr_max.dart'
     show
         estimatedMaxHr,
+        manualMaxHrFromProfile,
         manualZoneBoundsFromProfile,
         smoothedMaxHr,
         smoothedMinHr,
@@ -749,7 +750,8 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
   // ── BREATHING-RATE VARIABILITY (per-window RSA over the sleep NN) ──────────
   // Window the cleaned sleep NN into ~30-min bins, take each bin's RSA resp rate,
   // then BRV = dispersion + Theil-Sen trend of those per-window rates.
-  final respWindows = _respPerWindow(nn, nnTimes);
+  final respTimed = _respPerWindow(nn, nnTimes);
+  final respWindows = [for (final w in respTimed) w.brpm];
   final brv = respWindows.length >= 3
       ? breathingRateVariability(respWindows)
       : Metric<BrvResult>.absent(
@@ -762,53 +764,13 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
           ),
         );
 
-  // Nocturnal SpO2 derived from optical pulse oximetry channels
-  double? spo2Today;
-  if (d.sleepSpo2Red.isNotEmpty && d.sleepSpo2Ir.isNotEmpty) {
-    final validPairs = <(int, int)>[];
-    for (var i = 0; i < d.sleepSpo2Red.length && i < d.sleepSpo2Ir.length; i++) {
-      final r = d.sleepSpo2Red[i];
-      final ir = d.sleepSpo2Ir[i];
-      if (r > 100 && ir > 100) {
-        validPairs.add((r, ir));
-      }
-    }
-    if (validPairs.length >= 30) {
-      final estimates = <double>[];
-      const win = 30;
-      for (var s = 0; s <= validPairs.length - win; s += 15) {
-        var sumR = 0.0, sumIr = 0.0;
-        for (var i = 0; i < win; i++) {
-          sumR += validPairs[s + i].$1;
-          sumIr += validPairs[s + i].$2;
-        }
-        final meanR = sumR / win;
-        final meanIr = sumIr / win;
-        var varR = 0.0, varIr = 0.0;
-        for (var i = 0; i < win; i++) {
-          varR += math.pow(validPairs[s + i].$1 - meanR, 2);
-          varIr += math.pow(validPairs[s + i].$2 - meanIr, 2);
-        }
-        final acR = math.sqrt(varR / win);
-        final acIr = math.sqrt(varIr / win);
-        if (meanR > 0 && meanIr > 0 && acIr > 0) {
-          final r = (acR / meanR) / (acIr / meanIr);
-          if (r >= 0.2 && r <= 1.6) {
-            final spo2 = (110.0 - 25.0 * r).clamp(88.0, 100.0);
-            estimates.add(spo2);
-          }
-        }
-      }
-      if (estimates.isNotEmpty) {
-        estimates.sort();
-        spo2Today = _round(estimates[estimates.length ~/ 2], 1);
-      }
-    }
-    if (spo2Today == null && validPairs.length >= 60) {
-      spo2Today = 97.0;
-    }
-  }
-
+  // No SpO2 is derived from the band's red/IR channels. `spo2RedRaw` and
+  // `spo2IrRaw` are one signal: `ir - red` is a fixed integer within a capture
+  // session (see protocol/records.dart) while both drift together, so any
+  // ratio built from them measures that drift, not oxygenation. Imported WHOOP
+  // blood oxygen is a separate `spo2` metric_series key and does not pass
+  // through here. (A ratio-of-ratios estimate with a hard-coded 97 % fallback
+  // shipped briefly in v113 and was removed in v114.)
   const kSpo2Refusal = 'refused: the red and IR channels are one signal — '
       'ir − red is a fixed offset within a session, so any ratio built from '
       'them measures baseline drift, not oxygenation';
@@ -1026,7 +988,8 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
   final sex = (prof['sex'] as String?)?.toLowerCase();
   // ONE definition (hr_max.dart). Null without an age, which takes
   // TRIMP/strain/calories with it. Zones do not need it (`zoneSet` below).
-  final hrMax = estimatedMaxHr(age, d.deviceFamily);
+  final hrMax = estimatedMaxHr(age, d.deviceFamily,
+      manualMaxHr: manualMaxHrFromProfile(prof));
   // TS-04 — THE zone set (hr_max.dart). Karvonen %HRR between the OBSERVED
   // ceiling and the 28-day median resting HR once both exist; %HRmax off the
   // age estimate until then, which is exactly what this line used to do alone.
@@ -1039,6 +1002,7 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
     observedCeilingBpm: d.observedHrCeilingBpm,
     restingHrHistory: d.rhrHistory,
     manualZoneLowerBpm: manualZoneBoundsFromProfile(prof),
+    manualMaxHr: manualMaxHrFromProfile(prof),
   );
   // No night of its own: the user's typed resting HR, then the median of
   // their own recent nights, so a band worn all day still gets a strain.
@@ -1220,6 +1184,10 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
   final hrvTimeline = rrCov?.overCounted == true
       ? const <Map<String, num>>[]
       : _hrvTimeline(nn, nnTimes, hrvOriginMs);
+  // Per-window breathing over the same beats as the nightly `resp` headline.
+  final respTimeline = rrCov?.overCounted == true
+      ? const <Map<String, num>>[]
+      : _respTimelineOf(respTimed, hrvOriginMs);
   // CV-06 — the SHAPE of the night: per-bin RMSSD over the same cleaned NN the
   // headline uses, so the curve and the number can never disagree. Bins that
   // fall under the beat floor stay in the series as HOLES on purpose — dropping
@@ -1763,6 +1731,7 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
       'strain_curve': strainCurve,
       'zone_timeline': zoneTimeline,
       'hrv_timeline': hrvTimeline,
+      'resp_timeline': respTimeline,
       'hypnogram': hypnogram,
     },
     'coverage': {
@@ -1846,8 +1815,7 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
       // Stress score (0–100) + SI for trends.
       'stress': stressScore,
       'stress_si': si,
-      'spo2': spo2Today,
-      'body_temp_c': skinTempAdc != null ? _round(36.6 - (skinTempAdc - 28500.0) / 350.0, 2) : null,
+      'spo2': null,
       // Active calories (Keytel) + nocturnal HR detail (nadir / waking HR).
       'calories': caloriesKcal == null ? null : _round(caloriesKcal, 0),
       'sleeping_hr_nadir': nadir,
@@ -1943,8 +1911,11 @@ double? sleepClockOffsetSec(int epochSec) {
 
 /// Per-window RSA respiratory rates (br/min) for the BRV estimator. Buckets the
 /// cleaned NN into [windowMs] (~30-min) bins by beat time and runs [rsaRespRate]
-/// on each bin with ≥[minBeats] beats; keeps only resolved windows.
-List<double> _respPerWindow(
+/// on each bin with ≥[minBeats] beats; keeps only resolved windows. Each comes
+/// with its bin's midpoint on the `nnTimes` clock, so the overnight breathing
+/// line ([_respTimelineOf]) is these same estimates rather than a second,
+/// costly pass of the estimator.
+List<({double midMs, double brpm})> _respPerWindow(
   List<double> nn,
   List<double> nnTimes, {
   double windowMs = 1800000.0,
@@ -1959,7 +1930,7 @@ List<double> _respPerWindow(
     (binsNn[idx] ??= <double>[]).add(nn[i]);
     (binsTs[idx] ??= <double>[]).add(nnTimes[i]);
   }
-  final out = <double>[];
+  final out = <({double midMs, double brpm})>[];
   final idxs = binsNn.keys.toList()..sort();
   for (final idx in idxs) {
     final segNn = binsNn[idx]!;
@@ -1967,7 +1938,9 @@ List<double> _respPerWindow(
     // NN is already artifact-corrected upstream → artifactFraction 0.
     final r = rsaRespRate(segNn, binsTs[idx]!, artifactFraction: 0.0);
     final b = r.present ? r.value!.brpm : null;
-    if (b != null) out.add(b);
+    if (b != null) {
+      out.add((midMs: t0 + (idx + 0.5) * windowMs, brpm: b));
+    }
   }
   return out;
 }
@@ -2231,6 +2204,33 @@ List<Map<String, num>> _hrvTimeline(
     }
   }
   return out;
+}
+
+/// Breathing-rate timeline over the night: the BRV estimator's own ~30-min
+/// windows ([_respPerWindow]) — RSA over the same cleaned sleep NN as the
+/// nightly `resp` headline — as {t, v} with `t` the window midpoint in EPOCH
+/// SECONDS and `w` its width in seconds, so a reader can show each estimate
+/// across the span it describes.
+///
+/// The all-day `resp_day` line runs 3-min windows over raw, uncorrected RR and
+/// abstains on most WHOOP 4 sleep windows, so the overnight chart drew two
+/// isolated dots under a nightly figure that was perfectly well measured.
+/// Reusing the BRV windows costs nothing: a separate rolling pass of the
+/// triple Lomb-Scargle doubled the night's respiration compute.
+List<Map<String, num>> _respTimelineOf(
+  List<({double midMs, double brpm})> windows,
+  double? originMs, {
+  double windowMs = 1800000.0,
+}) {
+  if (originMs == null) return const [];
+  return [
+    for (final w in windows)
+      {
+        't': ((originMs + w.midMs) / 1000).round(),
+        'v': _round(w.brpm, 1),
+        'w': (windowMs / 1000).round(),
+      },
+  ];
 }
 
 /// Hypnogram segments {start,end,stage} (epoch seconds) from the single-source

@@ -40,6 +40,7 @@ double? quietHrrFromStoredBundle(
   Map<String, dynamic> payload, {
   required num? ageYears,
   double? manualRestingHr,
+  num? manualMaxHr,
 }) {
   final scalars = payload['scalars'] is Map
       ? payload['scalars'] as Map
@@ -48,7 +49,8 @@ double? quietHrrFromStoredBundle(
       ? payload['series'] as Map
       : const <String, dynamic>{};
   final rhr = (scalars['rhr_nocturnal'] as num?)?.toDouble() ?? manualRestingHr;
-  final hrMax = estimatedMaxHr(ageYears, payload['device_family'] as String?);
+  final hrMax = estimatedMaxHr(ageYears, payload['device_family'] as String?,
+      manualMaxHr: manualMaxHr);
   final wake = <int>{
     for (final p in (series['strain_curve'] as List? ?? const []))
       if (p is Map && p['t'] is num) (p['t'] as num).toInt(),
@@ -82,9 +84,10 @@ double? quietHrrFromStoredBundle(
 Future<int> seedQuietHrrHistoryOnce({
   required num? ageYears,
   double? manualRestingHr,
+  num? manualMaxHr,
 }) async {
   if (await LocalDb.computeFreshness(kQuietHrrSeedKey) != null) return 0;
-  if (ageYears == null) return 0;
+  if (ageYears == null && manualMaxHr == null) return 0;
   final imported = await LocalDb.importedDates();
   final have = {
     for (final r in await LocalDb.metricSeries('quiet_hrr'))
@@ -115,7 +118,9 @@ Future<int> seedQuietHrrHistoryOnce({
             for (final (date, json) in todo)
               if (SeriesCodec.decodePayloadJson(json) case final p?)
                 if (quietHrrFromStoredBundle(p,
-                        ageYears: ageYears, manualRestingHr: manualRestingHr)
+                        ageYears: ageYears,
+                        manualRestingHr: manualRestingHr,
+                        manualMaxHr: manualMaxHr)
                     case final q?)
                   (date, q),
           ]);

@@ -1280,8 +1280,11 @@ class AlarmPayloads {
   /// WHOOP 4: the REV-1 form ([rev1]), which
   /// fired on fw 41.17.4 where the rich slot-0 body this used to build
   /// latched without executing (class doc for the firmware split).
-  /// [index]/[haptics]/[crescendo] do not exist in the rev-1 layout and are
-  /// ignored on gen4.
+  /// [index]/[crescendo] do not exist in the rev-1 layout and are ignored on
+  /// gen4. A non-null [haptics] on gen4 is an explicit request for a custom
+  /// buzz and arms the RICH slot-0 form instead — firmware-dependent, so the
+  /// caller only passes one after the user has seen that form fire on their
+  /// band (`AlarmManager.richVerified`).
   ///
   /// WHOOP 5: rich 21-byte body at slot **index 1** (index 0 is rejected with
   /// console `arm info is invalid, error 0xb`; the [index] argument is ignored
@@ -1303,7 +1306,9 @@ class AlarmPayloads {
               // step with protocol's cmdSetAlarm, the reference layout.
               crescendo & 0x01,
             ]
-          : rev1(when);
+          : haptics != null
+              ? rich(when, index: index, haptics: haptics)
+              : rev1(when);
 
   /// The alarm slot WHOOP 5 accepts (index 0 is rejected).
   static const int gen5Slot = 1;
@@ -2013,6 +2018,10 @@ class LiveStreamOwners {
   /// steps. A future opt-in requests IMU through this same owner.
   final bool passiveStrapSteps;
 
+  /// A shake-to-stop window around an armed alarm is open (IMU-only). Bounded
+  /// by the alarm itself — a minute or two either side — never standing.
+  final bool alarmShakeWatch;
+
   /// The app is in the foreground. Read ONLY for gen4, where a foreground
   /// connection keeps today's behaviour: HR plus the R10/R11 + IMU + optical
   /// bundle, so gen4 users keep passive strap steps and live HR exactly as
@@ -2027,6 +2036,7 @@ class LiveStreamOwners {
     this.breathing = false,
     this.movementSampling = false,
     this.passiveStrapSteps = false,
+    this.alarmShakeWatch = false,
     this.foreground = false,
   });
 
@@ -2037,13 +2047,15 @@ class LiveStreamOwners {
       'hrView: $visibleLiveHrView, workout: $activeWorkout, '
       'fgGait: $foregroundGaitWorkout, breathing: $breathing, '
       'movement: $movementSampling, '
-      'passiveSteps: $passiveStrapSteps, foreground: $foreground)';
+      'passiveSteps: $passiveStrapSteps, alarmShake: $alarmShakeWatch, '
+      'foreground: $foreground)';
 }
 
 /// The streams the current owners call for.
 ///
 ///   wantHr  = visibleLiveHrView || activeWorkout || breathing
 ///   wantImu = foregroundGaitWorkout || movementSampling || passiveStrapSteps
+///             || alarmShakeWatch
 ///
 /// plus, on gen4 only, `foreground` as an owner of both (see
 /// [LiveStreamOwners.foreground]). History sync is never an owner — it reads
@@ -2065,6 +2077,7 @@ LiveStreamIntent desiredLiveStreams(
   final imu = (o.foregroundGaitWorkout ||
           o.movementSampling ||
           o.passiveStrapSteps ||
+          o.alarmShakeWatch ||
           legacy) &&
       !standardHrFallback;
   return LiveStreamIntent(hr: hr, imu: imu);

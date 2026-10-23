@@ -1833,8 +1833,50 @@ class LocalRepositoryImpl extends LocalRepository {
     }
 
     // Respiratory rate (br/min) + relative skin-temp trend — all-day lines.
-    final respLine = (series?['resp_day'] as List?) ?? const [];
-    final tempLine = (series?['skin_temp_day'] as List?) ?? const [];
+    // Over the night, the sleep pipeline's own per-window breathing (the same
+    // cleaned beats as the nightly figure) replaces the all-day line, which is
+    // motion-gated 3-min windows over raw RR and mostly abstains asleep — the
+    // chart drew two dots under a nightly 15 br/min. Outside the night span
+    // the all-day line stays as it was.
+    final respDay = (series?['resp_day'] as List?) ?? const [];
+    // Each stored window is ONE estimate for its whole span (`w` seconds
+    // around `t`), so it is laid across that span at the all-day line's
+    // 5-min cadence — the chart then draws the estimate where it applies
+    // instead of a dot at the window's middle.
+    final respNight = <Map<String, num>>[];
+    for (final e in (series?['resp_timeline'] as List?) ?? const []) {
+      if (e is! Map || e['t'] is! num || e['v'] is! num) continue;
+      final t = (e['t'] as num).round();
+      final half = ((e['w'] as num?)?.round() ?? 0) ~/ 2;
+      if (half < 300) {
+        respNight.add({'t': t, 'v': e['v'] as num});
+        continue;
+      }
+      for (var s = t - half + 150; s < t + half; s += 300) {
+        respNight.add({'t': s, 'v': e['v'] as num});
+      }
+    }
+    final List respLine;
+    if (respNight.isEmpty) {
+      respLine = respDay;
+    } else {
+      final lo = (respNight.first['t'] as num) - 300;
+      final hi = (respNight.last['t'] as num) + 300;
+      respLine = [
+        for (final e in respDay)
+          if (e is Map && e['t'] is num && (e['t'] < lo || e['t'] > hi)) e,
+        ...respNight,
+      ]..sort((a, b) => ((a as Map)['t'] as num).compareTo((b as Map)['t'] as num));
+    }
+    // NOT on WHOOP 4 (or an unstamped day, which is WHOOP 4 history): the u16
+    // the gen4 record carries at that offset is not a temperature at all
+    // (protocol/records.dart `skinTempRaw` — it moves 5-10 counts a second),
+    // so its "relative trend" drew -36…-3 on the sleep chart and the scrub
+    // card read it out as "Temp -26.40". WHOOP 5 has a real AS6221 reading.
+    final family = b['device_family'] as String?;
+    final tempLine = family == null || family == 'gen4'
+        ? const []
+        : (series?['skin_temp_day'] as List?) ?? const [];
 
     return {
       'hr': hrCurve,
@@ -2665,6 +2707,7 @@ class LocalRepositoryImpl extends LocalRepository {
         observedCeilingBpm: a.observedCeilingBpm,
         restingHrHistory: a.restingHrHistory,
         manualZoneLowerBpm: manualZoneBoundsFromProfile(getProfileMap()),
+        manualMaxHr: manualMaxHrFromProfile(getProfileMap()),
       );
 
   /// The two anchors [trainingZones] needs, read once per call chain.
@@ -2789,6 +2832,7 @@ class LocalRepositoryImpl extends LocalRepository {
   int? _profileMaxHr(String? deviceFamily) => estimatedMaxHr(
         (getProfileMap()?['age'] as num?),
         deviceFamily,
+        manualMaxHr: manualMaxHrFromProfile(getProfileMap()),
       )?.round();
 
   /// Which strap measured [startTs, endTs] — the `device_family` the ingest
@@ -4389,6 +4433,7 @@ class LocalRepositoryImpl extends LocalRepository {
       observedCeilingBpm: ceiling?.bpm,
       restingHrHistory: rhrHistory,
       manualZoneLowerBpm: manualZoneBpm,
+      manualMaxHr: manualMaxHrFromProfile(getProfileMap()),
     );
     final measured = zonesAreMeasured(set?.source);
     // WHY there are no edges. This screen printed "Without your age or a strap
@@ -4429,7 +4474,7 @@ class LocalRepositoryImpl extends LocalRepository {
                   // Falling into the generic !measured branch below would
                   // print "not enough nights" with a have/need pair that
                   // contradicts itself the moment the user has a full history.
-                  : set.source == 'manual'
+                  : set.source == 'manual' || set.source == 'user_max'
                   ? needInputNote('manual_zones')
                   : !measured
                   ? needInputNote(

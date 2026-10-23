@@ -38,7 +38,7 @@ import '../ui2.dart';
 import 'alarm.dart';
 import '../screens/coach.dart';
 import '../screens/step_calibration_screen.dart';
-import '../screens/temperature_calibration_screen.dart';
+import '../screens/watch_compare_screen.dart';
 import '../../updater/update_service.dart';
 import 'account_screen.dart';
 import 'band_notifications.dart';
@@ -640,10 +640,10 @@ class MoreSettingsView extends StatelessWidget {
                       'Step counter calibration',
                       sub: 'Calibrate Whoop step algorithm with a guided walk test',
                       onTap: () => goto(c, const StepCalibrationScreen())),
-                  SetRow(LucideIcons.thermometer, C.rose,
-                      'Temperature calibration',
-                      sub: 'Calibrate body temperature baseline with a reference reading',
-                      onTap: () => goto(c, const TemperatureCalibrationScreen())),
+                  SetRow(LucideIcons.watch, C.blue,
+                      'Compare with another watch',
+                      sub: 'Galaxy Watch and others, via Health Connect',
+                      onTap: () => goto(c, const WatchCompareScreen())),
                   // Off by default — an existing user did not ask their band
                   // to start buzzing mid-workout. The target-zone row below
                   // only appears once this is on; a target for an alert

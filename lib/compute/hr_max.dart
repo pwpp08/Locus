@@ -62,9 +62,36 @@ import 'package:openstrap_analytics/onehz.dart' as ana;
 /// different from `observed`/`karvonen`. The device-dependent ceiling — the one
 /// the band actually MEASURED — is `observedCeilingBpm`, and that one still
 /// refuses for an unknown family, in analytics' `observed_max_hr.dart`.
-double? estimatedMaxHr(num? age, String? deviceFamily) {
+///
+/// [manualMaxHr] is the user's own max heart rate (profile `max_hr`, read via
+/// [manualMaxHrFromProfile]). When present it replaces the age line outright —
+/// it is something the user KNOWS (a lab test, a field test, a race), not
+/// something we guess, so it needs no age at all.
+double? estimatedMaxHr(num? age, String? deviceFamily, {num? manualMaxHr}) {
+  if (manualMaxHr != null && validManualMaxHr(manualMaxHr)) {
+    return manualMaxHr.toDouble();
+  }
   if (age == null || age <= 0) return null;
   return 208.0 - 0.7 * age.toDouble();
+}
+
+/// Lowest and highest max heart rate the profile accepts. Outside this range a
+/// typed number is a typo, not a physiology.
+const int kManualMaxHrMin = 100;
+const int kManualMaxHrMax = 230;
+
+/// Whether [bpm] is a plausible user-entered max heart rate.
+bool validManualMaxHr(num bpm) =>
+    bpm >= kManualMaxHrMin && bpm <= kManualMaxHrMax;
+
+/// The user's own max heart rate off a profile map (`max_hr`), or null when
+/// unset or out of range. Every [estimatedMaxHr] / [trainingZones] caller that
+/// holds a profile routes through this so the override cannot drift between
+/// the day pipeline, the live tick and the zones screen.
+int? manualMaxHrFromProfile(Map<String, dynamic>? profile) {
+  final raw = profile?['max_hr'];
+  if (raw is! num || !validManualMaxHr(raw)) return null;
+  return raw.round();
 }
 
 /// THE zone set every surface bands on — day zones, the day zone timeline and a
@@ -121,6 +148,9 @@ double? estimatedMaxHr(num? age, String? deviceFamily) {
 /// a guessed ceiling are one measured anchor and one guessed one, which is not
 /// the claim `karvonen` makes here and not worth moving every existing user's
 /// zone boundaries for.
+/// [manualMaxHr] is the user's own max heart rate. It beats every computed
+/// ceiling (observed or age) but loses to [manualZoneLowerBpm]; the set it
+/// produces says `user_max`, so the zones screen can name where it came from.
 /// [manualZoneLowerBpm] is the user's own override — five ascending BPM
 /// thresholds, one per zone's LOWER edge. Zone 5 has no upper edge for
 /// CLASSIFICATION ([zoneNumber] never checks it — same as every computed
@@ -138,9 +168,14 @@ ana.HeartRateZoneSet? trainingZones({
   double? observedCeilingBpm,
   List<double> restingHrHistory = const [],
   List<int>? manualZoneLowerBpm,
+  num? manualMaxHr,
 }) {
   final manual = manualZoneLowerBpm;
   if (manual != null && manual.length == 5) return _manualZones(manual);
+  if (manualMaxHr != null && validManualMaxHr(manualMaxHr)) {
+    return ana.HeartRateZones.zonesFromMaxHr(manualMaxHr.toDouble(),
+        source: 'user_max');
+  }
   final est = estimatedMaxHr(age, deviceFamily);
   if (observedCeilingBpm != null &&
       observedCeilingBpm > 0 &&

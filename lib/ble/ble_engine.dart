@@ -8537,6 +8537,11 @@ class BleEngine {
     await _send(Cmd.runAlarm, AlarmPayloads.runNow);
   }
 
+  /// Stop a buzz that is playing right now (STOP_HAPTICS = 0x7A, `[0x01]`).
+  /// Leaves the armed alarm slot alone — this is "silence it", not "cancel
+  /// tomorrow's alarm". Used by shake-to-stop.
+  Future<void> stopHaptics() => _send(Cmd.stopHaptics, const [0x01]);
+
   /// Cancel the on-device alarm (DISABLE_ALARM = 0x45). gen4 body `[0x01]`
   /// (the earlier `[0x00]` body was ACKed but did not clear the alarm); gen5
   /// needs revision 2 plus the alarm id, defaulting to "all slots" — see

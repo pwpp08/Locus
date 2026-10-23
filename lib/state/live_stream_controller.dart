@@ -81,6 +81,15 @@ class LiveStreamController {
 
   bool _movementSampling = false;
 
+  /// A shake-to-stop window around an armed alarm is open (IMU-only owner).
+  void setAlarmShakeWindow(bool active) {
+    if (_alarmShake == active) return;
+    _alarmShake = active;
+    nudge();
+  }
+
+  bool _alarmShake = false;
+
   /// Passive strap-step collection: OFF by default on gen5 (#287 decision 1).
   /// A future explicit opt-in requests IMU through this same owner.
   static const bool _passiveStrapSteps = false;
@@ -98,6 +107,7 @@ class LiveStreamController {
       breathing: _breathing(),
       movementSampling: _movementSampling,
       passiveStrapSteps: _passiveStrapSteps,
+      alarmShakeWatch: _alarmShake,
       foreground: !_background(),
     );
   }

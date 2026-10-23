@@ -27,7 +27,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
-import '../../compute/hr_max.dart' show validManualZoneBounds;
+import '../../compute/hr_max.dart'
+    show kManualMaxHrMax, kManualMaxHrMin, validManualMaxHr, validManualZoneBounds;
 import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/metric.dart' show whyFromNote;
@@ -301,17 +302,95 @@ class _ZonesDetailState extends State<ZonesDetail> {
     if (mounted) await _load();
   }
 
+  /// The user's own max heart rate. When set it replaces the age estimate and
+  /// the observed ceiling as the top every zone is a percentage of (manual
+  /// zone edges, if any, still win). A blank field clears it.
+  Future<void> _editMaxHr(BuildContext c) async {
+    final app = c.read<AppState>();
+    final current = (app.user?['max_hr'] as num?)?.round();
+    final ctrl = TextEditingController(text: current != null ? '$current' : '');
+    final l = AppLocalizations.of(c);
+    final saved = await AppSheet.open<bool>(c,
+      builder: (s) => Padding(
+        padding: EdgeInsets.only(
+            left: S.x5,
+            right: S.x5,
+            top: S.x5,
+            bottom: MediaQuery.of(s).viewInsets.bottom + S.x5),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Your max heart rate',
+                style: F.head.copyWith(color: P.of(s).ink)),
+            const SizedBox(height: S.x2),
+            Text(
+              'If you know it from a lab test, a field test or a race, enter '
+              'it here and every zone, strain and calorie figure will use it '
+              'instead of the age estimate. Leave it blank to go back.',
+              style: F.cap.copyWith(color: P.of(s).ink3, height: 1.4),
+            ),
+            const SizedBox(height: S.x4),
+            OsTextField(
+              controller: ctrl,
+              label: 'Max heart rate',
+              hint: l?.activityZonesBpmUnit ?? 'bpm',
+              keyboard: TextInputType.number,
+            ),
+            const SizedBox(height: S.x5),
+            BigButton(l?.actionSave ?? 'Save',
+                color: C.red, onTap: () => Navigator.of(s).pop(true)),
+          ],
+        ),
+      ),
+      scroll: true,
+    );
+    final typed = Typed.of(ctrl.text);
+    ctrl.dispose();
+    if (saved != true || !c.mounted) return;
+    if (typed.blank) {
+      await app.updateProfile({'max_hr': null});
+      if (mounted) await _load();
+      return;
+    }
+    final v = typed.value;
+    if (typed.bad || v == null || !validManualMaxHr(v)) {
+      ScaffoldMessenger.of(c).showSnackBar(SnackBar(
+        content: Text('Max heart rate must be between $kManualMaxHrMin and '
+            '$kManualMaxHrMax bpm. Nothing was saved.'),
+      ));
+      return;
+    }
+    await app.updateProfile({'max_hr': v.round()});
+    if (mounted) await _load();
+  }
+
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
     final d = _d ?? const ZonesData();
+    final userMax = d.source == 'user_max' ? d.maxHr : null;
     return detailScaffold(c, l?.activityZonesTitle ?? 'Heart-rate zones', [
       if (_loading && _d == null) ...[
         const SizedBox(height: S.x8),
         const Center(child: CircularProgressIndicator()),
       ] else ...[
         _ceiling(p, l, d),
+        const SizedBox(height: S.x2),
+        Pressable(
+          onTap: () => _editMaxHr(context),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: S.x2),
+            child: Text(
+              userMax != null
+                  ? 'Max heart rate: $userMax bpm (yours) · Edit'
+                  : 'Set your own max heart rate',
+              style: F.body.copyWith(
+                  color: p.on(C.red), fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
         Section(l?.activityZonesYourZonesSection ?? 'Your zones', _zones(p, l, d)),
         const SizedBox(height: S.x2),
         Pressable(
@@ -502,6 +581,9 @@ class _ZonesDetailState extends State<ZonesDetail> {
         return l?.activityZonesAnchorManual ??
             'Set by you, not computed — these five thresholds override '
                 'whatever your age or a measured ceiling would have given you.';
+      case 'user_max':
+        return 'From $max bpm, the max heart rate you entered. It replaces '
+            'the age estimate and the highest we have seen.';
       default:
         return l?.activityZonesAnchorDefault ??
             'Zone edges are percentages of a maximum heart rate.';

@@ -1547,9 +1547,15 @@ class InlineMetrics extends StatelessWidget {
     final p = P.of(c);
     return Row(
       children: [
-        for (final e in items)
+        for (final (i, e) in items.indexed)
           Expanded(
-            child: Column(
+            // A gutter between columns. Without it a value scaled to fill its
+            // slot ran straight into the next one — "13.4 br/min-26.40" read
+            // as a single negative number on the sleep scrub card.
+            child: Padding(
+              padding: EdgeInsetsDirectional.only(
+                  end: i < items.length - 1 ? S.x3 : 0),
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(e.$1, style: F.over.copyWith(color: p.ink3)),
@@ -1571,6 +1577,7 @@ class InlineMetrics extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
             ),
           ),
       ],

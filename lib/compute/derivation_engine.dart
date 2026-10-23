@@ -1810,7 +1810,15 @@ import 'vendor_sleep.dart';
 // store `skin_temp_ambient_r` and the illness watch leaves out WHOOP 4 nights
 // whose skin temp tracks ambient (|r| >= 0.8, or unmeasured). One-shot,
 // raw-free: days derived before v106 drop naps overlapping the next night.
-const int kAlgoVersion = 113;
+// 113 → 114 (edge-only): removes the nightly `spo2` ratio-of-ratios estimate
+// and `body_temp_c` that shipped without a bump in the in-app-updater commit.
+// The WHOOP 4 red/IR pair is one signal (protocol/records.dart), so the SpO2
+// number measured baseline drift and fell back to a hard-coded 97 when the
+// ratio failed; `body_temp_c` converted a u16 the protocol documents as NOT a
+// temperature with a fixed 28500/350 line. Both are null again. The user's
+// own max heart rate (profile `max_hr`) now replaces the age estimate as the
+// ceiling for zones, TRIMP, strain and calories when set.
+const int kAlgoVersion = 114;
 /// The sibling SHAs this version was derived against, asserted against
 /// pubspec.yaml in test/db_serve_version_and_reads_test.dart.
 ///
@@ -3050,6 +3058,7 @@ class DerivationEngine {
         seeded = await seedQuietHrrHistoryOnce(
           ageYears: profile.ageYears,
           manualRestingHr: profile.restingHrManual?.toDouble(),
+          manualMaxHr: profile.maxHrManual,
         );
         if (seeded > 0) _log('[derive] quiet_hrr seed: $seeded day(s)');
       } catch (e) {
@@ -3275,90 +3284,93 @@ class DerivationEngine {
       _log('derive ERROR: $e\n$st');
       return 0;
     } finally {
-      // Storage housekeeping runs here, after everything, still holding
-      // `_running`. See _runStorageHousekeeping — this is the only place every
-      // entry path and every early return actually reaches.
-      _diag['stage'] = 'housekeeping';
-      await _runStorageHousekeeping();
-      // ONE-SHOT: rescale stored strain onto the recalibrated scale. Days
-      // inside the raw window re-derive from substrate above; everything older
-      // has none, so its headline is rebuilt from the stored TRIMP + wake
-      // window instead. No-ops after the first successful pass
-      // (`compute_freshness`), and never fatal — a failed rescale must not take
-      // the derive cycle down with it.
-      //
-      // AFTER the sweep, not before it. It used to be the first statement of
-      // run(), so the one launch where it actually fires — the first after the
-      // version bump, the launch the user is watching — spent a DB round trip
-      // and a bundle decode+encode PER DAY OF HISTORY before today's data was
-      // touched at all. Nothing in the sweep reads what it rewrites (it only
-      // ever touches days older than `rawRetentionDays`, which no pass
-      // re-derives), so the only thing the old ordering bought was that the
-      // FIRST cross-day rollup after the bump saw the rescaled history rather
-      // than the next one. Still holds `_running`, so nothing else can be
-      // reading day_result while it rewrites.
-      _diag['stage'] = 'strain_rescale';
       try {
-        final rescaled = await backfillStrainScale(
-          female: workoutSex(profile.sex) == 'female',
-        );
-        if (rescaled.didWork) {
-          _log('[derive] strain rescale: ${rescaled.bundleDays} day(s) '
-              'rebuilt, ${rescaled.skipped} skipped (no TRIMP or no wake '
-              'window)');
+        // Storage housekeeping runs here, after everything, still holding
+        // `_running`. See _runStorageHousekeeping — this is the only place every
+        // entry path and every early return actually reaches.
+        _diag['stage'] = 'housekeeping';
+        await _runStorageHousekeeping();
+        // ONE-SHOT: rescale stored strain onto the recalibrated scale. Days
+        // inside the raw window re-derive from substrate above; everything older
+        // has none, so its headline is rebuilt from the stored TRIMP + wake
+        // window instead. No-ops after the first successful pass
+        // (`compute_freshness`), and never fatal — a failed rescale must not take
+        // the derive cycle down with it.
+        //
+        // AFTER the sweep, not before it. It used to be the first statement of
+        // run(), so the one launch where it actually fires — the first after the
+        // version bump, the launch the user is watching — spent a DB round trip
+        // and a bundle decode+encode PER DAY OF HISTORY before today's data was
+        // touched at all. Nothing in the sweep reads what it rewrites (it only
+        // ever touches days older than `rawRetentionDays`, which no pass
+        // re-derives), so the only thing the old ordering bought was that the
+        // FIRST cross-day rollup after the bump saw the rescaled history rather
+        // than the next one. Still holds `_running`, so nothing else can be
+        // reading day_result while it rewrites.
+        _diag['stage'] = 'strain_rescale';
+        try {
+          final rescaled = await backfillStrainScale(
+            female: workoutSex(profile.sex) == 'female',
+          );
+          if (rescaled.didWork) {
+            _log('[derive] strain rescale: ${rescaled.bundleDays} day(s) '
+                'rebuilt, ${rescaled.skipped} skipped (no TRIMP or no wake '
+                'window)');
+          }
+        } catch (e) {
+          _log('[derive] strain rescale failed (kept old values): $e');
         }
-      } catch (e) {
-        _log('[derive] strain rescale failed (kept old values): $e');
-      }
-      // ONE-SHOT, after the sweep for the same reason as the strain rescale:
-      // the rest of the readiness_z history, then a re-score of every day
-      // below v112 that has no raw substrate left (substrate days were just
-      // re-derived, or are retried next pass). A re-score rewrites stored
-      // days, so the baselines and the cross-day rollup are refreshed here —
-      // `finally` is reached by every early return, including "nothing to
-      // derive" and "no decoded data".
-      _diag['stage'] = 'readiness_calibration';
-      try {
-        final r = await backfillReadinessCalibration(
-          // Both substrate sources, as `_deriveScope` reads them: a wearable
-          // day with rows is the derive's, not the re-score's.
-          rawDays: await substrateDays(),
-          zHistoryLoader: () async {
-            final h = await _BaselineHistoryCache.load();
-            return (day, fam) => h.valuesBefore('readiness_z', day,
-                family: _baselineFamily('readiness_z', fam));
-          },
-        );
-        if (r.seeded > 0 || r.rescored > 0) {
-          _log('[derive] readiness calibration: ${r.seeded} z seeded, '
-              '${r.rescored} day(s) re-scored'
-              '${r.forced > 0 ? ' (${r.forced} with substrate whose derive '
-                  'never landed, from stored inputs)' : ''}');
-          await _refreshBaselines();
+        // ONE-SHOT, after the sweep for the same reason as the strain rescale:
+        // the rest of the readiness_z history, then a re-score of every day
+        // below v112 that has no raw substrate left (substrate days were just
+        // re-derived, or are retried next pass). A re-score rewrites stored
+        // days, so the baselines and the cross-day rollup are refreshed here —
+        // `finally` is reached by every early return, including "nothing to
+        // derive" and "no decoded data".
+        _diag['stage'] = 'readiness_calibration';
+        try {
+          final r = await backfillReadinessCalibration(
+            // Both substrate sources, as `_deriveScope` reads them: a wearable
+            // day with rows is the derive's, not the re-score's.
+            rawDays: await substrateDays(),
+            zHistoryLoader: () async {
+              final h = await _BaselineHistoryCache.load();
+              return (day, fam) => h.valuesBefore('readiness_z', day,
+                  family: _baselineFamily('readiness_z', fam));
+            },
+          );
+          if (r.seeded > 0 || r.rescored > 0) {
+            _log('[derive] readiness calibration: ${r.seeded} z seeded, '
+                '${r.rescored} day(s) re-scored'
+                '${r.forced > 0 ? ' (${r.forced} with substrate whose derive '
+                    'never landed, from stored inputs)' : ''}');
+            await _refreshBaselines();
+          }
+          if (r.rescored > 0) await _runCrossDay(profile);
+        } catch (e) {
+          _log('[derive] readiness calibration failed (will retry): $e');
         }
-        if (r.rescored > 0) await _runCrossDay(profile);
-      } catch (e) {
-        _log('[derive] readiness calibration failed (will retry): $e');
+        // Restamp Today's freshness here, not in each caller: the iOS
+        // background pass has no caller to do it, and getToday reads the
+        // night from `overnight_day`, so a night settled in the background
+        // kept serving the previous one.
+        try {
+          await LocalDb.refreshComputeFreshness();
+        } catch (e) {
+          _log('[derive] freshness refresh failed: $e');
+        }
+      } finally {
+        _running = false;
+        final finishedAt = DateTime.now().millisecondsSinceEpoch;
+        _diag
+          ..['running'] = false
+          ..['stage'] = 'idle'
+          ..['active_days'] = const <String>[]
+          ..['finished_at'] = finishedAt
+          ..['duration_ms'] = finishedAt - startedAt;
+        
+        try { await runTrace?.stop(); } catch (_) {}
       }
-      // Restamp Today's freshness here, not in each caller: the iOS
-      // background pass has no caller to do it, and getToday reads the
-      // night from `overnight_day`, so a night settled in the background
-      // kept serving the previous one.
-      try {
-        await LocalDb.refreshComputeFreshness();
-      } catch (e) {
-        _log('[derive] freshness refresh failed: $e');
-      }
-      _running = false;
-      final finishedAt = DateTime.now().millisecondsSinceEpoch;
-      _diag
-        ..['running'] = false
-        ..['stage'] = 'idle'
-        ..['active_days'] = const <String>[]
-        ..['finished_at'] = finishedAt
-        ..['duration_ms'] = finishedAt - startedAt;
-      
-      try { await runTrace?.stop(); } catch (_) {}
     }
   }
 
@@ -5226,8 +5238,6 @@ class DerivationEngine {
       sleepRrTsMs: sleepSub.rrTsMs,
       sleepRrMs: sleepSub.rrMs,
       sleepSkinTemp: sleepSub.skinTemp,
-      sleepSpo2Red: sleepSub.spo2Red,
-      sleepSpo2Ir: sleepSub.spo2Ir,
       sleepJson: day.sleepJson,
       hypnoStages: day.hypnoStages,
       sleepOnsetSec: day.sleepOnsetSec,
@@ -7222,7 +7232,8 @@ class DerivationEngine {
     // `dailyEnergy`'s flex gate is a fraction of HRmax, so an absent ceiling is
     // an absent gate — the whole triple abstains rather than bill a day against
     // some other strap's number. See hr_max.dart.
-    final hrmax = estimatedMaxHr(profile.ageYears, deviceFamily);
+    final hrmax = estimatedMaxHr(profile.ageYears, deviceFamily,
+        manualMaxHr: profile.maxHrManual);
     if (hrmax == null) return null;
     final heightCm = profile.heightCm;
     if (heightCm == null) return null;
@@ -8017,7 +8028,8 @@ class DerivationEngine {
     final sex = profile.sex?.toLowerCase();
     // ONE definition (hr_max.dart): null when age is unknown OR when we cannot
     // say which strap measured this day.
-    final hrMax = estimatedMaxHr(profile.ageYears, daySub.deviceFamily);
+    final hrMax = estimatedMaxHr(profile.ageYears, daySub.deviceFamily,
+        manualMaxHr: profile.maxHrManual);
     final rhrForTrimp = restingHr ?? profile.restingHrManual?.toDouble();
     // THIS user's quiet-waking level, from PRIOR days only — the same list the
     // pure pipeline got, through the same analytics call, so both halves price

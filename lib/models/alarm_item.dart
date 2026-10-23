@@ -2,6 +2,47 @@
 
 import 'dart:convert';
 
+/// How the band buzzes for an alarm.
+///
+/// [standard] is the strap's own wake buzz, armed with the REV-1 form that
+/// fires on every WHOOP 4 firmware we have seen. Every other pattern needs the
+/// 20-byte RICH arm form, which some WHOOP 4 firmwares (41.17.4) store and
+/// confirm but never execute — so a custom pattern is only ever armed once the
+/// user has watched it fire on their own band (see `AlarmManager.richVerified`).
+/// Until then it falls back to [standard]: a silent alarm is the one failure
+/// this feature must never cause.
+///
+/// The patterns only reorder and repeat the two waveform effects (47, 152) the
+/// strap itself uses for its wake buzz. No other effect id is known to do
+/// anything on this hardware, so none is guessed at.
+enum AlarmBuzz {
+  standard('Standard', "The band's own wake buzz"),
+  gentle('Gentle', 'Single soft pulses, 20 s'),
+  pulse('Pulse', 'Double pulses, 45 s'),
+  insistent('Insistent', 'Back-to-back buzzing, 60 s'),
+  marathon('Long', 'Standard rhythm for 2 minutes');
+
+  final String label;
+  final String description;
+  const AlarmBuzz(this.label, this.description);
+
+  /// The 12-byte rich-form haptic body: 8 waveform-effect slots, u16 loop
+  /// control (LE), overall loop count, duration in seconds. Null for
+  /// [standard], which is armed with the rev-1 form instead.
+  List<int>? get haptics => switch (this) {
+        AlarmBuzz.standard => null,
+        AlarmBuzz.gentle => const [47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 20],
+        AlarmBuzz.pulse => const [47, 47, 0, 0, 0, 0, 0, 0, 0, 0, 10, 45],
+        AlarmBuzz.insistent =>
+          const [47, 152, 47, 152, 47, 152, 47, 152, 0, 0, 15, 60],
+        AlarmBuzz.marathon => const [47, 152, 0, 0, 0, 0, 0, 0, 0, 0, 30, 120],
+      };
+
+  static AlarmBuzz fromName(String? name) => AlarmBuzz.values.firstWhere(
+      (b) => b.name == name,
+      orElse: () => AlarmBuzz.standard);
+}
+
 /// Days of week: 1 = Monday ... 7 = Sunday (matches DateTime.weekday).
 class AlarmItem {
   final String id;
@@ -18,6 +59,9 @@ class AlarmItem {
   /// 0 = disabled.
   final int smartWindowMinutes;
 
+  /// The buzz this alarm asks for. See [AlarmBuzz] for when it is honoured.
+  final AlarmBuzz buzz;
+
   const AlarmItem({
     required this.id,
     required this.hour,
@@ -26,6 +70,7 @@ class AlarmItem {
     this.enabled = true,
     this.days = const {},
     this.smartWindowMinutes = 0,
+    this.buzz = AlarmBuzz.standard,
   });
 
   bool get isRingOnce => days.isEmpty;
@@ -96,6 +141,7 @@ class AlarmItem {
     bool? enabled,
     Set<int>? days,
     int? smartWindowMinutes,
+    AlarmBuzz? buzz,
   }) =>
       AlarmItem(
         id: id ?? this.id,
@@ -105,6 +151,7 @@ class AlarmItem {
         enabled: enabled ?? this.enabled,
         days: days ?? this.days,
         smartWindowMinutes: smartWindowMinutes ?? this.smartWindowMinutes,
+        buzz: buzz ?? this.buzz,
       );
 
   Map<String, dynamic> toJson() => {
@@ -115,6 +162,7 @@ class AlarmItem {
         'enabled': enabled,
         'days': days.toList()..sort(),
         'smartWindowMinutes': smartWindowMinutes,
+        'buzz': buzz.name,
       };
 
   factory AlarmItem.fromJson(Map<String, dynamic> json) => AlarmItem(
@@ -125,6 +173,7 @@ class AlarmItem {
         enabled: (json['enabled'] as bool?) ?? true,
         days: ((json['days'] as List?)?.map((e) => (e as num).toInt()).toSet()) ?? const {},
         smartWindowMinutes: (json['smartWindowMinutes'] as num?)?.toInt() ?? 0,
+        buzz: AlarmBuzz.fromName(json['buzz'] as String?),
       );
 
   static List<AlarmItem> decodeList(String jsonStr) {
