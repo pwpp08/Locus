@@ -102,8 +102,9 @@ class _StepCalibrationScreenState extends State<StepCalibrationScreen> {
     if (avgHz < 45.0) {
       sb.writeln(
         '\n[Diagnosis]: The BLE stream is running at ${avgHz.toStringAsFixed(1)} Hz (typical for Bluetooth low-power mode). '
-        'The default threshold required 50 Hz, which caused valid strides to be skipped. '
-        'We have adjusted the threshold and calibrated the gain to match your true step rate.',
+        'Strap step counting needs at least 50 Hz to be accurate, so while the stream is this slow '
+        'the strap\'s steps are left out and your phone\'s count is used instead. '
+        'A calibration factor cannot correct for this.',
       );
     } else if (countedByStrap < _targetSteps * 0.4) {
       sb.writeln(

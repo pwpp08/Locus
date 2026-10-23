@@ -26,6 +26,20 @@ const _tokenFile = 'lib/ui2/theme.dart';
 /// Where `Pressable` is defined — the one place a raw gesture is legal.
 const _gestureFile = 'lib/ui2/grammar.dart';
 
+/// Screens written before the Volt rules were enforced again. The rules for raw
+/// `Switch`, `showModalBottomSheet` and numeric `Icon` sizes were silently dead
+/// for a while (a word-boundary escape had been saved as a backspace character,
+/// so they matched nothing); these files predate the fix. They are listed here,
+/// per rule below, so every OTHER file is held to the rule today. The design
+/// overhaul should empty this set, not grow it.
+const _pendingOverhaul = {
+  'lib/ui2/components/update_dialog.dart',
+  'lib/ui2/profile/account_screen.dart',
+  'lib/ui2/profile/alarm.dart',
+  'lib/ui2/screens/battery_detail_screen.dart',
+  'lib/ui2/screens/step_calibration_screen.dart',
+};
+
 final _rules = <_Rule>[
   _Rule(
     'raw fontSize:',
@@ -100,39 +114,41 @@ final _rules = <_Rule>[
   // slightly differently. The component carries the one style.
   _Rule(
     'raw TextButton',
-    RegExp(r'TextButton'),
+    RegExp(r'\bTextButton\b'),
     'Use TextAction (a text link) or BigButton (a dialog action).',
     allow: {_gestureFile},
   ),
   _Rule(
     'raw AlertDialog',
-    RegExp(r'AlertDialog\s*\('),
+    RegExp(r'\bAlertDialog\s*\('),
     'Use AppDialog.',
     allow: {_gestureFile},
   ),
   _Rule(
     'raw showModalBottomSheet',
-    RegExp(r'showModalBottomSheet\s*[<(]'),
+    RegExp(r'\bshowModalBottomSheet\s*[<(]'),
     'Use AppSheet.open (a sheet with its own content) or AppSheet.show.',
-    allow: {_gestureFile},
+    allow: {_gestureFile, ..._pendingOverhaul},
   ),
   _Rule(
     'raw TextField',
-    RegExp(r'(TextField|TextFormField)\s*\('),
+    RegExp(r'\b(TextField|TextFormField)\s*\('),
     'Use AppField.',
     allow: {_gestureFile},
   ),
   _Rule(
     'raw Switch',
-    RegExp(r'Switch(\.adaptive)?\s*\('),
+    RegExp(r'\bSwitch(\.adaptive)?\s*\('),
     'Use AppSwitch.',
-    allow: {_gestureFile},
+    allow: {_gestureFile, ..._pendingOverhaul},
   ),
   _Rule(
     'numeric Icon size',
-    RegExp(r'Icon\((?:[^;{}]|\{[^}]*\})*?size:\s*\d'),
+    // One `Icon(…)` call: balanced parentheses only, so it cannot run on into
+    // the next widget and flag a size that belongs to something else.
+    RegExp(r'\bIcon\((?:[^()]|\([^()]*\))*?\bsize:\s*\d'),
     'Icon sizes come from I (I.sm 16, I.md 20, I.lg 24, I.xl 32, I.hero 48).',
-    allow: {_tokenFile},
+    allow: {_tokenFile, ..._pendingOverhaul},
     multiline: true,
   ),
   _Rule(
@@ -144,10 +160,12 @@ final _rules = <_Rule>[
   ),
   _Rule(
     'raw Image.asset',
-    RegExp(r'Image\.asset\s*\('),
+    RegExp(r'\bImage\.asset\s*\('),
     'Name imagery through Art (theme.dart), so no screen writes an asset path.',
     allow: {
       _tokenFile,
+      // The grain overlay is part of the vocabulary itself.
+      _gestureFile,
       // The app-icon picker shows the launcher icons the user can choose
       // between; they are not part of the imagery set and have no Art slot.
       'lib/ui2/profile/settings.dart',

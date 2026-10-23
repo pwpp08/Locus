@@ -325,21 +325,18 @@ void main() {
       expect(achievedSampleRateHz(6000, 100, 50), isNull);
     });
 
-    test('a stream under the floor banks NOTHING even though the signal counts', () async {
+    test('a 25 Hz stream banks NOTHING even though the signal counts', () async {
       final app = AppState.forTesting();
       addTearDown(app.dispose);
       const recTs = 1786800000;
-      // Identical frames to the walk above, delivered at 1000 ms instead of
-      // 100 ms: 6000 samples over 600 s = 10 Hz, under the 15 Hz floor
-      // ([kMinLiveSampleRateHz]). The floor was 50 Hz when this test used 25 Hz
-      // (OxWalk §4 measures MAPE 90.8% there, nine of 39 participants reading
-      // exactly zero); it was lowered to 15 Hz in the step-calibration work, so
-      // the slow stream here has to be slower than that.
+      // Identical frames to the walk above, delivered at 400 ms instead of
+      // 100 ms: 6000 samples over 240 s = 25 Hz. OxWalk §4 measures MAPE 90.8%
+      // there, with nine of 39 participants reading exactly zero.
       for (var f = 0; f < 600; f++) {
         app.debugFeedLiveAccel(
           _walkFrame(f, 10),
           recTs: recTs,
-          atMs: recTs * 1000 + f * 1000,
+          atMs: recTs * 1000 + f * 400,
         );
       }
       expect(app.liveStepsAbsentReason, contains('too slowly'));
