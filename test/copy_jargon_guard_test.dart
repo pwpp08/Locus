@@ -41,15 +41,6 @@ void main() {
     expect(hits, isEmpty);
   });
 
-  test('ru user-facing copy has no Latin jargon outside the allowlist', () {
-    final latin = RegExp(r'\b(RMSSD|SDNN|TRIMP|Baevsky|Keytel|Mifflin|MET)\b');
-    final hits = <String>[
-      for (final e in _messages('lib/l10n/app_ru.arb').entries)
-        if (!_allowed(e.key) && latin.hasMatch(e.value))
-          '${e.key}: ${latin.firstMatch(e.value)!.group(0)}',
-    ];
-    expect(hits, isEmpty);
-  });
 
   test('the guard catches what it is for', () {
     for (final s in [

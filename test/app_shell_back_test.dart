@@ -60,17 +60,17 @@ void main() {
     final selected = <ShellDomain>[];
     await mount(tester, onSelect: selected.add);
     await select(tester, ShellDomain.health);
-    await select(tester, ShellDomain.activity);
+    await select(tester, ShellDomain.more);
 
     await back(tester);
     expect(find.text('screen Health'), findsOneWidget);
     expect(exited(), isFalse);
     await back(tester);
-    expect(find.text('screen Today'), findsOneWidget);
+    expect(find.text('screen Home'), findsOneWidget);
     expect(exited(), isFalse);
     expect(selected, [
       ShellDomain.health,
-      ShellDomain.activity,
+      ShellDomain.more,
       ShellDomain.health,
       ShellDomain.today,
     ], reason: 'Back must also update the tab persisted by the host');
@@ -89,7 +89,7 @@ void main() {
     expect(selected, [ShellDomain.health, ShellDomain.health]);
 
     await back(tester);
-    expect(find.text('screen Today'), findsOneWidget);
+    expect(find.text('screen Home'), findsOneWidget);
     expect(exited(), isFalse);
     await back(tester);
     expect(exited(), isTrue);
@@ -101,12 +101,12 @@ void main() {
     await mount(tester);
     for (var i = 0; i < 5; i++) {
       await select(tester, ShellDomain.health);
-      await select(tester, ShellDomain.activity);
+      await select(tester, ShellDomain.more);
     }
     await back(tester);
     expect(find.text('screen Health'), findsOneWidget);
     await back(tester);
-    expect(find.text('screen Today'), findsOneWidget);
+    expect(find.text('screen Home'), findsOneWidget);
     expect(exited(), isFalse);
     await back(tester);
     expect(exited(), isTrue);
@@ -118,11 +118,11 @@ void main() {
     await mount(tester);
     await select(tester, ShellDomain.health);
     await select(tester, ShellDomain.today);
-    await select(tester, ShellDomain.activity);
+    await select(tester, ShellDomain.more);
     await back(tester);
     expect(find.text('screen Health'), findsOneWidget);
     await back(tester);
-    expect(find.text('screen Today'), findsOneWidget);
+    expect(find.text('screen Home'), findsOneWidget);
     expect(exited(), isFalse);
     await back(tester);
     expect(exited(), isTrue);
@@ -137,19 +137,19 @@ void main() {
     await back(tester);
     expect(find.text('screen Health'), findsOneWidget);
     await back(tester);
-    expect(find.text('screen Today'), findsOneWidget);
+    expect(find.text('screen Home'), findsOneWidget);
     expect(exited(), isFalse);
     await back(tester);
     expect(exited(), isTrue);
   });
 
   for (final domain in ShellDomain.values.where((d) => d != ShellDomain.today)) {
-    testWidgets('a launch on ${domain.label} returns to Today before exiting', (
+    testWidgets('a launch on ${domain.label} returns to Home before exiting', (
       tester,
     ) async {
       await mount(tester, initial: domain);
       await back(tester);
-      expect(find.text('screen Today'), findsOneWidget);
+      expect(find.text('screen Home'), findsOneWidget);
       expect(exited(), isFalse);
       await back(tester);
       expect(exited(), isTrue);
@@ -174,7 +174,7 @@ void main() {
     expect(find.text('screen Health'), findsOneWidget);
     expect(exited(), isFalse);
     await back(tester);
-    expect(find.text('screen Today'), findsOneWidget);
+    expect(find.text('screen Home'), findsOneWidget);
   });
 
   testWidgets('a dialog closes before tab history is consumed', (tester) async {
@@ -191,18 +191,18 @@ void main() {
     expect(find.text('screen Health'), findsOneWidget);
     expect(exited(), isFalse);
     await back(tester);
-    expect(find.text('screen Today'), findsOneWidget);
+    expect(find.text('screen Home'), findsOneWidget);
   });
 
   testWidgets('Back preserves the state of a previously visited tab', (
     tester,
   ) async {
     await mount(tester);
-    await tester.tap(find.text('increment Today'));
+    await tester.tap(find.text('increment Home'));
     await tester.pump();
     await select(tester, ShellDomain.health);
     await back(tester);
-    expect(find.text('Today count 1'), findsOneWidget);
+    expect(find.text('Home count 1'), findsOneWidget);
   });
 }
 

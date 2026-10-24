@@ -53,7 +53,7 @@ void main() {
     testWidgets('draws the bout, its window and all three answers', (t) async {
       await _pump(t, WorkoutSuggestionScreen(preloaded: [_sug()]));
 
-      expect(find.text('Detected activities'), findsOneWidget);
+      expect(find.text('DETECTED ACTIVITIES'), findsOneWidget);
       expect(find.text('Possible workout'), findsOneWidget);
       // The WINDOW, not just a start time — the whole reason to open this
       // screen is to see whether the detector clipped it.
@@ -120,7 +120,8 @@ void main() {
   group('the manual-entry form', () {
     testWidgets('opens on a valid window and offers to save it', (t) async {
       await _pump(t, LogWorkout(now: _now));
-      expect(find.text('Log a past workout'), findsOneWidget);
+      // The header sets its title in capitals.
+      expect(find.text('LOG A PAST WORKOUT'), findsOneWidget);
       // Defaults to the last whole hour, which is a WINDOW — a form that opens
       // on "now to now" opens invalid.
       expect(find.text('60 min'), findsOneWidget);
@@ -183,7 +184,7 @@ void main() {
           title: 'Fix the times',
         ),
       );
-      expect(find.text('Fix the times'), findsWidgets);
+      expect(find.text('FIX THE TIMES'), findsWidgets);
       expect(find.text('Save the new times'), findsOneWidget);
       // The row that would change the activity is absent: a retime is about
       // the window, and the type belongs to the row already.

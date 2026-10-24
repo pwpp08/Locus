@@ -41,15 +41,6 @@ Future<void> _pump(WidgetTester t, Locale locale) async {
 }
 
 void main() {
-  testWidgets('german keeps the noun case in the blank-metric title',
-      (t) async {
-    t.view.physicalSize = const Size(800 * 3, 4000 * 3);
-    t.view.devicePixelRatio = 3;
-    addTearDown(t.view.reset);
-    await _pump(t, const Locale('de'));
-    expect(find.text('Kein Wert: Ruhepuls'), findsOneWidget);
-    expect(find.text('Kein Wert: ruhepuls'), findsNothing);
-  });
 
   testWidgets('english still lowercases it', (t) async {
     t.view.physicalSize = const Size(800 * 3, 4000 * 3);

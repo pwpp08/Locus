@@ -5,8 +5,11 @@ import '../../l10n/display_text.dart';
 // what stood out → the signals underneath → the one thing to do tonight. Same
 // screen, layered by scroll depth; there is no advanced mode to switch into.
 //
-// There is no sleep score. No composite exists in the pipeline, and inventing
-// one here would mean choosing weights in a UI file. What replaces it is the
+// Sleep Performance at the top is NOT a composite: it is hours slept against
+// the pipeline's own computed need, capped at 100 — one ratio of two measured
+// things, no weights. Its contributors are shown beside it, each measured on
+// its own, and one the pipeline does not compute (high sleep stress) is a
+// dash. Below it there is still no score of the night; what follows is the
 // comparison every "86" is a lossy summary of: last night against the middle
 // half of the user's OWN recent nights, per measure, with the night count
 // attached. A quartile band needs no thresholds, no population norms and no
@@ -31,6 +34,7 @@ import '../../models/metric.dart';
 import '../profile/devices.dart' show DeviceFilter;
 import '../profile/profile.dart' show ProfileAvatar;
 import '../ui2.dart';
+import 'coach.dart' show CoachScreen;
 import 'home_screen.dart';
 import 'investigate.dart';
 import 'metric_detail.dart';
@@ -221,7 +225,12 @@ class SleepData {
     this.longestSleepMin,
     this.solMin,
     this.deviceNights = const [],
+    this.consistency,
   });
+
+  /// The Sleep Regularity Index, 0–100, off the cross-day rollup. Null until
+  /// it has the nights it needs.
+  final double? consistency;
 
   bool get hasNight => night['duration_min'] is num;
 
@@ -355,6 +364,7 @@ class SleepData {
       longestSleepMin: longest,
       solMin: sol,
       deviceNights: deviceNights,
+      consistency: (envValue(cd['regularity'])?['sri'] as num?)?.toDouble(),
     );
   }
 }
@@ -603,6 +613,10 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
         sub: d.days.length < 2 ? (d.day ?? '').toUpperCase() : '', [
       ...dayNavRow(_day ?? d.day, d.days, _goDay),
 
+      // ── 0 · SLEEP PERFORMANCE ── and what it is made of.
+      _performance(c, p, d, n),
+      const SizedBox(height: S.x5),
+
       // ── 1 · THE ANSWER ──
       _answer(c, p, d, n),
 
@@ -677,6 +691,204 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
           c, () => go(c, Investigate('sleep', day: _day ?? d.day))),
     ]);
   }
+
+  /// The big ring and its four contributors. Each contributor is measured on
+  /// its own and banded poor / sufficient / optimal; one with no measurement
+  /// is a dash and no band.
+  Widget _performance(BuildContext c, P p, SleepData d, Map<String, dynamic> n) {
+    final tst = (n['duration_min'] as num?)?.toDouble();
+    final need = d.need.value?.toDouble();
+    final perf = tst == null || need == null || need <= 0
+        ? null
+        : (tst / need * 100).clamp(0, 100).toDouble();
+    final eff = (n['efficiency'] as num?)?.toDouble();
+    final rows = <(IconData, String, double?, bool)>[
+      (LucideIcons.clock3, 'Hours vs. needed', perf, true),
+      (LucideIcons.repeat, 'Sleep consistency', d.consistency, true),
+      (LucideIcons.bedDouble, 'Sleep efficiency', eff == null ? null : eff * 100, true),
+      // Not computed by the pipeline (nocturnal arousal): a dash, never a 0.
+      (LucideIcons.gauge, 'High sleep stress', null, false),
+    ];
+    final tier = perf == null ? null : _tierOf(perf);
+    final measured = [
+      for (final r in rows)
+        if (r.$3 != null && r.$4) (r.$2, _tierOf(r.$3!)),
+    ];
+    final weakest = measured.isEmpty
+        ? null
+        : (measured.toList()..sort((a, b) => a.$2.compareTo(b.$2))).first;
+    final summary = tier == null
+        ? 'Sleep Performance needs your computed sleep need, which takes a few '
+            'nights to learn.'
+        : measured.every((m) => m.$2 == 2)
+            ? 'Your Sleep Performance is optimal because you’re getting enough '
+                'sleep, keeping a consistent schedule and sleeping efficiently. '
+                'Keep up the great work!'
+            : 'Your Sleep Performance is ${_tierWord(tier).toLowerCase()}. '
+                '${weakest!.$1} has the most room to improve.';
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: S.x16 * 4),
+          child: AspectRatio(
+            aspectRatio: 1,
+            child: Stack(alignment: Alignment.center, children: [
+              CustomPaint(
+                size: Size.infinite,
+                painter: Ring((perf ?? 0) / 100, C.dialSleep, p.track,
+                    stroke: S.x4, t: animate(c, 1), solid: true),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(S.x8),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text('LOCUS', style: F.wordmark.copyWith(color: p.ink3)),
+                    const SizedBox(height: S.x2),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(perf == null ? '--' : '${perf.round()}',
+                            style: F.n64.copyWith(
+                                color: p.ink, fontWeight: FontWeight.w700)),
+                        if (perf != null)
+                          Text('%',
+                              style: F.n34.copyWith(
+                                  color: p.ink, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                    const SizedBox(height: S.x2),
+                    Text('SLEEP\nPERFORMANCE',
+                        textAlign: TextAlign.center,
+                        style: F.caps.copyWith(color: p.ink)),
+                    const SizedBox(height: S.x3),
+                    _TierBar(tier),
+                  ]),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+      const SizedBox(height: S.x5),
+      Surface(
+        pad: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x2),
+        child: Column(children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) Divider(color: p.line, height: 1),
+            Builder(builder: (c) {
+              final label = Row(children: [
+                Icon(rows[i].$1, size: I.md, color: p.ink3),
+                const SizedBox(width: S.x3),
+                Expanded(
+                  child: Text(rows[i].$2.toUpperCase(),
+                      style: F.caps.copyWith(color: p.ink)),
+                ),
+              ]);
+              final reading = [
+                _TierBar(rows[i].$3 == null || !rows[i].$4
+                    ? null
+                    : _tierOf(rows[i].$3!)),
+                const SizedBox(width: S.x4),
+                Text(rows[i].$3 == null ? '--' : '${rows[i].$3!.round()}%',
+                    textAlign: TextAlign.right,
+                    style: F.n17
+                        .copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+              ];
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: S.x4),
+                // At accessibility sizes the label takes its own line and
+                // the bar and number sit under it.
+                child: bigText(c)
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          label,
+                          const SizedBox(height: S.x2),
+                          Row(mainAxisAlignment: MainAxisAlignment.end,
+                              children: reading),
+                        ])
+                    : Row(children: [Expanded(child: label), ...reading]),
+              );
+            }),
+          ],
+          const SizedBox(height: S.x2),
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: S.x4, vertical: S.x3),
+            decoration: BoxDecoration(color: p.bg, borderRadius: R.rMd),
+            child: Wrap(
+              spacing: S.x5,
+              runSpacing: S.x2,
+              alignment: WrapAlignment.center,
+              children: [
+                for (final t in [0, 1, 2])
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    Container(
+                      width: S.x4,
+                      height: S.x1,
+                      decoration: BoxDecoration(
+                          color: _tierColor(p, t), borderRadius: R.rPill),
+                    ),
+                    const SizedBox(width: S.x2),
+                    Flexible(
+                      child: Text(_tierWord(t),
+                          style: F.cap.copyWith(color: p.ink2)),
+                    ),
+                  ]),
+              ],
+            ),
+          ),
+          const SizedBox(height: S.x2),
+        ]),
+      ),
+      const SizedBox(height: S.x4),
+      // The coach card: what the bands add up to, and a door to ask more.
+      Container(
+        padding: const EdgeInsets.all(S.half),
+        decoration: const BoxDecoration(
+          borderRadius: R.rLg,
+          gradient: LinearGradient(colors: [C.coachEdgeA, C.coachEdgeB]),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(S.x5),
+          decoration: BoxDecoration(color: p.bg, borderRadius: R.rLg),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(summary, style: F.head.copyWith(color: p.ink, fontWeight: FontWeight.w400)),
+            const SizedBox(height: S.x4),
+            Pressable(
+              onTap: () => go(
+                  c,
+                  const CoachScreen(
+                      initialMessage:
+                          'Explain my Sleep Performance last night and what drove it.',
+                      startNewSession: true)),
+              semanticLabel: 'Learn more with the coach',
+              child: Row(children: [
+                Flexible(
+                  child: Text('LEARN MORE WITH COACH',
+                      style: F.caps.copyWith(color: p.on(C.lavender))),
+                ),
+                const SizedBox(width: S.x2),
+                Icon(LucideIcons.arrowRight, size: I.md, color: p.on(C.sky)),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    ]);
+  }
+
+  /// Poor below 70, sufficient 70–84, optimal 85 and over.
+  static int _tierOf(double v) => v >= 85 ? 2 : (v >= 70 ? 1 : 0);
+
+  static String _tierWord(int t) =>
+      const ['Poor', 'Sufficient', 'Optimal'][t];
+
+  static Color _tierColor(P p, int t) =>
+      [C.poor, p.ink3, C.optimal][t];
 
   /// Total sleep, when it ran, and the two ratios that qualify it. Everything
   /// here is measured; nothing is a judgement.
@@ -2244,6 +2456,35 @@ class _Strip extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// Three short segments: poor, sufficient, optimal — the [tier]-th lit in its
+/// colour, the others as track. Null lights none.
+class _TierBar extends StatelessWidget {
+  final int? tier;
+  const _TierBar(this.tier);
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final lit = [C.poor, p.ink3, C.optimal];
+    return Semantics(
+      label: tier == null ? null : const ['Poor', 'Sufficient', 'Optimal'][tier!],
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        for (var i = 0; i < 3; i++) ...[
+          if (i > 0) const SizedBox(width: S.x1),
+          Container(
+            width: S.x8 + S.half,
+            height: S.x1 + S.half,
+            decoration: BoxDecoration(
+              color: i == tier ? lit[i] : p.track,
+              borderRadius: R.rPill,
+            ),
+          ),
+        ],
+      ]),
     );
   }
 }

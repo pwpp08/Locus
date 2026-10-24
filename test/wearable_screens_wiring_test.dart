@@ -146,6 +146,11 @@ void main() {
   });
 
   testWidgets("Health draws the wearable's heart rows", (t) async {
+    // A tall phone: the rows sit under the monitors and the watch section,
+    // and a lazy list builds only what is on screen.
+    t.view.physicalSize = const Size(800, 4000);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
     await _settle(
         t,
         MaterialApp(

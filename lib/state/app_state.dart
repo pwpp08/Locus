@@ -70,7 +70,6 @@ import '../data/auto_backup.dart' as backup
 import 'alarm_schedule.dart';
 import 'alarm_manager.dart';
 import 'alarm_shake.dart';
-import '../models/alarm_item.dart' show AlarmBuzz;
 import '../data/step_calibration.dart' show Wearing;
 import 'derive_coordinator.dart';
 import 'gesture_controller.dart';
@@ -1791,7 +1790,6 @@ class AppState extends ChangeNotifier {
     _sync.dispose();
     _alarmGraceTimer?.cancel();
     _alarmGraceTimer = null;
-    _alarmPatternTestTimer?.cancel();
     _shakeWatchOpen?.cancel();
     _shakeWatchClose?.cancel();
     alarmManager.removeListener(_onAlarmManagerChanged);
@@ -4399,57 +4397,18 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // ── custom buzz pattern test ────────────────────────────────────────────────
-
-  /// While set, a pattern test alarm owns the band's alarm slot and the
-  /// schedule must not re-arm over it.
-  DateTime? _alarmPatternTestUntil;
-  Timer? _alarmPatternTestTimer;
-
-  /// Whether a pattern test is armed and has not yet been resolved.
-  bool get alarmPatternTestRunning => _alarmPatternTestUntil != null;
-
-  /// Arm [buzz] with the RICH form to fire in [lead], so the user can find out
-  /// whether their band's firmware executes custom patterns at all (some
-  /// WHOOP 4 firmwares store the rich form and never fire it). The real
-  /// schedule is re-armed, forced, once the window has passed — whether or
-  /// not the test fired — so a test can never leave tomorrow's alarm missing.
-  ///
-  /// Returns the instant it will fire, or null when the band did not take it.
-  Future<DateTime?> startAlarmPatternTest(AlarmBuzz buzz,
-      {Duration lead = const Duration(seconds: 60)}) async {
-    if (!isConnected) throw Exception('Connect to your strap first');
-    final haptics = (buzz == AlarmBuzz.standard ? AlarmBuzz.pulse : buzz)
-        .haptics;
-    final when = DateTime.now().add(lead);
-    _alarmPatternTestUntil = when.add(const Duration(seconds: 150));
-    final armed = await engine.setAlarm(when, haptics: haptics);
-    if (armed == null) {
-      _alarmPatternTestUntil = null;
-      unawaited(_armNextAlarmOccurrence(force: true));
-      return null;
-    }
-    _scheduleAlarmShakeWatch(armed.millisecondsSinceEpoch ~/ 1000);
-    _alarmPatternTestTimer?.cancel();
-    _alarmPatternTestTimer = Timer(
-        _alarmPatternTestUntil!.difference(DateTime.now()),
-        () => unawaited(finishAlarmPatternTest()));
-    notifyListeners();
-    return armed;
-  }
-
-  /// End a pattern test and put the real schedule back on the band. [buzzed]
-  /// is the user's answer: true records that this band fires custom patterns.
-  Future<void> finishAlarmPatternTest({bool? buzzed}) async {
-    _alarmPatternTestTimer?.cancel();
-    _alarmPatternTestTimer = null;
-    _alarmPatternTestUntil = null;
-    if (buzzed != null) await alarmManager.setRichVerified(buzzed);
-    notifyListeners();
-    if (isConnected) await _armNextAlarmOccurrence(force: true);
-  }
-
   // ── shake to stop ───────────────────────────────────────────────────────────
+  //
+  // Two ways the watch opens, and the second is the one that can be relied on:
+  //   1. a timer a little before the armed time, so the motion stream is
+  //      already flowing when the buzz starts — but a phone asleep overnight
+  //      may run that timer late or not at all;
+  //   2. the band's own ALARM FIRED event, which arrives over BLE and wakes the
+  //      app whatever its timers did.
+  // Scheduling the NEXT alarm (which happens the moment this one fires) only
+  // replaces the future timer. It never closes a watch that is open now: it
+  // used to, which switched the motion stream off at the exact moment the
+  // buzz began, so a shake could never be seen.
 
   /// The armed epoch the shake watch is scheduled around, and its timers.
   int? _shakeWatchEpoch;
@@ -4460,38 +4419,44 @@ class AppState extends ChangeNotifier {
   bool get alarmShakeWatching => _shakeWatching;
   bool _shakeWatching = false;
 
-  /// Hold the live motion stream from a little before [epoch] until the
-  /// longest buzz could have ended, and stop the buzz on a wrist shake. A
-  /// no-op unless shake-to-stop is on. Re-scheduling for the same epoch is
-  /// cheap and idempotent; a new epoch replaces the old window.
+  /// Plan the watch around the alarm armed at [epoch]: open a little before
+  /// it, close once the longest buzz could have ended. A no-op unless
+  /// shake-to-stop is on. Re-scheduling for the same epoch is idempotent.
   void _scheduleAlarmShakeWatch(int epoch) {
     if (!alarmManager.shakeToStop) {
-      _endAlarmShakeWatch();
+      _shakeWatchOpen?.cancel();
+      _shakeWatchOpen = null;
       _shakeWatchEpoch = null;
+      _endAlarmShakeWatch();
       return;
     }
-    if (_shakeWatchEpoch == epoch &&
-        (_shakeWatchOpen != null || _shakeWatching)) {
-      return;
-    }
+    if (_shakeWatchEpoch == epoch && _shakeWatchOpen != null) return;
     _shakeWatchOpen?.cancel();
-    _shakeWatchClose?.cancel();
-    _endAlarmShakeWatch();
+    _shakeWatchOpen = null;
     _shakeWatchEpoch = epoch;
     final at = DateTime.fromMillisecondsSinceEpoch(epoch * 1000);
-    final openIn = at
-        .subtract(kAlarmShakeLead)
-        .difference(DateTime.now());
-    final closeIn = at.add(kAlarmShakeTail).difference(DateTime.now());
-    if (closeIn.isNegative) return;
+    final until = at.add(kAlarmShakeTail);
+    if (until.isBefore(DateTime.now())) return;
+    final openIn = at.subtract(kAlarmShakeLead).difference(DateTime.now());
     _shakeWatchOpen = Timer(openIn.isNegative ? Duration.zero : openIn, () {
       _shakeWatchOpen = null;
-      _shakeDetector.reset();
-      _shakeWatching = true;
-      _liveStreamController.setAlarmShakeWindow(true);
-      _log('[alarm] shake watch open for $epoch');
+      _openAlarmShakeWatch(until);
     });
-    _shakeWatchClose = Timer(closeIn, _endAlarmShakeWatch);
+  }
+
+  /// Hold the motion stream until [until] and stop the buzz on a shake. An
+  /// open watch is extended, never restarted, so a second trigger for the
+  /// same buzz does not throw away jolts already counted.
+  void _openAlarmShakeWatch(DateTime until) {
+    final left = until.difference(DateTime.now());
+    if (left.isNegative) return;
+    _shakeWatchClose?.cancel();
+    _shakeWatchClose = Timer(left, _endAlarmShakeWatch);
+    if (_shakeWatching) return;
+    _shakeDetector.reset();
+    _shakeWatching = true;
+    _liveStreamController.setAlarmShakeWindow(true);
+    _log('[alarm] shake watch open until $until');
   }
 
   void _endAlarmShakeWatch() {
@@ -4501,6 +4466,18 @@ class AppState extends ChangeNotifier {
     _shakeWatching = false;
     _liveStreamController.setAlarmShakeWindow(false);
     _log('[alarm] shake watch closed');
+  }
+
+  /// Plan the watch for the next armed alarm, as a re-arm does. Tests only.
+  @visibleForTesting
+  void debugScheduleAlarmShakeWatch(int epoch) =>
+      _scheduleAlarmShakeWatch(epoch);
+
+  /// The band says its alarm is buzzing now: watch for the shake from this
+  /// moment, whatever the pre-armed timer managed.
+  void _onAlarmBuzzing() {
+    if (!alarmManager.shakeToStop) return;
+    _openAlarmShakeWatch(DateTime.now().add(kAlarmShakeTail));
   }
 
   /// Fed every live accel frame while the watch is open.
@@ -4544,33 +4521,23 @@ class AppState extends ChangeNotifier {
           return;
         }
 
-        // A pattern test owns the band's alarm slot until it has fired; the
-        // real plan is re-armed (forced) when the test ends.
-        if (_alarmPatternTestUntil != null &&
-            DateTime.now().isBefore(_alarmPatternTestUntil!)) {
-          return;
-        }
-
         final targetEpoch = plan.time.millisecondsSinceEpoch ~/ 1000;
         final currentArmed = _savedAlarm ?? device.alarmEpoch;
-        final buzz = alarmManager.effectiveBuzz(plan.sourceAlarm);
-        // Same instant AND same buzz: nothing to write. A changed pattern on
-        // an unchanged time used to be invisible to this check.
+        // Custom buzz patterns are gone; every alarm is the band's own wake
+        // buzz. A slot armed by an older build with a pattern is re-written
+        // once, so it does not keep firing a pattern nobody can turn off.
+        final legacyPattern = prefs.getString('alarm_armed_buzz');
         if (!force &&
             currentArmed != null &&
             (currentArmed - targetEpoch).abs() <= 60 &&
-            // Every arm written before patterns existed was the standard
-            // buzz, so an unrecorded one is standard — not a reason to
-            // re-write the band on every connect.
-            (prefs.getString('alarm_armed_buzz') ?? AlarmBuzz.standard.name) ==
-                buzz.name) {
+            (legacyPattern == null || legacyPattern == 'standard')) {
           _scheduleAlarmShakeWatch(currentArmed);
           return;
         }
 
-        final armed = await engine.setAlarm(plan.time, haptics: buzz.haptics);
+        final armed = await engine.setAlarm(plan.time);
         if (armed != null) {
-          await prefs.setString('alarm_armed_buzz', buzz.name);
+          await prefs.remove('alarm_armed_buzz');
           await _onArmed(armed, armed.millisecondsSinceEpoch ~/ 1000, confirmedImmediately: true);
           _scheduleAlarmShakeWatch(armed.millisecondsSinceEpoch ~/ 1000);
         }
@@ -4849,15 +4816,13 @@ class AppState extends ChangeNotifier {
   }
 
   /// Fire the strap's alarm haptics immediately — a "test buzz" so the user can
-  /// confirm the band actually fires before trusting the scheduled wake.
+  /// confirm the band actually fires before trusting the scheduled wake. With
+  /// shake-to-stop on, the watch opens now too, so the test is also a way to
+  /// try the shake.
   Future<void> testAlarmBuzz() async {
     if (!isConnected) throw Exception('Connect to your strap first');
+    _onAlarmBuzzing();
     await engine.runAlarm();
-  }
-
-  Future<void> testBuzzPattern(int pattern) async {
-    if (!isConnected) throw Exception('Connect to your strap first');
-    await engine.buzzPattern(pattern);
   }
 
   /// Pulse the strap so it can be heard/felt during a find-my-strap hunt.
@@ -4929,6 +4894,8 @@ class AppState extends ChangeNotifier {
         break;
       case AlarmEffect.fired:
         _log('[alarm] strap FIRED — EXECUTED (event $id) received.');
+        // First, before the re-arm below plans tomorrow's watch.
+        _onAlarmBuzzing();
         _alarmFiredAt = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
         unawaited(SharedPreferences.getInstance()
             .then((p) => p.setInt('alarm_fired_at', ts))
@@ -4957,6 +4924,7 @@ class AppState extends ChangeNotifier {
         break;
       case AlarmEffect.buzzed:
         _log('[alarm] RUN_ALARM buzz (event $id), armed slot unchanged.');
+        _onAlarmBuzzing();
         break;
       case AlarmEffect.cleared:
         // Same persistence gap on the strap-driven clear (event 59): state was

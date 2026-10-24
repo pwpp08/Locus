@@ -49,7 +49,10 @@ import 'nutrition_screen.dart';
 import 'start_card.dart';
 
 class WorkoutScreen extends StatefulWidget {
-  const WorkoutScreen({super.key});
+  /// Pushed as its own page (from Home's strain dial or More) rather than
+  /// hosted by the shell: a back bar instead of the tab title.
+  final bool page;
+  const WorkoutScreen({super.key, this.page = false});
 
   @override
   State<WorkoutScreen> createState() => _WorkoutScreenState();
@@ -93,11 +96,13 @@ class _WorkoutScreenState extends State<WorkoutScreen> with RevisionReload {
         // The hero card used to run edge to edge, so the list padded its
         // children rather than itself. Since Volt the card is an aurora tile
         // in the gutter like everything else (see start_card.dart).
-        return ListView(
-          padding: EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.navClear(c)),
+        final list = ListView(
+          padding: EdgeInsets.fromLTRB(
+              S.x4, S.x2, S.x4, widget.page ? S.x16 : S.navClear(c)),
           children: [
-            ScreenTitle(loc?.tabActivity ?? 'Activity',
-                trailing: const ProfileAvatar(accent: C.domMove)),
+            if (!widget.page)
+              ScreenTitle(loc?.tabActivity ?? 'Activity',
+                  trailing: const ProfileAvatar(accent: C.domMove)),
             SubTabs(_tabs(loc), tab, (i) => setState(() => tab = i),
                 color: C.domMove),
             const SizedBox(height: S.x5),
@@ -107,6 +112,19 @@ class _WorkoutScreenState extends State<WorkoutScreen> with RevisionReload {
               _ => _history(c, d),
             },
           ],
+        );
+        if (!widget.page) return list;
+        return Scaffold(
+          backgroundColor: P.of(c).bg,
+          body: SafeArea(
+            child: Column(children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: S.x4),
+                child: NavBar(loc?.tabActivity ?? 'Activity'),
+              ),
+              Expanded(child: list),
+            ]),
+          ),
         );
       },
     );

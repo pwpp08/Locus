@@ -1,4 +1,5 @@
 // The Home / Health / drill-down screens, and the plumbing they share.
+export 'action_sheet.dart';
 export 'advanced.dart';
 export 'ai_briefing.dart';
 export 'beats.dart';
@@ -7,6 +8,7 @@ export 'coach.dart';
 export 'ecg.dart';
 export 'coach_figures.dart';
 export 'findings_log.dart';
+export 'health_monitor.dart';
 export 'health_screen.dart';
 export 'home_screen.dart';
 export 'calm_breathing.dart';

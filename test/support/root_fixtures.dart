@@ -153,7 +153,39 @@ HealthData _health() => HealthData(
 /// The screens, by name. A builder rather than a widget so every pump gets a
 /// fresh State.
 final Map<String, Widget Function()> rootCases = {
-  'today': () => const HomeScreen(data: homeMeasured, hour: 9),
+  'today': () => HomeScreen(
+        data: homeMeasured,
+        hour: 9,
+        night: _night(),
+        sessions: [
+          for (final (type, start, mins, strain) in const [
+            ('weightlifting', 15 * 60 + 49, 65, 6.0),
+            ('walking', 17 * 60 + 14, 31, 8.1),
+            ('sauna', 17 * 60 + 52, 12, null),
+          ])
+            {
+              'type': type,
+              'start_ts': DateTime(2026, 8, 16, start ~/ 60, start % 60)
+                      .millisecondsSinceEpoch ~/
+                  1000,
+              'end_ts': DateTime(2026, 8, 16, start ~/ 60, start % 60 + mins)
+                      .millisecondsSinceEpoch ~/
+                  1000,
+              'duration_min': mins,
+              'strain': strain,
+            },
+        ],
+        charts: {
+          'resting_hr': _days(24, 53, 6),
+          'hrv': _days(24, 62, 18),
+          'sleep': _days(24, 440, 60),
+          'stress': _days(24, 32, 20),
+          'resp_rate': _days(24, 14.2, 1.2),
+          'steps': _days(24, 8400, 3000),
+          'calories': _days(24, 1100, 400),
+        },
+      ),
+  'health_monitor': () => const HealthMonitorScreen(),
   'today_first_week': () => const HomeScreen(data: homeFirstWeek, hour: 9),
   'readiness': () => const ReadinessDetail(
         data: ReadinessData(
@@ -166,13 +198,14 @@ final Map<String, Widget Function()> rootCases = {
         ),
       ),
   'sleep': () => SleepDetail(
-        embedded: true,
         data: SleepData(
           day: '2026-08-16',
           days: const ['2026-08-16', '2026-08-15', '2026-08-14'],
           night: _night(),
           timeline: _timeline(),
           tstHistory: const [430, 465, 410, 452, 401, 470, 438],
+          need: const Metric(value: 443, unit: 'min', confidence: .7, tier: _e),
+          consistency: 89,
         ),
       ),
   'activity': () => ChangeNotifierProvider<AppState>.value(

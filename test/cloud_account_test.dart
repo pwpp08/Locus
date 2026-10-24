@@ -75,7 +75,8 @@ void main() {
   });
 
   group('AccountScreen UI', () {
-    testWidgets('renders Sign in with Google option when logged out', (tester) async {
+    testWidgets('logged out offers email sign-in only, no Google',
+        (tester) async {
       await AccountService.instance.init();
       if (AccountService.instance.isLoggedIn) {
         await AccountService.instance.logOut();
@@ -88,8 +89,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Sign in with Google'), findsOneWidget);
-      expect(find.text('or with email'), findsOneWidget);
+      expect(find.textContaining('Google'), findsNothing);
       expect(find.text('Sign In with Email'), findsOneWidget);
     });
   });

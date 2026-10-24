@@ -1,7 +1,8 @@
-// Profile.
+// Profile, and the More tab.
 //
-// Reached from the avatar in every tab's header, never a tab of its own — the
-// shell has four destinations and the type system says so.
+// The same list two ways: pushed from the avatar in a tab's header, and as
+// the More tab's root ([ProfileHome.tab]), where it also carries the app
+// settings and the doors to what used to be the Activity and Sleep tabs.
 //
 // The reference design had a Premium badge and a Following/Followers pair.
 // Both are gone, and not for lack of screen space: there is no account and no
@@ -9,16 +10,25 @@
 // tier would have to be sold. What replaces them is what this app actually
 // knows — how much it has measured, and from what.
 
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
-import '../../state/locale_controller.dart';
+import '../../state/prefs.dart';
 import '../ui2.dart';
+import '../screens/circadian_detail.dart' show CircadianDetail;
 import '../screens/coach.dart' show CoachSetup, coachSubtitle;
-import '../screens/home_screen.dart' show deviceBatteryOf;
+import '../screens/home_screen.dart'
+    show deviceBatteryOf, hideMetricsListenable, setHideMetrics;
+import '../screens/nutrition_screen.dart' show NutritionScreen;
+import '../screens/workout_screen.dart' show WorkoutScreen;
+import 'alarm.dart' show AlarmScreen;
 import 'data.dart';
 import 'account_screen.dart';
 import 'devices.dart';
@@ -150,6 +160,147 @@ Future<void> goto(BuildContext c, Widget w) =>
 /// is a pushed route, never a tab.
 void openProfile(BuildContext c) => goto(c, const ProfileHome());
 
+/// The account's profile picture: a copy of an image the user picked, kept in
+/// the app's own documents folder so it survives the gallery original being
+/// deleted. Null when none is set or the file has gone.
+class ProfilePhoto {
+  ProfilePhoto._();
+
+  static const _key = 'profile.photo_path';
+
+  /// The current file, for every avatar on screen to rebuild from.
+  static final ValueNotifier<String?> path = ValueNotifier<String?>(_saved());
+
+  static String? _saved() {
+    final p = Prefs.getString(_key, '');
+    return p.isNotEmpty && File(p).existsSync() ? p : null;
+  }
+
+  /// Ask for an image and make it the picture. False when nothing was
+  /// picked. The copy gets a new name each time, so an image cache keyed on
+  /// the path never shows the previous picture.
+  static Future<bool> pick() async {
+    final picked = await FilePicker.platform.pickFiles(type: FileType.image);
+    final src = picked?.files.single.path;
+    if (src == null) return false;
+    final dir = await getApplicationDocumentsDirectory();
+    final ext = src.contains('.') ? src.substring(src.lastIndexOf('.')) : '';
+    final dest =
+        '${dir.path}/profile_photo_${DateTime.now().millisecondsSinceEpoch}$ext';
+    await File(src).copy(dest);
+    await _replace(dest);
+    return true;
+  }
+
+  static Future<void> remove() => _replace(null);
+
+  static Future<void> _replace(String? next) async {
+    final old = path.value;
+    Prefs.setString(_key, next ?? '');
+    path.value = next;
+    if (old != null && old != next) {
+      try {
+        await File(old).delete();
+      } catch (_) {
+        // Already gone: nothing to clean up.
+      }
+    }
+  }
+}
+
+/// The picture, cropped to a circle, or [fallback] when there is none.
+class _PhotoCircle extends StatelessWidget {
+  final double size;
+  final Widget fallback;
+  const _PhotoCircle({required this.size, required this.fallback});
+
+  @override
+  Widget build(BuildContext c) => ValueListenableBuilder<String?>(
+        valueListenable: ProfilePhoto.path,
+        builder: (c, path, _) => path == null
+            ? fallback
+            : Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  image: DecorationImage(
+                      image: FileImage(File(path)), fit: BoxFit.cover),
+                ),
+              ),
+      );
+}
+
+/// The large avatar at the top of Profile and More: the picture, and the
+/// control that sets or changes it.
+class ProfilePhotoHeader extends StatelessWidget {
+  final String? name;
+  const ProfilePhotoHeader({super.key, this.name});
+
+  Future<void> _change(BuildContext c) async {
+    final has = ProfilePhoto.path.value != null;
+    if (!has) {
+      await ProfilePhoto.pick();
+      return;
+    }
+    final choice = await AppDialog.show(
+      c,
+      title: 'Profile picture',
+      body: 'Choose a new picture, or remove this one.',
+      primary: 'Choose new',
+      destructive: 'Remove',
+    );
+    if (choice == DialogChoice.primary) await ProfilePhoto.pick();
+    if (choice == DialogChoice.destructive) await ProfilePhoto.remove();
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final initial = (name ?? '').trim();
+    const size = S.x16 + S.x8;
+    return Column(children: [
+      Pressable(
+        semanticLabel: 'Change profile picture',
+        onTap: () => _change(c),
+        child: Stack(children: [
+          _PhotoCircle(
+            size: size,
+            fallback: Container(
+              width: size,
+              height: size,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: p.card2),
+              child: initial.isEmpty
+                  ? Icon(LucideIcons.user, size: I.xl, color: p.ink2)
+                  : Text(initial.characters.first.toUpperCase(),
+                      style: F.n34.copyWith(color: p.ink)),
+            ),
+          ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              width: S.x8,
+              height: S.x8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: p.ink,
+                border: Border.all(color: p.bg, width: S.half),
+              ),
+              child: Icon(LucideIcons.camera, size: I.sm, color: p.bg),
+            ),
+          ),
+        ]),
+      ),
+      if (initial.isNotEmpty) ...[
+        const SizedBox(height: S.x3),
+        Text(initial, style: F.t2.copyWith(color: p.ink)),
+      ],
+    ]);
+  }
+}
+
 /// The way into Profile, in the top-right of every tab. It used to be a gear
 /// on Home only, so four tabs out of five had no road to devices, battery,
 /// export or settings.
@@ -177,66 +328,24 @@ class ProfileAvatar extends StatelessWidget {
       semanticLabel:
           AppLocalizations.of(c)?.homeProfileSettings ?? 'Profile and settings',
       onTap: () => openProfile(c),
-      child: Container(
-        width: S.x12,
-        height: S.x12,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: p.card2),
-        child: initial.isEmpty
-            ? Icon(LucideIcons.user, size: I.md, color: p.ink)
-            : ExcludeSemantics(
-                child: Text(initial.characters.first.toUpperCase(),
-                    style: F.body
-                        .copyWith(color: p.ink, fontWeight: FontWeight.w600)),
-              ),
+      child: _PhotoCircle(
+        size: S.x12,
+        fallback: Container(
+          width: S.x12,
+          height: S.x12,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: p.card2),
+          child: initial.isEmpty
+              ? Icon(LucideIcons.user, size: I.md, color: p.ink)
+              : ExcludeSemantics(
+                  child: Text(initial.characters.first.toUpperCase(),
+                      style: F.body
+                          .copyWith(color: p.ink, fontWeight: FontWeight.w600)),
+                ),
+        ),
       ),
     );
   }
-}
-
-/// Display name for a language code, sourced from a small hardcoded table.
-/// Add a row here when a contributor's `app_<code>.arb` lands — nothing else
-/// to touch; the picker below only ever offers what [AppLocalizations]
-/// actually has translations for.
-const Map<String, String> _kLanguageNames = {
-  'en': 'English',
-  'es': 'Español',
-  'fr': 'Français',
-  'de': 'Deutsch',
-  'zh': '中文',
-  'hi': 'हिन्दी',
-  'ru': 'Русский',
-};
-
-String _languageLabel(BuildContext c, String? code) => code == null
-    ? (AppLocalizations.of(c)?.languageSystemDefault ?? 'System default')
-    : (_kLanguageNames[code] ?? code);
-
-Future<void> _pickLanguage(BuildContext c) async {
-  final p = P.of(c);
-  final ctrl = c.read<LocaleController>();
-  final options = <String?>[null, ...AppLocalizations.supportedLocales.map((l) => l.languageCode)];
-  await AppSheet.open<void>(c,
-    builder: (sheet) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final code in options)
-            ListTile(
-              title: Text(_languageLabel(sheet, code), style: F.body.copyWith(color: p.ink)),
-              trailing: ctrl.code == code
-                  ? Icon(LucideIcons.check, size: I.md, color: p.on(C.blue))
-                  : null,
-              onTap: () async {
-                await ctrl.setCode(code);
-                if (sheet.mounted) Navigator.of(sheet).pop();
-              },
-            ),
-        ],
-      ),
-    ),
-    dragHandle: true,
-  );
 }
 
 /// Human-readable byte size. No dependency for four lines of arithmetic.
@@ -270,7 +379,9 @@ class ProfileStats {
 }
 
 class ProfileHome extends StatefulWidget {
-  const ProfileHome({super.key});
+  /// The More tab's root rather than a pushed screen.
+  final bool tab;
+  const ProfileHome({super.key, this.tab = false});
 
   @override
   State<ProfileHome> createState() => _ProfileHomeState();
@@ -314,6 +425,7 @@ class _ProfileHomeState extends State<ProfileHome> {
   Widget build(BuildContext c) => FutureBuilder<ProfileStats>(
         future: _stats,
         builder: (c, snap) => ProfileHomeView(
+          tab: widget.tab,
           stats: snap.data,
           onDevices: () => _open(c, const MyDevices()),
           onSettings: () => _open(c, const MoreSettings()),
@@ -330,8 +442,12 @@ class ProfileHomeView extends StatelessWidget {
   final ProfileStats? stats;
   final VoidCallback? onDevices, onSettings, onExport, onEdit, onCoach;
 
+  /// The More tab: a tab title instead of a back bar, and the app settings.
+  final bool tab;
+
   const ProfileHomeView(
       {super.key,
+      this.tab = false,
       this.stats,
       this.onDevices,
       this.onCoach,
@@ -345,19 +461,55 @@ class ProfileHomeView extends StatelessWidget {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
     final s = stats;
-    return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: S.x4),
-            child: NavBar(l?.profileTitle ?? 'Profile'),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
+    final list = ListView(
+              padding: EdgeInsets.fromLTRB(
+                  S.x4, 0, S.x4, tab ? S.navClear(c) : S.x10),
               children: [
+                if (tab)
+                  Padding(
+                    padding: const EdgeInsets.only(top: S.x4),
+                    child: Text((l?.tabMore ?? 'More').toUpperCase(),
+                        style: F.caps.copyWith(color: p.ink, letterSpacing: 2)),
+                  ),
                 const SizedBox(height: S.x4),
+                ProfilePhotoHeader(name: s?.name),
+                const SizedBox(height: S.x2),
+                if (tab) ...[
+                  settingsGroup(c, 'Activity & sleep', [
+                    SetRow(LucideIcons.dumbbell, C.blue,
+                        l?.tabActivity ?? 'Activity',
+                        sub: 'Start a session, browse activities, history',
+                        onTap: () => goto(c, const WorkoutScreen(page: true))),
+                    SetRow(LucideIcons.utensils, C.amber,
+                        l?.nutritionTitle ?? 'Nutrition',
+                        sub: 'Food, water and goals',
+                        onTap: () => goto(c, const NutritionScreen(page: true))),
+                    SetRow(LucideIcons.alarmClock, C.lavender,
+                        l?.settingsAlarmRowTitle ?? 'Alarm',
+                        sub: l?.settingsAlarmRowSub ??
+                            'Buzzes on your wrist, on the band’s own clock',
+                        onTap: () => goto(c, const AlarmScreen())),
+                    SetRow(LucideIcons.sunMoon, C.lavender,
+                        l?.healthBodyClockTitle ?? 'Body clock',
+                        sub: l?.healthChronotypeJetlagRegularity ??
+                            'Natural bedtime, weekend shift and schedule consistency',
+                        onTap: () => goto(c, const CircadianDetail())),
+                  ]),
+                  settingsGroup(c, 'App settings', [
+                    ValueListenableBuilder<bool>(
+                      valueListenable: hideMetricsListenable,
+                      builder: (c, hidden, _) => SetRow(
+                        LucideIcons.eyeOff,
+                        C.n500,
+                        'Hide metrics',
+                        sub: 'Hide the Recovery and Sleep dials on Home. '
+                            'Data still syncs and scores.',
+                        trailing: AppSwitch(hidden, setHideMetrics,
+                            semanticLabel: 'Hide metrics'),
+                      ),
+                    ),
+                  ]),
+                ],
                 settingsGroup(c, l?.profileQuickAccessGroup ?? 'Quick access', [
                   // The band's battery rides the devices row: Profile is
                   // where "is my band all right?" is asked from every tab.
@@ -396,11 +548,6 @@ class ProfileHomeView extends StatelessWidget {
                           (AppLocalizations.of(c)?.profileNotSetUp ??
                               'Not set up'),
                       onTap: onCoach)),
-                  Builder(builder: (c) => SetRow(
-                      LucideIcons.languages, C.blue,
-                      AppLocalizations.of(c)?.profileLanguage ?? 'Language',
-                      sub: _languageLabel(c, c.watch<LocaleController>().code),
-                      onTap: () => _pickLanguage(c))),
                 ]),
                 settingsGroup(c, l?.profileYourDataGroup ?? 'Your data', [
                   SetRow(LucideIcons.cloud, C.blue,
@@ -427,8 +574,19 @@ class ProfileHomeView extends StatelessWidget {
                       onTap: onSettings),
                 ]),
               ],
-            ),
+            );
+    // The tab is hosted by the shell's scaffold; the pushed screen brings its
+    // own.
+    if (tab) return list;
+    return Scaffold(
+      backgroundColor: p.bg,
+      body: SafeArea(
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: S.x4),
+            child: NavBar(l?.profileTitle ?? 'Profile'),
           ),
+          Expanded(child: list),
         ]),
       ),
     );

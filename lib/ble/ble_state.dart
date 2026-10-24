@@ -1282,9 +1282,9 @@ class AlarmPayloads {
   /// latched without executing (class doc for the firmware split).
   /// [index]/[crescendo] do not exist in the rev-1 layout and are ignored on
   /// gen4. A non-null [haptics] on gen4 is an explicit request for a custom
-  /// buzz and arms the RICH slot-0 form instead — firmware-dependent, so the
-  /// caller only passes one after the user has seen that form fire on their
-  /// band (`AlarmManager.richVerified`).
+  /// buzz and arms the RICH slot-0 form instead — firmware-dependent, and no
+  /// alarm path passes one any more (custom patterns were removed: some
+  /// firmwares latch the rich form and never fire it).
   ///
   /// WHOOP 5: rich 21-byte body at slot **index 1** (index 0 is rejected with
   /// console `arm info is invalid, error 0xb`; the [index] argument is ignored

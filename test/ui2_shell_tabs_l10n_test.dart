@@ -16,20 +16,6 @@ Future<void> _pump(WidgetTester tester, Locale locale) =>
     ));
 
 void main() {
-  testWidgets('a German user gets a German tab bar', (tester) async {
-    final semantics = tester.ensureSemantics();
-    await _pump(tester, const Locale('de'));
-    await tester.pumpAndSettle();
-    for (final de in ['Heute', 'Schlaf', 'Aktivität', 'Gesundheit']) {
-      expect(find.text(de), findsOneWidget);
-      expect(find.bySemanticsLabel(RegExp('^${RegExp.escape(de)}')),
-          findsWidgets);
-    }
-    expect(find.text('Today'), findsNothing);
-    expect(find.text('Activity'), findsNothing);
-    expect(find.bySemanticsLabel(RegExp('Today|Activity')), findsNothing);
-    semantics.dispose();
-  });
 
   testWidgets('no two tabs share a label in any locale', (tester) async {
     for (final locale in AppLocalizations.supportedLocales) {

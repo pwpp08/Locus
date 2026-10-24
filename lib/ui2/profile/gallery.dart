@@ -1518,6 +1518,8 @@ Map<String, Widget> _stateCases() => {
           const ['Today', '7 days', '30 days', '6 months', 'Year'], 0, (_) {},
           color: C.domHealth),
       'nav_bar_no_sub': const NavBar('Component gallery'),
+      'ai_orb': const AiOrb(),
+      'profile_photo_header': const ProfilePhotoHeader(name: 'Alex'),
       // The oldest day on disk — back is dead, forward is live.
       'day_nav_oldest': DayNav(
           day: _navDays.last, days: _navDays, onDay: (_) {}),

@@ -79,8 +79,19 @@ class Prefs {
   /// Read once to migrate, never written.
   static const String shellTab = 'ui.shell_tab';
 
-  /// The four-tab bar's index (Today, Sleep, Activity, Health).
+  /// The four-tab bar's index (Today, Sleep, Activity, Health). Read once to
+  /// migrate, never written.
   static const String shellTabV2 = 'ui.shell_tab.v2';
+
+  /// The current bar's index (Home, Health, More).
+  static const String shellTabV3 = 'ui.shell_tab.v3';
+
+  /// Hide the Recovery and Sleep dials (More › App settings › Hide metrics).
+  /// Data still syncs and scores; only the two dials are withheld.
+  static const String hideMetrics = 'ui.hide_metrics';
+
+  /// My Dashboard's tiles, in order, comma-separated keys. Empty = default.
+  static const String dashboardTiles = 'ui.dashboard_tiles';
   static const String recapRange = 'ui.recap_range';
   static const String workoutsRange = 'ui.workouts_range';
 

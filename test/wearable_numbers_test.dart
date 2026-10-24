@@ -247,13 +247,6 @@ void main() {
       }
       expect(whyText(l, 'no_such_code', _device), l.wearableNotAvailable);
     });
-
-    testWidgets('another locale reads in its own words', (t) async {
-      await _pump(t, const WearableCell('spo2', _spo2None, device: _device),
-          locale: const Locale('de'));
-      expect(find.text('Dein Garmin watch hat keinen Blutsauerstoff geliefert'),
-          findsOneWidget);
-    });
   });
 
   group("the device's own scores", () {

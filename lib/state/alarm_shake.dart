@@ -12,11 +12,12 @@
 // [kShakeWindowMs]. Rolling over in bed is one slow excursion, not four sharp
 // ones, and the buzz itself moves the accelerometer by a fraction of a g.
 
-/// How far from 1 g a sample must be to count as a jolt (g).
-const double kShakeJoltG = 1.2;
+/// How far from 1 g a sample must be to count as a jolt (g). 1.2 (|a| above
+/// 2.2 g, four times over) was more than a half-asleep wrist delivers.
+const double kShakeJoltG = 0.8;
 
 /// How many separate jolts make a shake.
-const int kShakeJolts = 4;
+const int kShakeJolts = 3;
 
 /// The window those jolts must fall inside (ms).
 const int kShakeWindowMs = 2000;

@@ -1,0 +1,113 @@
+// The Action (+) button's sheet and the coach button.
+//
+// The (+) is the quickest route to the three things you START: an activity,
+// the journal, and the live heart rate. Each row closes the sheet and pushes
+// the screen that already does the work — nothing here records anything.
+
+import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:provider/provider.dart';
+
+import '../../l10n/app_localizations.dart';
+import '../../state/app_state.dart';
+import '../activity/picker.dart';
+import '../ui2.dart';
+import 'coach.dart';
+import 'health_monitor.dart';
+import 'home_screen.dart' show go, repoOf;
+import 'journal_compose.dart';
+import 'workout_screen.dart' show activityHost, loadSetHistory;
+
+/// The coach, or its setup when no model is configured yet.
+void openCoach(BuildContext c) =>
+    go(c, coachReadyNow(c) ? const CoachScreen() : const CoachSetup());
+
+/// The activity picker, with the same host and weight the Activity screen
+/// hands it. Weight is null rather than a default when the profile has none.
+Future<void> startActivity(BuildContext c) async {
+  final app = c.read<AppState>();
+  final nav = Navigator.of(c);
+  final repo = repoOf(c);
+  final profile = repo == null ? const <String, dynamic>{} : await repo.getProfile();
+  final history = await loadSetHistory();
+  await nav.push(MaterialPageRoute<void>(
+    builder: (_) => ActivityPicker(
+      weightKg: (profile['weight_kg'] as num?)?.toDouble(),
+      host: activityHost(app, history: history),
+    ),
+  ));
+}
+
+Future<void> openActionSheet(BuildContext c) {
+  final l = AppLocalizations.of(c);
+  return AppSheet.show<void>(
+    c,
+    child: Builder(builder: (sheet) {
+      void then(void Function() open) {
+        Navigator.of(sheet).pop();
+        open();
+      }
+
+      return Column(mainAxisSize: MainAxisSize.min, children: [
+        _ActionRow(
+          LucideIcons.dumbbell,
+          C.dialStrain,
+          'Start Activity',
+          'Track a workout live with strain and heart rate',
+          () => then(() => startActivity(c)),
+        ),
+        _ActionRow(
+          LucideIcons.bookOpen,
+          C.lavender,
+          l?.journalComposeTitle ?? 'Journal',
+          'Log today’s behaviours and how you feel',
+          () => then(() => go(c, const JournalCompose())),
+        ),
+        _ActionRow(
+          LucideIcons.radio,
+          C.coral,
+          l?.devicesLive ?? 'LIVE',
+          'Live heart rate and today’s vitals',
+          () => then(() => go(c, const HealthMonitorScreen())),
+        ),
+      ]);
+    }),
+  );
+}
+
+class _ActionRow extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title, sub;
+  final VoidCallback onTap;
+  const _ActionRow(this.icon, this.color, this.title, this.sub, this.onTap);
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    return Pressable(
+      onTap: onTap,
+      semanticLabel: title,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: S.x3),
+        child: Row(children: [
+          Container(
+            width: S.x12,
+            height: S.x12,
+            decoration: BoxDecoration(color: p.card2, borderRadius: R.rMd),
+            child: Icon(icon, size: I.lg, color: p.on(color)),
+          ),
+          const SizedBox(width: S.x4),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title.toUpperCase(), style: F.caps.copyWith(color: p.ink)),
+              const SizedBox(height: S.half),
+              Text(sub, style: F.cap.copyWith(color: p.ink3)),
+            ]),
+          ),
+          Icon(LucideIcons.chevronRight, size: I.md, color: p.ink3),
+        ]),
+      ),
+    );
+  }
+}

@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/db.dart';
@@ -16,7 +15,7 @@ class AccountProfile {
   final String email;
   final String? displayName;
   final String? photoUrl;
-  final String authProvider; // 'email' or 'google'
+  final String authProvider; // 'email'
   final String? token;
   final String? userId;
   final String? serverUrl;
@@ -87,15 +86,12 @@ class AccountProfile {
 
 class AccountService extends ChangeNotifier {
   static const String _kAccountPrefs = 'user_cloud_account_v1';
-  static const String defaultGoogleServerClientId =
-      '579904951534-mglo187fml8bmgpidtu5ht675ocee2a7.apps.googleusercontent.com';
   static final AccountService instance = AccountService._();
   AccountService._();
 
   AccountProfile? _current;
   bool _initialized = false;
   bool _syncing = false;
-  bool _gsiInitialized = false;
 
   AccountProfile? get current => _current;
   bool get isLoggedIn => _current != null;
@@ -116,81 +112,6 @@ class AccountService extends ChangeNotifier {
     }
     _initialized = true;
     notifyListeners();
-  }
-
-  Future<void> _ensureGsi() async {
-    if (_gsiInitialized) return;
-    try {
-      final effectiveClientId = await getGoogleServerClientId();
-      await GoogleSignIn.instance.initialize(
-        serverClientId: effectiveClientId,
-      );
-      _gsiInitialized = true;
-    } catch (e) {
-      debugPrint('[account] GoogleSignIn init error: $e');
-    }
-  }
-
-  Future<void> setGoogleServerClientId(String? id) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (id == null || id.trim().isEmpty || id.trim() == defaultGoogleServerClientId) {
-      await prefs.remove('google_server_client_id');
-    } else {
-      await prefs.setString('google_server_client_id', id.trim());
-    }
-    _gsiInitialized = false;
-    await _ensureGsi();
-    notifyListeners();
-  }
-
-  Future<String> getGoogleServerClientId() async {
-    final prefs = await SharedPreferences.getInstance();
-    final custom = prefs.getString('google_server_client_id')?.trim();
-    if (custom != null && custom.isNotEmpty) return custom;
-    return defaultGoogleServerClientId;
-  }
-
-  Future<void> signInWithGoogle({String? customServerUrl}) async {
-    await _ensureGsi();
-    try {
-      final account = await GoogleSignIn.instance.authenticate();
-      final cleanEmail = account.email.trim().toLowerCase();
-      final token = account.authentication.idToken ?? 'gsi_${account.id}';
-      final userId = 'goog_${account.id}';
-
-      final server = customServerUrl?.trim().isNotEmpty == true
-          ? customServerUrl!.trim()
-          : (BackendClient.effectiveBase.isNotEmpty
-              ? BackendClient.effectiveBase
-              : 'https://cloud.openstrap.org');
-
-      _current = AccountProfile(
-        email: cleanEmail,
-        displayName: account.displayName,
-        photoUrl: account.photoUrl,
-        authProvider: 'google',
-        token: token,
-        userId: userId,
-        serverUrl: server,
-        lastSyncTime: DateTime.now(),
-        autoSync: true,
-      );
-
-      await _persist();
-      notifyListeners();
-
-      unawaited(syncNow());
-    } on GoogleSignInException catch (e) {
-      if (e.code == GoogleSignInExceptionCode.canceled) {
-        // User dismissed account picker
-        return;
-      }
-      debugPrint('[account] Google Sign In exception: ${e.code} ${e.description}');
-      throw Exception('Google Sign-In: ${e.description ?? e.code.name}');
-    } catch (e) {
-      debugPrint('[account] Google Sign In error: $e');
-      rethrow;
-    }
   }
 
   Future<void> logIn({
@@ -232,13 +153,6 @@ class AccountService extends ChangeNotifier {
   }
 
   Future<void> logOut() async {
-    if (_current?.authProvider == 'google') {
-      try {
-        await GoogleSignIn.instance.signOut();
-      } catch (e) {
-        debugPrint('[account] Google signOut error: $e');
-      }
-    }
     _current = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kAccountPrefs);

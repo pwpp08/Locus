@@ -27,6 +27,7 @@ import 'ui2/onboarding/splash.dart';
 import 'ui2/onboarding/welcome.dart';
 import 'ui2/profile/alarm.dart';
 import 'ui2/profile/profile.dart';
+import 'ui2/screens/action_sheet.dart';
 import 'ui2/screens/ai_briefing.dart';
 import 'ui2/screens/calm_breathing.dart';
 import 'ui2/screens/what_changed.dart';
@@ -36,7 +37,6 @@ import 'ui2/screens/journal_compose.dart';
 import 'ui2/screens/log_workout.dart';
 import 'ui2/screens/detected_activities.dart';
 import 'ui2/screens/nutrition_screen.dart';
-import 'ui2/screens/sleep_tab.dart';
 import 'ui2/screens/wellness_screen.dart';
 import 'ui2/screens/workout_screen.dart';
 import 'ui2/ui2.dart';
@@ -377,14 +377,12 @@ class _InitFailed extends StatelessWidget {
 /// A notification's tab index → the domain that now owns that content.
 ///
 /// The indices come from `tap_router.dart`, which still speaks the original
-/// five-tab vocabulary (Today · Sleep · Heart · Body · Workouts). Sleep has a
-/// tab again; Heart and Body live in Health. Payloads from older builds keep
-/// working, which is the whole point — a notification is scheduled days
-/// before it is tapped.
+/// five-tab vocabulary (Today · Sleep · Heart · Body · Workouts). Sleep and
+/// workouts are deep dives behind Home's dials now; Heart and Body live in
+/// Health. Payloads from older builds keep working, which is the whole point —
+/// a notification is scheduled days before it is tapped.
 ShellDomain domainForTab(int tab) => switch (tab) {
-      1 => ShellDomain.sleep,
       2 || 3 => ShellDomain.health,
-      4 => ShellDomain.activity,
       _ => ShellDomain.today,
     };
 
@@ -392,15 +390,21 @@ ShellDomain domainForTab(int tab) => switch (tab) {
 /// Wellness) saved → where that content lives now.
 ShellDomain domainForSavedTab(int old) => switch (old) {
       1 || 4 => ShellDomain.health,
-      2 || 3 => ShellDomain.activity,
       _ => ShellDomain.today,
     };
 
-/// The tab to open on: the four-tab index once one was saved, otherwise the
-/// old five-tab index translated, so an upgrade lands where the user was.
+/// The tab a build with the four-tab bar (Today, Sleep, Activity, Health)
+/// saved → where that content lives now.
+ShellDomain domainForSavedTabV2(int old) =>
+    old == 3 ? ShellDomain.health : ShellDomain.today;
+
+/// The tab to open on: the current bar's index once one was saved, otherwise
+/// an older bar's index translated, so an upgrade lands where the user was.
 ShellDomain restoredShellTab() {
+  final v3 = Prefs.getInt(Prefs.shellTabV3, -1);
+  if (v3 >= 0 && v3 < ShellDomain.values.length) return ShellDomain.values[v3];
   final v2 = Prefs.getInt(Prefs.shellTabV2, -1);
-  if (v2 >= 0 && v2 < ShellDomain.values.length) return ShellDomain.values[v2];
+  if (v2 >= 0) return domainForSavedTabV2(v2);
   return domainForSavedTab(Prefs.getInt(Prefs.shellTab, 0));
 }
 
@@ -415,9 +419,9 @@ ShellDomain domainForRoute(String route) => switch (routePath(route)) {
       // doors, so a back from the pushed screen lands there.
       kRouteJournalCompose || kRouteBreathing || kRouteMeds =>
         ShellDomain.health,
-      // Water is a journal field logged beside food, and food is a section of
-      // Activity.
-      kRouteWater => ShellDomain.activity,
+      // Water is a journal field logged beside food; the food log is pushed
+      // over Home.
+      kRouteWater => ShellDomain.today,
       // The movement/sedentary nudges, recovery-ready and step-goal notes,
       // and the detected-activity reviews: all about what is on Today.
       kRouteMovement ||
@@ -426,15 +430,15 @@ ShellDomain domainForRoute(String route) => switch (routePath(route)) {
       kRouteDetectedActivities ||
       kRouteWorkoutSuggestion =>
         ShellDomain.today,
-      // The forgotten-workout nudge. Activity is the destination itself — the
-      // live session bar with its finish control is pinned to the shell there
-      // — so screenForRoute stays null for it.
-      kRouteWorkoutIdle => ShellDomain.activity,
-      // Battery and band alerts. Profile is pushed over Today.
+      // The forgotten-workout nudge. The live session bar with its finish
+      // control is pinned to the shell on every tab, so Home is enough and
+      // screenForRoute stays null for it.
+      kRouteWorkoutIdle => ShellDomain.today,
+      // Battery and band alerts. Profile is pushed over Home.
       kRouteProfile => ShellDomain.today,
       // The alarm safety notifications and the alarm-fired note: the alarm
-      // lives on the Sleep tab now.
-      kRouteAlarm => ShellDomain.sleep,
+      // screen is pushed over Home.
+      kRouteAlarm => ShellDomain.today,
       kRouteRecap => ShellDomain.health,
       _ => ShellDomain.today,
     };
@@ -577,7 +581,7 @@ class _ShellState extends State<_Shell> {
       _domain = d;
       _rev++;
     });
-    Prefs.setInt(Prefs.shellTabV2, d.index);
+    Prefs.setInt(Prefs.shellTabV3, d.index);
   }
 
   @override
@@ -598,13 +602,14 @@ class _ShellState extends State<_Shell> {
       banner: live ? const _LiveSessionBar() : null,
       onSelect: (d) {
         _domain = d;
-        Prefs.setInt(Prefs.shellTabV2, d.index);
+        Prefs.setInt(Prefs.shellTabV3, d.index);
       },
+      onAction: openActionSheet,
+      onAi: openCoach,
       builder: (c, d) => switch (d) {
         ShellDomain.today => const HomeScreen(),
-        ShellDomain.sleep => const SleepTab(),
-        ShellDomain.activity => const WorkoutScreen(),
         ShellDomain.health => const HealthScreen(),
+        ShellDomain.more => const ProfileHome(tab: true),
       },
     );
   }

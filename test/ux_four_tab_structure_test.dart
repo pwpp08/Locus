@@ -35,12 +35,12 @@ void main() {
     await t.pump();
     expect(find.byType(ProfileAvatar), findsOneWidget);
     expect(find.text('plan below the night'), findsOneWidget);
-    // A tab has no way back; the pushed screen keeps its arrow.
-    expect(find.byIcon(LucideIcons.arrowLeft), findsNothing);
+    // A tab has no way back; the pushed screen keeps its chevron.
+    expect(find.byIcon(LucideIcons.chevronLeft), findsNothing);
 
     await t.pumpWidget(_app(const SleepDetail(data: SleepData())));
     await t.pump();
-    expect(find.byIcon(LucideIcons.arrowLeft), findsOneWidget);
+    expect(find.byIcon(LucideIcons.chevronLeft), findsOneWidget);
     expect(find.byType(ProfileAvatar), findsNothing);
   });
 

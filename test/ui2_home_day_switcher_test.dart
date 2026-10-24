@@ -136,7 +136,8 @@ void main() {
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
     await t.pump();
-    final row = find.text('Breakdown of your day');
+    // My Day's expand control is the door into the day breakdown.
+    final row = find.bySemanticsLabel('Breakdown of your day');
     await t.tap(row);
     await _settle(t);
     expect(t.widget<DayTimelineScreen>(find.byType(DayTimelineScreen)).day,
@@ -169,7 +170,11 @@ void main() {
 
     // Today, reached through the switcher, is still today: no explicit day,
     // so Sleep resolves the night the ring is drawn from.
-    t.widget<RingTrio>(find.byType(RingTrio)).onOpen!(HomeRingKind.sleep);
+    t.view.physicalSize = const Size(800, 3000);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    await t.pump();
+    await t.tap(find.bySemanticsLabel(RegExp(r'^Sleep\.')));
     await _settle(t);
     expect(t.widget<SleepDetail>(find.byType(SleepDetail)).day, isNull);
   });

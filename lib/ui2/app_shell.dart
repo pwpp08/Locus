@@ -1,21 +1,22 @@
-// The four-tab shell.
+// The shell.
 //
-// Today · Sleep · Activity · Health. Stable: the contents personalise, the
-// mental map does not. Profile is not a tab; every tab's header carries the
-// avatar into it.
+// Home · Health · (+) · AI · More. Home is today; Health is the longer-term
+// picture; More is the profile, devices and settings. Between them sit two
+// buttons that are NOT destinations: the Action (+) button, the quickest way
+// to start an activity, write the journal or go live, and the coach. A button
+// opens something over the shell and leaves the selected tab where it was.
 //
-// Volt (DESIGN_OVERHAUL §5.3): the bar is a frosted Glass pill that FLOATS over
-// the tabs, which run full-bleed behind it, and the active tab is volt in every
-// domain (decision D1). A domain's hue no longer colours the bar — it feeds
-// that screen's hero glow instead. Because the bar floats, every tab's scroll
-// view ends in `S.navClear(context)` of padding so its last row can be lifted
-// clear of it.
+// The bar is a frosted Glass pill that FLOATS over the tabs, which run
+// full-bleed behind it; the active tab is a volt pill with dark ink. Every
+// tab's scroll view ends in `S.navClear(context)` of padding so its last row
+// can be lifted clear of it.
 //
-// There is no fifth tab, and the type system is what says so — [ShellDomain]
+// There is no fourth tab, and the type system is what says so — [ShellDomain]
 // is a closed enum and [AppShell] takes a builder keyed by it, so "just add a
 // tab for X" is a change to this file with a reviewer attached, not something
 // a screen can do on its own. Anything that feels like another destination is
-// a section or a pushed screen inside the domain that owns it.
+// a section or a pushed screen inside the domain that owns it — Sleep and
+// Strain are the deep dives behind their dials on Home.
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -24,12 +25,11 @@ import '../l10n/app_localizations.dart';
 import 'grammar.dart';
 import 'theme.dart';
 
-/// The four primary destinations, in bar order.
+/// The three destinations, in bar order.
 enum ShellDomain {
-  today('Today', LucideIcons.house, C.domHome),
-  sleep('Sleep', LucideIcons.moon, C.domSleep),
-  activity('Activity', LucideIcons.dumbbell, C.domMove),
-  health('Health', LucideIcons.heartPulse, C.domHealth);
+  today('Home', LucideIcons.house, C.domHome),
+  health('Health', LucideIcons.heartPulse, C.domHealth),
+  more('More', LucideIcons.menu, C.domMind);
 
   const ShellDomain(this.label, this.icon, this.accent);
 
@@ -41,25 +41,21 @@ enum ShellDomain {
   String title(BuildContext c) {
     final l = AppLocalizations.of(c);
     return switch (this) {
-          ShellDomain.today => l?.tabToday,
-          ShellDomain.sleep => l?.tabSleep,
-          ShellDomain.activity => l?.tabActivity,
+          ShellDomain.today => l?.tabHome,
           ShellDomain.health => l?.tabHealth,
+          ShellDomain.more => l?.tabMore,
         } ??
         label;
   }
 
-  /// The domain's pigment — the hue of its hero glow and aurora, NOT of the
-  /// tab bar (D1). Use `P.of(context).on(accent)` for text and `.fill(accent)`
-  /// for a filled surface — the raw value is not AA-safe.
+  /// The domain's pigment — the hue of its hero glow, NOT of the tab bar.
+  /// Use `P.of(context).on(accent)` for text and `.fill(accent)` for a filled
+  /// surface — the raw value is not AA-safe.
   final Color accent;
 }
 
-// There is no `Domain` InheritedWidget. There was one, promising that a screen
-// "and anything it pushes" could pick up its accent without threading it — but
-// nothing ever read it, and a pushed route could not have: `MaterialApp.home`
-// is the gate, so `Navigator.of` pushes above the shell entirely. Screens take
-// their accent as a parameter, which is honest about where it comes from.
+// There is no `Domain` InheritedWidget. Screens take their accent as a
+// parameter, which is honest about where it comes from.
 
 class AppShell extends StatefulWidget {
   /// Builds the body of one domain. Called lazily — a tab is not built until
@@ -72,6 +68,12 @@ class AppShell extends StatefulWidget {
   /// (which domains conventionally use to scroll to top) and a return via Back.
   final void Function(ShellDomain domain)? onSelect;
 
+  /// The Action (+) button. Null hides it.
+  final void Function(BuildContext context)? onAction;
+
+  /// The coach button. Null hides it.
+  final void Function(BuildContext context)? onAi;
+
   /// Pinned between the domain and the tab bar, above every tab. This is not
   /// a general slot — it exists for state that is RUNNING and is not on
   /// screen, which today means a minimised workout. A domain's own content
@@ -83,6 +85,8 @@ class AppShell extends StatefulWidget {
     required this.builder,
     this.initial = ShellDomain.today,
     this.onSelect,
+    this.onAction,
+    this.onAi,
     this.banner,
   });
 
@@ -95,7 +99,7 @@ class _AppShellState extends State<AppShell> {
   late final Set<ShellDomain> _built = {widget.initial};
   // Tabs are kept alive, not pushed onto the Navigator. Keep their history
   // here so Android Back can return to the previous tab. A restored tab or
-  // cold-launch deep link has Today as its way back into the app.
+  // cold-launch deep link has Home as its way back into the app.
   late final List<ShellDomain> _history = [
     if (widget.initial != ShellDomain.today) ShellDomain.today,
   ];
@@ -103,11 +107,11 @@ class _AppShellState extends State<AppShell> {
   void _select(ShellDomain d) {
     setState(() {
       // Each tab at most once, most recent last, so switching back and forth
-      // between two tabs does not add a Back press per switch. Today stays in
+      // between two tabs does not add a Back press per switch. Home stays in
       // as the way back into the app even while it is the tab on screen.
       if (d != _current) {
         _history.remove(_current);
-        // Leaving Today puts it back at the bottom, never on top: it is the
+        // Leaving Home puts it back at the bottom, never on top: it is the
         // last stop before Back leaves the app.
         if (_current == ShellDomain.today) {
           _history.insert(0, _current);
@@ -145,20 +149,28 @@ class _AppShellState extends State<AppShell> {
         body: Stack(
           children: [
             Positioned.fill(
-              child: SafeArea(
-                bottom: false,
-                child: IndexedStack(
-                  index: _current.index,
-                  children: [
-                    // An unvisited tab is an empty box, not a built screen —
-                    // the old shell built all forty screens' worth of state on
-                    // launch.
-                    for (final d in ShellDomain.values)
-                      if (_built.contains(d))
-                        widget.builder(c, d)
-                      else
-                        const SizedBox.shrink(),
-                  ],
+              child: DecoratedBox(
+                // The page darkens downward, lighter slate at the top.
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.center,
+                    colors: [p.bgTop, p.bg],
+                  ),
+                ),
+                child: SafeArea(
+                  bottom: false,
+                  child: IndexedStack(
+                    index: _current.index,
+                    children: [
+                      // An unvisited tab is an empty box, not a built screen.
+                      for (final d in ShellDomain.values)
+                        if (_built.contains(d))
+                          widget.builder(c, d)
+                        else
+                          const SizedBox.shrink(),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -176,7 +188,14 @@ class _AppShellState extends State<AppShell> {
                     Glass(radius: R.rPill, child: widget.banner!),
                     const SizedBox(height: S.x2),
                   ],
-                  _TabBar(current: _current, onTap: _select),
+                  _TabBar(
+                    current: _current,
+                    onTap: _select,
+                    onAction: widget.onAction == null
+                        ? null
+                        : () => widget.onAction!(c),
+                    onAi: widget.onAi == null ? null : () => widget.onAi!(c),
+                  ),
                 ],
               ),
             ),
@@ -190,32 +209,96 @@ class _AppShellState extends State<AppShell> {
 class _TabBar extends StatelessWidget {
   final ShellDomain current;
   final ValueChanged<ShellDomain> onTap;
+  final VoidCallback? onAction, onAi;
 
-  const _TabBar({required this.current, required this.onTap});
+  const _TabBar(
+      {required this.current, required this.onTap, this.onAction, this.onAi});
 
   @override
   Widget build(BuildContext c) {
-    return Glass(
-      radius: R.rPill,
-      // A minimum, not a height: the labels cap their own scale below, but
-      // the bar should still be free to grow rather than ever clip.
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: S.navBar),
-        child: Padding(
-          padding: const EdgeInsets.all(S.x1),
-          child: Row(
-            children: [
-              for (final d in ShellDomain.values)
-                Expanded(
-                  child: _Tab(
-                    domain: d,
-                    on: d == current,
-                    onTap: () => onTap(d),
+    final p = P.of(c);
+    final l = AppLocalizations.of(c);
+    Widget tab(ShellDomain d) => Expanded(
+          child: _Tab(domain: d, on: d == current, onTap: () => onTap(d)),
+        );
+    // A frosted pill floating over the tabs, with a hairline edge. The
+    // selected tab is a volt pill inside it; the two buttons sit between the
+    // tabs as icon-only slots.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: R.rPill,
+        border: Border.all(color: p.line),
+      ),
+      child: Glass(
+        radius: R.rPill,
+        // A minimum, not a height: the labels cap their own scale below, but
+        // the bar should still be free to grow rather than ever clip.
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: S.navBar),
+          child: Padding(
+            padding: const EdgeInsets.all(S.x1),
+            child: Row(
+              children: [
+                tab(ShellDomain.today),
+                tab(ShellDomain.health),
+                if (onAction != null)
+                  Expanded(
+                    child: Center(
+                      child: Pressable(
+                        onTap: onAction,
+                        semanticLabel: l?.workoutStartWorkoutFix ?? 'Start',
+                        child: Container(
+                          width: S.x10,
+                          height: S.x10,
+                          decoration: BoxDecoration(
+                              color: p.card2, shape: BoxShape.circle),
+                          child: Icon(LucideIcons.plus,
+                              size: I.lg, color: p.ink),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-            ],
+                if (onAi != null)
+                  Expanded(
+                    child: Center(
+                      child: Pressable(
+                        onTap: onAi,
+                        semanticLabel: l?.coachNavTitle ?? 'Coach',
+                        child: const AiOrb(size: S.x10),
+                      ),
+                    ),
+                  ),
+                tab(ShellDomain.more),
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The coach's mark: a dark disc in a lavender-to-teal ring, with the
+/// sparkle inside. The same mark floats on screens that offer the coach.
+class AiOrb extends StatelessWidget {
+  final double size;
+  const AiOrb({super.key, this.size = S.x12});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    return Container(
+      width: size,
+      height: size,
+      padding: const EdgeInsets.all(S.half),
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: SweepGradient(
+            colors: [C.coachEdgeA, C.coachEdgeB, C.coachEdgeA]),
+      ),
+      child: Container(
+        decoration: BoxDecoration(shape: BoxShape.circle, color: p.card),
+        child: Icon(LucideIcons.sparkles, size: I.md, color: p.ink),
       ),
     );
   }
@@ -246,24 +329,21 @@ class _Tab extends StatelessWidget {
           duration: motion(c, Motion.base),
           curve: Ease.standard,
           alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: S.x1),
+          padding: const EdgeInsets.symmetric(
+              horizontal: S.x1, vertical: S.x2),
           decoration: BoxDecoration(
             color: on ? fill : const Color(0x00000000),
             borderRadius: R.rPill,
           ),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(domain.icon, size: I.md, color: ink),
-              const SizedBox(height: 2),
-              // Four equal slots cannot hold a 3.1x label, so the bar's text
-              // stops growing at 1.3x — the way the platform's own bars do.
-              // The full label is still spoken, and the content is not capped.
+              Icon(domain.icon, size: I.lg, color: ink),
+              const SizedBox(height: S.half),
+              // Five slots cannot hold a 3.1x label, so the bar's text stops
+              // growing at 1.3x — the way the platform's own bars do.
               MediaQuery.withClampedTextScaling(
                 maxScaleFactor: 1.3,
-                // Shrinks rather than truncates: "Активность" is a whole word
-                // or it is a different word. (A long label scales down a
-                // little; it is never cut.)
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
@@ -271,7 +351,7 @@ class _Tab extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: F.over.copyWith(
                       color: ink,
-                      fontWeight: on ? FontWeight.w600 : FontWeight.w500,
+                      fontWeight: on ? FontWeight.w700 : FontWeight.w600,
                     ),
                   ),
                 ),

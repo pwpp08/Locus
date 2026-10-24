@@ -369,6 +369,34 @@ void main() {
               true;
     }
 
+    test('a fired alarm opens the shake watch, and arming tomorrow keeps it',
+        () async {
+      SharedPreferences.setMockInitialValues({'alarm_shake_to_stop': true});
+      await silenceOsPresent();
+      final app = AppState.forTesting();
+      addTearDown(app.dispose);
+      await app.alarmManager.setShakeToStop(true);
+      expect(app.alarmShakeWatching, isFalse);
+
+      // The band reports its alarm firing: the watch opens on that alone,
+      // with no pre-armed timer behind it.
+      app.debugHandleAlarmEvent(57);
+      expect(app.alarmShakeWatching, isTrue);
+
+      // The re-arm that follows a fire plans tomorrow's watch. It used to
+      // close this one, switching the motion stream off as the buzz began.
+      final tomorrow =
+          DateTime.now().add(const Duration(days: 1)).millisecondsSinceEpoch ~/
+              1000;
+      app.debugScheduleAlarmShakeWatch(tomorrow);
+      expect(app.alarmShakeWatching, isTrue);
+
+      // Switched off, nothing is held.
+      await app.alarmManager.setShakeToStop(false);
+      app.debugScheduleAlarmShakeWatch(tomorrow);
+      expect(app.alarmShakeWatching, isFalse);
+    });
+
     test('EXECUTED (event 57) clears the armed alarm and its persisted epoch',
         () async {
       SharedPreferences.setMockInitialValues({'alarm_epoch': 1785000000});

@@ -52,7 +52,7 @@ void main() {
     expect(form.end, _end);
     expect(form.importedUuid, 'hevy-1');
     expect(form.sessionId, isNull);
-    expect(find.text('Score with band heart rate'), findsOneWidget);
+    expect(find.text('SCORE WITH BAND HEART RATE'), findsOneWidget);
   });
 
   testWidgets('with the heart rate pruned, says so and opens nothing',

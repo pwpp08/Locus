@@ -23,7 +23,6 @@ import 'package:openstrap_edge/data/day_label.dart';
 import 'package:openstrap_edge/data/local_repository.dart';
 import 'package:openstrap_edge/data/local_repository_impl.dart';
 import 'package:openstrap_edge/models/metric.dart';
-import 'package:openstrap_edge/ui2/profile/profile.dart' show ProfileAvatar;
 import 'package:openstrap_edge/ui2/screens/screens.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 import 'package:provider/provider.dart';
@@ -838,29 +837,30 @@ void main() {
   });
 
   // ── the coach is findable before it is set up ──
-  group('the coach chip on Today', () {
-    Widget frame(bool configured) => MaterialApp(
-        theme: buildTheme(Brightness.light),
-        home: ChangeNotifierProvider<CoachConfig>.value(
-          value: _Coach(configured),
-          child: const Scaffold(
-              body: HomeScreen(data: HomeData(dayId: '2026-05-20'), hour: 20)),
-        ));
+  group('the coach button in the tab bar', () {
+    Widget frame(bool configured, {void Function(BuildContext)? onAi}) =>
+        MaterialApp(
+            theme: buildTheme(Brightness.light),
+            home: ChangeNotifierProvider<CoachConfig>.value(
+              value: _Coach(configured),
+              child: AppShell(
+                builder: (_, _) => const SizedBox.shrink(),
+                onAi: onAi ?? openCoach,
+              ),
+            ));
 
-    testWidgets('no model: the chip says what the coach is for', (t) async {
-      await t.pumpWidget(frame(false));
-      expect(find.byIcon(LucideIcons.sparkles), findsOneWidget);
-      expect(find.text('Ask questions about your data: set up the coach'),
-          findsOneWidget);
-      // Profile is the avatar every tab carries, not a gear on Home.
-      expect(find.byType(ProfileAvatar), findsOneWidget);
-      expect(find.byIcon(LucideIcons.settings), findsNothing);
+    testWidgets('it is a door: the tap reaches the coach', (t) async {
+      var opened = 0;
+      await t.pumpWidget(frame(false, onAi: (_) => opened++));
+      await t.tap(find.bySemanticsLabel('Coach'));
+      await t.pump();
+      expect(opened, 1);
     });
 
-    testWidgets('a configured coach: the chip asks it', (t) async {
+    testWidgets('it is on every tab, beside Home and Health', (t) async {
       await t.pumpWidget(frame(true));
+      expect(find.byType(AiOrb), findsOneWidget);
       expect(find.byIcon(LucideIcons.sparkles), findsOneWidget);
-      expect(find.text('Ask the coach'), findsOneWidget);
     });
   });
 

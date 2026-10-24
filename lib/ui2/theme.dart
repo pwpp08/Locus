@@ -153,6 +153,27 @@ class C {
   static const domMove = sky;
   static const domMind = sage;
 
+  // ── the three dials ── the Home screen's score hues, one per dial. Sleep is
+  // a steel blue, strain a saturated blue, and recovery is the traffic light
+  // its own colour coding asks for: green 67–99, yellow 34–66, red 1–33.
+  static const dialSleep = Color(0xFF7BA1BB);
+  static const dialStrain = Color(0xFF0093E7);
+  static const recGreen = Color(0xFF16EC06);
+  static const recYellow = Color(0xFFFFDE00);
+  static const recRed = Color(0xFFFF0026);
+
+  /// A sleep-contributor bar: poor / sufficient / optimal.
+  static const optimal = Color(0xFF00F19F);
+  static const poor = Color(0xFFFFA733);
+
+  /// The activity blocks in My Day: the night, and a session.
+  static const blockSleep = Color(0xFF7F9DB5);
+  static const blockSession = Color(0xFF3B8DE0);
+
+  /// The coach card's border runs lavender into teal.
+  static const coachEdgeA = Color(0xFF7E57C2);
+  static const coachEdgeB = Color(0xFF3FA7B5);
+
   /// Every accent the contrast test sweeps. Adding a colour above without
   /// adding it here means it ships unverified.
   static const all = <Color>[
@@ -160,6 +181,8 @@ class C {
     sleepAwake, sleepRem, sleepDeep,
     green, blue, purple, orange, red, teal, yellow, pink, indigo,
     domHome, domSleep, domHealth, domFood, domMove, domMind,
+    dialSleep, dialStrain, recGreen, recYellow, recRed, optimal, poor,
+    blockSleep, blockSession,
   ];
 }
 
@@ -172,21 +195,24 @@ class P {
 
   static P of(BuildContext c) => P(Theme.of(c).brightness == Brightness.dark);
 
-  // ── surfaces ── (§4.1) "Char" in dark, "Cream" in light.
-  Color get bg => dark ? const Color(0xFF08090B) : C.cream;
-  Color get card => dark ? const Color(0xFF131418) : C.white;
-  Color get card2 => dark ? const Color(0xFF1C1E23) : const Color(0xFFE9E8E2);
-  Color get line => dark ? const Color(0xFF25282E) : const Color(0xFFDCDBD4);
-  Color get track => dark ? const Color(0xFF2A2D33) : const Color(0xFFE2E1DA);
+  // ── surfaces ── Slate in dark: a blue-grey page with lifted grey cards,
+  // the way a wearable's companion app reads at night. "Cream" in light.
+  Color get bg => dark ? const Color(0xFF1A1F23) : C.cream;
+  Color get card => dark ? const Color(0xFF2B3136) : C.white;
+  Color get card2 => dark ? const Color(0xFF353B41) : const Color(0xFFE9E8E2);
+  Color get line => dark ? const Color(0xFF3D444A) : const Color(0xFFDCDBD4);
+  Color get track => dark ? const Color(0xFF3A4046) : const Color(0xFFE2E1DA);
 
-  Color get ink => dark ? const Color(0xFFF4F4F1) : C.char;
-  Color get ink2 => dark ? const Color(0xFFA7AAB1) : const Color(0xFF474B53);
+  /// The top of the page gradient, above [bg]. Only the dark theme has one.
+  Color get bgTop => dark ? const Color(0xFF283239) : C.cream;
+
+  Color get ink => dark ? const Color(0xFFFFFFFF) : C.char;
+  Color get ink2 => dark ? const Color(0xFFC6CBD0) : const Color(0xFF474B53);
 
   /// The muted caption ink. Hand-solved to clear 4.5:1 on [card2], the darkest
   /// (light theme) / lightest (dark theme) surface it can sit on — so it is
   /// legible on every surface, not just the one it was eyeballed against.
-  /// 5.2:1 (dark) and 4.85:1 (light) on card2.
-  Color get ink3 => dark ? const Color(0xFF8B9099) : const Color(0xFF5F646D);
+  Color get ink3 => dark ? const Color(0xFFAAB0B6) : const Color(0xFF5F646D);
 
   /// The frosted-glass tint: the card at 72%, under a 24 px blur. Its solid
   /// fallback (high contrast, `Perf.lowGlass`) is this blended over [bg].
@@ -389,6 +415,25 @@ class F {
       height: 14 / 11,
       fontWeight: FontWeight.w600,
       letterSpacing: .6);
+
+  /// Widely tracked capitals: card titles, dial names, section kickers.
+  /// Callers uppercase it.
+  static const caps = TextStyle(
+      fontFamily: _f,
+      fontFamilyFallback: _fb,
+      fontSize: 13,
+      height: 18 / 13,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.6);
+
+  /// The thin, spaced-out wordmark over the dials.
+  static const wordmark = TextStyle(
+      fontFamily: _f,
+      fontFamilyFallback: _fb,
+      fontSize: 24,
+      height: 1,
+      fontWeight: FontWeight.w300,
+      letterSpacing: 7);
 
   // Numerals — a parallel display ramp. Tabular, so a live value never jitters
   // its own layout as digits change. Units sit beside them in cap/body, ink3.

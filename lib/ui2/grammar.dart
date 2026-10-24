@@ -2832,18 +2832,27 @@ class NavBar extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: S.x16),
       child: Row(
         children: [
-          RoundIconButton(
-            LucideIcons.arrowLeft,
-            onBack ?? () => Navigator.maybePop(c),
-            AppLocalizations.of(c)?.supplementNavBack ?? 'Back',
+          // A bare chevron, no disc behind it, the tap target still 48 pt.
+          Pressable(
+            onTap: onBack ?? () => Navigator.maybePop(c),
+            semanticLabel: AppLocalizations.of(c)?.supplementNavBack ?? 'Back',
+            child: SizedBox(
+              width: S.x12,
+              height: S.x12,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Icon(LucideIcons.chevronLeft, size: I.xl, color: p.ink),
+              ),
+            ),
           ),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  title,
-                  style: F.head.copyWith(color: p.ink),
+                  title.toUpperCase(),
+                  textAlign: TextAlign.center,
+                  style: F.caps.copyWith(color: p.ink, letterSpacing: 2),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

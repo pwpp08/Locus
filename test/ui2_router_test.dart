@@ -127,14 +127,15 @@ void main() {
     });
   });
 
-  group('deep links survive the four-tab layout', () {
+  group('deep links survive the Home · Health · More layout', () {
     test('every notification tab index resolves', () {
       expect(domainForTab(0), ShellDomain.today);
-      // Sleep has a tab again; Heart and Body live in Health.
-      expect(domainForTab(1), ShellDomain.sleep);
+      // Sleep and workouts are deep dives behind Home's dials; Heart and Body
+      // live in Health.
+      expect(domainForTab(1), ShellDomain.today);
       expect(domainForTab(2), ShellDomain.health);
       expect(domainForTab(3), ShellDomain.health);
-      expect(domainForTab(4), ShellDomain.activity);
+      expect(domainForTab(4), ShellDomain.today);
       // A payload from a build that had more tabs than we do.
       expect(domainForTab(9), ShellDomain.today);
       expect(domainForTab(-1), ShellDomain.today);
@@ -144,10 +145,18 @@ void main() {
       // Home, Health, Nutrition, Workout, Wellness.
       expect(domainForSavedTab(0), ShellDomain.today);
       expect(domainForSavedTab(1), ShellDomain.health);
-      expect(domainForSavedTab(2), ShellDomain.activity);
-      expect(domainForSavedTab(3), ShellDomain.activity);
+      expect(domainForSavedTab(2), ShellDomain.today);
+      expect(domainForSavedTab(3), ShellDomain.today);
       expect(domainForSavedTab(4), ShellDomain.health);
       expect(domainForSavedTab(42), ShellDomain.today);
+    });
+
+    test('a tab saved by the four-tab bar reopens where its content went', () {
+      // Today, Sleep, Activity, Health.
+      expect(domainForSavedTabV2(0), ShellDomain.today);
+      expect(domainForSavedTabV2(1), ShellDomain.today);
+      expect(domainForSavedTabV2(2), ShellDomain.today);
+      expect(domainForSavedTabV2(3), ShellDomain.health);
     });
 
     test('every kRoute constant lands somewhere deliberate', () {
@@ -159,9 +168,9 @@ void main() {
         kRouteMeds: ShellDomain.health,
         kRouteWorkoutSuggestion: ShellDomain.today,
         kRouteDetectedActivities: ShellDomain.today,
-        kRouteWater: ShellDomain.activity,
-        kRouteWorkoutIdle: ShellDomain.activity,
-        kRouteAlarm: ShellDomain.sleep,
+        kRouteWater: ShellDomain.today,
+        kRouteWorkoutIdle: ShellDomain.today,
+        kRouteAlarm: ShellDomain.today,
       };
       routes.forEach((route, domain) {
         expect(domainForRoute(route), domain, reason: route);

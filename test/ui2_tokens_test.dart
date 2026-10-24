@@ -380,6 +380,9 @@ const _notComponents = {
   'HomeScreen', 'HealthScreen', 'WorkoutScreen', 'NutritionScreen',
   'WellnessScreen', 'CycleTab', 'MetricDetail', 'ReadinessDetail',
   'SleepDetail', 'SleepTab', 'CircadianDetail', 'DayStrainDetail',
+  // The live heart rate and the five overnight vitals: owns the realtime-HR
+  // stream while it is open and reads the day bundle and five series.
+  'HealthMonitorScreen',
   'DayStepsDetail',
   'ZonesDetail',
   // Reads the day bundle AND the raw beat store to draw one night's Poincaré

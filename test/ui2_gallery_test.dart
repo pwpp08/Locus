@@ -70,7 +70,8 @@ void main() {
     await tester.pumpWidget(_wrap(const GalleryScreen()));
     await tester.pump();
     expect(tester.takeException(), isNull);
-    expect(find.text('Component gallery'), findsOneWidget);
+    // The header sets its title in capitals.
+    expect(find.text('COMPONENT GALLERY'), findsOneWidget);
   });
 
   // The gallery opens on Flows: every activity in the catalogue, grouped as

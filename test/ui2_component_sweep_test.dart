@@ -76,7 +76,7 @@ void main() {
     await _loadType();
   });
 
-  testWidgets('the shell has four destinations and cannot grow a fifth',
+  testWidgets('the shell has three destinations and cannot grow a fourth',
       (tester) async {
     await tester.pumpWidget(MaterialApp(
       theme: buildTheme(Brightness.light),
@@ -84,7 +84,7 @@ void main() {
         builder: (c, d) => Center(child: Text(d.label)),
       ),
     ));
-    expect(ShellDomain.values, hasLength(4));
+    expect(ShellDomain.values, hasLength(3));
     for (final d in ShellDomain.values) {
       expect(find.text(d.label), findsWidgets, reason: '${d.label} tab missing');
     }
@@ -93,7 +93,11 @@ void main() {
   testWidgets('every tap target in the shell clears 44 pt', (tester) async {
     await tester.pumpWidget(MaterialApp(
       theme: buildTheme(Brightness.light),
-      home: AppShell(builder: (c, d) => const SizedBox.shrink()),
+      home: AppShell(
+        builder: (c, d) => const SizedBox.shrink(),
+        onAction: (_) {},
+        onAi: (_) {},
+      ),
     ));
     for (final e in tester.widgetList<Pressable>(find.byType(Pressable))) {
       if (e.onTap == null) continue;

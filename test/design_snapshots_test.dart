@@ -199,9 +199,9 @@ Widget _root(Widget child, Brightness b, double scale) => MediaQuery(
 const _readmeShots = {
   'today': ShellDomain.today,
   'health': ShellDomain.health,
-  'sleep': ShellDomain.sleep,
+  'sleep': null,
   'heart-rate': null,
-  'workout': ShellDomain.activity,
+  'workout': null,
 };
 const _readmeFixture = {
   'today': 'today',

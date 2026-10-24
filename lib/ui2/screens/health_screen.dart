@@ -19,16 +19,19 @@ import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/metric.dart';
 import '../../models/payloads.dart' show todayHeadlineOf;
+import '../profile/phone_import.dart' show PhoneImport;
 import '../profile/profile.dart' show ProfileAvatar;
 import '../profile/wearable_numbers.dart'
     show WearableCells, kHealthWearableRows;
 import '../ui2.dart';
 import 'advanced.dart';
-import 'ecg.dart' show EcgEntryCard, pairedIsMaverickOf;
+import 'ecg.dart' show EcgEntryCard, EcgHomeScreen, pairedIsMaverickOf;
 import 'findings_log.dart';
+import 'health_monitor.dart';
 import 'home_screen.dart';
 import 'investigate.dart';
 import 'metric_detail.dart';
+import 'watch_compare_screen.dart';
 import 'wellness_screen.dart';
 
 /// A read this screen can live without. The wear block and the nap block are
@@ -627,6 +630,31 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
     return ListView(padding: pad.copyWith(bottom: S.navClear(c)), children: [
       ScreenTitle(l?.healthTitle ?? 'Health',
           trailing: const ProfileAvatar(accent: C.domHealth)),
+      // The monitors: the longer-term health features, each its own screen.
+      // A feature this device cannot feed is shown greyed, not hidden — and
+      // never with a number in it.
+      _monitors(c),
+      // YOUR WATCH: a Galaxy Watch (or any watch) reaches this app through
+      // Google Health Connect, never over its own Bluetooth.
+      Section(
+        'Your watch',
+        Column(children: [
+          detailLinkRow(
+              c,
+              LucideIcons.watch,
+              'Compare with Galaxy Watch',
+              'Heart rate, sleep, HRV and more, side by side with the band',
+              () => go(c, const WatchCompareScreen())),
+          const SizedBox(height: S.x3),
+          detailLinkRow(
+              c,
+              LucideIcons.download,
+              'Import from Health Connect',
+              'Bring in what Samsung Health and other apps recorded',
+              () => go(c, const PhoneImport())),
+        ]),
+      ),
+      const SizedBox(height: S.x6),
       SubTabs(_tabsOf(l), _tab, _select, color: C.blue),
       const SizedBox(height: S.x5),
       if (_loading && _d == null)
@@ -641,6 +669,46 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
           2 => _trends(c, d),
           _ => _vitals(c, d),
         },
+    ]);
+  }
+
+  // ─────────────── MONITORS ───────────────
+  Widget _monitors(BuildContext c) {
+    final tiles = <Widget>[
+      _MonitorTile(LucideIcons.heartPulse, 'Health Monitor',
+          'Live heart rate and overnight vitals',
+          onTap: () => go(c, const HealthMonitorScreen())),
+      _MonitorTile(LucideIcons.brain, 'Stress Monitor',
+          'Your stress score over the day',
+          onTap: () => go(c, const MetricDetail('stress'))),
+      _MonitorTile(LucideIcons.flower2, 'Hormonal Insights',
+          cycleTrackingOf(c)
+              ? 'Your cycle and how it moves your numbers'
+              : 'Turn on cycle tracking to opt in',
+          onTap: () => go(c, const WellnessScreen(initialTab: 4))),
+      if (pairedIsMaverickOf(c))
+        _MonitorTile(LucideIcons.heartPulse, 'Heart Screener',
+            'An ECG from your band',
+            onTap: () => go(c, const EcgHomeScreen())),
+      const _MonitorTile(LucideIcons.hourglass, 'Healthspan',
+          'Not available with your device'),
+      const _MonitorTile(LucideIcons.gauge, 'Blood Pressure Insights',
+          'Not available with your device'),
+    ];
+    return Column(children: [
+      for (var i = 0; i < tiles.length; i += 2) ...[
+        if (i > 0) const SizedBox(height: S.x3),
+        IntrinsicHeight(
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Expanded(child: tiles[i]),
+            const SizedBox(width: S.x3),
+            Expanded(
+                child: i + 1 < tiles.length
+                    ? tiles[i + 1]
+                    : const SizedBox.shrink()),
+          ]),
+        ),
+      ],
     ]);
   }
 
@@ -1389,4 +1457,32 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
     );
   }
 
+}
+
+/// One monitor on the Health tab. With no [onTap] it is a feature this
+/// device cannot feed, drawn greyed.
+class _MonitorTile extends StatelessWidget {
+  final IconData icon;
+  final String title, sub;
+  final VoidCallback? onTap;
+  const _MonitorTile(this.icon, this.title, this.sub, {this.onTap});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final on = onTap != null;
+    return Surface(
+      onTap: onTap,
+      semanticLabel: '$title. $sub',
+      pad: const EdgeInsets.all(S.x4),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(icon, size: I.lg, color: on ? p.ink2 : p.track),
+        const SizedBox(height: S.x4),
+        Text(title.toUpperCase(),
+            style: F.caps.copyWith(color: on ? p.ink : p.ink3)),
+        const SizedBox(height: S.x1),
+        Text(sub, style: F.cap.copyWith(color: p.ink3)),
+      ]),
+    );
+  }
 }

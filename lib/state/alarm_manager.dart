@@ -23,12 +23,10 @@ class NextArmedPlan {
 class AlarmManager extends ChangeNotifier {
   static const String _kAlarmsList = 'alarms_list_v2';
   static const String _kSyncSystem = 'alarm_sync_system';
-  static const String _kRichVerified = 'alarm_rich_form_verified';
   static const String _kShakeToStop = 'alarm_shake_to_stop';
 
   List<AlarmItem> _alarms = [];
   bool _syncSystem = false;
-  bool _richVerified = false;
   bool _shakeToStop = false;
   DateTime? _cachedSystemAlarmTime;
   bool _loaded = false;
@@ -39,30 +37,10 @@ class AlarmManager extends ChangeNotifier {
   DateTime? get systemAlarmTime => _cachedSystemAlarmTime;
   bool get isLoaded => _loaded;
 
-  /// The user watched a custom-pattern (rich form) test alarm fire on THIS
-  /// band. Until then every alarm arms with the standard rev-1 buzz, whatever
-  /// pattern it asks for — some WHOOP 4 firmwares store a rich-form alarm and
-  /// never execute it.
-  bool get richVerified => _richVerified;
-
   /// Watch the band's motion while an alarm rings and stop the buzz on a
   /// wrist shake. Needs the phone connected to the band at alarm time; the
   /// band's own double-tap dismiss works either way.
   bool get shakeToStop => _shakeToStop;
-
-  /// The pattern [alarm] actually arms with: its own, once the rich form is
-  /// verified on this band, else [AlarmBuzz.standard].
-  AlarmBuzz effectiveBuzz(AlarmItem? alarm) {
-    final want = alarm?.buzz ?? AlarmBuzz.standard;
-    return _richVerified ? want : AlarmBuzz.standard;
-  }
-
-  Future<void> setRichVerified(bool v) async {
-    _richVerified = v;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_kRichVerified, v);
-    notifyListeners();
-  }
 
   Future<void> setShakeToStop(bool v) async {
     _shakeToStop = v;
@@ -76,7 +54,6 @@ class AlarmManager extends ChangeNotifier {
   Future<void> init({List<AlarmScheduleEntry>? legacySchedule}) async {
     final prefs = await SharedPreferences.getInstance();
     _syncSystem = prefs.getBool(_kSyncSystem) ?? false;
-    _richVerified = prefs.getBool(_kRichVerified) ?? false;
     _shakeToStop = prefs.getBool(_kShakeToStop) ?? false;
     final jsonStr = prefs.getString(_kAlarmsList);
 
