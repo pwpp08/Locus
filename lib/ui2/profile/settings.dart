@@ -1269,14 +1269,6 @@ class NotificationSettingsView extends StatelessWidget {
                                 !prefs.criticalOverridesQuiet))),
                   ]),
                 ],
-                const SizedBox(height: S.x3),
-                StatusCard(
-                  l?.settingsAlarmNotOnListTitle ??
-                      'The alarm is not on this list',
-                  l?.settingsAlarmNotOnListBody ??
-                      'Cancel it on the Alarm screen instead.',
-                  icon: LucideIcons.alarmClock,
-                ),
                 ],
               ),
             ),

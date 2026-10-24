@@ -1668,19 +1668,12 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   @override
   void dispose() {
     _syncTapTimer?.cancel();
-    hideMetricsListenable.removeListener(_rebuild);
     super.dispose();
-  }
-
-  void _rebuild() {
-    if (mounted) setState(() {});
   }
 
   @override
   void initState() {
     super.initState();
-    // Hide metrics is switched on the More tab while Home stays alive.
-    hideMetricsListenable.addListener(_rebuild);
     if (widget.data != null) {
       _d = widget.data;
       _night = widget.night ?? const {};
@@ -1990,7 +1983,6 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     // If the app had to rebuild the database to start, that outranks anything
     // else this screen has to say today.
     final rebuilt = dbRebuiltCard(dbRebuildOf(c), l);
-    final hidden = hideMetricsOf();
 
     return _refreshable(ListView(padding: pad.copyWith(bottom: S.navClear(c)), children: [
       _header(c, d.dayId),
@@ -2032,7 +2024,6 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         if (RingTrio.has(d))
           _Dials(
             d: d,
-            hide: hidden,
             onOpen: (k) => go(
                 c,
                 switch (k) {
@@ -2432,18 +2423,6 @@ Widget firstWeekCard(BuildContext c,
 
 // ═══════════════════ the Home components ═══════════════════
 
-/// Whether the Recovery and Sleep dials are hidden (More › App settings ›
-/// Hide metrics). Scores still compute; only the two dials are withheld.
-final hideMetricsListenable =
-    ValueNotifier<bool>(Prefs.getBool(Prefs.hideMetrics, false));
-
-bool hideMetricsOf() => hideMetricsListenable.value;
-
-void setHideMetrics(bool v) {
-  Prefs.setBool(Prefs.hideMetrics, v);
-  hideMetricsListenable.value = v;
-}
-
 /// Everything My Dashboard can hold — every metric with a written spec and a
 /// stored series.
 const kDashboardCatalogue = [
@@ -2653,18 +2632,15 @@ class _DeviceStatus extends StatelessWidget {
 /// a track and a dash, and the reason rides a row under the three.
 class _Dials extends StatelessWidget {
   final HomeData d;
-  final bool hide;
   final void Function(HomeRingKind) onOpen;
 
-  const _Dials({required this.d, required this.hide, required this.onOpen});
+  const _Dials({required this.d, required this.onOpen});
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
-    final kinds = hide
-        ? const [HomeRingKind.strain]
-        : const [HomeRingKind.sleep, HomeRingKind.recovery, HomeRingKind.strain];
+    const kinds = [HomeRingKind.sleep, HomeRingKind.recovery, HomeRingKind.strain];
     final rings = [for (final k in kinds) _ringOf(k, d, l)];
     final gaps = rings.where((r) => r.why != null).toList();
     return Column(children: [
@@ -2684,11 +2660,10 @@ class _Dials extends StatelessWidget {
         const SizedBox(height: S.x2),
         _GapRow(r, onTap: () => onOpen(r.kind)),
       ],
-      if (!hide)
-        if (recoveryUpdatedLine(d.readinessUpdate, l) case final note?) ...[
-          const SizedBox(height: S.x2),
-          Text(note, style: F.cap.copyWith(color: p.ink3)),
-        ],
+      if (recoveryUpdatedLine(d.readinessUpdate, l) case final note?) ...[
+        const SizedBox(height: S.x2),
+        Text(note, style: F.cap.copyWith(color: p.ink3)),
+      ],
       const SizedBox(height: S.x3),
     ]);
   }

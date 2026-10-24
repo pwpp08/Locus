@@ -32,7 +32,6 @@ import 'package:flutter/rendering.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../coach/coach_config.dart';
 import '../../data/day_label.dart';
 import '../../ecg/ecg_controller.dart';
 import '../../ecg/ecg_models.dart';
@@ -583,19 +582,6 @@ Map<String, Widget> _coachFigureCases() => {
     'type': 'sankey',
     'title': 'Where my day went',
   }),
-  // The data boundary. `CoachConfig()` here is unloaded, so it reads as the
-  // default cloud endpoint — which is the case worth capturing: the local one
-  // is the reassuring half.
-  'coach_sent_payload': SentPayload(
-    config: CoachConfig(),
-    inputs: const {
-      'readiness': 62,
-      'rmssd_ms': 48,
-      'resting_hr': 54,
-      'sleep_min': 432,
-      'skin_temp_z': -0.4,
-    },
-  ),
 };
 
 /// Charts, framed. Every one of these is captured with the thing that was

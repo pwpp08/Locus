@@ -86,10 +86,6 @@ class Prefs {
   /// The current bar's index (Home, Health, More).
   static const String shellTabV3 = 'ui.shell_tab.v3';
 
-  /// Hide the Recovery and Sleep dials (More › App settings › Hide metrics).
-  /// Data still syncs and scores; only the two dials are withheld.
-  static const String hideMetrics = 'ui.hide_metrics';
-
   /// My Dashboard's tiles, in order, comma-separated keys. Empty = default.
   static const String dashboardTiles = 'ui.dashboard_tiles';
   static const String recapRange = 'ui.recap_range';

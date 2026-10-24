@@ -25,7 +25,7 @@ import '../ui2.dart';
 import '../screens/circadian_detail.dart' show CircadianDetail;
 import '../screens/coach.dart' show CoachSetup, coachSubtitle;
 import '../screens/home_screen.dart'
-    show deviceBatteryOf, hideMetricsListenable, setHideMetrics;
+    show deviceBatteryOf;
 import '../screens/nutrition_screen.dart' show NutritionScreen;
 import '../screens/workout_screen.dart' show WorkoutScreen;
 import 'alarm.dart' show AlarmScreen;
@@ -494,20 +494,6 @@ class ProfileHomeView extends StatelessWidget {
                         sub: l?.healthChronotypeJetlagRegularity ??
                             'Natural bedtime, weekend shift and schedule consistency',
                         onTap: () => goto(c, const CircadianDetail())),
-                  ]),
-                  settingsGroup(c, 'App settings', [
-                    ValueListenableBuilder<bool>(
-                      valueListenable: hideMetricsListenable,
-                      builder: (c, hidden, _) => SetRow(
-                        LucideIcons.eyeOff,
-                        C.n500,
-                        'Hide metrics',
-                        sub: 'Hide the Recovery and Sleep dials on Home. '
-                            'Data still syncs and scores.',
-                        trailing: AppSwitch(hidden, setHideMetrics,
-                            semanticLabel: 'Hide metrics'),
-                      ),
-                    ),
                   ]),
                 ],
                 settingsGroup(c, l?.profileQuickAccessGroup ?? 'Quick access', [

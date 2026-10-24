@@ -8,6 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:openstrap_edge/l10n/app_localizations.dart';
 import 'package:openstrap_edge/models/metric.dart';
 import 'package:openstrap_edge/ui2/screens/screens.dart';
@@ -373,6 +374,12 @@ void main() {
         solMin: 37,
       ),
     );
+    // The window's provenance lives behind the pencil on the sleep card.
+    expect(find.textContaining('30–45 minutes'), findsNothing);
+    await t.tap(find.byIcon(LucideIcons.pencil));
+    await t.pumpAndSettle();
+    expect(find.text('Change the times'), findsOneWidget);
+    expect(find.text('Not sleep'), findsOneWidget);
     expect(find.textContaining('30–45 minutes'), findsOneWidget);
     // Never a single minute: the stager sees a wrist.
     expect(find.textContaining('37 minutes'), findsNothing);

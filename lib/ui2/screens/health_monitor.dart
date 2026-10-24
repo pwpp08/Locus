@@ -16,7 +16,6 @@ import '../../data/day_label.dart' show todayLabel;
 import '../../models/metric.dart';
 import '../../state/app_state.dart';
 import '../ui2.dart';
-import 'action_sheet.dart' show openCoach;
 import 'home_screen.dart';
 import 'metric_detail.dart';
 
@@ -202,19 +201,6 @@ class _HealthMonitorScreenState extends State<HealthMonitorScreen> {
                   ),
                 ],
               ],
-            ),
-            Positioned(
-              right: S.x4,
-              bottom: S.x4,
-              child: Pressable(
-                onTap: () => openCoach(c),
-                semanticLabel: 'Ask the coach',
-                child: Container(
-                  padding: const EdgeInsets.all(S.x3),
-                  decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
-                  child: const AiOrb(size: S.x16),
-                ),
-              ),
             ),
           ]),
         ),

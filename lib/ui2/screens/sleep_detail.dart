@@ -34,7 +34,6 @@ import '../../models/metric.dart';
 import '../profile/devices.dart' show DeviceFilter;
 import '../profile/profile.dart' show ProfileAvatar;
 import '../ui2.dart';
-import 'coach.dart' show CoachScreen;
 import 'home_screen.dart';
 import 'investigate.dart';
 import 'metric_detail.dart';
@@ -598,7 +597,7 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
         // A day with no main-sleep window can still have naps — worn all
         // day, off overnight, or a rejected night — so this door to the naps
         // screen does not live inside the window card.
-        ..._napsButton(c, l, d.day),
+        ..._napsButton(c, l, d),
       ]);
     }
 
@@ -653,8 +652,8 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
       ],
 
       // ── 2b · WHOSE WINDOW IS THIS ──
-      ...?_windowCard(c, p, d, n),
-      ..._napsButton(c, l, d.day),
+      ..._windowStatus(c, p),
+      ..._napsButton(c, l, d),
 
       // ── 3 · WHAT IT WAS MADE OF ──
       Section(l?.sleepDetailStagesSection ?? 'Stages', _stages(c, p, n)),
@@ -710,22 +709,6 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
       (LucideIcons.gauge, 'High sleep stress', null, false),
     ];
     final tier = perf == null ? null : _tierOf(perf);
-    final measured = [
-      for (final r in rows)
-        if (r.$3 != null && r.$4) (r.$2, _tierOf(r.$3!)),
-    ];
-    final weakest = measured.isEmpty
-        ? null
-        : (measured.toList()..sort((a, b) => a.$2.compareTo(b.$2))).first;
-    final summary = tier == null
-        ? 'Sleep Performance needs your computed sleep need, which takes a few '
-            'nights to learn.'
-        : measured.every((m) => m.$2 == 2)
-            ? 'Your Sleep Performance is optimal because you’re getting enough '
-                'sleep, keeping a consistent schedule and sleeping efficiently. '
-                'Keep up the great work!'
-            : 'Your Sleep Performance is ${_tierWord(tier).toLowerCase()}. '
-                '${weakest!.$1} has the most room to improve.';
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Center(
@@ -844,40 +827,6 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
           const SizedBox(height: S.x2),
         ]),
       ),
-      const SizedBox(height: S.x4),
-      // The coach card: what the bands add up to, and a door to ask more.
-      Container(
-        padding: const EdgeInsets.all(S.half),
-        decoration: const BoxDecoration(
-          borderRadius: R.rLg,
-          gradient: LinearGradient(colors: [C.coachEdgeA, C.coachEdgeB]),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(S.x5),
-          decoration: BoxDecoration(color: p.bg, borderRadius: R.rLg),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(summary, style: F.head.copyWith(color: p.ink, fontWeight: FontWeight.w400)),
-            const SizedBox(height: S.x4),
-            Pressable(
-              onTap: () => go(
-                  c,
-                  const CoachScreen(
-                      initialMessage:
-                          'Explain my Sleep Performance last night and what drove it.',
-                      startNewSession: true)),
-              semanticLabel: 'Learn more with the coach',
-              child: Row(children: [
-                Flexible(
-                  child: Text('LEARN MORE WITH COACH',
-                      style: F.caps.copyWith(color: p.on(C.lavender))),
-                ),
-                const SizedBox(width: S.x2),
-                Icon(LucideIcons.arrowRight, size: I.md, color: p.on(C.sky)),
-              ]),
-            ),
-          ]),
-        ),
-      ),
     ]);
   }
 
@@ -912,8 +861,14 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
     final hero = AuroraTile(
       hue: C.domSleep,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(l?.sleepDetailTotalSleep ?? 'Total sleep',
-            style: F.cap.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
+        Row(children: [
+          Expanded(
+            child: Text(l?.sleepDetailTotalSleep ?? 'Total sleep',
+                style:
+                    F.cap.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
+          ),
+          ?_editWindowButton(c, p, d, n),
+        ]),
         const SizedBox(height: S.x2),
         // Shrinks rather than truncates: at accessibility sizes a 64 pt
         // "7h 23m" is wider than the tile, and a cut duration is a different
@@ -984,11 +939,13 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
   /// is one thing you either confirm or move, naps are a list you add to and
   /// remove from, and `_editWindow` below only ever asks two time pickers for
   /// one pair of times — the wrong shape for "how many, which ones".
-  /// The door to the naps screen, for [day] — not inside `_windowCard`, so it
-  /// still renders on a day with no scored main-sleep window (worn all day,
-  /// off overnight, or a night the user rejected outright).
-  List<Widget> _napsButton(BuildContext c, AppLocalizations? l, String? day) {
+  /// The door to the naps screen — only on a day that has naps. Not inside
+  /// the window sheet, so it still renders on a day with no scored main-sleep
+  /// window (worn all day, off overnight, or a night the user rejected).
+  List<Widget> _napsButton(BuildContext c, AppLocalizations? l, SleepData d) {
+    final day = d.day;
     if (day == null) return const [];
+    if ((d.timeline['naps'] as List?)?.isEmpty ?? true) return const [];
     return [
       const SizedBox(height: S.x2),
       // `_loading` too: `_goDay` swaps `_day` and keeps the old `_d` on
@@ -999,23 +956,64 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
     ];
   }
 
-  List<Widget>? _windowCard(
+  /// The small pencil on the sleep card: where this night's window came from,
+  /// and the user's say over it. Null when there is no scored window to edit.
+  Widget? _editWindowButton(
       BuildContext c, P p, SleepData d, Map<String, dynamic> n) {
-    final l = AppLocalizations.of(c);
     final day = d.day;
     final t0 = (n['onset_ts'] as num?)?.round();
     final t1 = (n['wake_ts'] as num?)?.round();
     if (day == null || t0 == null || t1 == null) return null;
+    return Pressable(
+      onTap: _saving ? null : () => _windowSheet(c, d, n, day, t0, t1),
+      semanticLabel: 'Edit sleep window',
+      child: Padding(
+        padding: const EdgeInsets.all(S.x2),
+        child: Icon(LucideIcons.pencil, size: I.sm, color: p.ink),
+      ),
+    );
+  }
+
+  /// Progress and failure of a window correction, shown under the card once
+  /// the sheet has closed.
+  List<Widget> _windowStatus(BuildContext c, P p) {
+    final l = AppLocalizations.of(c);
+    return [
+      if (_saving) ...[
+        const SizedBox(height: S.x2),
+        Text(l?.sleepDetailReanalysing ?? 'Re-analysing the night…',
+            style: F.cap.copyWith(color: p.ink3)),
+      ],
+      if (!_saving && _overrideFailed != null) ...[
+        const SizedBox(height: S.x3),
+        StatusCard(
+          l?.sleepDetailCorrectionFailedTitle ??
+              'That correction has not been applied',
+          _overrideFailed!,
+          icon: LucideIcons.triangleAlert,
+        ),
+      ],
+    ];
+  }
+
+  Future<void> _windowSheet(BuildContext c, SleepData d, Map<String, dynamic> n,
+      String day, int t0, int t1) {
+    final l = AppLocalizations.of(c);
     final source = (n['sleep_source'] as String?) ?? 'auto';
     final mine = source == 'manual' || source == 'confirmed';
     final fallback = source == 'auto_fallback';
     final vendor = source == 'vendor_staged';
+    return AppSheet.show<void>(
+      c,
+      title: 'Sleep window',
+      child: Builder(builder: (sheet) {
+        final p = P.of(sheet);
+        void then(void Function() run) {
+          Navigator.of(sheet).pop();
+          run();
+        }
 
-    final busy = _saving;
-    return [
-      const SizedBox(height: S.x3),
-      Surface(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Icon(mine ? LucideIcons.userCheck : LucideIcons.wandSparkles,
                 size: I.sm, color: p.ink3),
@@ -1028,9 +1026,10 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
                         ? (l?.sleepDetailWindowFallback ??
                             'This window was inferred from heart rate')
                         : vendor
-                        ? (l?.sleepDetailStagedByRing ?? 'Staged by your device')
-                        : (l?.sleepDetailWindowAuto ??
-                            'This window was staged from the signals'),
+                            ? (l?.sleepDetailStagedByRing ??
+                                'Staged by your device')
+                            : (l?.sleepDetailWindowAuto ??
+                                'This window was staged from the signals'),
                 style: F.body.copyWith(color: p.ink),
               ),
             ),
@@ -1054,45 +1053,35 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
           if (mine && d.solMin != null) ...[
             const SizedBox(height: S.x2),
             Text(
-              l?.sleepDetailWindowSol(_solBand(c, d.solMin!)) ??
+              l?.sleepDetailWindowSol(_solBand(sheet, d.solMin!)) ??
                   'From the start of your window to asleep: '
-                      '${_solBand(c, d.solMin!)}.',
+                      '${_solBand(sheet, d.solMin!)}.',
               style: F.cap.copyWith(color: p.ink3),
             ),
           ],
           const SizedBox(height: S.x2),
           Wrap(spacing: S.x2, children: [
             if (fallback)
-              TextAction(l?.sleepDetailConfirmTimes ?? 'These times are right', busy ? null : () => _confirmWindow(day)),
-            TextAction(mine
-                  ? (l?.sleepDetailChangeTimes ?? 'Change the times')
-                  : (l?.sleepDetailSetTimesMyself ?? 'Set the times myself'), busy ? null : () => _editWindow(day, t0, t1)),
+              TextAction(l?.sleepDetailConfirmTimes ?? 'These times are right',
+                  () => then(() => _confirmWindow(day))),
+            TextAction(
+                mine
+                    ? (l?.sleepDetailChangeTimes ?? 'Change the times')
+                    : (l?.sleepDetailSetTimesMyself ?? 'Set the times myself'),
+                () => then(() => _editWindow(day, t0, t1))),
             if (mine)
-              TextAction(l?.sleepDetailBackToAutomatic ?? 'Back to automatic', busy ? null : () => _clearWindow(day)),
+              TextAction(l?.sleepDetailBackToAutomatic ?? 'Back to automatic',
+                  () => then(() => _clearWindow(day))),
             // The missing third answer next to "Looks right"/"Edit": naps
             // already have a reject action (sleep_nap source='rejected');
             // a whole-night main-sleep session didn't (edge#248).
-            TextAction(l?.sleepDetailNotSleep ?? 'Not sleep', busy ? null : () => _rejectWindow(day)),
+            TextAction(l?.sleepDetailNotSleep ?? 'Not sleep',
+                () => then(() => _rejectWindow(day))),
           ]),
-          if (busy) ...[
-            const SizedBox(height: S.x2),
-            Text(l?.sleepDetailReanalysing ?? 'Re-analysing the night…',
-                style: F.cap.copyWith(color: p.ink3)),
-          ],
-          if (!busy && _overrideFailed != null) ...[
-            const SizedBox(height: S.x3),
-            StatusCard(
-              l?.sleepDetailCorrectionFailedTitle ??
-                  'That correction has not been applied',
-              _overrideFailed!,
-              icon: LucideIcons.triangleAlert,
-            ),
-          ],
-        ]),
-      ),
-    ];
+        ]);
+      }),
+    );
   }
-
   Future<void> _confirmWindow(String day) => _runOverride(
         day,
         () => context.read<AppState>().confirmSleep(day),
