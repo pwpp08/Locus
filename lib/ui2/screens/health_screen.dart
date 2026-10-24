@@ -681,18 +681,14 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
       _MonitorTile(LucideIcons.brain, 'Stress Monitor',
           'Your stress score over the day',
           onTap: () => go(c, const MetricDetail('stress'))),
-      _MonitorTile(LucideIcons.flower2, 'Hormonal Insights',
-          cycleTrackingOf(c)
-              ? 'Your cycle and how it moves your numbers'
-              : 'Turn on cycle tracking to opt in',
+      _MonitorTile(LucideIcons.listChecks, 'Habits',
+          'What you do and how it moves your numbers',
           onTap: () => go(c, const WellnessScreen(initialTab: 4))),
       if (pairedIsMaverickOf(c))
         _MonitorTile(LucideIcons.heartPulse, 'Heart Screener',
             'An ECG from your band',
             onTap: () => go(c, const EcgHomeScreen())),
       const _MonitorTile(LucideIcons.hourglass, 'Healthspan',
-          'Not available with your device'),
-      const _MonitorTile(LucideIcons.gauge, 'Blood Pressure Insights',
           'Not available with your device'),
     ];
     return Column(children: [

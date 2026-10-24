@@ -40,7 +40,7 @@ class UpdateDialog extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: p.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(R.xxl)),
         border: Border.all(color: p.line, width: 0.5),
       ),
       padding: const EdgeInsets.fromLTRB(S.x4, S.x3, S.x4, S.x6),

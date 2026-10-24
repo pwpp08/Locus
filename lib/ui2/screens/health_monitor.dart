@@ -1,4 +1,4 @@
-// HEALTH MONITOR — the live heart rate over a grid, then the five overnight
+// HEALTH MONITOR — the live heart rate over a grid, then the four overnight
 // vitals, each against your own usual range.
 //
 // Every tile has three states and only three: a value inside your range, a
@@ -74,14 +74,6 @@ class _MonitorData {
         ? null
         : ((skinRaw is Map ? skinRaw['dev_c'] : null) as num?)?.toDouble();
 
-    // SpO2 is only ever a value a WHOOP import carried; the band's own
-    // reading here is a relative desaturation screen, never a percentage. So
-    // the newest imported point, and only when it is today's.
-    final spo2Pts = pointsOf(await repo.getChart('spo2'));
-    final spo2 = spo2Pts.isNotEmpty && (daysBehind(spo2Pts.last.t) ?? 1) <= 0
-        ? spo2Pts.last.v
-        : null;
-
     String signed(double v, int places) =>
         '${v >= 0 ? '+' : '−'}${v.abs().toStringAsFixed(places)}';
 
@@ -94,11 +86,6 @@ class _MonitorData {
             value: resp == null ? '' : resp.toStringAsFixed(1),
             unit: 'rpm',
             side: await sideOf('resp_rate', resp?.toDouble())),
-        _Vital('spo2', 'Blood Oxygen (SpO₂)', LucideIcons.droplet,
-            present: spo2 != null,
-            value: spo2 == null ? '' : '${spo2.round()}',
-            unit: '%',
-            side: await sideOf('spo2', spo2)),
         _Vital('resting_hr', 'RHR', LucideIcons.heartHandshake,
             present: rhr != null,
             value: rhr == null ? '' : '${rhr.round()}',
@@ -162,7 +149,6 @@ class _HealthMonitorScreenState extends State<HealthMonitorScreen> {
     final vitals = d?.vitals ??
         const [
           _Vital('resp_rate', 'Respiratory Rate', LucideIcons.wind),
-          _Vital('spo2', 'Blood Oxygen (SpO₂)', LucideIcons.droplet),
           _Vital('resting_hr', 'RHR', LucideIcons.heartHandshake),
           _Vital('hrv', 'HRV', LucideIcons.activity),
           _Vital('skin_temp', 'Skin Temp (from baseline)', LucideIcons.thermometer),
@@ -312,22 +298,27 @@ class _VitalTile extends StatelessWidget {
             Side.inside => ('Within range', C.recGreen),
             Side.above => ('Above range', C.recYellow),
             Side.below => ('Below range', C.recYellow),
-            null => ('No baseline yet', p.ink3),
+            null => ('No baseline', p.ink3),
           };
     return Surface(
       color: p.card,
       onTap: () => go(c, MetricDetail(v.key)),
       semanticLabel: '${v.label}. ${v.present ? '${v.value} ${v.unit}. ' : ''}$word',
-      pad: const EdgeInsets.all(S.x5),
+      pad: const EdgeInsets.all(S.x4),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(v.icon, size: I.lg, color: p.ink3),
-          const SizedBox(width: S.x3),
+          Icon(v.icon, size: I.md, color: p.ink3),
+          const SizedBox(width: S.x2),
+          // Small, tracked caps that wrap on word breaks: the long names
+          // ("Respiratory Rate") used to split mid-word at the larger size.
           Expanded(
               child: Text(v.label.toUpperCase(),
-                  style: F.caps.copyWith(color: p.ink2))),
+                  style: F.over.copyWith(
+                      color: p.ink2,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2))),
         ]),
-        const SizedBox(height: S.x10),
+        const SizedBox(height: S.x8),
         Row(
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
@@ -346,9 +337,9 @@ class _VitalTile extends StatelessWidget {
             ],
           ],
         ),
-        const SizedBox(height: S.x6),
+        const SizedBox(height: S.x4),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x1),
+          padding: const EdgeInsets.symmetric(horizontal: S.x2, vertical: S.x1),
           decoration: BoxDecoration(color: p.card2, borderRadius: R.rSm),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Container(
@@ -359,6 +350,8 @@ class _VitalTile extends StatelessWidget {
             const SizedBox(width: S.x2),
             Flexible(
               child: Text(word,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: F.cap.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
             ),
           ]),

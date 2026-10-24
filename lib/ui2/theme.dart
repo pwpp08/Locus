@@ -513,14 +513,15 @@ class S {
 
 /// ── RADII ─────────────────────────────────────────────────────────────────
 ///
-/// Rounder than before (§4.6): every `Surface` card is [xl], hero tiles and
-/// sheet tops [xxl], buttons, chips and the nav a [pill].
+/// WHOOP's tighter corners: every `Surface` card is [xl] (14), hero tiles and
+/// sheet tops [xxl], inner blocks and buttons [md]/[sm]; chips, toggles and
+/// the floating nav stay a [pill].
 class R {
-  static const sm = 10.0;
-  static const md = 16.0;
-  static const lg = 22.0;
-  static const xl = 28.0;
-  static const xxl = 36.0;
+  static const sm = 6.0;
+  static const md = 8.0;
+  static const lg = 12.0;
+  static const xl = 14.0;
+  static const xxl = 18.0;
   static const pill = 999.0;
 
   static const rSm = BorderRadius.all(Radius.circular(sm));

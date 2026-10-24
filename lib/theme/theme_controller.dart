@@ -62,11 +62,9 @@ class ThemeController extends ChangeNotifier {
   AppThemeChoice get choice => _choice;
 
   /// The brightness actually being rendered.
-  Brightness get effective => switch (_choice) {
-        AppThemeChoice.light => Brightness.light,
-        AppThemeChoice.dark => Brightness.dark,
-        AppThemeChoice.system => _platform,
-      };
+  /// Locus is dark-only: the choice is kept (and persisted) but no longer
+  /// changes what is painted.
+  Brightness get effective => Brightness.dark;
 
   bool get isDark => effective == Brightness.dark;
 

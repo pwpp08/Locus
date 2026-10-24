@@ -694,9 +694,6 @@ class MoreSettingsView extends StatelessWidget {
                   SetRow(LucideIcons.ruler, C.blue,
                       l?.settingsUnitsRowTitle ?? 'Units',
                       value: units, onTap: onCycleUnits),
-                  SetRow(LucideIcons.sun, C.yellow,
-                      l?.settingsAppearanceRowTitle ?? 'Appearance',
-                      value: appearance, onTap: onCycleAppearance),
                   SetRow(LucideIcons.clock, C.teal,
                       l?.settingsClockFormatRowTitle ?? 'Time format',
                       value: switch (clockFormat) {

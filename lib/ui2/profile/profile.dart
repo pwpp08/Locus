@@ -308,7 +308,8 @@ class ProfileAvatar extends StatelessWidget {
   /// The tab's own accent, so the avatar reads as part of the header it sits
   /// in.
   final Color accent;
-  const ProfileAvatar({super.key, this.accent = C.domHome});
+  final double size;
+  const ProfileAvatar({super.key, this.accent = C.domHome, this.size = S.x12});
 
   @override
   Widget build(BuildContext c) {
@@ -329,10 +330,10 @@ class ProfileAvatar extends StatelessWidget {
           AppLocalizations.of(c)?.homeProfileSettings ?? 'Profile and settings',
       onTap: () => openProfile(c),
       child: _PhotoCircle(
-        size: S.x12,
+        size: size,
         fallback: Container(
-          width: S.x12,
-          height: S.x12,
+          width: size,
+          height: size,
           alignment: Alignment.center,
           decoration: BoxDecoration(shape: BoxShape.circle, color: p.card2),
           child: initial.isEmpty

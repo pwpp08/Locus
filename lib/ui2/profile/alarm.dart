@@ -299,7 +299,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
           return Container(
             decoration: BoxDecoration(
               color: p.card,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(R.xxl)),
             ),
             padding: EdgeInsets.fromLTRB(
               S.x4,

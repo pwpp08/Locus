@@ -67,7 +67,7 @@ import '../../theme/theme_switcher.dart' show themedRoute;
 import '../activity/day_strain.dart' show DayStrainDetail;
 import 'battery_detail_screen.dart';
 import '../profile/alarm.dart'
-    show AlarmArmState, alarmArmOf, alarmDoor;
+    show AlarmArmState, AlarmScreen, alarmArmOf, alarmDoor;
 import '../activity/catalogue.dart' show activityByName;
 import '../profile/devices.dart' show MyDevices, formatDayTime;
 import '../profile/profile.dart';
@@ -1654,6 +1654,27 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   /// nor `syncingNow` has moved yet and the button would otherwise look inert.
   bool _syncTapped = false;
   Timer? _syncTapTimer;
+
+  /// The big dials scrolled out of sight: the compact bar slides in.
+  final _scroll = ScrollController();
+  final _dialsKey = GlobalKey();
+  final _collapsed = ValueNotifier<bool>(false);
+
+  void _onScroll() {
+    final dials = _dialsKey.currentContext?.findRenderObject() as RenderBox?;
+    final self = context.findRenderObject() as RenderBox?;
+    bool gone;
+    if (dials == null || !dials.attached || self == null) {
+      // A ListView drops children far off screen; by then they are long gone.
+      gone = _scroll.hasClients && _scroll.offset > 0 && _dialsKey.currentContext == null;
+    } else {
+      final bottom = dials
+          .localToGlobal(Offset(0, dials.size.height), ancestor: self)
+          .dy;
+      gone = bottom <= 0;
+    }
+    _collapsed.value = gone;
+  }
   static const _tapGrace = Duration(seconds: 20);
 
   void _tapSync(VoidCallback sync) {
@@ -1668,12 +1689,15 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   @override
   void dispose() {
     _syncTapTimer?.cancel();
+    _scroll.dispose();
+    _collapsed.dispose();
     super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_onScroll);
     if (widget.data != null) {
       _d = widget.data;
       _night = widget.night ?? const {};
@@ -1767,14 +1791,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       child: CircularProgressIndicator(strokeWidth: 2, color: P.of(c).ink3),
     );
 
-    if (syncing) {
-      return StatusCard(
-        l?.homeSyncingTitle ?? 'Syncing with your band',
-        l?.homeSyncingBody ?? 'Pulling data now — this can take a few minutes '
-            'on a full backlog.',
-        leading: spinner,
-      );
-    }
+    // Syncing has no card: the loader in the header's device badge says it.
     if (deriving && !sleepComputed) {
       return StatusCard(
         l?.homeAnalyzingTitle ?? 'Crunching last night\'s numbers',
@@ -1884,21 +1901,20 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     final cur = _day ?? dayId ?? today;
     return Padding(
       padding: const EdgeInsets.only(top: S.x3, bottom: S.x4),
-      child: Row(children: [
-        const ProfileAvatar(accent: C.domHome),
-        const SizedBox(width: S.x2),
-        _Streak(streakOf(_days, today)),
-        Expanded(
-          child: Center(
-            child: _DayPager(
-              day: cur,
-              today: today,
-              days: _days,
-              onDay: _goDay,
-            ),
-          ),
+      // A Stack, not a Row: the two ends differ in width (avatar vs. battery
+      // and band), and the pager has to sit on the screen's own centre.
+      child: Stack(alignment: Alignment.center, children: [
+        _DayPager(
+          day: cur,
+          today: today,
+          days: _days,
+          onDay: _goDay,
         ),
-        const _DeviceStatus(),
+        const Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: ProfileAvatar(accent: C.domHome, size: S.x12 * 0.8)),
+        const Align(
+            alignment: AlignmentDirectional.centerEnd, child: _DeviceStatus()),
       ]),
     );
   }
@@ -1983,8 +1999,21 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     // If the app had to rebuild the database to start, that outranks anything
     // else this screen has to say today.
     final rebuilt = dbRebuiltCard(dbRebuildOf(c), l);
+    void openDial(HomeRingKind k) => go(
+        c,
+        switch (k) {
+          HomeRingKind.recovery => const ReadinessDetail(),
+          HomeRingKind.strain => const DayStrainDetail(),
+          // The night the dial was drawn from, not last night.
+          HomeRingKind.sleep => SleepDetail(day: isToday ? null : _day),
+        });
+    final dialsShown = !bare && RingTrio.has(d);
 
-    return _refreshable(ListView(padding: pad.copyWith(bottom: S.navClear(c)), children: [
+    return Stack(children: [
+     _refreshable(ListView(
+        controller: _scroll,
+        padding: pad.copyWith(bottom: S.navClear(c)),
+        children: [
       _header(c, d.dayId),
       if (rebuilt != null) ...[rebuilt, const SizedBox(height: S.x3)],
 
@@ -2021,18 +2050,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         // ── the three dials ── each a door into its deep dive. They render
         // as long as ONE of them has something to draw; three empty dials
         // say less than the one written absence below, which is a door.
-        if (RingTrio.has(d))
-          _Dials(
-            d: d,
-            onOpen: (k) => go(
-                c,
-                switch (k) {
-                  HomeRingKind.recovery => const ReadinessDetail(),
-                  HomeRingKind.strain => const DayStrainDetail(),
-                  // The night the dial was drawn from, not last night.
-                  HomeRingKind.sleep => SleepDetail(day: isToday ? null : _day),
-                }),
-          )
+        if (dialsShown)
+          _Dials(key: _dialsKey, d: d, onOpen: openDial)
         else
           Builder(builder: (c) {
             final need = needMessageFromNote(d.readiness.note);
@@ -2087,6 +2106,13 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         onSleep: () => go(c, SleepDetail(day: isToday ? null : _day)),
         onSession: () => go(c, const DayStrainDetail()),
       ),
+      if (isToday) ...[
+        const SizedBox(height: S.x3),
+        _TonightsSleep(
+          bedtimeMin: d.bedtime.value?.round(),
+          alarm: alarmArmOfContext(c),
+        ),
+      ],
       const SizedBox(height: S.x3),
       const DetectedActivitiesCard(),
 
@@ -2124,17 +2150,43 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         onTap: () => go(c, const MetricDetail('stress')),
       ),
 
-      // The next alarm — a door.
-      if (isToday)
-        if (alarmArmOfContext(c) case final (DateTime?, AlarmArmState) a) ...[
-          const SizedBox(height: S.x3),
-          alarmDoor(c, a.$1, a.$2),
-        ],
       if (isToday && !bare) ...[
         const SizedBox(height: S.x3),
         _briefingDoor(c, d),
       ],
-    ]));
+    ])),
+      // The dials, folded: slides down from the top once they scroll away.
+      if (dialsShown)
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _collapsed,
+            builder: (c, on, child) => IgnorePointer(
+              ignoring: !on,
+              child: AnimatedSlide(
+                offset: on ? Offset.zero : const Offset(0, -1),
+                duration: motion(c, Motion.base),
+                curve: Curves.easeOutCubic,
+                child: AnimatedOpacity(
+                  opacity: on ? 1 : 0,
+                  duration: motion(c, Motion.base),
+                  child: child,
+                ),
+              ),
+            ),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(S.gutter, S.x3, S.gutter, S.x3),
+              decoration: BoxDecoration(
+                color: p.bgTop,
+                border: Border(bottom: BorderSide(color: p.line)),
+              ),
+              child: _CompactDials(d: d, onOpen: openDial),
+            ),
+          ),
+        ),
+    ]);
   }
 
   Future<void> _editDashboard() async {
@@ -2480,26 +2532,6 @@ class _Wordmark extends StatelessWidget {
       );
 }
 
-class _Streak extends StatelessWidget {
-  final int days;
-  const _Streak(this.days);
-
-  @override
-  Widget build(BuildContext c) {
-    if (days <= 0) return const SizedBox.shrink();
-    final p = P.of(c);
-    return Semantics(
-      label: '$days day streak',
-      excludeSemantics: true,
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(LucideIcons.flame, size: I.sm, color: p.ink2),
-        const SizedBox(width: S.half),
-        Text('$days', style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-      ]),
-    );
-  }
-}
-
 /// `< TODAY >`: steps through the days on record, newest first in [days].
 class _DayPager extends StatelessWidget {
   final String day, today;
@@ -2583,6 +2615,7 @@ class _DeviceStatus extends StatelessWidget {
       connected = c.select<AppState, bool>((a) => a.isConnected);
     } catch (_) {}
     final low = battery != null && lowBattery(battery.$1, battery.$2);
+    final syncing = syncingNowOf(c);
     return Pressable(
       semanticLabel: [
         'Device settings',
@@ -2602,10 +2635,19 @@ class _DeviceStatus extends StatelessWidget {
           height: S.x8,
           child: Stack(children: [
             Center(
-              child: Icon(
-                  battery?.$2 == true ? LucideIcons.batteryCharging : LucideIcons.watch,
-                  size: I.lg,
-                  color: p.ink2),
+              child: syncing
+                  ? SizedBox(
+                      width: I.lg,
+                      height: I.lg,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: p.ink2),
+                    )
+                  : Icon(
+                      battery?.$2 == true
+                          ? LucideIcons.batteryCharging
+                          : LucideIcons.watch,
+                      size: I.lg,
+                      color: p.ink2),
             ),
             Positioned(
               right: 0,
@@ -2634,7 +2676,7 @@ class _Dials extends StatelessWidget {
   final HomeData d;
   final void Function(HomeRingKind) onOpen;
 
-  const _Dials({required this.d, required this.onOpen});
+  const _Dials({super.key, required this.d, required this.onOpen});
 
   @override
   Widget build(BuildContext c) {
@@ -2669,8 +2711,56 @@ class _Dials extends StatelessWidget {
   }
 }
 
-class _ScoreDial extends StatelessWidget {
-  final _RingState r;
+/// What a dial reads, in the units of its score: the number, its suffix, how
+/// far round the arc goes (null: an open track) and the arc's colour. Shared
+/// by the big dials and the compact bar that replaces them on scroll.
+(String, String, double?, Color) _dialFace(_RingState r, HomeData d, P p) {
+  var value = '--';
+  var suffix = '';
+  double? frac;
+  var arc = p.ink3;
+  if (r.measured) {
+    switch (r.kind) {
+      case HomeRingKind.sleep:
+        // Sleep Performance: hours slept against hours needed, capped at
+        // 100. With no computed need there is no denominator, so the dial
+        // shows the hours and an open track rather than inventing one.
+        final slept = d.sleepMin.value;
+        final need = d.sleepNeedMin.value;
+        if (slept != null && need != null && need > 0) {
+          final perf = (slept / need * 100).clamp(0, 100);
+          value = '${perf.round()}';
+          suffix = '%';
+          frac = perf / 100;
+        } else if (slept != null) {
+          value = hMinutes(slept);
+        }
+        arc = C.dialSleep;
+      case HomeRingKind.recovery:
+        final v = d.readiness.value!;
+        value = '${v.round()}';
+        suffix = '%';
+        frac = v / 100;
+        arc = r.provisional ? p.ink3 : recoveryColor(v);
+      case HomeRingKind.strain:
+        final v = d.strain.value!;
+        value = v.toStringAsFixed(1);
+        frac = v / 21;
+        arc = C.dialStrain;
+    }
+  } else if (r.calibrating) {
+    frac = r.frac;
+  }
+  return (value, suffix, frac, arc);
+}
+
+String _dialName(HomeRingKind k, AppLocalizations? l) => switch (k) {
+      HomeRingKind.sleep => l?.homeRingSleep ?? 'Sleep',
+      HomeRingKind.recovery => l?.homeRingRecovery ?? 'Recovery',
+      HomeRingKind.strain => l?.homeRingStrain ?? 'Strain',
+    };
+
+class _ScoreDial extends StatelessWidget {  final _RingState r;
   final HomeData d;
   final VoidCallback onTap;
 
@@ -2680,55 +2770,18 @@ class _ScoreDial extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
-    // What the dial reads, in the units of its score.
-    var value = '--';
-    var suffix = '';
-    double? frac;
-    var arc = p.ink3;
-    if (r.measured) {
-      switch (r.kind) {
-        case HomeRingKind.sleep:
-          // Sleep Performance: hours slept against hours needed, capped at
-          // 100. With no computed need there is no denominator, so the dial
-          // shows the hours and an open track rather than inventing one.
-          final slept = d.sleepMin.value;
-          final need = d.sleepNeedMin.value;
-          if (slept != null && need != null && need > 0) {
-            final perf = (slept / need * 100).clamp(0, 100);
-            value = '${perf.round()}';
-            suffix = '%';
-            frac = perf / 100;
-          } else if (slept != null) {
-            value = hMinutes(slept);
-          }
-          arc = C.dialSleep;
-        case HomeRingKind.recovery:
-          final v = d.readiness.value!;
-          value = '${v.round()}';
-          suffix = '%';
-          frac = v / 100;
-          arc = r.provisional ? p.ink3 : recoveryColor(v);
-        case HomeRingKind.strain:
-          final v = d.strain.value!;
-          value = v.toStringAsFixed(1);
-          frac = v / 21;
-          arc = C.dialStrain;
-      }
-    } else if (r.calibrating) {
-      frac = r.frac;
-    }
-    final name = switch (r.kind) {
-      HomeRingKind.sleep => l?.homeRingSleep ?? 'Sleep',
-      HomeRingKind.recovery => l?.homeRingRecovery ?? 'Recovery',
-      HomeRingKind.strain => l?.homeRingStrain ?? 'Strain',
-    };
+    final (value, suffix, frac, arc) = _dialFace(r, d, p);
+    final name = _dialName(r.kind, l);
     return Pressable(
       onTap: onTap,
       semanticLabel: '$name. ${r.measured ? '$value$suffix' : r.value}',
       child: Column(children: [
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: S.x16 * 2 + S.x4),
-          child: AspectRatio(
+          // 85 % of the column: the dials sit a little smaller than the grid.
+          child: FractionallySizedBox(
+           widthFactor: 0.85,
+           child: AspectRatio(
             aspectRatio: 1,
             child: Stack(alignment: Alignment.center, children: [
               CustomPaint(
@@ -2761,6 +2814,7 @@ class _ScoreDial extends StatelessWidget {
                 ),
               ),
             ]),
+           ),
           ),
         ),
         const SizedBox(height: S.x3),
@@ -2906,6 +2960,161 @@ class _MyDay extends StatelessWidget {
             if (i > 0) const SizedBox(height: S.x3),
             rows[i],
           ],
+      ]),
+    );
+  }
+}
+
+/// The three dials, folded into one row: what slides in at the top once the
+/// big dials have scrolled away. Same faces, same doors.
+class _CompactDials extends StatelessWidget {
+  final HomeData d;
+  final void Function(HomeRingKind) onOpen;
+  const _CompactDials({required this.d, required this.onOpen});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final l = AppLocalizations.of(c);
+    Widget one(HomeRingKind k) {
+      final r = _ringOf(k, d, l);
+      final (value, suffix, frac, arc) = _dialFace(r, d, p);
+      final name = _dialName(k, l);
+      return Pressable(
+        onTap: () => onOpen(k),
+        semanticLabel: '$name. ${r.measured ? '$value$suffix' : r.value}',
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          SizedBox(
+            width: S.x8,
+            height: S.x8,
+            child: CustomPaint(
+              painter: r.calibrating
+                  ? DashedRing(frac ?? 0, p.ink3, p.track,
+                      stroke: S.x1, segments: r.need ?? 24)
+                  : Ring(frac ?? 0, arc, p.track, stroke: S.x1, solid: true),
+            ),
+          ),
+          const SizedBox(width: S.x2),
+          Flexible(
+            child: Text(name.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: F.caps.copyWith(color: p.ink)),
+          ),
+        ]),
+      );
+    }
+
+    return Row(children: [
+      for (final k in HomeRingKind.values) Expanded(child: one(k)),
+    ]);
+  }
+}
+
+/// TONIGHT'S SLEEP: the bedtime the sleep coach recommends and the alarm that
+/// ends the night. Each half is a dash when there is nothing behind it.
+class _TonightsSleep extends StatelessWidget {
+  final int? bedtimeMin;
+  final (DateTime?, AlarmArmState)? alarm;
+  const _TonightsSleep({required this.bedtimeMin, required this.alarm});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final at = alarm?.$1;
+    final state = alarm?.$2 ?? AlarmArmState.none;
+    final (String status, Color dot) = at == null
+        ? ('ALARM OFF', p.ink3)
+        : switch (state) {
+            AlarmArmState.confirmed => ('ALARM ON', C.recGreen),
+            AlarmArmState.pending => ('SENDING TO BAND', C.recYellow),
+            AlarmArmState.unknown => ('NOT CONFIRMED', C.recYellow),
+            AlarmArmState.none => ('ALARM OFF', p.ink3),
+          };
+    void openAlarm() => go(c, const AlarmScreen());
+
+    Widget half(IconData icon, String time, Widget under) =>
+        Column(children: [
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: I.lg, color: p.ink2),
+            const SizedBox(width: S.x2),
+            Text(time,
+                style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+          ]),
+          const SizedBox(height: S.x1),
+          under,
+        ]);
+
+    return Surface(
+      pad: const EdgeInsets.all(S.x4),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Pressable(
+          onTap: openAlarm,
+          semanticLabel: 'Tonight’s sleep',
+          child: Row(children: [
+            Expanded(
+                child: Text('TONIGHT’S SLEEP',
+                    style: F.caps.copyWith(color: p.ink))),
+            SizedBox(
+              width: S.tap,
+              height: S.tap,
+              child: Icon(LucideIcons.chevronRight, size: I.md, color: p.ink2),
+            ),
+          ]),
+        ),
+        const SizedBox(height: S.x2),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(
+            child: half(
+              LucideIcons.sunset,
+              bedtimeMin == null ? '--' : clock(bedtimeMin),
+              Text('RECOMMENDED\nBEDTIME',
+                  textAlign: TextAlign.center,
+                  style: F.over.copyWith(
+                      color: p.ink2, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: S.x4),
+            child: Text('- - - -', style: F.cap.copyWith(color: p.ink3)),
+          ),
+          Expanded(
+            child: half(
+              LucideIcons.alarmClock,
+              at == null ? '--' : formatClockOf(at),
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                  width: S.x2,
+                  height: S.x2,
+                  decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: S.x1),
+                Flexible(
+                  child: Text(status,
+                      style: F.over.copyWith(
+                          color: dot == p.ink3 ? p.ink2 : dot,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2)),
+                ),
+              ]),
+            ),
+          ),
+        ]),
+        const SizedBox(height: S.x4),
+        Pressable(
+          onTap: openAlarm,
+          semanticLabel: at == null ? 'Set alarm' : 'Edit alarm',
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: S.x4),
+            decoration: BoxDecoration(color: p.card2, borderRadius: R.rMd),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(LucideIcons.pencil, size: I.md, color: p.ink),
+              const SizedBox(width: S.x3),
+              Text(at == null ? 'SET ALARM' : 'EDIT ALARM',
+                  style: F.caps.copyWith(color: p.ink)),
+            ]),
+          ),
+        ),
       ]),
     );
   }
