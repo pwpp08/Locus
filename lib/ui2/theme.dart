@@ -174,6 +174,10 @@ class C {
   static const coachEdgeA = Color(0xFF7E57C2);
   static const coachEdgeB = Color(0xFF3FA7B5);
 
+  /// The sleep recommendation's panel: a pale mint ground on the white sheet,
+  /// inked in [char]. A ground, not an accent, so it is not in [all].
+  static const mint = Color(0xFFDFF8EF);
+
   /// Every accent the contrast test sweeps. Adding a colour above without
   /// adding it here means it ships unverified.
   static const all = <Color>[

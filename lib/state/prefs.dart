@@ -87,7 +87,13 @@ class Prefs {
   static const String shellTabV3 = 'ui.shell_tab.v3';
 
   /// My Dashboard's tiles, in order, comma-separated keys. Empty = default.
-  static const String dashboardTiles = 'ui.dashboard_tiles';
+  // v2: the Trend View catalogue. The old tile keys are a different list, so
+  // a saved v1 order is not carried over.
+  static const String dashboardTiles = 'ui.dashboard_tiles.v2';
+
+  /// The Sleep Planner's wake time, minute of day. Unset (-1): the armed
+  /// alarm, else the usual wake time the sleep coach learned.
+  static const String sleepPlannerWakeMin = 'sleep_planner.wake_min';
   static const String recapRange = 'ui.recap_range';
   static const String workoutsRange = 'ui.workouts_range';
 

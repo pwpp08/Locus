@@ -310,6 +310,12 @@ const _notComponents = {
   'ProfileHome', 'ProfileHomeView', 'MoreSettings', 'MoreSettingsView',
   'NotificationSettings', 'NotificationSettingsView', 'EditProfile',
   'EditProfileView', 'DataScreen', 'AlarmScreen', 'AlarmScreenView',
+  // Reads the cross-day rollup and the armed alarm; the recommendation
+  // dialog it opens is private.
+  'SleepPlannerScreen',
+  // Reads every metric's daily values through a TrendLoader (the database,
+  // sessions and the cross-day rollup). Its rows have a gallery case.
+  'TrendViewScreen',
   'ReportIssueScreen',
   'MyDevices', 'MyDevicesView', 'DeviceDetail', 'DeviceDetailView', 'RePair',
   // The strap-buzz relay picker: a Scaffold route over a live

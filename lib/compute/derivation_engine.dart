@@ -6511,7 +6511,7 @@ class DerivationEngine {
       // one layer up on the output.
       final builtForDay = LocalDb.localDayLabelNow();
       final builtAtEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final (bundleJson, dropped) = await _runIsolateCancellable(
+      final (bundleJson, dropped, coachDay) = await _runIsolateCancellable(
         () {
           final bundle =
               buildCrossDayBundle(
@@ -6528,7 +6528,7 @@ class DerivationEngine {
           final paths = <String>[];
           final safe = sanitizeForJson(bundle, paths) as Map<String, dynamic>;
           if (paths.isNotEmpty) safe['encode_dropped_fields'] = paths;
-          return (jsonEncode(safe), paths);
+          return (jsonEncode(safe), paths, sleepCoachDaySeries(safe));
         },
         _crossDayTimeout,
         label: 'crossday',
@@ -6536,6 +6536,15 @@ class DerivationEngine {
       if (!await LocalDb.putReviewedBaseline('crossday', bundleJson, reviewRevision)) {
         _log('crossday: newer activity review; leaving its refresh queued');
         return false;
+      }
+      // FORWARD-ONLY HISTORY of two figures the cross-day bundle only ever
+      // holds for TODAY (it is rebuilt, not appended): tonight's sleep need and
+      // the sleep debt behind it, dated the day they were computed for. Trend
+      // View's Sleep Performance / Hours vs. Needed / Sleep Debt read them; no
+      // past day is given a value it was never computed with. Null is written
+      // as null, so a day whose need went absent does not keep an older one.
+      for (final e in coachDay.entries) {
+        await LocalDb.putMetricSeriesValue(builtForDay, e.key, e.value);
       }
       if (dropped.isNotEmpty) {
         // Loud, not debug-only: a dropped field is a metric the user will see

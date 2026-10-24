@@ -8799,6 +8799,39 @@ class LocalDb {
       'WHERE algo_version <= $_servedAlgoCeiling GROUP BY day_id) m '
       'ON r.day_id = m.day_id AND r.algo_version = m.v';
 
+  /// Per served day, the day-bundle figures Trend View charts that have no
+  /// `metric_series` key: waking heart-rate-zone minutes (`zones`, a JSON
+  /// object z1..z5), the day's mean heart rate (`hr_stats.avg`) and the
+  /// night's time in bed (`sleep.window.value.spt_sec`). Pulled with
+  /// json_extract, so a six-month view never decodes whole bundles on the UI
+  /// isolate. A figure the day did not produce is NULL.
+  static Future<List<Map<String, Object?>>> dayTrendFigures() async {
+    final db = await instance;
+    return db.rawQuery(
+      'SELECT r.day_id AS day, '
+      "json_extract(r.payload_json, '\$.zones') AS zones, "
+      "json_extract(r.payload_json, '\$.hr_stats.avg') AS hr_avg, "
+      "json_extract(r.payload_json, '\$.sleep.window.value.spt_sec') AS spt_sec "
+      'FROM day_result r $_servedDayJoin '
+      'WHERE json_valid(r.payload_json) ORDER BY r.day_id',
+    );
+  }
+
+  /// Every finished session with its logged strength: the set count, and the
+  /// volume load (Σ reps × load over the sets that HAVE a load — NULL when
+  /// none do, since a bodyweight-only session has a volume nobody measured).
+  static Future<List<Map<String, Object?>>> sessionStrengthTotals() async {
+    final db = await instance;
+    return db.rawQuery(
+      'SELECT s.start_ts, s.end_ts, s.duration_min, s.type, '
+      '(SELECT SUM(ss.reps * ss.load_kg) FROM strength_set ss '
+      ' WHERE ss.session_id = s.id AND ss.load_kg IS NOT NULL '
+      ' AND ss.reps IS NOT NULL) AS volume_kg, '
+      '(SELECT COUNT(*) FROM strength_set ss WHERE ss.session_id = s.id) AS sets '
+      "FROM sessions s WHERE s.status = 'done'",
+    );
+  }
+
   /// The result row for one day_id at the highest version this build serves
   /// (see [_servedAlgoCeiling]), with a normalized `date` alias for callers.
   /// Null if absent.

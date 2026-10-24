@@ -591,6 +591,22 @@ Map<String, dynamic> buildCrossDayBundle(
 
 double? _numOrNull(Object? v) => v is num ? v.toDouble() : null;
 
+/// The two sleep-coach figures worth a daily history, read off a built bundle:
+/// tonight's need (minutes of sleep) and the sleep debt behind it (minutes).
+/// Absent envelopes are null, never 0 — `metric_series` stores the null so a
+/// day whose need went absent does not keep an earlier pass's value.
+Map<String, double?> sleepCoachDaySeries(Map<String, dynamic> bundle) {
+  Map? valueOf(Object? env) =>
+      env is Map && env['value'] is Map ? env['value'] as Map : null;
+  final coach = bundle['sleep_coach'];
+  final needSec = _numOrNull(valueOf(coach is Map ? coach['need'] : null)?['need_sec']);
+  final debtH = _numOrNull(valueOf(bundle['sleep_debt'])?['debt_hours']);
+  return {
+    'sleep_need_min': needSec == null ? null : needSec / 60,
+    'sleep_debt_min': debtH == null ? null : debtH * 60,
+  };
+}
+
 /// Make [value] safe to hand to `jsonEncode`, dropping only the leaves that are
 /// not.
 ///

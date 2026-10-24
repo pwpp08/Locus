@@ -81,6 +81,8 @@ import 'day_timeline.dart' show DayTimelineScreen;
 import 'metric_detail.dart';
 import 'readiness_detail.dart';
 import 'sleep_detail.dart';
+import 'sleep_planner.dart';
+import 'trend_view.dart';
 
 // ═══════════════════ shared plumbing ═══════════════════
 
@@ -1377,6 +1379,10 @@ class HomeData {
   final int stepGoal;
   final Metric sleepNeedMin;
   final Metric bedtime;
+
+  /// Tonight's sleep plan off the same rollup — what Tonight's Sleep and the
+  /// Sleep Planner both read, so the two bedtimes never disagree.
+  final SleepPlan plan;
   final Map<String, dynamic>? strainTarget;
 
   /// Non-null when the cross-day rollup was withheld rather than absent — see
@@ -1434,6 +1440,7 @@ class HomeData {
     this.stepGoal = kDefaultStepGoal,
     this.sleepNeedMin = Metric.empty,
     this.bedtime = Metric.empty,
+    this.plan = const SleepPlan(),
     this.strainTarget,
     this.heldOverNight,
     this.illnessState,
@@ -1462,6 +1469,7 @@ class HomeData {
         stepGoal: stepGoal,
         sleepNeedMin: sleepNeedMin,
         bedtime: bedtime,
+        plan: plan,
         strainTarget: strainTarget,
         heldOverNight: heldOverNight,
         illnessState: state,
@@ -1585,6 +1593,7 @@ class HomeData {
       strainTarget: strain is Map && strain['strain_target'] is Map
           ? (strain['strain_target'] as Map).cast<String, dynamic>()
           : null,
+      plan: SleepPlan.of(cd),
       insightsStale: staleReasonOf(cd),
     );
   }
@@ -1703,6 +1712,14 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       _night = widget.night ?? const {};
       _sessions = widget.sessions ?? const [];
       _charts = widget.charts ?? const {};
+      // Handed series (goldens, gallery): each one a dashboard metric's days.
+      _daily = {
+        for (final e in (widget.charts ?? const <String, List<ChartPoint>>{}).entries)
+          e.key: {
+            for (final p in e.value)
+              dayLabelOf(DateTime.fromMillisecondsSinceEpoch(p.t * 1000)): p.v,
+          },
+      };
       _loading = false;
       return;
     }
@@ -1883,16 +1900,29 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             .compareTo((b['start_ts'] as num?) ?? 0));
       }
     } catch (_) {}
-    for (final k in {..._tiles, 'stress'}) {
-      try {
-        charts[k] = pointsOf(await repo.getChart(k));
-      } catch (_) {}
+    try {
+      charts['stress'] = pointsOf(await repo.getChart('stress'));
+    } catch (_) {}
+    // My Dashboard: each row's daily values, through one loader so the reads
+    // several metrics share are made once.
+    final loader = TrendLoader(repo);
+    final daily = <String, Map<String, double>>{};
+    for (final k in _tiles) {
+      final m = trendMetricOf(k);
+      if (m != null) daily[k] = await loader.daily(m);
     }
+    final first = await loader.firstDay();
     if (!mounted) return;
     _night = night;
     _sessions = sessions;
     _charts = charts;
+    _daily = daily;
+    _firstDay = first;
   }
+
+  /// My Dashboard's rows: per metric, its value on each local day.
+  Map<String, Map<String, double>> _daily = const {};
+  String? _firstDay;
 
   /// The header every Home state carries: the profile and the streak on the
   /// left, the day pager in the middle, the band on the right.
@@ -2108,10 +2138,16 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       ),
       if (isToday) ...[
         const SizedBox(height: S.x3),
-        _TonightsSleep(
-          bedtimeMin: d.bedtime.value?.round(),
-          alarm: alarmArmOfContext(c),
-        ),
+        Builder(builder: (c) {
+          final alarm = alarmArmOfContext(c);
+          return _TonightsSleep(
+            // The planner's bedtime for the wake time it plans to; the
+            // coach's own when there is no plan to build it from.
+            bedtimeMin: d.plan.bedtimeFor(plannedWakeMin(d.plan, alarm)) ??
+                d.bedtime.value?.round(),
+            alarm: alarm,
+          );
+        }),
       ],
       const SizedBox(height: S.x3),
       const DetectedActivitiesCard(),
@@ -2124,23 +2160,30 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         _myPlan(c, p, d),
       ],
 
-      // ── MY DASHBOARD ── the tiles the user picked, in their order.
+      // ── MY DASHBOARD ── the metrics the user picked, one row each, in
+      // their order. A row opens Trend View on that metric.
       _SectionHead(
         'My Dashboard',
         trailing: Pressable(
           onTap: _editDashboard,
-          semanticLabel: 'Edit My Dashboard',
+          semanticLabel: 'Customize My Dashboard',
           child: SizedBox(
-            width: S.tap,
             height: S.tap,
-            child: Icon(LucideIcons.pencil, size: I.md, color: p.ink2),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text('CUSTOMIZE',
+                  style: F.caps.copyWith(color: p.ink, letterSpacing: 1.6)),
+              const SizedBox(width: S.x2),
+              Icon(LucideIcons.pencil, size: I.md, color: p.ink),
+            ]),
           ),
         ),
       ),
-      _Dashboard(
-        tiles: _tiles,
-        charts: _charts,
-        onOpen: (k) => go(c, MetricDetail(k)),
+      DashboardRows(
+        ids: _tiles,
+        daily: _daily,
+        today: d.dayId ?? todayLabel(widget.now),
+        firstDay: _firstDay,
+        onOpen: (k) => go(c, TrendViewScreen(initial: k)),
       ),
 
       // ── STRESS MONITOR ── the trend, one tap from the full chart.
@@ -2475,25 +2518,18 @@ Widget firstWeekCard(BuildContext c,
 
 // ═══════════════════ the Home components ═══════════════════
 
-/// Everything My Dashboard can hold — every metric with a written spec and a
-/// stored series.
-const kDashboardCatalogue = [
-  'hrv', 'resting_hr', 'resp_rate', 'steps', 'calories', 'stress',
-  'sleep', 'efficiency', 'deep', 'rem', 'strain', 'active_min',
-  'skin_temp', 'wear', 'hrv_cv', 'dip', 'readiness',
-];
-
+/// What My Dashboard shows until the user customizes it.
 const kDashboardDefault = [
-  'hrv', 'resting_hr', 'resp_rate', 'steps', 'calories', 'sleep',
+  'hrv', 'resting_hr', 'steps', 'zones_13', 'zones_45', 'sleep_perf',
 ];
 
-/// The saved tile order, unknown keys dropped. Unset is the default set.
+/// The saved row order, unknown keys dropped. Unset is the default set.
 List<String> dashboardTilesOf() {
   final raw = Prefs.getString(Prefs.dashboardTiles, '');
   if (raw.isEmpty) return kDashboardDefault;
   return [
     for (final k in raw.split(','))
-      if (kDashboardCatalogue.contains(k)) k,
+      if (trendMetricOf(k) != null) k,
   ];
 }
 
@@ -2578,9 +2614,9 @@ class _DayPager extends StatelessWidget {
           child: Pressable(
             onTap: to == null ? null : () => onDay(to),
             child: SizedBox(
-              width: S.tap,
-              height: S.tap,
-              child: Icon(i, size: I.md, color: to == null ? p.track : p.ink),
+              width: S.x10,
+              height: S.x10,
+              child: Icon(i, size: I.sm, color: to == null ? p.track : p.ink),
             ),
           ),
         );
@@ -2590,11 +2626,13 @@ class _DayPager extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         arrow(LucideIcons.chevronLeft, older, 'Previous day'),
         Container(
-          constraints: const BoxConstraints(minWidth: S.x16 + S.x8),
-          padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x2),
+          constraints: const BoxConstraints(minWidth: S.x16 + S.x4),
+          padding: const EdgeInsets.symmetric(horizontal: S.x2, vertical: S.x1),
           decoration: BoxDecoration(color: p.track, borderRadius: R.rMd),
           alignment: Alignment.center,
-          child: Text(label, style: F.caps.copyWith(color: p.ink)),
+          child: Text(label,
+              style: F.over.copyWith(
+                  color: p.ink, fontWeight: FontWeight.w700, letterSpacing: 1.4)),
         ),
         arrow(LucideIcons.chevronRight, newer, 'Next day'),
       ]),
@@ -2626,29 +2664,27 @@ class _DeviceStatus extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         if (battery != null) ...[
           Text('${battery.$1.round()}%',
-              style: F.body.copyWith(
+              style: F.cap.copyWith(
                   color: low ? p.on(C.red) : p.ink3, fontWeight: FontWeight.w700)),
-          const SizedBox(width: S.x1),
+          const SizedBox(width: S.half),
         ],
         SizedBox(
           width: S.x8,
           height: S.x8,
           child: Stack(children: [
             Center(
-              child: syncing
-                  ? SizedBox(
-                      width: I.lg,
-                      height: I.lg,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: p.ink2),
-                    )
-                  : Icon(
-                      battery?.$2 == true
-                          ? LucideIcons.batteryCharging
-                          : LucideIcons.watch,
-                      size: I.lg,
-                      color: p.ink2),
+              child: Icon(
+                  battery?.$2 == true && !syncing
+                      ? LucideIcons.batteryCharging
+                      : LucideIcons.watch,
+                  size: I.lg,
+                  color: p.ink2),
             ),
+            // Receiving from the strap: an arrow hops up and down where the
+            // link dot sits.
+            if (syncing)
+              const Positioned(right: 0, top: 0, child: _SyncArrow())
+            else
             Positioned(
               right: 0,
               top: 0,
@@ -2665,6 +2701,37 @@ class _DeviceStatus extends StatelessWidget {
           ]),
         ),
       ]),
+    );
+  }
+}
+
+/// An up arrow that hops while data comes off the band. Each hop retargets the
+/// tween on its own end — no `.repeat(` — and with reduced motion it simply
+/// sits still.
+class _SyncArrow extends StatefulWidget {
+  const _SyncArrow();
+
+  @override
+  State<_SyncArrow> createState() => _SyncArrowState();
+}
+
+class _SyncArrowState extends State<_SyncArrow> {
+  bool _up = true;
+
+  @override
+  Widget build(BuildContext c) {
+    const arrow = Icon(LucideIcons.arrowUp, size: I.sm, color: C.orange);
+    if (!Motion.enabled(c)) return arrow;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: _up ? 1 : 0),
+      duration: Motion.slow,
+      curve: Curves.easeInOut,
+      onEnd: () {
+        if (mounted) setState(() => _up = !_up);
+      },
+      builder: (_, t, child) =>
+          Transform.translate(offset: Offset(0, -S.x1 * t), child: child),
+      child: arrow,
     );
   }
 }
@@ -3049,7 +3116,7 @@ class _TonightsSleep extends StatelessWidget {
       pad: const EdgeInsets.all(S.x4),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Pressable(
-          onTap: openAlarm,
+          onTap: () => go(c, const SleepPlannerScreen()),
           semanticLabel: 'Tonight’s sleep',
           child: Row(children: [
             Expanded(
@@ -3268,101 +3335,6 @@ class _PlanRow extends StatelessWidget {
   return (value: value, unit: unitBeside(spec.unit), when: when);
 }
 
-/// The tiles the user chose, two to a row. Tap one for its trend.
-class _Dashboard extends StatelessWidget {
-  final List<String> tiles;
-  final Map<String, List<ChartPoint>> charts;
-  final ValueChanged<String> onOpen;
-
-  const _Dashboard(
-      {required this.tiles, required this.charts, required this.onOpen});
-
-  @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    if (tiles.isEmpty) {
-      return Surface(
-        child: Text('No metrics on your dashboard. Tap the pencil to add some.',
-            style: F.body.copyWith(color: p.ink3)),
-      );
-    }
-    return Column(children: [
-      for (var i = 0; i < tiles.length; i += 2) ...[
-        if (i > 0) const SizedBox(height: S.x3),
-        IntrinsicHeight(
-          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Expanded(child: _tile(c, tiles[i])),
-            const SizedBox(width: S.x3),
-            Expanded(
-                child: i + 1 < tiles.length
-                    ? _tile(c, tiles[i + 1])
-                    : const SizedBox.shrink()),
-          ]),
-        ),
-      ],
-    ]);
-  }
-
-  Widget _tile(BuildContext c, String key) {
-    final p = P.of(c);
-    final spec = specOf(key);
-    final pts = charts[key] ?? const <ChartPoint>[];
-    final latest = _latestOf(c, key, pts);
-    final week = denseDays(pts, 7);
-    final title = uiText(c, spec.title);
-    return Surface(
-      onTap: () => onOpen(key),
-      semanticLabel: latest == null
-          ? '$title. No data'
-          : '$title. ${latest.value} ${latest.unit}. ${latest.when}',
-      pad: const EdgeInsets.all(S.x4),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(spec.icon, size: I.sm, color: p.ink3),
-          const SizedBox(width: S.x2),
-          Expanded(
-            child: Text(title.toUpperCase(),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: F.over.copyWith(color: p.ink2, letterSpacing: 1.2)),
-          ),
-        ]),
-        const SizedBox(height: S.x3),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Flexible(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(latest?.value ?? '--',
-                    style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-              ),
-            ),
-            if (latest != null && latest.unit.isNotEmpty) ...[
-              const SizedBox(width: S.x1),
-              Text(latest.unit, style: F.cap.copyWith(color: p.ink3)),
-            ],
-          ],
-        ),
-        const SizedBox(height: S.x1),
-        Text(latest?.when ?? 'No data', style: F.cap.copyWith(color: p.ink3)),
-        if (week.whereType<double>().length >= 2) ...[
-          const SizedBox(height: S.x2),
-          SizedBox(
-            height: S.x6,
-            child: CustomPaint(
-              size: Size.infinite,
-              painter: LineChart(week, spec.color, fill: false, t: animate(c, 1)),
-            ),
-          ),
-        ],
-      ]),
-    );
-  }
-}
-
 /// STRESS MONITOR: the newest score and the last fourteen days behind it.
 class _StressMonitor extends StatelessWidget {
   final List<ChartPoint> points;
@@ -3427,8 +3399,8 @@ class _DashboardEditor extends StatefulWidget {
 class _DashboardEditorState extends State<_DashboardEditor> {
   late final List<String> _order = [
     ...widget.selected,
-    for (final k in kDashboardCatalogue)
-      if (!widget.selected.contains(k)) k,
+    for (final m in kTrendCatalogue)
+      if (!widget.selected.contains(m.id)) m.id,
   ];
   late final Set<String> _on = {...widget.selected};
 
@@ -3456,7 +3428,7 @@ class _DashboardEditorState extends State<_DashboardEditor> {
               }),
               itemBuilder: (c, i) {
                 final k = _order[i];
-                final spec = specOf(k);
+                final m = trendMetricOf(k)!;
                 return Padding(
                   key: ValueKey(k),
                   padding: const EdgeInsets.symmetric(vertical: S.x1),
@@ -3470,16 +3442,15 @@ class _DashboardEditorState extends State<_DashboardEditor> {
                             size: I.md, color: p.ink3),
                       ),
                     ),
-                    Icon(spec.icon, size: I.md, color: p.ink2),
+                    Icon(m.icon, size: I.md, color: p.ink2),
                     const SizedBox(width: S.x3),
                     Expanded(
-                      child: Text(uiText(c, spec.title),
-                          style: F.body.copyWith(color: p.ink)),
+                      child: Text(m.title, style: F.body.copyWith(color: p.ink)),
                     ),
                     AppSwitch(
                       _on.contains(k),
                       (v) => setState(() => v ? _on.add(k) : _on.remove(k)),
-                      semanticLabel: uiText(c, spec.title),
+                      semanticLabel: m.title,
                     ),
                   ]),
                 );

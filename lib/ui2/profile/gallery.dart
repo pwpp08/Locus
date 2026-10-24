@@ -1505,6 +1505,18 @@ Map<String, Widget> _stateCases() => {
           color: C.domHealth),
       'nav_bar_no_sub': const NavBar('Component gallery'),
       'ai_orb': const AiOrb(),
+      // My Dashboard: a daily metric against its week, a weekly total
+      // against last week's, and a metric this app does not produce.
+      'dashboard_rows': DashboardRows(
+        ids: const ['hrv', 'resting_hr', 'zones_13', 'vo2max'],
+        today: '2026-08-16',
+        daily: {
+          'hrv': {for (var i = 0; i < 8; i++) shiftDay('2026-08-16', -i): 60.0 + i},
+          'resting_hr': {for (var i = 0; i < 8; i++) shiftDay('2026-08-16', -i): 54.0 - i % 3},
+          'zones_13': {for (var i = 0; i < 14; i++) shiftDay('2026-08-16', -i): 20.0 + i * 3},
+        },
+        onOpen: (_) {},
+      ),
       'profile_photo_header': const ProfilePhotoHeader(name: 'Alex'),
       // The oldest day on disk — back is dead, forward is live.
       'day_nav_oldest': DayNav(
