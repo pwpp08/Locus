@@ -22,7 +22,14 @@ void main() {
   late ActivityStore store;
   late LocalRepositoryImpl repo;
   final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-  final start = now - 7200;
+  // Two hours ago, pulled earlier when the fixtures (up to start + 1 h) would
+  // cross local midnight — CI runs at 01:55 UTC put them on two different days.
+  final start = () {
+    final s = DateTime.fromMillisecondsSinceEpoch((now - 7200) * 1000);
+    final midnight = DateTime(s.year, s.month, s.day + 1);
+    final room = midnight.millisecondsSinceEpoch ~/ 1000 - (now - 7200);
+    return room > 3600 ? now - 7200 : now - 7200 - 3600;
+  }();
   final day = dayLabelOf(DateTime.fromMillisecondsSinceEpoch(start * 1000));
   Map<String, dynamic> nap([int delta = 0]) => {
     'start': start + delta,
