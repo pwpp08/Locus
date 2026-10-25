@@ -584,7 +584,7 @@ dependencies:
   latlong2: ^0.9.1
   geolocator: ^13.0.2
 
-  # Type: Outfit + Manrope are BUNDLED under assets/fonts/ (declared in
+  # Type: Figtree + Barlow (digits) + Manrope are BUNDLED under assets/fonts/ (declared in
   # flutter.fonts below), not pulled at runtime — see the note there.
 
   # Declarative motion (flutter_animate) and the five-pack icon mix that
@@ -722,20 +722,39 @@ flutter:
   # SIL Open Font License (OFL.txt alongside the .ttf files, from
   # https://github.com/google/fonts).
   fonts:
-    # The Volt type family (docs/design/DESIGN_OVERHAUL.md §4.5). SIL OFL,
-    # licence in assets/fonts/Outfit/OFL.txt. 700 is bundled because seven
-    # call sites still ask for it; without the file Flutter would fake it.
-    - family: Outfit
+    # Words: Figtree. SIL OFL, licence in assets/fonts/Figtree/OFL.txt. The
+    # upstream file is one variable font; it is cut into static weights so
+    # every platform draws the same weight instead of synthesising one.
+    - family: Figtree
       fonts:
-        - asset: assets/fonts/Outfit/Outfit-400.ttf
+        - asset: assets/fonts/Figtree/Figtree-300.ttf
+          weight: 300
+        - asset: assets/fonts/Figtree/Figtree-400.ttf
           weight: 400
-        - asset: assets/fonts/Outfit/Outfit-500.ttf
+        - asset: assets/fonts/Figtree/Figtree-500.ttf
           weight: 500
-        - asset: assets/fonts/Outfit/Outfit-600.ttf
+        - asset: assets/fonts/Figtree/Figtree-600.ttf
           weight: 600
-        - asset: assets/fonts/Outfit/Outfit-700.ttf
+        - asset: assets/fonts/Figtree/Figtree-700.ttf
           weight: 700
-    # Outfit has no Cyrillic: Russian falls through to Manrope (F's
+        - asset: assets/fonts/Figtree/Figtree-800.ttf
+          weight: 800
+    # Numbers: Barlow, cut down to the glyphs a number is written with (the
+    # digits and . , : % + and the minus sign). Every style names this family
+    # first and Figtree after it, so a digit anywhere in the app is Barlow and
+    # every letter falls through to Figtree. SIL OFL, licence in
+    # assets/fonts/BarlowNums/OFL.txt.
+    - family: BarlowNums
+      fonts:
+        - asset: assets/fonts/BarlowNums/BarlowNums-400.ttf
+          weight: 400
+        - asset: assets/fonts/BarlowNums/BarlowNums-500.ttf
+          weight: 500
+        - asset: assets/fonts/BarlowNums/BarlowNums-600.ttf
+          weight: 600
+        - asset: assets/fonts/BarlowNums/BarlowNums-700.ttf
+          weight: 700
+    # Figtree has no Cyrillic: Russian falls through to Manrope (F's
     # fontFamilyFallback, lib/ui2/theme.dart), so it stays bundled.
     - family: Manrope
       fonts:

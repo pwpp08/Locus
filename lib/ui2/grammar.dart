@@ -158,6 +158,15 @@ class Scrubber extends StatelessWidget {
   final bool hold;
   final VoidCallback? onEnd;
 
+  /// Not a hold: fires when the finger lifts, or when a swipe gives it to the
+  /// page (see [yieldToScroll]).
+  final VoidCallback? onLift;
+
+  /// Not a hold: a swipe that runs mostly up or down belongs to the page. The
+  /// position stops following it and [onLift] fires, so a chart inside a
+  /// scrolling list does not scrub while the list moves.
+  final bool yieldToScroll;
+
   const Scrubber({
     super.key,
     required this.value,
@@ -168,6 +177,8 @@ class Scrubber extends StatelessWidget {
     this.step = .05,
     this.hold = false,
     this.onEnd,
+    this.onLift,
+    this.yieldToScroll = false,
   });
 
   @override
@@ -206,19 +217,76 @@ class Scrubber extends StatelessWidget {
               child: child,
             );
           }
-          return Listener(
-            // Opaque, like Pressable. A `Listener` defers to its child by
-            // default, so the strip was only touchable where the painter
-            // happened to claim a hit — which is a coincidence, not a target.
-            behavior: HitTestBehavior.opaque,
-            onPointerDown: (e) => set(e.localPosition),
-            onPointerMove: (e) => set(e.localPosition),
+          return _StripPointer(
+            onSet: set,
+            onLift: onLift,
+            yieldToScroll: yieldToScroll,
             child: child,
           );
         },
       ),
     );
   }
+}
+
+/// The pointer side of a [Scrubber] that is not a hold: a finger on the strip
+/// places the position and keeps moving it, and lifting it reports [onLift].
+class _StripPointer extends StatefulWidget {
+  final ValueChanged<Offset> onSet;
+  final VoidCallback? onLift;
+  final bool yieldToScroll;
+  final Widget child;
+
+  const _StripPointer({
+    required this.onSet,
+    required this.onLift,
+    required this.yieldToScroll,
+    required this.child,
+  });
+
+  @override
+  State<_StripPointer> createState() => _StripPointerState();
+}
+
+class _StripPointerState extends State<_StripPointer> {
+  int? _pointer;
+  Offset? _down;
+  bool _yielded = false;
+
+  void _finish(int pointer) {
+    if (pointer != _pointer) return;
+    _pointer = null;
+    if (!_yielded) widget.onLift?.call();
+  }
+
+  @override
+  Widget build(BuildContext c) => Listener(
+        // Opaque, like Pressable. A `Listener` defers to its child by
+        // default, so the strip was only touchable where the painter
+        // happened to claim a hit — which is a coincidence, not a target.
+        behavior: HitTestBehavior.opaque,
+        onPointerDown: (e) {
+          _pointer = e.pointer;
+          _down = e.localPosition;
+          _yielded = false;
+          widget.onSet(e.localPosition);
+        },
+        onPointerMove: (e) {
+          final down = _down;
+          if (e.pointer != _pointer || _yielded || down == null) return;
+          final dx = (e.localPosition.dx - down.dx).abs();
+          final dy = (e.localPosition.dy - down.dy).abs();
+          if (widget.yieldToScroll && dy > dx && dy > S.x2) {
+            _yielded = true;
+            widget.onLift?.call();
+            return;
+          }
+          widget.onSet(e.localPosition);
+        },
+        onPointerUp: (e) => _finish(e.pointer),
+        onPointerCancel: (e) => _finish(e.pointer),
+        child: widget.child,
+      );
 }
 
 /// The base card surface. Dark: the card plus a 1 px hairline, no shadow.

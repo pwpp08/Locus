@@ -31,7 +31,7 @@ void main() {
       for (final f in (pubspec['flutter']['fonts'] as YamlList))
         (f as Map)['family'] as String
     };
-    expect(families, containsAll(<String>['Outfit', 'Manrope']));
+    expect(families, containsAll(<String>['Figtree', 'BarlowNums', 'Manrope']));
 
     for (final f in (pubspec['flutter']['fonts'] as YamlList)) {
       for (final a in ((f as Map)['fonts'] as YamlList)) {

@@ -121,10 +121,12 @@ actually paint.
 
 ### Type — 7 steps, 3 weights
 
-One bundled family, **Outfit** (SIL OFL, `assets/fonts/Outfit`), on every
-platform. It has no Cyrillic, so Russian falls through to the bundled
-**Manrope**. Large text is lighter than it used to be: display and hero
-w500, titles w600, body w400.
+Words are **Figtree**, numbers are **Barlow** Bold (SIL OFL, bundled under
+`assets/fonts`), on every platform. Barlow is bundled as a digits-only face
+(`F.numerals`) that every style names first, so any digit is Barlow and any
+letter falls to Figtree. Figtree has no Cyrillic, so Russian falls through to
+the bundled **Manrope**, then to Helvetica Neue / Helvetica / Arial. Body is
+Figtree semibold, headlines are bold, uppercase, tracked 10 %.
 
 `F.display` 36 · `F.t1` 28 · `F.t2` 22 · `F.head` 17 · `F.body` 15 ·
 `F.cap` 13 · `F.over` 11 (callers uppercase it).

@@ -112,7 +112,7 @@ void main() {
 
   testWidgets('day strain draws the whole 0–21 scale its header names',
       (t) async {
-    t.view.physicalSize = const Size(390 * 3, 3000 * 3);
+    t.view.physicalSize = const Size(390 * 3, 5200 * 3);
     t.view.devicePixelRatio = 3;
     addTearDown(t.view.reset);
     final curve = List<double?>.filled(1440, null);

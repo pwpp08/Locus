@@ -166,7 +166,7 @@ Future<void> _loadType() async {
       .listSync()
       .whereType<File>()
       .where((f) => f.path.endsWith('.ttf'));
-  await loadOutfit();
+  await loadAppFonts();
   for (final family in const ['Manrope', '.SF Pro Text']) {
     final loader = FontLoader(family);
     for (final f in files) {

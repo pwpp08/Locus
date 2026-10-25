@@ -158,6 +158,19 @@ class C {
   // its own colour coding asks for: green 67–99, yellow 34–66, red 1–33.
   static const dialSleep = Color(0xFF7BA1BB);
   static const dialStrain = Color(0xFF0093E7);
+
+  // The strain screen's own set, read off its reference: the three strain
+  // bands Trend View counts days into (the top band is [dialStrain]), the
+  // down-arrow orange, and the five HR zones as the stacked cards draw them.
+  static const strainStrenuous = Color(0xFF0480CA);
+  static const strainModerate = Color(0xFF066DA7);
+  static const strainLight = Color(0xFF0A5A8B);
+  static const strainDown = Color(0xFFFFA624);
+  static const refZone1 = Color(0xFFAEC2CD);
+  static const refZone2 = Color(0xFF479AC2);
+  static const refZone3 = Color(0xFF59B896);
+  static const refZone4 = Color(0xFFFBAC5D);
+  static const refZone5 = Color(0xFFFF6422);
   static const recGreen = Color(0xFF16EC06);
   static const recYellow = Color(0xFFFFDE00);
   static const recRed = Color(0xFFFF0026);
@@ -356,17 +369,27 @@ class P {
 
 /// ── TYPE ── 7 steps + 5 numerals, tabular figures on anything that changes ─
 ///
-/// One bundled family on every platform — Outfit (SIL OFL, assets/fonts/Outfit)
-/// — so iOS, Android and the golden tests render the same design. It has no
-/// Cyrillic: Russian falls through to the bundled Manrope, which does, rather
-/// than to whatever the platform has, so Russian measures the same everywhere.
+/// Words are Figtree, numbers are Barlow Bold, both bundled (SIL OFL,
+/// assets/fonts) so iOS, Android and the golden tests render the same design.
+/// Barlow is bundled as a digits-only face, [numerals]: every style names it
+/// FIRST, so any digit — in a dial, a sentence or a table — is Barlow, and
+/// every letter, which that face does not have, falls to Figtree. Figtree has
+/// no Cyrillic: Russian falls through to the bundled Manrope, and anything
+/// past that to the platform's Helvetica Neue / Helvetica / Arial.
 ///
-/// Large type is LIGHTER than body-heavy UIs expect: display and hero numerals
-/// are w500, titles w600, body w400 (§4.5).
+/// Headlines are short, uppercase and tracked at 10 % ([caps]); body text is
+/// Figtree semibold; numerals are Barlow bold with its natural spacing.
 class F {
-  static const family = 'Outfit';
-  static const _f = family;
-  static const _fb = ['Manrope'];
+  static const family = 'Figtree';
+  static const numerals = 'BarlowNums';
+  static const _f = numerals;
+  static const _fb = [
+    family,
+    'Manrope',
+    'Helvetica Neue',
+    'Helvetica',
+    'Arial',
+  ];
   static const _tab = [FontFeature.tabularFigures()];
 
   // The 7 steps.
@@ -403,14 +426,14 @@ class F {
       fontFamilyFallback: _fb,
       fontSize: 15,
       height: 22 / 15,
-      fontWeight: FontWeight.w400,
-      letterSpacing: -.1);
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0);
   static const cap = TextStyle(
       fontFamily: _f,
       fontFamilyFallback: _fb,
       fontSize: 13,
       height: 18 / 13,
-      fontWeight: FontWeight.w400);
+      fontWeight: FontWeight.w600);
   /// Callers uppercase it.
   static const over = TextStyle(
       fontFamily: _f,
@@ -428,7 +451,7 @@ class F {
       fontSize: 13,
       height: 18 / 13,
       fontWeight: FontWeight.w700,
-      letterSpacing: 1.6);
+      letterSpacing: 1.3);
 
   /// The thin, spaced-out wordmark over the dials.
   static const wordmark = TextStyle(
@@ -446,40 +469,40 @@ class F {
       fontFamilyFallback: _fb,
       fontSize: 64,
       height: 1,
-      fontWeight: FontWeight.w500,
-      letterSpacing: -2.4,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0,
       fontFeatures: _tab);
   static const n48 = TextStyle(
       fontFamily: _f,
       fontFamilyFallback: _fb,
       fontSize: 48,
       height: 1,
-      fontWeight: FontWeight.w500,
-      letterSpacing: -1.6,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0,
       fontFeatures: _tab);
   static const n34 = TextStyle(
       fontFamily: _f,
       fontFamilyFallback: _fb,
       fontSize: 34,
       height: 1,
-      fontWeight: FontWeight.w500,
-      letterSpacing: -1.0,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0,
       fontFeatures: _tab);
   static const n24 = TextStyle(
       fontFamily: _f,
       fontFamilyFallback: _fb,
       fontSize: 24,
       height: 1,
-      fontWeight: FontWeight.w600,
-      letterSpacing: -.6,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0,
       fontFeatures: _tab);
   static const n17 = TextStyle(
       fontFamily: _f,
       fontFamilyFallback: _fb,
       fontSize: 17,
       height: 1,
-      fontWeight: FontWeight.w600,
-      letterSpacing: -.3,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0,
       fontFeatures: _tab);
 }
 

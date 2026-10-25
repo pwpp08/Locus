@@ -261,6 +261,29 @@ class TrendLoader {
     return out;
   }
 
+  /// The minutes in each of [which] zones, per day, one entry per zone in the
+  /// order given. A day with any of them missing is left out rather than
+  /// zero-filled: a stack with a silent gap would read as a short day.
+  Future<Map<String, List<double>>> zoneStack(List<int> which) async {
+    final out = <String, List<double>>{};
+    for (final r in await _figuresRows()) {
+      final raw = r['zones'];
+      if (raw is! String) continue;
+      Object? z;
+      try {
+        z = jsonDecode(raw);
+      } catch (_) {
+        continue;
+      }
+      if (z is! Map || z.isEmpty) continue;
+      final vals = [for (final i in which) z['z$i']];
+      if (vals.every((v) => v is num)) {
+        out[r['day'] as String] = [for (final v in vals) (v as num).toDouble()];
+      }
+    }
+    return out;
+  }
+
   Future<Map<String, double>> _figure(String col, {double scale = 1}) async => {
         for (final r in await _figuresRows())
           if (r[col] is num) r['day'] as String: (r[col] as num) * scale,
@@ -565,6 +588,7 @@ List<TrendBar> trendBars(TrendMetric m, Map<String, double> daily,
 /// a day still in progress is not part of an average.
 double? trendAverage(List<TrendBar> bars) => _mean([for (final b in bars) ?b.v]);
 
+
 class TrendViewScreen extends StatefulWidget {
   final String initial;
 
@@ -583,6 +607,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   late TrendMetric _m = trendMetricOf(widget.initial) ?? kTrendCatalogue.first;
   TrendRange _range = TrendRange.month;
   int _back = 0; // windows behind the current one
+
+  /// The bar under a finger. Null at rest, so the readout shows the average.
   int? _selected;
   bool _picking = false;
 
@@ -620,10 +646,66 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     _load();
   }
 
-  String _dayText(String d, AppLocalizations? l, {bool year = false}) {
-    final t = _dateOf(d);
-    final s = '${monthShortName(t.month, l)} ${t.day}';
-    return year ? '$s, ${(t.year % 100).toString().padLeft(2, '0')}' : s;
+  String _shortDate(String day, AppLocalizations? l) {
+    final t = _dateOf(day);
+    return '${monthShortName(t.month, l)} ${t.day}';
+  }
+
+  String _longDate(String day, AppLocalizations? l) {
+    final t = _dateOf(day);
+    return '${weekdayShortName(t.weekday, l)}, ${monthShortName(t.month, l)} '
+        '${t.day}, ${t.year}';
+  }
+
+  /// The readout's caption for a bar: its date, or its week's dates.
+  String _caption(TrendBar b, AppLocalizations? l) => b.from == b.to
+      ? _longDate(b.from, l)
+      : '${_shortDate(b.from, l)} - ${_longDate(b.to, l)}';
+
+  /// The axis: a round step, from zero (or the lowest value) to the highest
+  /// (or the metric's own ceiling).
+  ({double lo, double hi, List<double> ticks}) _axis(
+      TrendMetric m, List<TrendBar> bars) {
+    final vs = [for (final b in bars) ?b.v];
+    var lo = math.min(0.0, vs.isEmpty ? 0.0 : vs.reduce(math.min));
+    var hi = m.axisMax ?? (vs.isEmpty ? 1.0 : vs.reduce(math.max));
+    // Minutes step in whole half-hours, everything else on a round number.
+    double stepFor(double span) => m.fmt == TrendFmt.hmm
+        ? math.max(30.0, (_niceStep(span) / 30).ceil() * 30.0)
+        : _niceStep(span);
+    final step = stepFor(hi - lo);
+    hi = (hi / step).ceil() * step;
+    if (lo < 0) lo = (lo / step).floor() * step;
+    if (hi <= lo) hi = lo + step;
+    return (
+      lo: lo,
+      hi: hi,
+      ticks: [for (var t = lo; t <= hi + step / 1000; t += step) t],
+    );
+  }
+
+  String _tickText(TrendMetric m, double t) => m.fmt == TrendFmt.hmm
+      ? '${(t / 60).round()}h'
+      : m.fmt == TrendFmt.percent
+          ? '${t.round()}'
+          : (t >= 1000
+              ? '${(t / 1000).toStringAsFixed(t % 1000 == 0 ? 0 : 1)}k'
+              : '${t.round()}');
+
+  /// The label under each bar. A week names its days, a month marks every
+  /// seventh day counting back from today, six months names each new month.
+  String _xLabel(int i, List<TrendBar> bars, AppLocalizations? l) {
+    final d = _dateOf(bars[i].to);
+    return switch (_range) {
+      TrendRange.week => weekdayShortName(d.weekday, l),
+      TrendRange.month => (bars.length - 1 - i) % 7 == 0
+          ? '${monthShortName(d.month, l)}\n${d.day}'
+          : '',
+      TrendRange.sixMonths => i == 0 ||
+              _dateOf(bars[i].from).month != _dateOf(bars[i - 1].from).month
+          ? monthShortName(_dateOf(bars[i].from).month, l)
+          : '',
+    };
   }
 
   @override
@@ -633,14 +715,12 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     final m = _m;
     final daily = _daily ?? const <String, double>{};
     final end = shiftDay(_today, -_back * _range.days);
-    final bars =
-        trendBars(m, daily, _range, end, firstDay: _firstDay);
-    final prevBars = trendBars(
+    final bars = trendBars(m, daily, _range, end, firstDay: _firstDay);
+    final prev = trendAverage(trendBars(
         m, daily, _range, shiftDay(end, -_range.days),
-        firstDay: _firstDay);
+        firstDay: _firstDay));
     final avg = trendAverage(
         trendBars(m, daily, _range, end, firstDay: _firstDay, skip: _today));
-    final prev = trendAverage(prevBars);
     final includesToday = _back == 0;
     final sel = _selected != null && _selected! < bars.length
         ? bars[_selected!]
@@ -652,21 +732,10 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
         child: ListView(padding: pad, children: [
           const NavBar('Trend View'),
           const SizedBox(height: S.x3),
-          // ── the metric picker ──
-          Surface(
-            color: p.card2,
+          _MetricPill(
+            m: m,
+            open: _picking,
             onTap: () => setState(() => _picking = !_picking),
-            semanticLabel: 'Metric: ${m.title}. Change',
-            child: Row(children: [
-              Icon(m.icon, size: I.lg, color: p.ink2),
-              const SizedBox(width: S.x4),
-              Expanded(
-                child: Text(m.title.toUpperCase(),
-                    style: F.caps.copyWith(color: p.ink, letterSpacing: 1.6)),
-              ),
-              Icon(_picking ? LucideIcons.chevronUp : LucideIcons.chevronDown,
-                  size: I.lg, color: p.ink2),
-            ]),
           ),
           if (_picking) ...[
             const SizedBox(height: S.x2),
@@ -679,104 +748,88 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
             else ...[
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(
-                        _range == TrendRange.sixMonths && m.weekly
-                            ? 'WEEKLY AVERAGE'
-                            : 'AVERAGE',
-                        style: F.caps.copyWith(color: p.ink2, letterSpacing: 1.6)),
-                    const SizedBox(height: S.x1),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(trendFormat(m, avg),
-                          style: F.n48.copyWith(
-                              color: p.ink, fontWeight: FontWeight.w700)),
-                    ),
-                    if (avg != null && prev != null) ...[
-                      const SizedBox(height: S.x2),
-                      _DeltaChip(m: m, avg: avg, prev: prev, range: _range),
-                    ],
-                  ]),
+                  child: ScrubReadout(
+                    caption: sel != null
+                        ? _caption(sel, l)
+                        : _range == TrendRange.sixMonths && m.weekly
+                            ? 'Weekly average'
+                            : 'Average',
+                    value: trendFormat(m, sel != null ? sel.v : avg),
+                    under: sel == null &&
+                            avg != null &&
+                            prev != null &&
+                            _range != TrendRange.month
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: S.x2),
+                            child: _DeltaChip(
+                                m: m, avg: avg, prev: prev, range: _range),
+                          )
+                        : null,
+                  ),
                 ),
                 const SizedBox(width: S.x3),
-                Expanded(
-                  child: Column(children: [
-                    SubTabs(const ['W', 'M', '6M'], _range.index,
-                        (i) => setState(() {
-                              _range = TrendRange.values[i];
-                              _back = 0;
-                              _selected = null;
-                            })),
-                    const SizedBox(height: S.x3),
-                    Row(children: [
-                      _Step(LucideIcons.chevronLeft, 'Earlier',
-                          () => setState(() {
-                                _back++;
-                                _selected = null;
-                              })),
-                      Expanded(
-                        child: Text(
-                          '${_dayText(bars.first.from, l)} – '
-                                  '${_dayText(end, l, year: true)}'
-                              .toUpperCase(),
-                          textAlign: TextAlign.center,
-                          style: F.over.copyWith(
-                              color: p.ink,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.2),
-                        ),
-                      ),
-                      _Step(
-                          LucideIcons.chevronRight,
-                          'Later',
-                          _back == 0
-                              ? null
-                              : () => setState(() {
-                                    _back--;
-                                    _selected = null;
-                                  })),
-                    ]),
-                  ]),
+                SizedBox(
+                  width: S.x16 * 2.75,
+                  child: SubTabs(const ['W', 'M', '6M'], _range.index,
+                      (i) => setState(() {
+                            _range = TrendRange.values[i];
+                            _back = 0;
+                            _selected = null;
+                          })),
                 ),
               ]),
-              const SizedBox(height: S.x6),
-              Text(
-                sel != null
-                    ? '${sel.from == sel.to ? _dayText(sel.from, l) : 'Week of ${_dayText(sel.from, l)}'}: '
-                        '${trendFormat(m, sel.v)}'
-                    : _sentence(m, avg, prev),
-                style: F.head.copyWith(color: p.ink, fontWeight: FontWeight.w500),
+              const SizedBox(height: S.x3),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  _Step(LucideIcons.chevronLeft, 'Earlier',
+                      () => setState(() {
+                            _back++;
+                            _selected = null;
+                          })),
+                  Text(
+                    '${_shortDate(bars.first.from, l)} - '
+                    '${_shortDate(end, l)}, ${(_dateOf(end).year % 100).toString().padLeft(2, '0')}'
+                        .toUpperCase(),
+                    style: F.over.copyWith(
+                        color: p.ink, fontWeight: FontWeight.w700, letterSpacing: 1.2),
+                  ),
+                  _Step(
+                      LucideIcons.chevronRight,
+                      'Later',
+                      _back == 0
+                          ? null
+                          : () => setState(() {
+                                _back--;
+                                _selected = null;
+                              })),
+                ]),
               ),
+              const SizedBox(height: S.x4),
+              Text(_sentence(m, avg, prev),
+                  style: F.head.copyWith(color: p.ink, height: 1.3)),
               const SizedBox(height: S.x6),
               if (_daily == null)
                 const SizedBox(
                     height: S.x16 * 4,
                     child: Center(child: CircularProgressIndicator()))
               else
-                _BarChart(
-                  m: m,
-                  bars: bars,
-                  avg: avg,
-                  range: _range,
-                  selected: _selected,
-                  onSelect: (i) =>
-                      setState(() => _selected = _selected == i ? null : i),
-                  label: (b) => b.from == b.to
-                      ? _dayText(b.from, l)
-                      : 'Week of ${_dayText(b.from, l)}',
-                ),
+                _chart(m, bars, avg, l, highlight: includesToday ? bars.length - 1 : null),
               if (includesToday) ...[
-                const SizedBox(height: S.x5),
+                const SizedBox(height: S.x4),
                 Row(children: [
                   Icon(LucideIcons.info, size: I.sm, color: p.ink3),
                   const SizedBox(width: S.x3),
                   Expanded(
                     child: Text(
-                        'Average does not include today (${_dayText(_today, l)})',
+                        'Average does not include today (${_shortDate(_today, l)})',
                         style: F.cap.copyWith(color: p.ink3)),
                   ),
                 ]),
+              ],
+              if (m.id == 'strain' && _daily != null) ...[
+                const SizedBox(height: S.x8),
+                _StrainBreakdown(bars: bars),
               ],
             ],
           ],
@@ -785,18 +838,188 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     );
   }
 
+  Widget _chart(TrendMetric m, List<TrendBar> bars, double? avg,
+      AppLocalizations? l, {int? highlight}) {
+    final axis = _axis(m, bars);
+    final color = switch (m.group) {
+      TrendGroup.strain => C.dialStrain,
+      TrendGroup.recovery => C.optimal,
+      TrendGroup.sleep => C.dialSleep,
+    };
+    return ScrubColumns(
+      values: [for (final b in bars) b.v],
+      xLabels: [for (var i = 0; i < bars.length; i++) _xLabel(i, bars, l)],
+      // A week's values sit over its bars; a month is too many to label.
+      valueLabels: _range == TrendRange.week
+          ? [for (final b in bars) trendFormat(m, b.v)]
+          : const [],
+      lo: axis.lo,
+      hi: axis.hi,
+      ticks: axis.ticks,
+      tickText: (t) => _tickText(m, t),
+      avg: avg,
+      color: color,
+      colorOf: m.id == 'recovery'
+          ? (i, v) => recoveryColor(v)
+          : null,
+      highlight: highlight,
+      height: S.x16 * 4 + S.x8,
+      onScrub: (i) => setState(() => _selected = i),
+    );
+  }
+
   String _sentence(TrendMetric m, double? avg, double? prev) {
-    final name = m.title;
-    final span = 'this ${_range.word}';
-    if (avg == null) return 'No $name recorded $span.';
-    if (prev == null) return 'Your average $name $span is ${trendFormat(m, avg)}.';
-    final rel = (trendFormat(m, avg) == trendFormat(m, prev))
-        ? 'the same as'
-        : avg > prev
-            ? 'above'
-            : 'below';
-    return 'Your average $name $span (${trendFormat(m, avg)}) was $rel your '
-        'previous ${_range.days}-day average of ${trendFormat(m, prev)}.';
+    final word = _range.word;
+    if (avg == null) return 'No ${m.title} recorded this $word.';
+    final shown = trendFormat(m, avg);
+    if (_range == TrendRange.week && prev != null) {
+      final rel = trendFormat(m, avg) == trendFormat(m, prev)
+          ? 'the same as'
+          : avg > prev
+              ? 'above'
+              : 'below';
+      return 'During this 7-day period, your average ${m.title} ($shown) was '
+          '$rel your average at the time (${trendFormat(m, prev)}).';
+    }
+    return 'Your average ${m.title} this $word is $shown. Keep wearing your '
+        'band to see how this changes over time.';
+  }
+}
+
+/// Nearest round step that cuts [span] into about four.
+double _niceStep(double span) {
+  if (span <= 0) return 1;
+  final raw = span / 4;
+  final mag = math.pow(10, (math.log(raw) / math.ln10).floor()).toDouble();
+  for (final f in const [1.0, 2.0, 2.5, 5.0, 10.0]) {
+    if (raw <= f * mag) return f * mag;
+  }
+  return 10 * mag;
+}
+
+/// The metric the screen is about, as a full-width pill. Tapping it opens the
+/// list of every metric.
+class _MetricPill extends StatelessWidget {
+  final TrendMetric m;
+  final bool open;
+  final VoidCallback onTap;
+  const _MetricPill({required this.m, required this.open, required this.onTap});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    return Pressable(
+      onTap: onTap,
+      semanticLabel: 'Metric: ${m.title}. Change',
+      child: Container(
+        height: S.x16,
+        padding: const EdgeInsets.symmetric(horizontal: S.x5),
+        decoration: BoxDecoration(
+          color: Color.alphaBlend(p.ink.withValues(alpha: .12), p.card2),
+          borderRadius: R.rLg,
+        ),
+        child: Row(children: [
+          Icon(m.icon, size: I.xl, color: p.ink),
+          const SizedBox(width: S.x5),
+          Expanded(
+            child: Text(m.title.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: F.caps.copyWith(
+                    color: p.ink, fontWeight: FontWeight.w700, letterSpacing: 1.6)),
+          ),
+          Icon(open ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+              size: I.lg, color: p.ink),
+        ]),
+      ),
+    );
+  }
+}
+
+/// How many days of the period fell in each strain band, as a stacked bar and
+/// a count per band. Days with no strain are not in any band.
+class _StrainBreakdown extends StatelessWidget {
+  final List<TrendBar> bars;
+  const _StrainBreakdown({required this.bars});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final vs = [for (final b in bars) ?b.v];
+    var allOut = 0, strenuous = 0, moderate = 0, light = 0;
+    for (final v in vs) {
+      if (v > 18) {
+        allOut++;
+      } else if (v > 14) {
+        strenuous++;
+      } else if (v > 10) {
+        moderate++;
+      } else {
+        light++;
+      }
+    }
+    final bands = [
+      (allOut, 'All Out (>18.0)', C.dialStrain),
+      (strenuous, 'Strenuous (14.1-18.0)', C.strainStrenuous),
+      (moderate, 'Moderate (10.1-14.0)', C.strainModerate),
+      (light, 'Light (0.0-10.0)', C.strainLight),
+    ];
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text.rich(TextSpan(children: [
+        TextSpan(
+            text: 'STRAIN BREAKDOWN ',
+            style: F.caps.copyWith(color: p.ink, letterSpacing: 1.4)),
+        TextSpan(
+            text: '(DAYS)',
+            style: F.caps.copyWith(color: p.ink3, letterSpacing: 1.4)),
+      ])),
+      const SizedBox(height: S.x4),
+      if (vs.isEmpty)
+        Text('No strain recorded this period.',
+            style: F.cap.copyWith(color: p.ink3))
+      else ...[
+        SizedBox(
+          height: S.x3,
+          child: Row(children: [
+            for (final b in bands)
+              if (b.$1 > 0) ...[
+                Expanded(
+                  flex: b.$1,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: b.$3,
+                      borderRadius: R.rSm,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: S.half),
+              ],
+          ]),
+        ),
+        const SizedBox(height: S.x4),
+        for (final b in bands)
+          Padding(
+            padding: const EdgeInsets.only(bottom: S.x3),
+            child: Row(children: [
+              Container(
+                width: S.x3,
+                height: S.x3,
+                decoration: BoxDecoration(color: b.$3, borderRadius: R.rSm),
+              ),
+              const SizedBox(width: S.x3),
+              SizedBox(
+                width: S.x12,
+                child: Text('${b.$1}x',
+                    style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+              ),
+              Expanded(
+                child: Text(b.$2,
+                    style: F.body.copyWith(color: p.ink2)),
+              ),
+            ]),
+          ),
+      ],
+    ]);
   }
 }
 
@@ -833,25 +1056,21 @@ class _DeltaChip extends StatelessWidget {
     final p = P.of(c);
     final diff = avg - prev;
     final past = switch (range) {
-      TrendRange.week => 'past week',
-      TrendRange.month => 'past month',
-      TrendRange.sixMonths => 'past 6 months',
+      TrendRange.week => 'prior week',
+      TrendRange.month => 'prior month',
+      TrendRange.sixMonths => 'prior 6 months',
     };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: S.x2, vertical: S.x1),
-      decoration: BoxDecoration(color: p.card2, borderRadius: R.rSm),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        if (trendFormat(m, diff.abs()) != trendFormat(m, 0)) ...[
-          Icon(diff > 0 ? LucideIcons.chevronUp : LucideIcons.chevronDown,
-              size: I.sm, color: p.ink2),
-          const SizedBox(width: S.half),
-        ],
-        Flexible(
-          child: Text('${trendFormat(m, diff.abs())} $past',
-              style: F.cap.copyWith(color: p.ink2, fontWeight: FontWeight.w600)),
-        ),
-      ]),
-    );
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      if (trendFormat(m, diff.abs()) != trendFormat(m, 0)) ...[
+        Icon(diff > 0 ? LucideIcons.arrowUp : LucideIcons.arrowDown,
+            size: I.sm, color: diff > 0 ? C.optimal : C.amber),
+        const SizedBox(width: S.half),
+      ],
+      Flexible(
+        child: Text('${trendFormat(m, diff.abs())} vs. $past',
+            style: F.cap.copyWith(color: p.ink2, fontWeight: FontWeight.w600)),
+      ),
+    ]);
   }
 }
 
@@ -866,7 +1085,7 @@ class _Picker extends StatelessWidget {
     final p = P.of(c);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: S.x2),
-      decoration: BoxDecoration(color: C.char, borderRadius: R.rXl),
+      decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         for (final g in TrendGroup.values) ...[
           Padding(
@@ -889,7 +1108,7 @@ class _Picker extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x4),
                   decoration: BoxDecoration(
-                    color: m == current ? p.card : null,
+                    color: m == current ? p.card2 : null,
                     borderRadius: R.rLg,
                   ),
                   child: Row(children: [
@@ -906,257 +1125,4 @@ class _Picker extends StatelessWidget {
       ]),
     );
   }
-}
-
-/// The bars, the gridlines and their labels, the dashed average and its tag.
-/// Each bar is its own tap target.
-class _BarChart extends StatelessWidget {
-  final TrendMetric m;
-  final List<TrendBar> bars;
-  final double? avg;
-  final TrendRange range;
-  final int? selected;
-  final ValueChanged<int> onSelect;
-  final String Function(TrendBar) label;
-
-  const _BarChart({
-    required this.m,
-    required this.bars,
-    required this.avg,
-    required this.range,
-    required this.selected,
-    required this.onSelect,
-    required this.label,
-  });
-
-  /// A round step that cuts the span into about four.
-  static double _step(double span) {
-    if (span <= 0) return 1;
-    final raw = span / 4;
-    final mag = math.pow(10, (math.log(raw) / math.ln10).floor()).toDouble();
-    for (final f in const [1.0, 2.0, 2.5, 5.0, 10.0]) {
-      if (raw <= f * mag) return f * mag;
-    }
-    return 10 * mag;
-  }
-
-  @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    final l = AppLocalizations.of(c);
-    final vs = [for (final b in bars) ?b.v];
-    var lo = math.min(0.0, vs.isEmpty ? 0.0 : vs.reduce(math.min));
-    var hi = m.axisMax ?? (vs.isEmpty ? 1.0 : vs.reduce(math.max));
-    if (m.axisMax == null) {
-      // Minutes step in whole hours or half-hours, everything else on a
-      // round number.
-      final step = m.fmt == TrendFmt.hmm
-          ? math.max(30.0, (_step(hi - lo) / 30).ceil() * 30.0)
-          : _step(hi - lo);
-      hi = (hi / step).ceil() * step;
-      if (lo < 0) lo = (lo / step).floor() * step;
-      if (hi <= lo) hi = lo + step;
-    }
-    final step = m.axisMax != null
-        ? _step(hi - lo)
-        : (m.fmt == TrendFmt.hmm
-            ? math.max(30.0, (_step(hi - lo) / 30).ceil() * 30.0)
-            : _step(hi - lo));
-    final ticks = <double>[
-      for (var t = lo; t <= hi + step / 1000; t += step) t,
-    ];
-    final color = switch (m.group) {
-      TrendGroup.strain => C.dialStrain,
-      TrendGroup.recovery => C.optimal,
-      TrendGroup.sleep => C.dialSleep,
-    };
-    const chartH = S.x16 * 4;
-    const axisW = S.x10;
-
-    String tickText(double t) => m.fmt == TrendFmt.hmm
-        ? '${(t / 60).round()}h'
-        : m.fmt == TrendFmt.percent
-            ? '${t.round()}'
-            : (t >= 1000 ? '${(t / 1000).toStringAsFixed(t % 1000 == 0 ? 0 : 1)}k' : '${t.round()}');
-
-    final labels = <int, String>{};
-    for (var i = 0; i < bars.length; i++) {
-      final d = _dateOf(bars[i].to);
-      switch (range) {
-        case TrendRange.week:
-          labels[i] = weekdayShortName(d.weekday, l);
-        case TrendRange.month:
-          if ((bars.length - 1 - i) % 7 == 0) {
-            labels[i] = '${monthShortName(d.month, l)}\n${d.day}';
-          }
-        case TrendRange.sixMonths:
-          final from = _dateOf(bars[i].from);
-          if (i == 0 || from.month != _dateOf(bars[i - 1].from).month) {
-            labels[i] = monthShortName(from.month, l);
-          }
-      }
-    }
-
-    return Column(children: [
-      SizedBox(
-        height: chartH,
-        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          // y labels
-          SizedBox(
-            width: axisW,
-            child: Stack(children: [
-              for (final t in ticks)
-                Positioned(
-                  left: 0,
-                  right: S.x1,
-                  top: (1 - (t - lo) / (hi - lo)) * (chartH - S.x4),
-                  child: Text(tickText(t),
-                      style: F.over.copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
-                ),
-            ]),
-          ),
-          Expanded(
-            child: Stack(children: [
-              Positioned.fill(
-                top: S.x2,
-                bottom: S.x2,
-                child: CustomPaint(
-                  painter: _BarsPainter(
-                    bars: bars,
-                    lo: lo,
-                    hi: hi,
-                    ticks: ticks,
-                    avg: avg,
-                    grid: p.line,
-                    avgLine: p.ink,
-                    colorOf: (i, v) => i == selected
-                        ? p.ink
-                        : m.id == 'recovery'
-                            ? recoveryColor(v)
-                            : color,
-                  ),
-                ),
-              ),
-              Positioned.fill(
-                child: Row(children: [
-                  for (var i = 0; i < bars.length; i++)
-                    Expanded(
-                      child: Pressable(
-                        onTap: bars[i].v == null ? null : () => onSelect(i),
-                        semanticLabel:
-                            '${label(bars[i])}: ${trendFormat(m, bars[i].v)}',
-                        child: const SizedBox.expand(),
-                      ),
-                    ),
-                ]),
-              ),
-              if (avg != null)
-                Positioned(
-                  left: 0,
-                  top: S.x2 +
-                      (1 - (avg! - lo) / (hi - lo)) * (chartH - S.x4) -
-                      S.x3,
-                  child: IgnorePointer(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: S.x2, vertical: S.half),
-                      decoration:
-                          BoxDecoration(color: p.ink, borderRadius: R.rSm),
-                      child: Text('AVG.',
-                          style: F.over.copyWith(
-                              color: p.bg,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.2)),
-                    ),
-                  ),
-                ),
-            ]),
-          ),
-        ]),
-      ),
-      const SizedBox(height: S.x2),
-      // A fixed band, so each label may spill past its narrow bar sideways.
-      SizedBox(
-        height: S.x8,
-        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const SizedBox(width: axisW),
-        for (var i = 0; i < bars.length; i++)
-          Expanded(
-            child: labels[i] == null
-                ? const SizedBox.shrink()
-                : OverflowBox(
-                    maxWidth: S.x16,
-                    alignment: Alignment.topCenter,
-                    child: Text(labels[i]!,
-                        textAlign: TextAlign.center,
-                        style: F.over.copyWith(
-                            color: p.ink3, fontWeight: FontWeight.w600)),
-                  ),
-          ),
-      ]),
-      ),
-    ]);
-  }
-}
-
-class _BarsPainter extends CustomPainter {
-  final List<TrendBar> bars;
-  final double lo, hi;
-  final List<double> ticks;
-  final double? avg;
-  final Color grid, avgLine;
-  final Color Function(int i, double v) colorOf;
-
-  _BarsPainter({
-    required this.bars,
-    required this.lo,
-    required this.hi,
-    required this.ticks,
-    required this.avg,
-    required this.grid,
-    required this.avgLine,
-    required this.colorOf,
-  });
-
-  double _y(double v, Size s) => (1 - (v - lo) / (hi - lo)) * s.height;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final line = Paint()
-      ..color = grid
-      ..strokeWidth = 1;
-    for (final t in ticks) {
-      final y = _y(t, size);
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), line);
-    }
-    final slot = size.width / bars.length;
-    final w = slot * .62;
-    final zero = _y(0, size);
-    for (var i = 0; i < bars.length; i++) {
-      final v = bars[i].v;
-      if (v == null) continue;
-      final y = _y(v, size);
-      final x = slot * i + (slot - w) / 2;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTRB(x, math.min(y, zero), x + w, math.max(y, zero)),
-          const Radius.circular(R.sm / 3),
-        ),
-        Paint()..color = colorOf(i, v),
-      );
-    }
-    final a = avg;
-    if (a != null) {
-      final y = _y(a, size);
-      final dash = Paint()
-        ..color = avgLine
-        ..strokeWidth = 1.5;
-      for (var x = 0.0; x < size.width; x += S.x2) {
-        canvas.drawLine(Offset(x, y), Offset(math.min(x + S.x1, size.width), y), dash);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_BarsPainter old) => true;
 }

@@ -126,7 +126,7 @@ Future<void> _loadType() async {
       .listSync()
       .whereType<File>()
       .where((f) => f.path.endsWith('.ttf'));
-  await loadOutfit();
+  await loadAppFonts();
   for (final family in const ['Manrope', '.SF Pro Text']) {
     final loader = FontLoader(family);
     for (final f in files) {
@@ -805,7 +805,9 @@ void main() {
 
     testWidgets('day strain leads with the curve, and explains an empty day',
         (tester) async {
-      tester.view.physicalSize = const Size(390 * 3, 2200 * 3);
+      // Tall enough that the whole list is built: the page now runs past the
+      // ring, the panel, the activities and the weekly cards.
+      tester.view.physicalSize = const Size(390 * 3, 5200 * 3);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.reset);
 
@@ -921,7 +923,8 @@ void main() {
       // stored 10.8.
       await show(const DayStrainData(strain: 10.8, wornMin: 1274));
       expect(find.textContaining('produced no strain'), findsNothing);
-      expect(find.textContaining('10.8'), findsOneWidget);
+      // The ring carries the number and the card says what it is: both true.
+      expect(find.textContaining('10.8'), findsWidgets);
     });
 
     // The Zones screen offered "Add your age in Profile" on all three real

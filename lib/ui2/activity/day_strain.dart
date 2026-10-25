@@ -18,6 +18,8 @@
 //     a line on a day screen whose subject is the curve. Naming the input in a
 //     sentence is enough.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -26,10 +28,12 @@ import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../l10n/date_text.dart';
 import '../../models/metric.dart' show whyFromNote;
-import '../screens/home_screen.dart' show repoOf;
+import '../screens/home_screen.dart'
+    show monthShortName, repoOf, weekdayShortName;
 import '../screens/metric_detail.dart' show detailScaffold;
+import '../screens/trend_view.dart';
 import '../ui2.dart';
-import 'catalogue.dart' show zonesWhy;
+import 'catalogue.dart' show activityByName, zonesWhy;
 import 'zones.dart' show ZonesDetail;
 
 /// Below this the day is not comparable to a full one and the screen says so.
@@ -165,171 +169,494 @@ class DayStrainData {
 }
 
 
+
 class DayStrainDetail extends StatefulWidget {
   /// Preloaded, for goldens. Null means read the repo on open.
   final DayStrainData? data;
-  const DayStrainDetail({super.key, this.data});
+
+  /// Injected by tests; production reads the repo.
+  final TrendLoader? loader;
+
+  const DayStrainDetail({super.key, this.data, this.loader});
 
   @override
   State<DayStrainDetail> createState() => _DayStrainDetailState();
 }
 
+/// The metrics this screen compares, the zone minutes behind its stacked
+/// cards, and the day's saved sessions. Read once per open.
+class _StrainTrends {
+  /// Metric id → that metric's value per day.
+  final Map<String, Map<String, double>> daily;
+
+  /// Zone minutes per day: zones 1-3 and zones 4-5, one entry per zone.
+  final Map<String, List<double>> zones13, zones45;
+  final List<Map<String, dynamic>> sessions;
+  final String? firstDay;
+
+  const _StrainTrends({
+    this.daily = const {},
+    this.zones13 = const {},
+    this.zones45 = const {},
+    this.sessions = const [],
+    this.firstDay,
+  });
+
+  static const ids = [
+    'strain',
+    'steps',
+    'calories',
+    'zones_13',
+    'zones_45',
+    'strength_time',
+  ];
+
+  static Future<_StrainTrends> load(
+      TrendLoader loader, LocalRepository? repo, String today) async {
+    final daily = <String, Map<String, double>>{
+      for (final id in ids) id: await loader.daily(trendMetricOf(id)!),
+    };
+    return _StrainTrends(
+      daily: daily,
+      zones13: await loader.zoneStack(const [1, 2, 3]),
+      zones45: await loader.zoneStack(const [4, 5]),
+      sessions: repo == null ? const [] : await _sessionsOn(repo, today),
+      firstDay: await loader.firstDay(),
+    );
+  }
+
+  static Future<List<Map<String, dynamic>>> _sessionsOn(
+      LocalRepository repo, String day) async {
+    final t = DateTime.parse(day);
+    final from = DateTime(t.year, t.month, t.day).millisecondsSinceEpoch ~/ 1000;
+    final to = DateTime(t.year, t.month, t.day + 1).millisecondsSinceEpoch ~/
+        1000 -
+        1;
+    try {
+      final rows = await repo.getSessions(
+          from: from, to: to, includeDetected: false);
+      return [
+        for (final r in rows)
+          if (r['start_ts'] is num) r,
+      ]..sort((a, b) =>
+          (a['start_ts'] as num).compareTo(b['start_ts'] as num));
+    } catch (_) {
+      return const [];
+    }
+  }
+}
+
 class _DayStrainDetailState extends State<DayStrainDetail> {
   DayStrainData? _d;
   bool _loading = true;
+  _StrainTrends _t = const _StrainTrends();
 
   @override
   void initState() {
     super.initState();
-    if (widget.data != null) {
-      _d = widget.data;
-      _loading = false;
-      return;
-    }
+    _d = widget.data;
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
   Future<void> _load() async {
-    final repo = repoOf(context);
-    if (repo == null) {
+    final repo = _repoOrNull();
+    if (repo == null && widget.loader == null) {
       if (mounted) setState(() => _loading = false);
       return;
     }
     try {
-      final d = await DayStrainData.load(repo);
-      if (mounted) setState(() => (_d = d, _loading = false));
+      final d = widget.data ??
+          (repo == null ? const DayStrainData() : await DayStrainData.load(repo));
+      final today = dayLabelOf(d.day ?? DateTime.now());
+      final t = await _StrainTrends.load(
+          widget.loader ?? TrendLoader(repo), repo, today);
+      if (mounted) {
+        setState(() {
+          _d = d;
+          _t = t;
+          _loading = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
   }
 
+  /// The repo, or null in a test that never provided one.
+  LocalRepository? _repoOrNull() {
+    try {
+      return repoOf(context);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ── the numbers the screen compares ──────────────────────────────────────
+  /// The day's value for [id], zero-filled where the metric says so.
+  double? _valueOn(String id, String today) {
+    final m = trendMetricOf(id)!;
+    return trendBars(m, _t.daily[id] ?? const {}, TrendRange.week, today,
+            firstDay: _t.firstDay)
+        .last
+        .v;
+  }
+
+  /// The mean of the 30 days before [today]. Today is left out, as on Trend
+  /// View: a day still in progress is not part of a baseline.
+  double? _avg30(String id, String today) => trendAverage(trendBars(
+        trendMetricOf(id)!,
+        _t.daily[id] ?? const {},
+        TrendRange.month,
+        shiftDay(today, -1),
+        firstDay: _t.firstDay,
+      ));
+
+  // ── the day ──────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
     final d = _d ?? const DayStrainData();
-    final day = d.day;
-    // The date the drawn day IS. `getDayStrain` serves the last settled bundle
-    // while today is still deriving, and a screen headed "Today" over
-    // yesterday's trace is the whole reason this is read off the curve.
-    final sub = day == null
-        ? ''
-        : dayLabelOf(day) == todayLabel()
-        ? (l?.dayStrainToday ?? 'TODAY')
-        : localizedDate(day, l?.localeName ?? 'en', pattern: 'd MMMM');
+    final shown = d.day ?? DateTime.now();
+    final today = dayLabelOf(shown);
+    final title = localizedDate(shown, l?.localeName ?? 'en',
+        pattern: 'EEE, MMM d');
 
     return detailScaffold(
       c,
-      l?.dayStrainTitle ?? 'Day strain',
+      title,
       [
         if (_loading && _d == null) ...[
           const SizedBox(height: S.x8),
           const Center(child: CircularProgressIndicator()),
         ] else ...[
-          ..._trace(p, l, d),
+          _ring(p, d),
+          const SizedBox(height: S.x4),
+          _statsPanel(p, today),
+          const SizedBox(height: S.x4),
+          _comparisonLegend(p, shown, l),
+          const SizedBox(height: S.x6),
+          ..._absence(p, l, d),
+          _band(d.strain),
+          const SizedBox(height: S.x8),
+          _todaysActivities(p, l),
+          const SizedBox(height: S.x8),
+          _weeklyTrends(p, l, today),
+          const SizedBox(height: S.x8),
+          ..._throughTheDay(p, l, d),
           ..._zones(p, l, d),
           Section(l?.dayStrainInputsSection ?? 'What this is made of',
               _inputs(p, l, d)),
         ],
       ],
-      sub: sub,
     );
   }
 
-  // ── the curve, and only then the number ────────────────────────────────────
-  List<Widget> _trace(P p, AppLocalizations? l, DayStrainData d) {
-    if (!d.hasCurve) {
-      // THE BUNDLE'S REASON, or none. This card used to state one — "it needs a
-      // resting heart rate from a scored night and a day the band was on your
-      // wrist" — and it printed that on a day with a scored night (RHR 56.8)
-      // and 89 % wear, because the sentence was written here rather than
-      // handed over. A cause the screen did not receive is a guess.
-      final why = whyFromNote(d.note, unit: 'days');
-      // And "wear the band" is only an instruction on a day the band did not
-      // see. Offered on a day it was on the wrist all along it is worse than
-      // no button, because the user spends trust doing it.
-      final saw = (d.wornMin ?? 0) > 0 || (d.coveragePct ?? 0) > 0;
-      // A day CAN carry a strain with no trace behind it: `backfillStrainScale`
-      // rescales the stored headline onto the current scale and DROPS the
-      // per-minute curve, which cannot be rescaled with it. Measured on
-      // whoop-4, that is 6 of 17 days — and on every one of them this card said
-      // "this day produced no strain" directly above a day that produced 10.8.
-      // The absence is the TRACE, so that is what the card is allowed to name;
-      // why the trace is not stored is not something this screen was told.
-      final s = d.strain;
-      return [
-        StatusCard(
-          s == null
-              ? (l?.dayStrainNoTraceTitle ?? 'No strain trace for this day')
-              : (l?.dayStrainNoMinuteTraceTitle ??
-                  'No minute-by-minute trace for this day'),
-          s == null
-              ? why ??
-                  (l?.dayStrainNoReasonBody ??
-                      'Nothing recorded says why this day produced no strain.')
-              : (l?.dayStrainScoredNoTraceBody(s.toStringAsFixed(1)) ??
-                  'The day strain is ${s.toStringAsFixed(1)}. The waking minutes '
-                      'it was built from are not stored for this day.'),
-          fix: (s == null && !saw)
-              ? (l?.dayStrainWearBandFix ?? 'Wear the band through the day')
-              : '',
-          icon: LucideIcons.trendingUp,
-        ),
-      ];
-    }
-    // The whole 0–21 scale the header names, so the ticks and the header
-    // agree and two days can be compared by eye.
-    const axis = AxisSpec(min: 0, max: 21, ticks: 4, format: axisInt);
-    final drawn = d.curve.where((v) => v != null).length;
-    return [
-      Surface(
-        child: Column(children: [
-          ChartFrame(
-            title: l?.dayStrainChartTitle ?? 'Strain through the day',
-            unit: '0–21',
-            height: 170,
-            yAxis: axis,
-            xLabels: const ['00:00', '12:00', '24:00'],
-            series: d.curve,
-            footnote: l?.dayStrainChartFootnote(drawn) ??
-                'Effort above your usual waking pace. It can ease later if you slow back toward that pace. From $drawn recorded waking minutes.',
-            child: CustomPaint(
-              size: Size.infinite,
-              painter: LineChart(d.curve, p.on(C.purple),
-                  axis: axis, t: animate(context, 1)),
+  // ── the ring: the day's strain against the 0–21 scale ───────────────────
+  Widget _ring(P p, DayStrainData d) {
+    final s = d.strain;
+    final baseline = _avg30('strain', dayLabelOf(d.day ?? DateTime.now()));
+    return LayoutBuilder(builder: (c, box) {
+      final side = math.min(box.maxWidth * .78, S.x16 * 5);
+      return Center(
+        child: SizedBox(
+          width: side,
+          height: side,
+          child: Stack(alignment: Alignment.center, children: [
+            CustomPaint(
+              size: Size.square(side),
+              painter: _StrainRingPainter(
+                fraction: s == null ? null : (s / 21).clamp(0.0, 1.0),
+                baselineFraction:
+                    baseline == null ? null : (baseline / 21).clamp(0.0, 1.0),
+                track: p.track,
+                arc: C.dialStrain,
+                tick: C.white,
+              ),
             ),
-          ),
-          if (d.strain != null || d.peakHr != null || d.wornMin != null) ...[
-            const SizedBox(height: S.x4),
-            InlineMetrics([
-              if (d.strain != null)
-                (l?.dayStrainTitle ?? 'Day strain', d.strain!.toStringAsFixed(1),
-                    C.purple),
-              if (d.peakHr != null)
-                (l?.dayStrainPeakHr ?? 'Peak HR', '${d.peakHr} bpm', C.red),
-              if (d.wornMin != null)
-                (l?.dayStrainWorn ?? 'Worn', '${d.wornMin} min', C.teal),
-            ]),
+            // The whole block scales to fit the circle, so a large text size
+            // shrinks it rather than spilling out of the ring.
+            Padding(
+              padding: const EdgeInsets.all(S.x8),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text('LOCUS', style: F.wordmark.copyWith(color: p.ink2)),
+                  const SizedBox(height: S.x2),
+                  Text(s == null ? '--' : s.toStringAsFixed(1),
+                      style: F.n64.copyWith(
+                          color: p.ink, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: S.half),
+                  Text('STRAIN',
+                      style: F.caps.copyWith(color: p.ink, letterSpacing: 1.6)),
+                ]),
+              ),
+            ),
+          ]),
+        ),
+      );
+    });
+  }
+
+  // ── the four comparisons, each against its own 30-day average ───────────
+  Widget _statsPanel(P p, String today) {
+    Widget row(String id, IconData icon, String label) {
+      final m = trendMetricOf(id)!;
+      final v = _valueOn(id, today);
+      final avg = _avg30(id, today);
+      final dir = v == null || avg == null
+          ? null
+          : v > avg
+              ? 1
+              : v < avg
+                  ? -1
+                  : null;
+      return _StatRow(
+          icon: icon,
+          label: m.title.toUpperCase(),
+          value: trendFormat(m, v),
+          direction: dir);
+    }
+
+    final rows = [
+      row('zones_13', LucideIcons.heartPulse, 'Heart rate zones 1-3'),
+      row('zones_45', LucideIcons.heart, 'Heart rate zones 4-5'),
+      row('strength_time', LucideIcons.dumbbell, 'Strength activity time'),
+      row('steps', LucideIcons.footprints, 'Steps (beta)'),
+    ];
+    return Column(children: [
+      // The caret points up at the ring it belongs to.
+      CustomPaint(
+        size: const Size(S.x6, S.x2),
+        painter: _CaretPainter(color: p.card),
+      ),
+      Container(
+        decoration: BoxDecoration(color: p.card, borderRadius: R.rLg),
+        child: Column(children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            rows[i],
+            if (i < rows.length - 1)
+              Divider(height: 1, thickness: 1, color: p.line, indent: S.x4, endIndent: S.x4),
           ],
         ]),
       ),
-      if (d.coveragePct != null && d.coveragePct! < _lowCoveragePct)
-        Padding(
-          padding: const EdgeInsets.only(top: S.x4),
-          child: StatusCard(
-            l?.dayStrainLowCoverageTitle(d.coveragePct!) ??
-                'The band saw ${d.coveragePct}% of this day',
-            l?.dayStrainLowCoverageBody ??
-                'Strain is a total over the minutes that were recorded, so a '
-                    'partly-worn day reads lower than a full one and the two are '
-                    'not comparable.',
-            icon: LucideIcons.watch,
-          ),
+    ]);
+  }
+
+  /// The key to the arrows: green is above your usual, orange below it.
+  Widget _comparisonLegend(P p, DateTime shown, AppLocalizations? l) {
+    return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x3),
+        decoration: BoxDecoration(
+          color: Color.alphaBlend(p.bg.withValues(alpha: .6), p.card),
+          borderRadius: R.rMd,
         ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(LucideIcons.arrowUp, size: I.sm, color: C.optimal),
+          const SizedBox(width: S.half),
+          Icon(LucideIcons.arrowDown, size: I.sm, color: C.amber),
+          const SizedBox(width: S.x3),
+          Flexible(
+            child: Text(
+              '${weekdayShortName(shown.weekday, l)}, '
+              '${monthShortName(shown.month, l)} ${shown.day} '
+              'vs. last 30 days',
+              style: F.cap.copyWith(color: p.ink, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ]),
+      );
+  }
+
+  /// What the strain figure means, in words. The bands are the ones Trend View
+  /// counts days into.
+  Widget _band(double? s) {
+    final p = P.of(context);
+    final text = s == null
+        ? 'No strain was recorded for this day.'
+        : s >= 18
+            ? 'Strain of 18 or more is considered all out. Your cardiovascular system has been pushed to its limit.'
+            : s >= 14
+                ? 'Strain between 14 and 17.9 is considered strenuous. Your cardiovascular system has been working hard.'
+                : s >= 10
+                    ? 'Strain between 10 and 13.9 is considered moderate. Your cardiovascular system has been working at a steady pace.'
+                    : 'Strain below 10 is considered light. Your cardiovascular system has had an easy day.';
+    return Padding(
+      padding: const EdgeInsets.only(top: S.x6),
+      child: Text(text, style: F.head.copyWith(color: p.ink, height: 1.3)),
+    );
+  }
+
+  /// Why there is no number, or what limits it. Shown only when it applies.
+  List<Widget> _absence(P p, AppLocalizations? l, DayStrainData d) {
+    final out = <Widget>[];
+    if (!d.hasCurve) {
+      // THE BUNDLE'S REASON, or none. A cause the screen did not receive is a
+      // guess, so it is only printed when it came with the absence.
+      final why = whyFromNote(d.note, unit: 'days');
+      // "Wear the band" is only an instruction on a day the band did not see.
+      final saw = (d.wornMin ?? 0) > 0 || (d.coveragePct ?? 0) > 0;
+      // A strain with no minute trace behind it is a real day; the card may
+      // say the trace is missing, and nothing about the score.
+      final s = d.strain;
+      out.add(StatusCard(
+        s == null
+            ? (l?.dayStrainNoTraceTitle ?? 'No strain trace for this day')
+            : (l?.dayStrainNoMinuteTraceTitle ??
+                'No minute-by-minute trace for this day'),
+        s == null
+            ? why ??
+                (l?.dayStrainNoReasonBody ??
+                    'Nothing recorded says why this day produced no strain.')
+            : (l?.dayStrainScoredNoTraceBody(s.toStringAsFixed(1)) ??
+                'The day strain is ${s.toStringAsFixed(1)}. The waking minutes '
+                    'it was built from are not stored for this day.'),
+        fix: (s == null && !saw)
+            ? (l?.dayStrainWearBandFix ?? 'Wear the band through the day')
+            : '',
+        icon: LucideIcons.trendingUp,
+      ));
+    }
+    if (d.coveragePct != null && d.coveragePct! < _lowCoveragePct) {
+      out.add(Padding(
+        padding: const EdgeInsets.only(top: S.x4),
+        child: StatusCard(
+          l?.dayStrainLowCoverageTitle(d.coveragePct!) ??
+              'The band saw ${d.coveragePct}% of this day',
+          l?.dayStrainLowCoverageBody ??
+              'Strain is a total over the minutes that were recorded, so a '
+                  'partly-worn day reads lower than a full one and the two are '
+                  'not comparable.',
+          icon: LucideIcons.watch,
+        ),
+      ));
+    }
+    return out;
+  }
+
+  // ── today's activities: each saved session, its strain and its times ────
+  Widget _todaysActivities(P p, AppLocalizations? l) {
+    final sessions = _t.sessions;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text("Today's Activities",
+          style: F.head.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+      const SizedBox(height: S.x4),
+      if (sessions.isEmpty)
+        Text('No activities were recorded for this day.',
+            style: F.cap.copyWith(color: p.ink3))
+      else
+        for (final s in sessions) _ActivityCard(session: s),
+    ]);
+  }
+
+  // ── weekly trends: the seven days ending on the day shown ───────────────
+  Widget _weeklyTrends(P p, AppLocalizations? l, String today) {
+    List<TrendBar> bars(String id) => trendBars(
+        trendMetricOf(id)!, _t.daily[id] ?? const {}, TrendRange.week, today,
+        firstDay: _t.firstDay);
+
+    // Zone stacks: a day's bar is the sum of its zones, drawn in order.
+    List<List<double>?> stacks(Map<String, List<double>> z, List<TrendBar> b) =>
+        [for (final x in b) z[x.to]];
+    List<double?> sums(List<List<double>?> s) => [
+          for (final x in s) x?.fold<double>(0, (a, v) => a + v),
+        ];
+
+    final strain = bars('strain');
+    final z13 = bars('zones_13');
+    final z45 = bars('zones_45');
+    final steps = bars('steps');
+    final cals = bars('calories');
+    final s13 = stacks(_t.zones13, z13);
+    final s45 = stacks(_t.zones45, z45);
+    final sum13 = sums(s13);
+    final sum45 = sums(s45);
+
+    String hmm(double? v) => trendFormat(trendMetricOf('zones_13')!, v);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Weekly Trends',
+          style: F.head.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+      const SizedBox(height: S.x4),
+      _WeekCard(
+        title: 'Strain',
+        metricId: 'strain',
+        bars: strain,
+        format: (v) => trendFormat(trendMetricOf('strain')!, v),
+        color: C.dialStrain,
+      ),
+      const SizedBox(height: S.x3),
+      _WeekCard(
+        title: 'Heart rate zones 1-3',
+        metricId: 'zones_13',
+        bars: [
+          for (var i = 0; i < z13.length; i++)
+            (from: z13[i].from, to: z13[i].to, v: sum13[i]),
+        ],
+        stacks: s13,
+        segments: _zoneColours.sublist(0, 3),
+        segmentNames: const ['Zone 1', 'Zone 2', 'Zone 3'],
+        format: hmm,
+        color: C.dialStrain,
+      ),
+      const SizedBox(height: S.x3),
+      _WeekCard(
+        title: 'Heart rate zones 4-5',
+        metricId: 'zones_45',
+        bars: [
+          for (var i = 0; i < z45.length; i++)
+            (from: z45[i].from, to: z45[i].to, v: sum45[i]),
+        ],
+        stacks: s45,
+        segments: _zoneColours.sublist(3, 5),
+        segmentNames: const ['Zone 4', 'Zone 5'],
+        format: hmm,
+        color: C.dialStrain,
+      ),
+      const SizedBox(height: S.x3),
+      _WeekCard(
+        title: 'Steps (beta)',
+        metricId: 'steps',
+        bars: steps,
+        format: (v) => trendFormat(trendMetricOf('steps')!, v),
+        color: C.dialStrain,
+      ),
+      const SizedBox(height: S.x3),
+      _WeekCard(
+        title: 'Calories',
+        metricId: 'calories',
+        bars: cals,
+        format: (v) => trendFormat(trendMetricOf('calories')!, v),
+        color: C.dialStrain,
+      ),
+    ]);
+  }
+
+  // ── the curve, scrubbed, and only then the number ───────────────────────
+  List<Widget> _throughTheDay(P p, AppLocalizations? l, DayStrainData d) {
+    if (!d.hasCurve) return const [];
+    final drawn = d.curve.where((v) => v != null).length;
+    return [
+      _CurveCard(
+        curve: d.curve,
+        strain: d.strain,
+        title: l?.dayStrainChartTitle ?? 'Strain through the day',
+        footnote: l?.dayStrainChartFootnote(drawn) ??
+            'Effort above your usual waking pace. It can ease later if you slow back toward that pace. From $drawn recorded waking minutes.',
+      ),
+      if (d.peakHr != null || d.wornMin != null) ...[
+        const SizedBox(height: S.x4),
+        InlineMetrics([
+          if (d.peakHr != null)
+            (l?.dayStrainPeakHr ?? 'Peak HR', '${d.peakHr} bpm', C.red),
+          if (d.wornMin != null)
+            (l?.dayStrainWorn ?? 'Worn', '${d.wornMin} min', C.teal),
+        ]),
+      ],
     ];
   }
 
-  // ── where the effort sat ───────────────────────────────────────────────────
+  // ── where the effort sat, by zone: the minutes and the edges in bpm ──────
   List<Widget> _zones(P p, AppLocalizations? l, DayStrainData d) {
     final z = d.zoneMin;
     if (z == null) return const [];
@@ -343,18 +670,12 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
             [for (final v in z) v.toDouble()],
             lowerBpm: d.zoneLowerBpm,
             title: l?.dayStrainZonesChartTitle ?? 'Time in zones',
-            // TS-03/TS-04 — the edges, and where THIS day's came from. Stated
-            // per day, not as a standing hedge: the same screen tomorrow can be
-            // banded on a measured ceiling, and a footnote that still said
-            // "estimated from your age" would then be false. The 28-day
-            // distribution is NOT here — it lives one tap away and is gated on
-            // the same anchors (TS-05).
+            // TS-03/TS-04 — the edges, and where THIS day's came from.
             footnote: zonesWhy(d.zoneSource, d.zoneMaxHr, l),
           ),
         ),
-        // Progressive disclosure: this day screen gains a LINK, not a row. The
-        // ceiling, the edges in bpm and the 28-day distribution are all one tap
-        // behind it.
+        // Progressive disclosure: the ceiling and the 28-day distribution are
+        // one tap behind this link, not rows on the day.
         action: l?.dayStrainHowSet ?? 'How these are set',
         onAction: () => Navigator.of(context)
             .push(MaterialPageRoute(builder: (_) => const ZonesDetail())),
@@ -362,7 +683,7 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
     ];
   }
 
-  // ── the inputs, named ──────────────────────────────────────────────────────
+  // ── the inputs, named ────────────────────────────────────────────────────
   Widget _inputs(P p, AppLocalizations? l, DayStrainData d) {
     final max = d.maxHrUsed;
     return Surface(
@@ -392,4 +713,380 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
       ),
     );
   }
+}
+
+/// The five zone colours, in zone order (zone 1 is the grey at the bottom).
+const _zoneColours = <Color>[
+  C.refZone1,
+  C.refZone2,
+  C.refZone3,
+  C.refZone4,
+  C.refZone5,
+];
+
+/// One row of the stats panel: the value, its arrow against the 30-day
+/// average, and the label.
+class _StatRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  /// 1 above the average, -1 below it, null when there is nothing to compare.
+  final int? direction;
+
+  const _StatRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.direction,
+  });
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x4),
+      child: Row(children: [
+        Icon(icon, size: I.xl, color: p.ink2),
+        const SizedBox(width: S.x4),
+        Expanded(
+          child: Text(label,
+              style: F.caps.copyWith(
+                  color: p.ink, fontWeight: FontWeight.w700, letterSpacing: 1.3)),
+        ),
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(value,
+              style: F.n24.copyWith(
+                  color: p.ink, fontWeight: FontWeight.w700)),
+          if (direction != null) ...[
+            const SizedBox(width: S.x2),
+            Icon(direction! > 0 ? LucideIcons.arrowUp : LucideIcons.arrowDown,
+                size: I.sm,
+                color: direction! > 0 ? C.optimal : C.amber),
+          ],
+        ]),
+      ]),
+    );
+  }
+}
+
+/// A session as a card: its strain in a blue block, its name, and its start
+/// and end.
+class _ActivityCard extends StatelessWidget {
+  final Map<String, dynamic> session;
+  const _ActivityCard({required this.session});
+
+  String _clock(int ts) {
+    final t = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
+    return '${t.hour}:${t.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final type = (session['type'] ?? session['sport'] ?? 'Workout').toString();
+    final act = activityByName(type);
+    final strain = (session['strain'] as num?)?.toDouble();
+    final start = (session['start_ts'] as num).toInt();
+    final end = (session['end_ts'] as num?)?.toInt();
+    return Container(
+      margin: const EdgeInsets.only(bottom: S.x3),
+      padding: const EdgeInsets.all(S.x2),
+      decoration: BoxDecoration(color: p.card, borderRadius: R.rLg),
+      child: Row(children: [
+        Container(
+          width: S.x16 * 1.75,
+          height: S.x12,
+          padding: const EdgeInsets.symmetric(horizontal: S.x3),
+          decoration: BoxDecoration(color: C.dialStrain, borderRadius: R.rMd),
+          child: Row(children: [
+            Icon(act?.icon ?? LucideIcons.activity, size: I.lg, color: C.white),
+            const SizedBox(width: S.x2),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(strain == null ? '--' : strain.toStringAsFixed(1),
+                    style: F.n24.copyWith(color: C.white, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ]),
+        ),
+        const SizedBox(width: S.x4),
+        Expanded(
+          child: Text((act?.name ?? type).toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w700, letterSpacing: 1.3)),
+        ),
+        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Text(_clock(start), style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
+          Text(end == null ? '--' : _clock(end),
+              style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
+        ]),
+        const SizedBox(width: S.x2),
+        Container(width: S.half * 1.5, height: S.x8, color: C.dialStrain),
+      ]),
+    );
+  }
+}
+
+/// A weekly card: the title, the day under the finger in big, and a column
+/// chart of the week. Each card scrubs on its own.
+class _WeekCard extends StatefulWidget {
+  final String title;
+  final String metricId;
+  final List<TrendBar> bars;
+  final List<List<double>?>? stacks;
+  final List<Color>? segments;
+  final List<String>? segmentNames;
+  final String Function(double?) format;
+  final Color color;
+
+  const _WeekCard({
+    required this.title,
+    required this.metricId,
+    required this.bars,
+    required this.format,
+    required this.color,
+    this.stacks,
+    this.segments,
+    this.segmentNames,
+  });
+
+  @override
+  State<_WeekCard> createState() => _WeekCardState();
+}
+
+class _WeekCardState extends State<_WeekCard> {
+  int? _at;
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final l = AppLocalizations.of(c);
+    final bars = widget.bars;
+    if (bars.isEmpty) return const SizedBox.shrink();
+    final last = bars.length - 1;
+    final bar = bars[_at ?? last];
+    final values = [for (final b in bars) b.v];
+    final top = values.fold<double>(0, (a, v) => math.max(a, v ?? 0));
+    final hi = top <= 0 ? 1.0 : top * 1.12;
+    final day = _dateOf(bar.to);
+    return Container(
+      padding: const EdgeInsets.all(S.x4),
+      decoration: BoxDecoration(color: p.card, borderRadius: R.rLg),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(
+            child: Text(widget.title.toUpperCase(),
+                style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w700, letterSpacing: 1.4)),
+          ),
+          Pressable(
+            onTap: () => Navigator.of(c).push(MaterialPageRoute(
+                builder: (_) => TrendViewScreen(initial: widget.metricId))),
+            semanticLabel: '${widget.title}: open trend view',
+            child: SizedBox(
+              width: S.x8,
+              height: S.tap,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Icon(LucideIcons.chevronRight, size: I.lg, color: p.ink2),
+              ),
+            ),
+          ),
+        ]),
+        const SizedBox(height: S.x1),
+        ScrubReadout(
+          caption: '${weekdayShortName(day.weekday, l)}, '
+              '${monthShortName(day.month, l)} ${day.day}',
+          value: widget.format(bar.v),
+          big: false,
+        ),
+        if (widget.segments != null && widget.segmentNames != null) ...[
+          const SizedBox(height: S.x2),
+          Wrap(spacing: S.x4, runSpacing: S.x1, children: [
+            for (var i = 0; i < widget.segments!.length; i++)
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                  width: S.x2 + S.half,
+                  height: S.x2 + S.half,
+                  decoration: BoxDecoration(
+                      color: widget.segments![i], borderRadius: R.rSm),
+                ),
+                const SizedBox(width: S.x2),
+                Text(widget.segmentNames![i].toUpperCase(),
+                    style: F.over.copyWith(color: p.ink2, fontWeight: FontWeight.w700)),
+              ]),
+          ]),
+        ],
+        const SizedBox(height: S.x3),
+        ScrubColumns(
+          values: values,
+          stacks: widget.stacks,
+          segmentColors: widget.segments,
+          xLabels: [
+            for (final b in bars) weekdayShortName(_dateOf(b.to).weekday, l),
+          ],
+          valueLabels: [
+            for (final b in bars) b.v == null ? '' : widget.format(b.v),
+          ],
+          lo: 0,
+          hi: hi,
+          ticks: [for (var k = 0; k <= 3; k++) hi * k / 3],
+          tickText: (_) => '',
+          color: widget.color,
+          highlight: last,
+          height: S.x16 * 3,
+          gutter: 0,
+          onScrub: (i) => setState(() => _at = i),
+        ),
+      ]),
+    );
+  }
+}
+
+DateTime _dateOf(String day) => DateTime.parse(day);
+
+/// The day's curve through the minutes, scrubbed: the minute under the finger,
+/// and its strain, in big.
+class _CurveCard extends StatefulWidget {
+  final List<double?> curve;
+  final double? strain;
+  final String title, footnote;
+  const _CurveCard({
+    required this.curve,
+    required this.strain,
+    required this.title,
+    required this.footnote,
+  });
+
+  @override
+  State<_CurveCard> createState() => _CurveCardState();
+}
+
+class _CurveCardState extends State<_CurveCard> {
+  int? _at;
+
+  String _clock(int minute) =>
+      '${(minute ~/ 60).toString().padLeft(2, '0')}:${(minute % 60).toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    const axis = AxisSpec(min: 0, max: 21, ticks: 4, format: axisInt);
+    final at = _at;
+    final v = at == null ? null : widget.curve[at];
+    return Surface(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        ScrubReadout(
+          caption: at == null ? widget.title : _clock(at),
+          value: at == null
+              ? (widget.strain == null ? '--' : widget.strain!.toStringAsFixed(1))
+              : (v == null ? '--' : v.toStringAsFixed(1)),
+          big: false,
+        ),
+        const SizedBox(height: S.x3),
+        ChartFrame(
+          title: '',
+          unit: '0–21',
+          height: 170,
+          yAxis: axis,
+          xLabels: const ['00:00', '12:00', '24:00'],
+          series: widget.curve,
+          footnote: widget.footnote,
+          child: ScrubArea(
+            count: widget.curve.length,
+            slots: false,
+            height: 170,
+            onScrub: (i) => setState(() => _at = i),
+            dotAt: (i) {
+              final y = widget.curve[i];
+              return y == null ? null : (y / 21).clamp(0.0, 1.0);
+            },
+            builder: (c, _) => CustomPaint(
+              size: Size.infinite,
+              painter: LineChart(widget.curve, p.on(C.purple),
+                  axis: axis, t: animate(c, 1)),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+/// The caret above the stats panel: a small triangle in the panel's colour.
+class _CaretPainter extends CustomPainter {
+  final Color color;
+  _CaretPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(0, size.height)
+      ..lineTo(size.width / 2, 0)
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(path, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_CaretPainter old) => old.color != color;
+}
+
+/// The ring: the day's strain as a sweep from the top, the 30-day average as a
+/// white tick across it.
+class _StrainRingPainter extends CustomPainter {
+  final double? fraction, baselineFraction;
+  final Color track, arc, tick;
+
+  _StrainRingPainter({
+    required this.fraction,
+    required this.baselineFraction,
+    required this.track,
+    required this.arc,
+    required this.tick,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = size.width * .05;
+    final rect = Offset.zero & size;
+    final ring = rect.deflate(stroke / 2);
+    canvas.drawArc(ring, 0, math.pi * 2, false,
+        Paint()
+          ..color = track
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke);
+    final f = fraction;
+    if (f != null && f > 0) {
+      canvas.drawArc(ring, -math.pi / 2, math.pi * 2 * f, false,
+          Paint()
+            ..color = arc
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round
+            ..strokeWidth = stroke);
+    }
+    final b = baselineFraction;
+    if (b != null) {
+      final a = -math.pi / 2 + math.pi * 2 * b;
+      final c = rect.center;
+      final r = ring.width / 2;
+      final inner = Offset(c.dx + (r - stroke) * math.cos(a), c.dy + (r - stroke) * math.sin(a));
+      final outer = Offset(c.dx + (r + stroke) * math.cos(a), c.dy + (r + stroke) * math.sin(a));
+      canvas.drawLine(inner, outer,
+          Paint()
+            ..color = tick
+            ..strokeWidth = S.half * 1.5
+            ..strokeCap = StrokeCap.round);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_StrainRingPainter old) =>
+      old.fraction != fraction ||
+      old.baselineFraction != baselineFraction ||
+      old.track != track ||
+      old.arc != arc;
 }

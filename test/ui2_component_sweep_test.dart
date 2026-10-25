@@ -54,7 +54,7 @@ Future<void> _loadType() async {
   // hardware, so on Android and in the test harness the type IS Manrope —
   // registering it under the primary name makes text measure as a non-Apple
   // user sees it, rather than as the harness's fallback blocks.
-  await loadOutfit();
+  await loadAppFonts();
   for (final family in const ['Manrope', '.SF Pro Text']) {
     final loader = FontLoader(family);
     for (final f in files) {

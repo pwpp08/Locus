@@ -14,5 +14,6 @@ export 'ecg_widgets.dart';
 export 'paint_activity.dart';
 export 'revision.dart';
 export 'scroll_hint.dart';
+export 'scrub.dart';
 export 'theme.dart';
 export 'trend.dart';

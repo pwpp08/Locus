@@ -133,9 +133,16 @@ void main() {
     expect(find.text('12.0'), findsOneWidget); // (10+12+14)/3, today left out
     expect(find.textContaining('Average does not include today'), findsOneWidget);
 
-    await t.tap(find.bySemanticsLabel(RegExp(r'^Aug 16: 15\.0$')));
+    // Drag a finger onto the newest bar: its value is read out big, and its
+    // date is the caption above it.
+    final box = t.getRect(find.byType(ScrubColumns));
+    final drag = await t.startGesture(Offset(box.right - 6, box.center.dy));
     await t.pump();
-    expect(find.text('Aug 16: 15.0'), findsOneWidget);
+    expect(find.text('15.0'), findsOneWidget);
+    expect(find.text('SUN, AUG 16, 2026'), findsOneWidget);
+    await drag.up();
+    await t.pump();
+    expect(find.text('12.0'), findsOneWidget, reason: 'lifting returns to the average');
 
     await t.tap(find.text('DAY STRAIN'));
     await t.pump();

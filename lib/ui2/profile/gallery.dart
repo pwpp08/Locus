@@ -1517,6 +1517,31 @@ Map<String, Widget> _stateCases() => {
         },
         onOpen: (_) {},
       ),
+      // The scrub chart: drag along it and the point under the finger is read
+      // out big. A null day is a gap, not a zero.
+      'scrub_columns': ScrubColumns(
+        values: const [14.2, 9.4, null, 18.5, 14.0, 12.1, 15.0],
+        xLabels: const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        valueLabels: const ['14.2', '9.4', '', '18.5', '14.0', '12.1', '15.0'],
+        lo: 0,
+        hi: 21,
+        ticks: const [0, 10, 20],
+        tickText: (v) => '${v.round()}',
+        avg: 14.2,
+        color: C.dialStrain,
+        highlight: 6,
+        height: S.x16 * 3,
+        onScrub: (_) {},
+      ),
+      'scrub_readout': const ScrubReadout(caption: 'Average', value: '14.2'),
+      'scrub_area': ScrubArea(
+        count: 5,
+        height: S.x16,
+        onScrub: (_) {},
+        builder: (c, at) => Center(
+          child: Text(at == null ? 'rest' : 'point ${at + 1}'),
+        ),
+      ),
       'profile_photo_header': const ProfilePhotoHeader(name: 'Alex'),
       // The oldest day on disk — back is dead, forward is live.
       'day_nav_oldest': DayNav(

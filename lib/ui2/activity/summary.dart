@@ -882,11 +882,16 @@ class _ActivitySummaryState extends State<ActivitySummary> {
         ],
         const SizedBox(height: S.x3),
         Row(children: [
-          Text(l?.activitySummaryRpeVeryEasy ?? '1 · very easy',
-              style: F.over.copyWith(color: p.ink3)),
-          const Spacer(),
-          Text(l?.activitySummaryRpeMaximal ?? '10 · maximal',
-              style: F.over.copyWith(color: p.ink3)),
+          Flexible(
+            child: Text(l?.activitySummaryRpeVeryEasy ?? '1 · very easy',
+                style: F.over.copyWith(color: p.ink3)),
+          ),
+          const SizedBox(width: S.x3),
+          Flexible(
+            child: Text(l?.activitySummaryRpeMaximal ?? '10 · maximal',
+                textAlign: TextAlign.end,
+                style: F.over.copyWith(color: p.ink3)),
+          ),
         ]),
         const SizedBox(height: S.x2),
         Align(
@@ -1768,6 +1773,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                   ),
                   const SizedBox(width: S.x3),
                   Expanded(
+                    flex: 2,
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1794,12 +1800,19 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                   ),
                     const SizedBox(width: S.x2),
                     // The row rule: the name gives way, the measurement keeps
-                    // its natural width and sits flush at the card edge.
-                    Text(
-                      '${_kg(c, top.loadKg!)} × ${top.reps}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: F.n17.copyWith(color: p.ink)),
+                    // its natural width and sits flush at the card edge. It
+                    // only scales down when a large text size leaves it less
+                    // than that, rather than running out of the card.
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                            '${_kg(c, top.loadKg!)} × ${top.reps}',
+                            maxLines: 1,
+                            style: F.n17.copyWith(color: p.ink)),
+                      ),
+                    ),
                 ]),
               ),
             ),
