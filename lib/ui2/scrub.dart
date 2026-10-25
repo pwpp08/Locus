@@ -264,7 +264,7 @@ class ScrubReadout extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(caption.toUpperCase(),
-            style: F.over.copyWith(color: p.ink2)),
+            style: F.num(F.over).copyWith(color: p.ink2)),
         const SizedBox(height: S.half),
         FittedBox(
           fit: BoxFit.scaleDown,
@@ -325,6 +325,9 @@ class ScrubColumns extends StatelessWidget {
   /// White average lines over stretches of columns, each with its figure.
   final List<ColumnMark> marks;
 
+  /// The colour of the figure over each bar, when it should not be the bar's.
+  final Color? labelColor;
+
   final Color color;
 
   /// Per-bar colour from the bar's value (the recovery traffic light).
@@ -358,6 +361,7 @@ class ScrubColumns extends StatelessWidget {
     this.valueLabels = const [],
     this.avg,
     this.marks = const [],
+    this.labelColor,
     this.colorOf,
     this.highlight,
     this.height = 200,
@@ -396,6 +400,7 @@ class ScrubColumns extends StatelessWidget {
           tickText: tickText,
           avg: avg,
           marks: marks,
+          labelColor: labelColor,
           color: color,
           colorOf: colorOf,
           highlight: highlight,
@@ -418,6 +423,7 @@ class _ColumnsPainter extends CustomPainter {
   final String Function(double) tickText;
   final double? avg;
   final List<ColumnMark> marks;
+  final Color? labelColor;
   final Color color;
   final Color Function(int i, double v)? colorOf;
   final int? highlight, at;
@@ -436,6 +442,7 @@ class _ColumnsPainter extends CustomPainter {
     required this.tickText,
     required this.avg,
     required this.marks,
+    required this.labelColor,
     required this.color,
     required this.colorOf,
     required this.highlight,
@@ -470,7 +477,7 @@ class _ColumnsPainter extends CustomPainter {
       final y = yOf(t);
       canvas.drawLine(Offset(r.left, y), Offset(r.right, y), grid);
       if (inset.left <= 0) continue;
-      final tp = _text(tickText(t), F.over.copyWith(color: p.ink3, fontWeight: FontWeight.w600),
+      final tp = _text(tickText(t), F.num(F.over).copyWith(color: p.ink3, fontWeight: FontWeight.w600),
           width: inset.left - S.x2, align: TextAlign.right);
       tp.paint(canvas, Offset(0, y - tp.height / 2));
     }
@@ -552,8 +559,8 @@ class _ColumnsPainter extends CustomPainter {
         final top = stack != null
             ? yOf(lo + stack.fold<double>(0, (a, b) => a + b))
             : yOf(v);
-        final tp = _text(valueLabels[i], F.cap.copyWith(
-          color: at == i ? p.ink : base,
+        final tp = _text(valueLabels[i], F.num(F.cap).copyWith(
+          color: at == i ? p.ink : (labelColor ?? base),
           fontWeight: FontWeight.w700,
         ), width: slot * 2);
         tp.paint(canvas, Offset(x + bw / 2 - tp.width / 2, top - tp.height - S.half));
@@ -573,7 +580,7 @@ class _ColumnsPainter extends CustomPainter {
             ..strokeWidth = 2.5
             ..strokeCap = StrokeCap.round);
       if (x1 - x0 < S.x10) continue;
-      final tp = _text(m.text, F.cap.copyWith(color: p.ink, fontWeight: FontWeight.w700));
+      final tp = _text(m.text, F.num(F.cap).copyWith(color: p.ink, fontWeight: FontWeight.w700));
       final c = (x0 + x1) / 2;
       canvas.drawRRect(
           RRect.fromRectAndRadius(
@@ -592,7 +599,7 @@ class _ColumnsPainter extends CustomPainter {
       final focus = i == at || i == highlight;
       final tp = _text(
         xLabels[i],
-        F.over.copyWith(
+        F.num(F.over).copyWith(
           color: focus ? p.ink : p.ink3,
           fontWeight: focus ? FontWeight.w800 : FontWeight.w600,
           height: 1.15,
@@ -824,7 +831,7 @@ class _LinePainter extends CustomPainter {
       final y = yOf(t);
       canvas.drawLine(Offset(r.left, y), Offset(r.right, y), grid);
       if (inset.left <= 0) continue;
-      final tp = _text(tickText(t), F.over.copyWith(color: p.ink3, fontWeight: FontWeight.w600),
+      final tp = _text(tickText(t), F.num(F.over).copyWith(color: p.ink3, fontWeight: FontWeight.w600),
           width: inset.left - S.x2, align: TextAlign.right);
       tp.paint(canvas, Offset(0, y - tp.height / 2));
     }
@@ -958,7 +965,7 @@ class _LinePainter extends CustomPainter {
       if (i < valueLabels.length && valueLabels[i].isNotEmpty) {
         final tp = _text(
           valueLabels[i],
-          F.cap.copyWith(color: at == i ? p.ink : color, fontWeight: FontWeight.w700),
+          F.num(F.cap).copyWith(color: at == i ? p.ink : color, fontWeight: FontWeight.w700),
           width: r.width / n * 2,
         );
         final pill = RRect.fromRectAndRadius(
@@ -981,7 +988,7 @@ class _LinePainter extends CustomPainter {
       final focus = i == at || i == highlight;
       final tp = _text(
         xLabels[i],
-        F.over.copyWith(
+        F.num(F.over).copyWith(
           color: focus ? p.ink : p.ink3,
           fontWeight: focus ? FontWeight.w800 : FontWeight.w600,
           height: 1.15,
@@ -1165,7 +1172,7 @@ class _RangesPainter extends CustomPainter {
       final y = yOf(t);
       canvas.drawLine(Offset(r.left, y), Offset(r.right, y), grid);
       if (inset.left <= 0) continue;
-      final tp = _text(tickText(t), F.over.copyWith(color: p.ink3, fontWeight: FontWeight.w600),
+      final tp = _text(tickText(t), F.num(F.over).copyWith(color: p.ink3, fontWeight: FontWeight.w600),
           width: inset.left - S.x2, align: TextAlign.right);
       tp.paint(canvas, Offset(0, y - tp.height / 2));
     }
@@ -1223,7 +1230,7 @@ class _RangesPainter extends CustomPainter {
         Paint()..color = base,
       );
       if (labelAll || i == focus) {
-        final style = F.cap.copyWith(
+        final style = F.num(F.cap).copyWith(
             color: lit ? (emphasis != null ? color : p.ink2) : p.ink3, fontWeight: FontWeight.w700);
         final above = _text(timeText(rg.from), style, width: slot * 2);
         above.paint(canvas, Offset(x + bw / 2 - above.width / 2, top - above.height - S.x1));
@@ -1237,7 +1244,7 @@ class _RangesPainter extends CustomPainter {
       final on = i == (at ?? emphasis);
       final tp = _text(
         xLabels[i],
-        F.over.copyWith(
+        F.num(F.over).copyWith(
           color: on ? p.ink : p.ink3,
           fontWeight: on ? FontWeight.w800 : FontWeight.w600,
           height: 1.15,
@@ -1250,7 +1257,7 @@ class _RangesPainter extends CustomPainter {
     // The tags sit last, over the axis labels they stand in for.
     for (final t in tags) {
       final y = yOf(t.at);
-      final tp = _text(t.text, F.cap.copyWith(color: p.bg, fontWeight: FontWeight.w800));
+      final tp = _text(t.text, F.num(F.cap).copyWith(color: p.bg, fontWeight: FontWeight.w800));
       final box = Rect.fromLTWH(0, y - (tp.height + S.x2) / 2, tp.width + S.x4, tp.height + S.x2);
       canvas.drawRRect(
           RRect.fromRectAndRadius(box, const Radius.circular(R.sm)), Paint()..color = p.ink);
@@ -1350,7 +1357,7 @@ class _PairPainter extends CustomPainter {
     for (final t in w.ticks) {
       final y = yOf(t);
       canvas.drawLine(Offset(r.left, y), Offset(r.right, y), grid);
-      final tp = _text(w.tickText(t), F.over.copyWith(color: p.ink3, fontWeight: FontWeight.w600),
+      final tp = _text(w.tickText(t), F.num(F.over).copyWith(color: p.ink3, fontWeight: FontWeight.w600),
           width: inset.left - S.x2, align: TextAlign.right);
       tp.paint(canvas, Offset(0, y - tp.height / 2));
     }
@@ -1394,7 +1401,7 @@ class _PairPainter extends CustomPainter {
         );
         if (i < labels.length && labels[i].isNotEmpty) {
           final tp = _text(labels[i],
-              F.cap.copyWith(color: at == i ? p.ink : color, fontWeight: FontWeight.w700),
+              F.num(F.cap).copyWith(color: at == i ? p.ink : color, fontWeight: FontWeight.w700),
               width: r.width / n * 2);
           final cy = below ? y + S.x5 + tp.height / 2 : y - S.x5 - tp.height / 2;
           canvas.drawRRect(
@@ -1416,7 +1423,7 @@ class _PairPainter extends CustomPainter {
       final on = i == at;
       final tp = _text(
         w.xLabels[i],
-        F.over.copyWith(
+        F.num(F.over).copyWith(
           color: on ? p.ink : p.ink3,
           fontWeight: on ? FontWeight.w800 : FontWeight.w600,
           height: 1.15,
@@ -1606,7 +1613,7 @@ class _MonthsPainter extends CustomPainter {
     for (final t in ticks) {
       final y = yOf(t);
       canvas.drawLine(Offset(r.left, y), Offset(r.right, y), grid);
-      final tp = _text(tickText(t), F.over.copyWith(color: p.ink3, fontWeight: FontWeight.w600),
+      final tp = _text(tickText(t), F.num(F.over).copyWith(color: p.ink3, fontWeight: FontWeight.w600),
           width: inset.left - S.x2);
       tp.paint(canvas, Offset(inset.left - S.x2 - tp.width, y - tp.height / 2));
     }
@@ -1685,14 +1692,14 @@ class _MonthsPainter extends CustomPainter {
             ..strokeCap = StrokeCap.round);
       // A sliver of a month at either end has no room for its figure.
       if (x1 - x0 < S.x10) return;
-      final tp = _text(text, F.cap.copyWith(color: tone, fontWeight: FontWeight.w700));
+      final tp = _text(text, F.num(F.cap).copyWith(color: tone, fontWeight: FontWeight.w700));
       final cx = ((x0 + x1) / 2 - tp.width / 2)
           .clamp(0.0, math.max(0.0, size.width - tp.width))
           .toDouble();
       tp.paint(canvas, Offset(cx, y - tp.height - S.x1));
       final note = m.note;
       if (note != null) {
-        final np = _text(note, F.cap.copyWith(color: tone, fontWeight: FontWeight.w700));
+        final np = _text(note, F.num(F.cap).copyWith(color: tone, fontWeight: FontWeight.w700));
         np.paint(
             canvas,
             Offset(((x0 + x1) / 2 - np.width / 2)
@@ -1710,7 +1717,7 @@ class _MonthsPainter extends CustomPainter {
       final mid = (xOf(m.from) + xOf(m.to)) / 2;
       if (xOf(m.to) - xOf(m.from) < S.x10) continue;
       final tp = _text(m.label,
-          F.over.copyWith(color: lit && at != null ? p.ink : p.ink3, fontWeight: FontWeight.w600));
+          F.num(F.over).copyWith(color: lit && at != null ? p.ink : p.ink3, fontWeight: FontWeight.w600));
       tp.paint(canvas, Offset(mid - tp.width / 2, r.bottom + S.x1));
     }
   }

@@ -854,7 +854,7 @@ class DashboardRows extends StatelessWidget {
               padding: EdgeInsets.only(
                   right: dir == null ? 0 : _triangle + S.x2),
               child: Text(trendFormat(m, h.against),
-                  style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
+                  style: F.num(F.cap).copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
             ),
         ]),
       ]),
@@ -1816,6 +1816,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       tickText: (t) => _tickText(m, t),
       avg: avg,
       marks: _monthMarks(m, bars, totals),
+      labelColor: P.of(context).ink,
       color: _colorOf(m),
       height: S.x16 * 4 + S.x8,
       onScrub: (i) => setState(() => _selected = i),

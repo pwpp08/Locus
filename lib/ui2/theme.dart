@@ -384,20 +384,29 @@ class P {
 ///
 /// Words are Figtree, numbers are D-DIN, both bundled (SIL OFL,
 /// assets/fonts) so iOS, Android and the golden tests render the same design.
-/// D-DIN is bundled as a digits-only face, [numerals]: every style names it
-/// FIRST, so any digit — in a dial, a sentence or a table — is D-DIN, and
-/// every letter, which that face does not have, falls to Figtree. Figtree has
-/// no Cyrillic: Russian falls through to the bundled Manrope, and anything
-/// past that to the platform's Helvetica Neue / Helvetica / Arial.
+/// D-DIN is bundled as a digits-only face, [numerals]. Only a number that
+/// stands on its own uses it (a dial's score, a card's figure, a chart's
+/// labels): the numeral steps below, and [num] for a word style that holds
+/// nothing but a number. A digit inside a sentence stays in Figtree, where it
+/// sits with the words around it. Figtree has no Cyrillic: Russian falls
+/// through to the bundled Manrope, and anything past that to the platform's
+/// Helvetica Neue / Helvetica / Arial.
 ///
 /// Headlines are short, uppercase and set close, tracked at about 3 % ([caps]); body text is
 /// Figtree semibold; numerals are D-DIN bold.
 class F {
   static const family = 'Figtree';
   static const numerals = 'DDINNums';
-  static const _f = numerals;
-  static const _fb = [
+  static const _f = family;
+  static const _n = numerals;
+  static const _nb = [
     family,
+    'Manrope',
+    'Helvetica Neue',
+    'Helvetica',
+    'Arial',
+  ];
+  static const _fb = [
     'Manrope',
     'Helvetica Neue',
     'Helvetica',
@@ -480,53 +489,58 @@ class F {
   // its own layout as digits change. Units sit beside them in cap/body, ink3.
   /// The figure inside a dial.
   static const n80 = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
+      fontFamily: _n,
+      fontFamilyFallback: _nb,
       fontSize: 80,
       height: 1,
       fontWeight: FontWeight.w700,
       letterSpacing: -.8,
       fontFeatures: _tab);
   static const n64 = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
+      fontFamily: _n,
+      fontFamilyFallback: _nb,
       fontSize: 64,
       height: 1,
       fontWeight: FontWeight.w700,
       letterSpacing: -.6,
       fontFeatures: _tab);
   static const n48 = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
+      fontFamily: _n,
+      fontFamilyFallback: _nb,
       fontSize: 48,
       height: 1,
       fontWeight: FontWeight.w700,
       letterSpacing: -.5,
       fontFeatures: _tab);
   static const n34 = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
+      fontFamily: _n,
+      fontFamilyFallback: _nb,
       fontSize: 34,
       height: 1,
       fontWeight: FontWeight.w700,
       letterSpacing: -.3,
       fontFeatures: _tab);
   static const n24 = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
+      fontFamily: _n,
+      fontFamilyFallback: _nb,
       fontSize: 24,
       height: 1,
       fontWeight: FontWeight.w700,
       letterSpacing: -.1,
       fontFeatures: _tab);
   static const n17 = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
+      fontFamily: _n,
+      fontFamilyFallback: _nb,
       fontSize: 17,
       height: 1,
       fontWeight: FontWeight.w700,
       letterSpacing: -.1,
       fontFeatures: _tab);
+
+  /// [style] (a word style) for a number that stands alone: D-DIN digits, with
+  /// everything else as it was.
+  static TextStyle num(TextStyle style) =>
+      style.copyWith(fontFamily: _n, fontFamilyFallback: _nb);
 }
 
 /// ── SPACING ── 4pt base ───────────────────────────────────────────────────

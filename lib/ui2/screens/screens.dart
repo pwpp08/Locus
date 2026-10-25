@@ -28,6 +28,8 @@ export 'rough_night.dart';
 export 'sleep_detail.dart';
 export 'sleep_planner.dart';
 export 'add_activity.dart';
+export 'recovery_calendar.dart';
+export 'alarm_mode_sheet.dart';
 export 'strain_recovery_card.dart';
 export 'stress_monitor.dart';
 export 'trend_view.dart';

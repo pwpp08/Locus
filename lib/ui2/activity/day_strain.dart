@@ -777,7 +777,7 @@ class _StatRow extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: S.half),
               child: Text(average!,
-                  style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
+                  style: F.num(F.cap).copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
             ),
         ]),
         SizedBox(
@@ -847,9 +847,9 @@ class _ActivityCard extends StatelessWidget {
               style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
         ),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text(_clock(start), style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
+          Text(_clock(start), style: F.num(F.cap).copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
           Text(end == null ? '--' : _clock(end),
-              style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
+              style: F.num(F.cap).copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
         ]),
         const SizedBox(width: S.x2),
         Container(width: S.half * 1.5, height: S.x8, color: C.dialStrain),
@@ -963,6 +963,7 @@ class _WeekCardState extends State<_WeekCard> {
           ticks: [for (var k = 0; k <= 3; k++) hi * k / 3],
           tickText: (_) => '',
           color: widget.color,
+          labelColor: p.ink,
           // The newest day carries the column at rest; a touch moves it.
           highlight: _at == null ? last : null,
           height: S.x16 * 3,

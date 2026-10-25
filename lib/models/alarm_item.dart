@@ -2,6 +2,8 @@
 
 import 'dart:convert';
 
+import '../state/alarm_mode.dart';
+
 /// Days of week: 1 = Monday ... 7 = Sunday (matches DateTime.weekday).
 class AlarmItem {
   final String id;
@@ -18,6 +20,10 @@ class AlarmItem {
   /// 0 = disabled.
   final int smartWindowMinutes;
 
+  /// What the alarm waits for before it wakes you; [hour]:[minute] is the
+  /// time it is set to, and the latest it will ever ring.
+  final AlarmMode mode;
+
   const AlarmItem({
     required this.id,
     required this.hour,
@@ -26,7 +32,13 @@ class AlarmItem {
     this.enabled = true,
     this.days = const {},
     this.smartWindowMinutes = 0,
+    this.mode = AlarmMode.exact,
   });
+
+  /// The minutes before the set time inside which this alarm may buzz early:
+  /// its Smart Wake window, or a goal mode's own.
+  int get earlyWindowMinutes =>
+      mode == AlarmMode.exact ? smartWindowMinutes : kGoalWindowMin;
 
   bool get isRingOnce => days.isEmpty;
   bool get isOneShot => isRingOnce;
@@ -96,6 +108,7 @@ class AlarmItem {
     bool? enabled,
     Set<int>? days,
     int? smartWindowMinutes,
+    AlarmMode? mode,
   }) =>
       AlarmItem(
         id: id ?? this.id,
@@ -105,6 +118,7 @@ class AlarmItem {
         enabled: enabled ?? this.enabled,
         days: days ?? this.days,
         smartWindowMinutes: smartWindowMinutes ?? this.smartWindowMinutes,
+        mode: mode ?? this.mode,
       );
 
   Map<String, dynamic> toJson() => {
@@ -115,6 +129,7 @@ class AlarmItem {
         'enabled': enabled,
         'days': days.toList()..sort(),
         'smartWindowMinutes': smartWindowMinutes,
+        'mode': mode.name,
       };
 
   factory AlarmItem.fromJson(Map<String, dynamic> json) => AlarmItem(
@@ -125,6 +140,7 @@ class AlarmItem {
         enabled: (json['enabled'] as bool?) ?? true,
         days: ((json['days'] as List?)?.map((e) => (e as num).toInt()).toSet()) ?? const {},
         smartWindowMinutes: (json['smartWindowMinutes'] as num?)?.toInt() ?? 0,
+        mode: AlarmMode.fromName(json['mode']),
       );
 
   static List<AlarmItem> decodeList(String jsonStr) {

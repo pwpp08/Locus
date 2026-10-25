@@ -109,6 +109,22 @@ class _MonitorData {
   }
 }
 
+/// What Home's card says: how many of the vitals that have a reading and a
+/// usual range sit inside it.
+typedef HealthGlance = ({int inside, int total});
+
+/// Reads the vitals once for Home's card. Null when none has both a reading and
+/// a range to hold it against: the card says there is no data, never "5/5".
+Future<HealthGlance?> healthGlanceOf(BuildContext c) async {
+  final d = await _MonitorData.load(c);
+  final held = [for (final v in d.vitals) if (v.present && v.side != null) v];
+  if (held.isEmpty) return null;
+  return (
+    inside: held.where((v) => v.side == Side.inside).length,
+    total: held.length,
+  );
+}
+
 class HealthMonitorScreen extends StatefulWidget {
   const HealthMonitorScreen({super.key});
 

@@ -77,6 +77,8 @@ import 'live_stream_controller.dart';
 import 'sync_controller.dart';
 import 'workout_controller.dart';
 import 'smart_wake.dart';
+import 'alarm_mode.dart';
+import '../models/alarm_item.dart' show AlarmItem;
 import 'prefs.dart';
 import '../ble/adapters/signals.dart' show InputSignal;
 import '../ui2/profile/devices.dart' show liveSources, rankSources;
@@ -4584,7 +4586,15 @@ class AppState extends ChangeNotifier {
       if (!isConnected) return;
       final epoch = alarmEpoch;
       if (epoch == null || epoch == _smartWakeFiredForEpoch) return;
-      final armed = armedSmartWakeWindow(epoch: epoch, schedule: _schedule);
+      final item = alarmManager.isLoaded
+          ? alarmManager.alarmArmedFor(
+              DateTime.fromMillisecondsSinceEpoch(epoch * 1000))
+          : null;
+      if (item != null && item.mode != AlarmMode.exact) {
+        await _checkGoalWake(item, epoch);
+        return;
+      }
+      final armed = _armedWakeWindow(epoch);
       if (armed == null) return;
       final now = DateTime.now();
       if (!inSmartWakeWindow(
@@ -4617,6 +4627,80 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       _log('[smart-wake] check failed (fallback alarm is unaffected): $e');
     }
+  }
+
+  /// The early-buzz window of the alarm armed for [epoch]: its own when it is
+  /// one of the manager's alarms (a Smart Wake window, or a goal mode's), else
+  /// the legacy weekly schedule's.
+  ({DateTime windowEnd, int minutes})? _armedWakeWindow(int? epoch) {
+    if (epoch == null) return null;
+    final end = DateTime.fromMillisecondsSinceEpoch(epoch * 1000);
+    final item = alarmManager.isLoaded ? alarmManager.alarmArmedFor(end) : null;
+    if (item != null) {
+      final m = item.earlyWindowMinutes;
+      return m > 0 ? (windowEnd: end, minutes: m) : null;
+    }
+    return armedSmartWakeWindow(epoch: epoch, schedule: _schedule);
+  }
+
+  int? _goalInBedMin;
+  DateTime? _goalInBedAt;
+
+  /// Tonight's time in bed, read at most every 20 minutes.
+  Future<int?> _inBedMinForGoal() async {
+    final at = _goalInBedAt;
+    if (at != null && DateTime.now().difference(at) < const Duration(minutes: 20)) {
+      return _goalInBedMin;
+    }
+    final r = repo;
+    if (r == null) return null;
+    try {
+      _goalInBedMin = inBedMinFromInsights(await r.getInsights());
+      _goalInBedAt = DateTime.now();
+    } catch (_) {
+      _goalInBedMin = null;
+    }
+    return _goalInBedMin;
+  }
+
+  /// A goal alarm (Sleep goal, In the green): once the time in bed the goal
+  /// needs has passed since the night's onset, inside the window before the
+  /// set time, buzz early. Like Smart Wake this is an EARLY extra buzz only
+  /// (`runAlarm`); the band's armed alarm at the set time is never touched.
+  Future<void> _checkGoalWake(AlarmItem item, int epoch) async {
+    final end = DateTime.fromMillisecondsSinceEpoch(epoch * 1000);
+    final now = DateTime.now();
+    final start = end.subtract(const Duration(minutes: kGoalWindowMin));
+    if (now.isBefore(start) || !now.isBefore(end)) return;
+    final inBed = await _inBedMinForGoal();
+    if (goalInBedMin(item.mode, inBed) == null) return;
+    final rows = await LocalDb.onehzHrAccelBetween(
+      now.subtract(const Duration(hours: 14)).millisecondsSinceEpoch ~/ 1000,
+      now.millisecondsSinceEpoch ~/ 1000,
+    );
+    final onset = estimateSleepOnset([
+      for (final r in rows)
+        (
+          t: (r['rec_ts'] as num).toInt(),
+          hr: (r['hr'] as num).toDouble(),
+          motion: (math.sqrt(math.pow((r['ax'] as num).toDouble(), 2) +
+                      math.pow((r['ay'] as num).toDouble(), 2) +
+                      math.pow((r['az'] as num).toDouble(), 2)) -
+                  1)
+              .abs(),
+        ),
+    ]);
+    if (!goalBuzzDue(
+        mode: item.mode,
+        deadline: end,
+        now: now,
+        onset: onset,
+        inBedMin: inBed)) {
+      return;
+    }
+    _smartWakeFiredForEpoch = epoch; // before the write, as Smart Wake does
+    await engine.runAlarm();
+    _log('[goal-wake] ${item.mode.name}: goal reached — early buzz.');
   }
 
   /// Whether the currently-armed alarm — from either source, the schedule
@@ -5028,7 +5112,7 @@ class AppState extends ChangeNotifier {
   Future<void> _refreshHighFreqWakeWindowOnce() async {
     if (!engine.isConnected) return;
     try {
-      final armed = armedSmartWakeWindow(epoch: alarmEpoch, schedule: _schedule);
+      final armed = _armedWakeWindow(alarmEpoch);
       final plan = await HighFreqWakeWindow.planNow(
         scheduledWindowEnd: armed?.windowEnd,
         scheduledWindowMinutes: armed?.minutes ?? 0,

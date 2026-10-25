@@ -76,6 +76,7 @@ import '../profile/wearable_numbers.dart'
 import '../ui2.dart';
 import 'action_sheet.dart' show openActionSheet;
 import 'add_activity.dart' show openAddActivity;
+import 'recovery_calendar.dart' show openRecoveryCalendar;
 import 'ai_briefing.dart' show AiBriefingScreen;
 import 'detected_activities.dart';
 import 'day_timeline.dart' show DayTimelineScreen;
@@ -84,6 +85,7 @@ import 'readiness_detail.dart';
 import 'sleep_detail.dart';
 import 'sleep_planner.dart';
 import 'strain_recovery_card.dart';
+import 'health_monitor.dart' show HealthGlance, HealthMonitorScreen, healthGlanceOf;
 import 'stress_monitor.dart';
 import 'trend_view.dart';
 
@@ -1764,6 +1766,18 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     }
   }
 
+  /// The calendar: every day in the colour its recovery scored. A day picked
+  /// there is the day the screen shows.
+  Future<void> _openCalendar(BuildContext c, String cur) async {
+    final today = todayLabel(widget.now);
+    final day = await openRecoveryCalendar(c,
+        today: today,
+        selected: cur,
+        recovery: _daily['recovery'] ?? const {},
+        days: {..._days, today});
+    if (day != null && mounted) _goDay(day);
+  }
+
   /// Another day. The switcher never strands you off the record — [DayNav]
   /// already restricts the arrows to [_days] — so this just re-loads for it.
   void _goDay(String day) {
@@ -1874,6 +1888,9 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   /// The day's stress, scored from its minute series. Loaded after everything
   /// else: it reads fifteen days, and nothing on Home waits for it.
   StressMonitorData? _stress;
+
+  /// Health Monitor's card: the vitals inside their usual range.
+  HealthGlance? _health;
   StressSource? _stressSource;
 
   Future<void> _loadStress(LocalRepository repo, String day) async {
@@ -1926,6 +1943,10 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     _daily = daily;
     _firstDay = first;
     _loadStress(repo, day);
+    try {
+      final h = await healthGlanceOf(context);
+      if (mounted) setState(() => _health = h);
+    } catch (_) {}
   }
 
   /// My Dashboard's rows: per metric, its value on each local day.
@@ -1947,6 +1968,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           today: today,
           days: _days,
           onDay: _goDay,
+          onCalendar: () => _openCalendar(c, cur),
         ),
         const Align(
             alignment: AlignmentDirectional.centerStart,
@@ -2088,9 +2110,16 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         // ── the three dials ── each a door into its deep dive. They render
         // as long as ONE of them has something to draw; three empty dials
         // say less than the one written absence below, which is a door.
-        if (dialsShown)
-          _Dials(key: _dialsKey, d: d, onOpen: openDial)
-        else
+        if (dialsShown) ...[
+          _Dials(key: _dialsKey, d: d, onOpen: openDial),
+          // ── the two monitors ── a glance each, one tap from the full screen.
+          _Monitors(
+            health: _health,
+            stress: _stress,
+            onHealth: () => go(c, const HealthMonitorScreen()),
+            onStress: () => go(c, const StressMonitorScreen()),
+          ),
+        ] else
           Builder(builder: (c) {
             final need = needMessageFromNote(d.readiness.note);
             // The SAME functions and stored diagnostic the Readiness screen's
@@ -2154,7 +2183,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           return _TonightsSleep(
             // The planner's bedtime for the wake time it plans to; the
             // coach's own when there is no plan to build it from.
-            bedtimeMin: d.plan.bedtimeFor(plannedWakeMin(d.plan, alarm)) ??
+            bedtimeMin: d.plan.bedtimeFor(plannedWakeMin(d.plan, alarm, items: alarmItemsOf(c))) ??
                 d.bedtime.value?.round(),
             alarm: alarm,
           );
@@ -2198,13 +2227,6 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             recovery: _daily['recovery'] ?? const {},
           ),
         },
-      ),
-
-      // ── STRESS MONITOR ── the trend, one tap from the full chart.
-      const SizedBox(height: S.x3),
-      _StressMonitor(
-        data: _stress,
-        onTap: () => go(c, const StressMonitorScreen()),
       ),
 
       if (isToday && !bare) ...[
@@ -2521,11 +2543,18 @@ class _DayPager extends StatelessWidget {
   final List<String> days;
   final ValueChanged<String> onDay;
 
+  /// The date was tapped: the calendar opens.
+  final VoidCallback onCalendar;
+
   const _DayPager(
       {required this.day,
       required this.today,
       required this.days,
-      required this.onDay});
+      required this.onDay,
+      required this.onCalendar});
+
+  static const _h = S.x8;
+  static final _r = BorderRadius.circular(S.x2 + S.half);
 
   @override
   Widget build(BuildContext c) {
@@ -2561,44 +2590,54 @@ class _DayPager extends StatelessWidget {
           child: Pressable(
             onTap: to == null ? null : () => onDay(to),
             child: SizedBox(
-              width: S.x10 + S.x1,
-              height: S.x10 - S.half,
+              width: S.x8 + S.x1,
+              height: _h,
               child: Center(
                 child: BoldChevron(
                     left: i == LucideIcons.chevronLeft,
+                    height: S.x3,
                     color: to == null ? p.ink.withValues(alpha: .22) : p.ink),
               ),
             ),
           ),
         );
 
-    // 200 wide and 38 tall: the date's pill fills the bar's height, with a
-    // bold chevron either side.
+    // 168 wide and 32 tall, as the original sits against the avatar: the
+    // date's pill fills the bar's height (a little over half its width), with
+    // a bold chevron either side.
     return Container(
-      width: S.x16 * 3 + S.x2,
-      height: S.x10 - S.half,
+      width: S.x16 * 2 + S.x8 + S.x1 * 2,
+      height: _h,
       decoration: BoxDecoration(
         color: Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
-        borderRadius: R.rLg,
+        borderRadius: _r,
       ),
       child: Row(children: [
         arrow(LucideIcons.chevronLeft, older, 'Previous day'),
         Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Color.alphaBlend(p.ink.withValues(alpha: .15), p.bg),
-              borderRadius: R.rLg,
-            ),
-            alignment: Alignment.center,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(label,
-                  maxLines: 1,
-                  style: F.cap.copyWith(
-                      color: p.ink,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1,
-                      height: 1)),
+          child: Semantics(
+            label: 'Open the calendar',
+            button: true,
+            excludeSemantics: true,
+            child: Pressable(
+              onTap: onCalendar,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Color.alphaBlend(p.ink.withValues(alpha: .15), p.bg),
+                  borderRadius: _r,
+                ),
+                alignment: Alignment.center,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(label,
+                      maxLines: 1,
+                      style: F.over.copyWith(
+                          color: p.ink,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                          height: 1)),
+                ),
+              ),
             ),
           ),
         ),
@@ -2634,13 +2673,13 @@ class _DeviceStatus extends StatelessWidget {
           Text('${battery.$1.round()}%',
               style: F.n17.copyWith(
                   color: low ? p.on(C.red) : p.ink, fontWeight: FontWeight.w700)),
-          const SizedBox(width: S.x3),
+          const SizedBox(width: S.x2),
         ],
         // Receiving from the strap, an arrow hops up and down in the gap of
         // the band's outline; otherwise a dot says whether it is linked.
         StrapIcon(
           color: p.ink,
-          height: S.x10 - S.half,
+          height: S.x6,
           badge: syncing
               ? const _SyncArrow()
               : Container(
@@ -2830,7 +2869,7 @@ class _ScoreDial extends StatelessWidget {
                         flatStart: true,
                         band: target,
                         bandColor: Color.alphaBlend(
-                            p.ink.withValues(alpha: .14), p.track),
+                            p.ink.withValues(alpha: .24), p.track),
                         tick: target?.$1,
                         tickColor: p.ink),
               ),
@@ -3251,10 +3290,10 @@ class _ActivityRow extends StatelessWidget {
           const SizedBox(width: S.x2),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text(_when(c, start),
-                style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w700)),
+                style: F.num(F.cap).copyWith(color: p.ink3, fontWeight: FontWeight.w700)),
             const SizedBox(height: S.x2),
             Text(_when(c, end),
-                style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w700)),
+                style: F.num(F.cap).copyWith(color: p.ink3, fontWeight: FontWeight.w700)),
           ]),
           const SizedBox(width: S.x3),
           // The span as a bar with a dot at each end: from, to.
@@ -3295,107 +3334,139 @@ class _SpanPainter extends CustomPainter {
 
 /// The newest stored reading of [key], formatted, with how old it is.
 /// STRESS MONITOR: the day's latest reading, 0–3, and the day behind it.
-class _StressMonitor extends StatelessWidget {
-  final StressMonitorData? data;
-  final VoidCallback onTap;
-  const _StressMonitor({required this.data, required this.onTap});
+/// HEALTH MONITOR and STRESS MONITOR, side by side under the dials: each a
+/// square that says how things stand, then the word for it.
+class _Monitors extends StatelessWidget {
+  final HealthGlance? health;
+  final StressMonitorData? stress;
+  final VoidCallback onHealth, onStress;
+
+  const _Monitors({
+    required this.health,
+    required this.stress,
+    required this.onHealth,
+    required this.onStress,
+  });
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    final d = data;
+
+    Widget card(String title, String semantic, VoidCallback onTap, Widget tile,
+            String word, Color wordColor, String sub) =>
+        Expanded(
+          child: Surface(
+            onTap: onTap,
+            semanticLabel: semantic,
+            pad: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x3, S.x4),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(title,
+                        maxLines: 1,
+                        style: F.caps.copyWith(
+                            color: p.ink, fontWeight: FontWeight.w800)),
+                  ),
+                ),
+                BoldChevron(left: false, color: p.ink3, height: S.x3),
+              ]),
+              const SizedBox(height: S.x5),
+              Row(children: [
+                tile,
+                const SizedBox(width: S.x3),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(word,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: F.caps.copyWith(
+                            color: wordColor, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: S.half),
+                    Text(sub,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: F.num(F.cap).copyWith(
+                            color: p.ink2, fontWeight: FontWeight.w600)),
+                  ]),
+                ),
+              ]),
+            ]),
+          ),
+        );
+
+    Widget square(Color colour, Widget child) => Container(
+          width: S.x10,
+          height: S.x10,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: colour.withValues(alpha: .2),
+            borderRadius: R.rMd,
+          ),
+          child: child,
+        );
+
+    // Health: every vital with a range is inside it, or some are not.
+    final h = health;
+    final allIn = h != null && h.inside == h.total;
+    final hColour = h == null ? p.ink3 : (allIn ? C.stressMedium : C.stressHigh);
+    // Stress: the latest score on the day's 0-3 scale.
+    final d = stress;
     final last = d?.last;
     final score = last == null ? null : d!.scores[last];
     final level = score == null ? null : stressLevel(score);
-    final building = d != null && d.baseline == null;
-    return Surface(
-      onTap: onTap,
-      semanticLabel: score == null
-          ? 'Stress monitor. No reading'
-          : 'Stress monitor. ${score.toStringAsFixed(1)} of 3, ${level!.name}',
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(LucideIcons.brain, size: I.md, color: p.ink3),
-          const SizedBox(width: S.x3),
-          Expanded(
-              child: Text('STRESS MONITOR', style: F.caps.copyWith(color: p.ink))),
-          Icon(LucideIcons.chevronRight, size: I.md, color: p.ink3),
-        ]),
-        const SizedBox(height: S.x3),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text(score == null ? '--' : score.toStringAsFixed(1),
-                style: F.n34.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-            if (level != null) ...[
-              const SizedBox(width: S.x3),
-              Text(level.name.toUpperCase(),
-                  style: F.caps.copyWith(
-                      color: switch (level) {
-                        StressLevel.low => C.stressLow,
-                        StressLevel.medium => C.stressMedium,
-                        StressLevel.high => C.stressHigh,
-                      },
-                      fontWeight: FontWeight.w700)),
-            ],
-            const Spacer(),
-            Text(
-                building
-                    ? 'Building your baseline'
-                    : last == null
-                        ? (d == null ? '' : 'No reading')
-                        : '${(last ~/ 60).toString().padLeft(2, '0')}:${(last % 60).toString().padLeft(2, '0')}',
-                style: F.cap.copyWith(color: p.ink3)),
-          ],
-        ),
-        if (d != null && last != null) ...[
-          const SizedBox(height: S.x3),
-          SizedBox(
-            height: S.x12,
-            child: CustomPaint(
-              size: Size.infinite,
-              painter: _StressSparkPainter(d.scores, p.line),
-            ),
+    final sColour = switch (level) {
+      StressLevel.low => C.stressLow,
+      StressLevel.medium => C.stressMedium,
+      StressLevel.high => C.stressHigh,
+      null => p.ink3,
+    };
+    String at(int m) =>
+        '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: S.x3),
+      child: IntrinsicHeight(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          card(
+            'HEALTH MONITOR',
+            h == null
+                ? 'Health monitor. No data'
+                : 'Health monitor. ${h.inside} of ${h.total} metrics within range',
+            onHealth,
+            square(hColour,
+                Icon(h == null ? LucideIcons.minus : (allIn ? LucideIcons.check : LucideIcons.triangleAlert),
+                    size: I.md, color: hColour)),
+            h == null ? 'NO DATA' : (allIn ? 'WITHIN RANGE' : 'OUT OF RANGE'),
+            hColour,
+            h == null ? 'Needs a night' : '${h.inside}/${h.total} Metrics',
           ),
-        ],
-      ]),
+          const SizedBox(width: S.x3),
+          card(
+            'STRESS MONITOR',
+            score == null
+                ? 'Stress monitor. No reading'
+                : 'Stress monitor. ${score.toStringAsFixed(1)} of 3, ${level!.name}',
+            onStress,
+            square(
+                sColour,
+                Text(score == null ? '--' : score.toStringAsFixed(1),
+                    style: F.n17.copyWith(
+                        color: sColour, fontWeight: FontWeight.w700))),
+            level == null
+                ? (d != null && d.baseline == null ? 'BUILDING' : 'NO READING')
+                : level.name.toUpperCase(),
+            sColour,
+            last == null
+                ? (d != null && d.baseline == null ? 'Your baseline' : '')
+                : at(last),
+          ),
+        ]),
+      ),
     );
   }
-}
-
-/// The day's scores as a thin line coloured by height, on a 0–3 scale.
-class _StressSparkPainter extends CustomPainter {
-  final List<double?> scores;
-  final Color grid;
-  _StressSparkPainter(this.scores, this.grid);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawLine(Offset(0, size.height), Offset(size.width, size.height),
-        Paint()..color = grid);
-    // Ten-minute means: a pixel does not need a minute.
-    final pts = <(double, double)>[];
-    for (var i = 0; i + 10 <= scores.length; i += 10) {
-      final xs = [for (var k = i; k < i + 10; k++) ?scores[k]];
-      if (xs.isEmpty) continue;
-      final v = xs.fold<double>(0, (a, b) => a + b) / xs.length;
-      pts.add((i / (scores.length - 1) * size.width, size.height - v / 3 * size.height));
-    }
-    for (var k = 1; k < pts.length; k++) {
-      if (pts[k].$1 - pts[k - 1].$1 > size.width * .03) continue;
-      final v = (1 - (pts[k].$2 + pts[k - 1].$2) / 2 / size.height) * 3;
-      canvas.drawLine(
-          Offset(pts[k - 1].$1, pts[k - 1].$2),
-          Offset(pts[k].$1, pts[k].$2),
-          Paint()
-            ..color = stressColor(v)
-            ..strokeWidth = 1.5);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_StressSparkPainter old) => old.scores != scores;
 }
 
 /// Show or hide each metric, drag to reorder, Save.

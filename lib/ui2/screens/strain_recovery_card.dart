@@ -70,7 +70,7 @@ class StrainRecoveryCard extends StatelessWidget {
             height: S.x16 * 2,
             child: Center(
               child: Text('Nothing recorded this week.',
-                  style: F.cap.copyWith(color: p.ink3)),
+                  style: F.num(F.cap).copyWith(color: p.ink3)),
             ),
           )
         else
@@ -182,12 +182,12 @@ class _DualPainter extends CustomPainter {
       final y = r.bottom - r.height * k / 3;
       canvas.drawLine(Offset(r.left, y), Offset(r.right, y), grid);
       final left = _text('${7 * k}',
-          F.over.copyWith(color: C.dialStrain, fontWeight: FontWeight.w700),
+          F.num(F.over).copyWith(color: C.dialStrain, fontWeight: FontWeight.w700),
           width: inset.left - S.x2, align: TextAlign.right);
       left.paint(canvas, Offset(0, y - left.height / 2));
       final pct = const [0, 33, 66, 100][k];
       final right = _text('$pct%',
-          F.over.copyWith(color: recoveryColor(pct), fontWeight: FontWeight.w700),
+          F.num(F.over).copyWith(color: recoveryColor(pct), fontWeight: FontWeight.w700),
           width: inset.right - S.x2, align: TextAlign.left);
       right.paint(canvas, Offset(r.right + S.x2, y - right.height / 2));
     }
@@ -237,7 +237,7 @@ class _DualPainter extends CustomPainter {
     }
 
     void label(String s, double x, double y, Color color, bool below, bool focused) {
-      final tp = _text(s, F.cap.copyWith(color: focused ? p.ink : color, fontWeight: FontWeight.w700),
+      final tp = _text(s, F.num(F.cap).copyWith(color: focused ? p.ink : color, fontWeight: FontWeight.w700),
           width: slot * 2);
       final dy = below ? S.x3 : -S.x3 - tp.height;
       tp.paint(canvas, Offset(x - tp.width / 2, y + dy));
@@ -263,7 +263,7 @@ class _DualPainter extends CustomPainter {
       final on = i == focus;
       final tp = _text(
         xLabels[i],
-        F.over.copyWith(
+        F.num(F.over).copyWith(
           color: on ? p.ink : p.ink3,
           fontWeight: on ? FontWeight.w800 : FontWeight.w600,
           height: 1.2,

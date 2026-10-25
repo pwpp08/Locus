@@ -256,6 +256,19 @@ class AlarmManager extends ChangeNotifier {
     return best;
   }
 
+  /// The enabled alarm armed for [at] (to the minute), if any: what a smart or
+  /// goal buzz works from. Null when [at] is nobody's, e.g. a system alarm.
+  AlarmItem? alarmArmedFor(DateTime at) {
+    for (final a in _alarms) {
+      if (!a.enabled) continue;
+      final occ = a.nextOccurrence(at.subtract(const Duration(minutes: 1)));
+      if (occ != null && occ.difference(at).abs() < const Duration(minutes: 1)) {
+        return a;
+      }
+    }
+    return null;
+  }
+
   @visibleForTesting
   void debugSetAlarms(List<AlarmItem> list) {
     _alarms = List.of(list);

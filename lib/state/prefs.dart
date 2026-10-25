@@ -102,6 +102,10 @@ class Prefs {
   /// The Sleep Planner's wake time, minute of day. Unset (-1): the armed
   /// alarm, else the usual wake time the sleep coach learned.
   static const String sleepPlannerWakeMin = 'sleep_planner.wake_min';
+
+  /// What the planner plans for: 'optimize' (the bedtime that covers the sleep
+  /// need) or 'consistent' (the usual bedtime).
+  static const String sleepPlannerGoal = 'sleep_planner.goal';
   static const String recapRange = 'ui.recap_range';
   static const String workoutsRange = 'ui.workouts_range';
 

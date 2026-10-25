@@ -11,10 +11,12 @@ import '../../data/day_label.dart' show calendarDaysBetween;
 import '../../l10n/app_localizations.dart';
 import '../../models/alarm_item.dart';
 import '../../state/alarm_manager.dart';
+import '../../state/alarm_mode.dart';
 import '../../state/alarm_schedule.dart';
 import '../../state/app_state.dart';
 import '../../state/clock_format.dart' show formatClock;
 import '../screens/home_screen.dart' show go, weekdayShortName;
+import '../screens/alarm_mode_sheet.dart' show openAlarmModeSheet;
 import '../screens/journal_compose.dart' show OsTextField;
 import '../screens/metric_detail.dart' show detailLinkRow;
 import '../ui2.dart';
@@ -267,18 +269,6 @@ class AlarmScreenView extends StatefulWidget {
 }
 
 class _AlarmScreenViewState extends State<AlarmScreenView> {
-  String _timeUntilNext(DateTime? at, DateTime now) {
-    if (at == null) return 'No alarm set';
-    final diff = at.difference(now);
-    if (diff.isNegative) return 'Alarm passed';
-    final hours = diff.inHours;
-    final minutes = diff.inMinutes % 60;
-    if (hours == 0) {
-      return 'Next alarm in $minutes minutes';
-    }
-    return 'Next alarm in $hours hours $minutes minutes';
-  }
-
   Future<void> _editAlarm(BuildContext context, AlarmItem alarm) async {
     final mgr = widget.alarmManager;
     if (mgr == null) return;
@@ -287,6 +277,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
     Set<int> selectedDays = Set.from(alarm.days);
     final labelCtrl = TextEditingController(text: alarm.label);
     int smartMin = alarm.smartWindowMinutes;
+    var mode = alarm.mode;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -428,7 +419,29 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                     hint: 'Wake up',
                   ),
                   const SizedBox(height: S.x4),
-                  // Smart wake option
+                  // What the alarm waits for.
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Alarm mode',
+                              style: F.body.copyWith(
+                                  fontWeight: FontWeight.w600, color: p.ink)),
+                          Text(mode.blurb, style: F.cap.copyWith(color: p.ink3)),
+                        ],
+                      ),
+                      TextAction(mode.title, () async {
+                        final m = await openAlarmModeSheet(ctx, current: mode);
+                        if (m != null) setSheetState(() => mode = m);
+                      }),
+                    ],
+                  ),
+                  const SizedBox(height: S.x4),
+                  // Smart wake option: for an exact alarm only; the goal
+                  // modes have a window of their own.
+                  if (mode == AlarmMode.exact)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -473,6 +486,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                             : 'Alarm',
                         days: selectedDays,
                         smartWindowMinutes: smartMin,
+                        mode: mode,
                       );
                       await mgr.updateAlarm(updated);
                     },
@@ -483,50 +497,6 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
           );
         },
       ),
-    );
-  }
-
-  /// Shake-to-stop, and the one condition the user must know about it.
-  Widget _buzzCard(BuildContext c, P p, AlarmManager mgr) {
-    Widget row(IconData icon, Color col, String title, String sub,
-            Widget trailing) =>
-        Row(children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: p.wash(col),
-            child: Icon(icon, color: col, size: 20),
-          ),
-          const SizedBox(width: S.x3),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: F.body
-                        .copyWith(fontWeight: FontWeight.w600, color: p.ink)),
-                Text(sub, style: F.cap.copyWith(color: p.ink3, height: 1.4)),
-              ],
-            ),
-          ),
-          const SizedBox(width: S.x2),
-          trailing,
-        ]);
-    return Surface(
-      child: Column(children: [
-        row(
-          LucideIcons.vibrate,
-          C.orange,
-          'Shake to stop',
-          'Shake your wrist a few times to silence the buzz. Needs the phone '
-              'near and connected at alarm time; a double tap on the band '
-              'always works. Try it with Test the buzz.',
-          Switch.adaptive(
-            value: mgr.shakeToStop,
-            activeTrackColor: C.blue,
-            onChanged: (v) => mgr.setShakeToStop(v),
-          ),
-        ),
-      ]),
     );
   }
 
@@ -600,6 +570,107 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
     }
   }
 
+  /// The weekdays an enabled repeating alarm covers.
+  static Set<int> _covered(List<AlarmItem> alarms) => {
+        for (final a in alarms)
+          if (a.enabled) ...a.days,
+      };
+
+  static const _dayNames = {
+    1: 'MON',
+    2: 'TUE',
+    3: 'WED',
+    4: 'THU',
+    5: 'FRI',
+    6: 'SAT',
+    7: 'SUN',
+  };
+
+  Future<void> _pickMode(BuildContext c, AlarmItem alarm) async {
+    final mgr = widget.alarmManager;
+    final mode = await openAlarmModeSheet(c, current: alarm.mode);
+    if (mode == null || mgr == null) return;
+    await mgr.updateAlarm(alarm.copyWith(mode: mode));
+  }
+
+  /// One schedule: the days it runs, its time, and what it waits for.
+  Widget _scheduleCard(BuildContext c, P p, AlarmItem alarm) {
+    final dim = alarm.enabled ? 1.0 : .5;
+    final days = alarm.days.toList()..sort();
+    final names = days.isEmpty
+        ? const ['ONE NIGHT']
+        : [for (final d in days) _dayNames[d] ?? ''];
+    return Pressable(
+      onTap: () => _editAlarm(c, alarm),
+      semanticLabel:
+          '${formatClock(alarm.hour, alarm.minute)}, ${alarm.repeatSummary()}, ${alarm.mode.title}',
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(S.x6, S.x6, S.x5, S.x5),
+        decoration: BoxDecoration(
+          color: Color.alphaBlend(p.ink.withValues(alpha: .2), p.bg),
+          borderRadius: R.rXl,
+        ),
+        child: Opacity(
+          opacity: dim,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
+              for (var i = 0; i < names.length; i++) ...[
+                if (i > 0)
+                  Container(
+                    width: S.x1,
+                    height: S.x1,
+                    margin: const EdgeInsets.symmetric(horizontal: S.x2),
+                    decoration: BoxDecoration(
+                        color: p.ink3.withValues(alpha: .7), shape: BoxShape.circle),
+                  ),
+                Text(names[i],
+                    style: F.caps.copyWith(
+                        color: p.ink2, fontWeight: FontWeight.w800, letterSpacing: .9)),
+              ],
+            ]),
+            const SizedBox(height: S.x4),
+            Row(children: [
+              Expanded(
+                child: Text(formatClock(alarm.hour, alarm.minute),
+                    style: F.n48.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+              ),
+              Icon(LucideIcons.chevronDown, size: I.xl, color: p.ink),
+            ]),
+            const SizedBox(height: S.x3),
+            Row(children: [
+              Pressable(
+                onTap: () => _pickMode(c, alarm),
+                semanticLabel: 'Alarm mode ${alarm.mode.title}',
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: S.x3, vertical: S.x2 + S.half),
+                  decoration: BoxDecoration(
+                    color: p.ink.withValues(alpha: .1),
+                    borderRadius: R.rSm,
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(LucideIcons.vibrate, size: I.md, color: p.ink),
+                    const SizedBox(width: S.x2),
+                    Text(alarm.mode.title,
+                        style: F.caps.copyWith(
+                            color: p.ink, fontWeight: FontWeight.w800, letterSpacing: .9)),
+                  ]),
+                ),
+              ),
+              const Spacer(),
+              AppSwitch(
+                alarm.enabled,
+                (v) => widget.alarmManager?.toggleAlarm(alarm.id, v),
+                semanticLabel: 'Alarm at ${formatClock(alarm.hour, alarm.minute)}',
+              ),
+            ]),
+          ]),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
@@ -608,212 +679,213 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
     final fired = widget.firedAt;
     final now = widget.now ?? DateTime.now();
     final mgr = widget.alarmManager;
-    final alarms = mgr?.alarms ?? const [];
+    final alarms = mgr?.alarms ?? const <AlarmItem>[];
+    final unscheduled = _covered(alarms).length < 7;
+
+    Widget more(IconData icon, String title, String sub, Widget trailing) =>
+        Row(children: [
+          Icon(icon, size: I.lg, color: p.ink2),
+          const SizedBox(width: S.x4),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title,
+                  style: F.body.copyWith(fontWeight: FontWeight.w600, color: p.ink)),
+              Text(sub, style: F.cap.copyWith(color: p.ink3, height: 1.4)),
+            ]),
+          ),
+          const SizedBox(width: S.x2),
+          trailing,
+        ]);
 
     return Scaffold(
       backgroundColor: p.bg,
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: C.blue,
-        foregroundColor: p.inkOn(C.blue),
-        shape: const CircleBorder(),
-        onPressed: () => _createNewAlarm(c),
-        child: const Icon(LucideIcons.plus, size: I.lg),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: S.x4),
-              child: NavBar(
-                l?.alarmNavTitle ?? 'Alarm',
-                sub: _timeUntilNext(at, now),
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x16 + S.x6),
-                children: [
-                  if (fired != null &&
-                      calendarDaysBetween(fired, now) == 0) ...[
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Pill(
-                          l?.alarmFiredAt(AlarmScreenView._hhmm(fired)) ??
-                              'Fired at ${AlarmScreenView._hhmm(fired)}',
-                          C.green,
-                          icon: LucideIcons.alarmClockCheck),
-                    ),
-                    const SizedBox(height: S.x3),
-                  ],
-
-                  // Sync with System Alarms toggle card
-                  Surface(
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: p.wash(C.blue),
-                          child: const Icon(LucideIcons.smartphone,
-                              color: C.blue, size: 20),
-                        ),
-                        const SizedBox(width: S.x3),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Sync with system alarms',
-                                style: F.body.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: p.ink,
-                                ),
-                              ),
-                              Text(
-                                mgr?.syncSystem == true &&
-                                        mgr?.systemAlarmTime != null
-                                    ? 'Next: ${AlarmScreenView._hhmm(mgr!.systemAlarmTime!)}'
-                                    : 'Auto-sync from your phone\'s Clock app',
-                                style: F.cap.copyWith(color: p.ink3),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Switch.adaptive(
-                          value: mgr?.syncSystem ?? false,
-                          activeTrackColor: C.blue,
-                          onChanged: (val) => mgr?.setSyncSystem(val),
-                        ),
-                      ],
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: const [0, .5],
+            colors: [Color.alphaBlend(p.ink.withValues(alpha: .13), p.bg), p.bg],
+          ),
+        ),
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(S.gutter, S.x2, S.gutter, S.x16),
+            children: [
+              Row(children: [
+                Pressable(
+                  onTap: () => Navigator.of(c).maybePop(),
+                  semanticLabel: 'Back',
+                  child: SizedBox(
+                    width: S.tap,
+                    height: S.tap,
+                    child: Center(
+                        child: BoldChevron(left: true, height: S.x5, color: p.ink)),
+                  ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: Semantics(
+                      header: true,
+                      child: Text('MY SCHEDULE',
+                          style: F.head.copyWith(
+                              color: p.ink,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.6)),
                     ),
                   ),
-                  const SizedBox(height: S.x3),
-                  if (mgr != null) _buzzCard(c, p, mgr),
-                  const SizedBox(height: S.x4),
-
-                  // Alarms List (Screenshot 2 style)
-                  if (alarms.isNotEmpty) ...[
-                    for (final alarm in alarms) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: S.x3),
-                        child: Surface(
-                          elevation: 0,
-                          onTap: () => _editAlarm(c, alarm),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      formatClock(alarm.hour, alarm.minute),
-                                      style: F.n48.copyWith(
-                                        color: alarm.enabled
-                                            ? p.ink
-                                            : p.ink3.withValues(alpha: 0.5),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: S.x1),
-                                    Text(
-                                      '${alarm.repeatSummary()} | ${alarm.label}',
-                                      style: F.cap.copyWith(
-                                        color: alarm.enabled
-                                            ? p.ink2
-                                            : p.ink3.withValues(alpha: 0.5),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Switch.adaptive(
-                                value: alarm.enabled,
-                                activeTrackColor: C.blue,
-                                onChanged: (v) =>
-                                    mgr?.toggleAlarm(alarm.id, v),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ] else ...[
-                    StatusCard(
-                      'No Alarms Created',
-                      'Tap the + button below to create your first alarm.',
-                      icon: LucideIcons.alarmClock,
+                ),
+                AppSwitch(
+                  alarms.any((a) => a.enabled),
+                  (v) async {
+                    for (final a in alarms) {
+                      await mgr?.toggleAlarm(a.id, v);
+                    }
+                  },
+                  semanticLabel: 'Schedule on',
+                ),
+              ]),
+              const SizedBox(height: S.x12 + S.x4),
+              for (final alarm in alarms) ...[
+                _scheduleCard(c, p, alarm),
+                const SizedBox(height: S.x3),
+              ],
+              const SizedBox(height: S.x5),
+              Center(
+                child: Pressable(
+                  onTap: () => _createNewAlarm(c),
+                  semanticLabel: 'Create schedule',
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: S.x10 + S.x2, vertical: S.x5),
+                    decoration: BoxDecoration(
+                      borderRadius: R.rPill,
+                      border: Border.all(color: p.ink, width: S.half),
                     ),
-                    const SizedBox(height: S.x4),
-                  ],
-
-                  // Strap Armed Status Card
-                  if (at != null) ...[
-                    const SizedBox(height: S.x2),
-                    Surface(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(l?.alarmNextLabel ?? 'ARMED ON STRAP',
-                                  style: F.over.copyWith(color: p.ink3)),
-                              Pill(
-                                AlarmScreenView._localizedStateLabel(c, widget.state),
-                                AlarmScreenView._stateColor(widget.state),
-                                icon: AlarmScreenView._stateIcon(widget.state),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: S.x2),
-                          Text(AlarmScreenView._dayAndTime(c, at),
-                              style: F.n24.copyWith(color: p.ink)),
-                          Text(
-                              AlarmScreenView._whichDay(
-                                  c, at, widget.now ?? DateTime.now()),
-                              style: F.cap.copyWith(color: p.ink2)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: S.x4),
-                  ],
-
-                  if (!widget.connected)
-                    StatusCard(
-                      l?.alarmNotConnectedTitle ?? 'The band is not connected',
-                      l?.alarmNotConnectedBody ??
-                          'Changing, testing or cancelling the alarm needs a live connection. An alarm that is already set still works; it lives on the band.',
-                      icon: LucideIcons.bluetoothOff,
-                    )
-                  else ...[
-                    if (at != null) ...[
-                      BigButton(
-                        l?.alarmTestTheBuzz ?? 'Test the buzz',
-                        icon: LucideIcons.vibrate,
-                        color: C.blue,
-                        soft: true,
-                        onTap: () => _runAction(
-                            c,
-                            widget.onTest,
-                            l?.alarmBuzzingTheBand ?? 'Buzzing the band'),
-                      ),
-                      const SizedBox(height: S.x3),
-                    ],
-                    if (at != null || alarms.any((a) => a.enabled))
-                      BigButton(
-                        l?.alarmCancelTheAlarm ?? 'Cancel the alarm',
-                        icon: LucideIcons.bellOff,
-                        color: C.red,
-                        soft: true,
-                        onTap: () => _runAction(
-                            c,
-                            widget.onCancel,
-                            l?.alarmCancelled ?? 'Alarm cancelled'),
-                      ),
-                  ],
-                ],
+                    child: Text('CREATE SCHEDULE',
+                        style: F.head.copyWith(
+                            color: p.ink,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.6)),
+                  ),
+                ),
               ),
-            ),
-          ],
+              if (unscheduled) ...[
+                const SizedBox(height: S.x8),
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Container(
+                    width: S.x8,
+                    height: S.x8,
+                    alignment: Alignment.center,
+                    decoration:
+                        const BoxDecoration(color: C.orange, shape: BoxShape.circle),
+                    child: Text('!',
+                        style: F.head.copyWith(
+                            color: C.char, fontWeight: FontWeight.w900)),
+                  ),
+                  const SizedBox(width: S.x3),
+                  Text('You have unscheduled days',
+                      style: F.head.copyWith(
+                          color: C.orange, fontWeight: FontWeight.w500)),
+                ]),
+                const SizedBox(height: S.x6),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: S.x2),
+                  child: Text(
+                    'On unscheduled days, Sleep Planner will default to your '
+                    'most recent wake time and set your alarm to off',
+                    textAlign: TextAlign.center,
+                    style: F.head.copyWith(
+                        color: p.ink3, fontWeight: FontWeight.w400, height: 1.35),
+                  ),
+                ),
+              ],
+              const SizedBox(height: S.x10),
+              if (fired != null && calendarDaysBetween(fired, now) == 0) ...[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Pill(
+                      l?.alarmFiredAt(AlarmScreenView._hhmm(fired)) ??
+                          'Fired at ${AlarmScreenView._hhmm(fired)}',
+                      C.green,
+                      icon: LucideIcons.alarmClockCheck),
+                ),
+                const SizedBox(height: S.x4),
+              ],
+              if (at != null) ...[
+                Row(children: [
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(l?.alarmNextLabel ?? 'ARMED ON STRAP',
+                          style: F.over.copyWith(color: p.ink3)),
+                      const SizedBox(height: S.x1),
+                      Text(
+                          '${AlarmScreenView._dayAndTime(c, at)} · '
+                          '${AlarmScreenView._whichDay(c, at, now)}',
+                          style: F.body.copyWith(color: p.ink)),
+                    ]),
+                  ),
+                  Pill(
+                    AlarmScreenView._localizedStateLabel(c, widget.state),
+                    AlarmScreenView._stateColor(widget.state),
+                    icon: AlarmScreenView._stateIcon(widget.state),
+                  ),
+                ]),
+                const SizedBox(height: S.x6),
+              ],
+              more(
+                LucideIcons.smartphone,
+                'Sync with system alarms',
+                mgr?.syncSystem == true && mgr?.systemAlarmTime != null
+                    ? 'Next: ${AlarmScreenView._hhmm(mgr!.systemAlarmTime!)}'
+                    : 'Auto-sync from your phone\'s Clock app',
+                AppSwitch(mgr?.syncSystem ?? false, (v) => mgr?.setSyncSystem(v),
+                    semanticLabel: 'Sync with system alarms'),
+              ),
+              if (mgr != null) ...[
+                const SizedBox(height: S.x5),
+                more(
+                  LucideIcons.vibrate,
+                  'Shake to stop',
+                  'Shake your wrist a few times to silence the buzz. Needs the '
+                      'phone near and connected at alarm time; a double tap on '
+                      'the band always works.',
+                  AppSwitch(mgr.shakeToStop, (v) => mgr.setShakeToStop(v),
+                      semanticLabel: 'Shake to stop'),
+                ),
+              ],
+              const SizedBox(height: S.x6),
+              if (!widget.connected)
+                StatusCard(
+                  l?.alarmNotConnectedTitle ?? 'The band is not connected',
+                  l?.alarmNotConnectedBody ??
+                      'Changing, testing or cancelling the alarm needs a live connection. An alarm that is already set still works; it lives on the band.',
+                  icon: LucideIcons.bluetoothOff,
+                )
+              else ...[
+                if (at != null) ...[
+                  BigButton(
+                    l?.alarmTestTheBuzz ?? 'Test the buzz',
+                    icon: LucideIcons.vibrate,
+                    color: C.blue,
+                    soft: true,
+                    onTap: () => _runAction(c, widget.onTest,
+                        l?.alarmBuzzingTheBand ?? 'Buzzing the band'),
+                  ),
+                  const SizedBox(height: S.x3),
+                ],
+                if (at != null || alarms.any((a) => a.enabled))
+                  BigButton(
+                    l?.alarmCancelTheAlarm ?? 'Cancel the alarm',
+                    icon: LucideIcons.bellOff,
+                    color: C.red,
+                    soft: true,
+                    onTap: () => _runAction(c, widget.onCancel,
+                        l?.alarmCancelled ?? 'Alarm cancelled'),
+                  ),
+              ],
+            ],
+          ),
         ),
       ),
     );
