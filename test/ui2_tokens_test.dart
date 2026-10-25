@@ -315,7 +315,7 @@ const _notComponents = {
   'SleepPlannerScreen',
   // Reads every metric's daily values through a TrendLoader (the database,
   // sessions and the cross-day rollup). Its rows have a gallery case.
-  'TrendViewScreen',
+  'TrendViewScreen', 'StressMonitorScreen',
   'ReportIssueScreen',
   'MyDevices', 'MyDevicesView', 'DeviceDetail', 'DeviceDetailView', 'RePair',
   // The strap-buzz relay picker: a Scaffold route over a live

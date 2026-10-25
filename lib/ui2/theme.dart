@@ -171,6 +171,19 @@ class C {
   static const refZone3 = Color(0xFF59B896);
   static const refZone4 = Color(0xFFFBAC5D);
   static const refZone5 = Color(0xFFFF6422);
+
+  // Stress Monitor: the three levels, and the warm stop the line and gauge pass
+  // through between green and orange.
+  static const stressLow = Color(0xFF70AADA);
+  static const stressMedium = Color(0xFF02C986);
+  static const stressWarm = Color(0xFFC9BC3A);
+  static const stressHigh = Color(0xFFFFA624);
+
+  // Sleep trends: deep (SWS) and REM as they stack, and the grey the bars that
+  // are not the one in focus go.
+  static const trendSws = Color(0xFFFA96F9);
+  static const trendRem = Color(0xFFAC5AED);
+  static const barGrey = Color(0xFF63676A);
   static const recGreen = Color(0xFF16EC06);
   static const recYellow = Color(0xFFFFDE00);
   static const recRed = Color(0xFFFF0026);
@@ -399,41 +412,42 @@ class F {
       fontSize: 36,
       height: 42 / 36,
       fontWeight: FontWeight.w500,
-      letterSpacing: -.8);
+      letterSpacing: -1.0);
   static const t1 = TextStyle(
       fontFamily: _f,
       fontFamilyFallback: _fb,
       fontSize: 28,
       height: 34 / 28,
       fontWeight: FontWeight.w500,
-      letterSpacing: -.5);
+      letterSpacing: -.7);
   static const t2 = TextStyle(
       fontFamily: _f,
       fontFamilyFallback: _fb,
       fontSize: 22,
       height: 28 / 22,
       fontWeight: FontWeight.w600,
-      letterSpacing: -.3);
+      letterSpacing: -.5);
   static const head = TextStyle(
       fontFamily: _f,
       fontFamilyFallback: _fb,
       fontSize: 17,
       height: 24 / 17,
       fontWeight: FontWeight.w600,
-      letterSpacing: -.2);
+      letterSpacing: -.4);
   static const body = TextStyle(
       fontFamily: _f,
       fontFamilyFallback: _fb,
       fontSize: 15,
       height: 22 / 15,
       fontWeight: FontWeight.w600,
-      letterSpacing: 0);
+      letterSpacing: -.25);
   static const cap = TextStyle(
       fontFamily: _f,
       fontFamilyFallback: _fb,
       fontSize: 13,
       height: 18 / 13,
-      fontWeight: FontWeight.w600);
+      fontWeight: FontWeight.w600,
+      letterSpacing: -.15);
   /// Callers uppercase it.
   static const over = TextStyle(
       fontFamily: _f,
@@ -441,7 +455,7 @@ class F {
       fontSize: 11,
       height: 14 / 11,
       fontWeight: FontWeight.w600,
-      letterSpacing: .6);
+      letterSpacing: .35);
 
   /// Widely tracked capitals: card titles, dial names, section kickers.
   /// Callers uppercase it.
@@ -451,7 +465,7 @@ class F {
       fontSize: 13,
       height: 18 / 13,
       fontWeight: FontWeight.w700,
-      letterSpacing: 1.3);
+      letterSpacing: .9);
 
   /// The thin, spaced-out wordmark over the dials.
   static const wordmark = TextStyle(
@@ -470,7 +484,7 @@ class F {
       fontSize: 64,
       height: 1,
       fontWeight: FontWeight.w700,
-      letterSpacing: 0,
+      letterSpacing: -1.2,
       fontFeatures: _tab);
   static const n48 = TextStyle(
       fontFamily: _f,
@@ -478,7 +492,7 @@ class F {
       fontSize: 48,
       height: 1,
       fontWeight: FontWeight.w700,
-      letterSpacing: 0,
+      letterSpacing: -1.0,
       fontFeatures: _tab);
   static const n34 = TextStyle(
       fontFamily: _f,
@@ -486,7 +500,7 @@ class F {
       fontSize: 34,
       height: 1,
       fontWeight: FontWeight.w700,
-      letterSpacing: 0,
+      letterSpacing: -.6,
       fontFeatures: _tab);
   static const n24 = TextStyle(
       fontFamily: _f,
@@ -494,7 +508,7 @@ class F {
       fontSize: 24,
       height: 1,
       fontWeight: FontWeight.w700,
-      letterSpacing: 0,
+      letterSpacing: -.3,
       fontFeatures: _tab);
   static const n17 = TextStyle(
       fontFamily: _f,
@@ -502,7 +516,7 @@ class F {
       fontSize: 17,
       height: 1,
       fontWeight: FontWeight.w700,
-      letterSpacing: 0,
+      letterSpacing: -.1,
       fontFeatures: _tab);
 }
 

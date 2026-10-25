@@ -232,7 +232,7 @@ class _LiveHeart extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(S.x2, S.x6, S.x2, S.x8),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('HEART RATE', style: F.t2.copyWith(color: p.ink, letterSpacing: 1.6)),
+          Text('HEART RATE', style: F.t2.copyWith(color: p.ink, letterSpacing: .9)),
           const SizedBox(height: S.x3),
           Icon(connected ? LucideIcons.bluetoothConnected : LucideIcons.bluetooth,
               size: I.xl, color: p.ink3),
@@ -316,7 +316,7 @@ class _VitalTile extends StatelessWidget {
                   style: F.over.copyWith(
                       color: p.ink2,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2))),
+                      letterSpacing: .7))),
         ]),
         const SizedBox(height: S.x8),
         Row(

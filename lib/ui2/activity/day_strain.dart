@@ -388,7 +388,7 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
                           color: p.ink, fontWeight: FontWeight.w700)),
                   const SizedBox(height: S.half),
                   Text('STRAIN',
-                      style: F.caps.copyWith(color: p.ink, letterSpacing: 1.6)),
+                      style: F.caps.copyWith(color: p.ink, letterSpacing: .9)),
                 ]),
               ),
             ),
@@ -752,7 +752,7 @@ class _StatRow extends StatelessWidget {
         Expanded(
           child: Text(label,
               style: F.caps.copyWith(
-                  color: p.ink, fontWeight: FontWeight.w700, letterSpacing: 1.3)),
+                  color: p.ink, fontWeight: FontWeight.w700, letterSpacing: .8)),
         ),
         Row(mainAxisSize: MainAxisSize.min, children: [
           Text(value,
@@ -817,7 +817,7 @@ class _ActivityCard extends StatelessWidget {
           child: Text((act?.name ?? type).toUpperCase(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w700, letterSpacing: 1.3)),
+              style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w700, letterSpacing: .8)),
         ),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text(_clock(start), style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
@@ -880,7 +880,7 @@ class _WeekCardState extends State<_WeekCard> {
         Row(children: [
           Expanded(
             child: Text(widget.title.toUpperCase(),
-                style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w700, letterSpacing: 1.4)),
+                style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w700, letterSpacing: .8)),
           ),
           Pressable(
             onTap: () => Navigator.of(c).push(MaterialPageRoute(

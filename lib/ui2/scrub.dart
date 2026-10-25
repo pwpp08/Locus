@@ -192,6 +192,9 @@ class _GuidePainter extends CustomPainter {
 class ScrubReadout extends StatelessWidget {
   final String caption;
   final String value;
+
+  /// What the number is measured in, written small after it.
+  final String? unit;
   final Widget? under;
 
   /// The number's size. The trend screen's readout uses the big style; the
@@ -202,6 +205,7 @@ class ScrubReadout extends StatelessWidget {
     super.key,
     required this.caption,
     required this.value,
+    this.unit,
     this.under,
     this.big = true,
   });
@@ -214,14 +218,27 @@ class ScrubReadout extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(caption.toUpperCase(),
-            style: F.over.copyWith(color: p.ink2, letterSpacing: 1.2)),
+            style: F.over.copyWith(color: p.ink2, letterSpacing: .7)),
         const SizedBox(height: S.half),
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
-          child: Text(value,
-              style: (big ? F.n34 : F.n24)
-                  .copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(value,
+                  style: (big ? F.n34 : F.n24)
+                      .copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+              if (unit != null) ...[
+                const SizedBox(width: S.x1),
+                Text(unit!,
+                    style: (big ? F.head : F.cap)
+                        .copyWith(color: p.ink, fontWeight: FontWeight.w600)),
+              ],
+            ],
+          ),
         ),
         if (under != null) ...[const SizedBox(height: S.x2), under!],
       ],
@@ -252,9 +269,8 @@ class ScrubColumns extends StatelessWidget {
   final List<double> ticks;
   final String Function(double) tickText;
 
-  /// The dashed average, or null for none.
+  /// The subtle dashed average behind the bars, or null for none.
   final double? avg;
-  final String avgTag;
 
   final Color color;
 
@@ -288,7 +304,6 @@ class ScrubColumns extends StatelessWidget {
     this.segmentColors,
     this.valueLabels = const [],
     this.avg,
-    this.avgTag = 'AVG.',
     this.colorOf,
     this.highlight,
     this.height = 200,
@@ -312,9 +327,10 @@ class ScrubColumns extends StatelessWidget {
       onScrub: onScrub,
       label: label,
       describe: describe ?? _describeIndex,
+      // A stack has no single top to put a dot on; its guide line is enough.
       dotAt: (i) {
         final v = values[i];
-        return v == null || hi <= lo ? null : (v - lo) / (hi - lo);
+        return v == null || hi <= lo || stacks != null ? null : (v - lo) / (hi - lo);
       },
       builder: (c, at) => CustomPaint(
         size: Size.infinite,
@@ -330,7 +346,6 @@ class ScrubColumns extends StatelessWidget {
           ticks: ticks,
           tickText: tickText,
           avg: avg,
-          avgTag: avgTag,
           color: color,
           colorOf: colorOf,
           highlight: highlight,
@@ -352,7 +367,6 @@ class _ColumnsPainter extends CustomPainter {
   final List<double> ticks;
   final String Function(double) tickText;
   final double? avg;
-  final String avgTag;
   final Color color;
   final Color Function(int i, double v)? colorOf;
   final int? highlight, at;
@@ -370,7 +384,6 @@ class _ColumnsPainter extends CustomPainter {
     required this.ticks,
     required this.tickText,
     required this.avg,
-    required this.avgTag,
     required this.color,
     required this.colorOf,
     required this.highlight,
@@ -421,6 +434,18 @@ class _ColumnsPainter extends CustomPainter {
       canvas.drawRRect(band, Paint()..color = p.ink.withValues(alpha: .08));
     }
 
+    // The average sits behind the bars: dashed, faint, and unlabelled.
+    final a = avg;
+    if (a != null && a >= lo && a <= hi) {
+      final y = yOf(a);
+      final dash = Paint()
+        ..color = p.ink.withValues(alpha: .28)
+        ..strokeWidth = 1;
+      for (var x = r.left; x < r.right; x += S.x2) {
+        canvas.drawLine(Offset(x, y), Offset(math.min(x + S.x1, r.right), y), dash);
+      }
+    }
+
     final zero = yOf(lo > 0 ? lo : 0);
     for (var i = 0; i < n; i++) {
       final v = values[i];
@@ -445,8 +470,8 @@ class _ColumnsPainter extends CustomPainter {
         canvas.drawRRect(
           RRect.fromRectAndCorners(
             Rect.fromLTRB(x, math.min(y, zero), x + bw, math.max(y, zero)),
-            topLeft: const Radius.circular(R.sm),
-            topRight: const Radius.circular(R.sm),
+            topLeft: const Radius.circular(R.sm / 3),
+            topRight: const Radius.circular(R.sm / 3),
           ),
           Paint()..color = c,
         );
@@ -461,26 +486,6 @@ class _ColumnsPainter extends CustomPainter {
         ), width: slot * 2);
         tp.paint(canvas, Offset(x + bw / 2 - tp.width / 2, top - tp.height - S.half));
       }
-    }
-
-    // The average: a dashed line across the plot and its tag at the left edge.
-    final a = avg;
-    if (a != null && a >= lo && a <= hi) {
-      final y = yOf(a);
-      final dash = Paint()
-        ..color = p.ink
-        ..strokeWidth = 1.5;
-      for (var x = r.left; x < r.right; x += S.x2) {
-        canvas.drawLine(Offset(x, y), Offset(math.min(x + S.x1, r.right), y), dash);
-      }
-      final tag = _text(avgTag, F.over.copyWith(color: p.bg, fontWeight: FontWeight.w800, letterSpacing: 1.2));
-      final box = RRect.fromRectAndRadius(
-        Rect.fromLTWH(r.left + S.half, y - (tag.height + S.half) / 2,
-            tag.width + S.x3, tag.height + S.half),
-        const Radius.circular(R.sm),
-      );
-      canvas.drawRRect(box, Paint()..color = p.ink);
-      tag.paint(canvas, Offset(box.left + S.x3 / 2, box.top + S.half / 2));
     }
 
     // The x labels, in the band under the plot. The touched day is bolder.
@@ -502,4 +507,776 @@ class _ColumnsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ColumnsPainter old) => true;
+}
+
+/// Draws on a [ScrubLine] with its own geometry: the plot, where point `i`
+/// sits across, and where a value sits down.
+typedef ScrubPaint = void Function(
+    Canvas canvas, Rect plot, double Function(int i) xOf, double Function(double v) yOf);
+
+/// A line chart you can scrub: a point per day (ring markers, the value above
+/// each) or a point per minute (a plain line), with an optional faint band for
+/// a typical range, a subtle average behind the line, and a soft fill under it.
+class ScrubLine extends StatelessWidget {
+  /// One value per point; null is a gap, never a zero.
+  final List<double?> values;
+
+  /// One x label per point; '' draws none. Two lines are allowed.
+  final List<String> xLabels;
+
+  /// One value label per point, drawn above its marker. '' draws none.
+  final List<String> valueLabels;
+
+  final double lo, hi;
+  final List<double> ticks;
+  final String Function(double) tickText;
+
+  /// The subtle dashed average behind the line, or null for none.
+  final double? avg;
+
+  /// A typical range, drawn as a band behind the line.
+  final ({double lo, double hi})? band;
+
+  final Color color;
+
+  /// A ring at every point. Off for a line of hundreds of points.
+  final bool markers;
+
+  /// Points sit in the middle of equal slots (a day each) rather than running
+  /// edge to edge (a minute each).
+  final bool slots;
+
+  /// The slot marked with a column band: the day the screen is about.
+  final int? highlight;
+
+  /// A gap wider than this many slots breaks the line instead of bridging it.
+  final int gap;
+
+  /// A colour per value, so the line itself can say how high it is. When set,
+  /// each stretch is drawn in the colour of its mean and [color] is unused.
+  final Color Function(double v)? colorAt;
+
+  /// The soft fill under the line.
+  final bool fill;
+
+  /// Painted after the grid and before the line (a shaded span), and after the
+  /// markers (a "now" line).
+  final ScrubPaint? paintUnder, paintOver;
+
+  final ValueChanged<int?> onScrub;
+  final double height;
+  final double gutter;
+  final String label;
+  final String Function(int i)? describe;
+
+  const ScrubLine({
+    super.key,
+    required this.values,
+    required this.xLabels,
+    required this.lo,
+    required this.hi,
+    required this.ticks,
+    required this.tickText,
+    required this.color,
+    required this.onScrub,
+    this.valueLabels = const [],
+    this.avg,
+    this.band,
+    this.markers = true,
+    this.slots = true,
+    this.highlight,
+    this.gap = 1 << 30,
+    this.colorAt,
+    this.fill = true,
+    this.paintUnder,
+    this.paintOver,
+    this.height = 200,
+    this.gutter = S.x10,
+    this.label = 'Chart',
+    this.describe,
+  });
+
+  static const _band = S.x8;
+  static const _top = S.x6;
+
+  /// The plot's insets, so a screen laying marks over the chart agrees with it.
+  EdgeInsets get inset => EdgeInsets.fromLTRB(gutter, _top, slots ? 0 : S.x2, _band);
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final inset = this.inset;
+    return ScrubArea(
+      count: values.length,
+      slots: slots,
+      inset: inset,
+      height: height,
+      onScrub: onScrub,
+      label: label,
+      describe: describe ?? _describeIndex,
+      dotAt: (i) {
+        final v = values[i];
+        return v == null || hi <= lo ? null : (v - lo) / (hi - lo);
+      },
+      builder: (c, at) => CustomPaint(
+        size: Size.infinite,
+        painter: _LinePainter(
+          p: p,
+          values: values,
+          xLabels: xLabels,
+          valueLabels: valueLabels,
+          lo: lo,
+          hi: hi,
+          ticks: ticks,
+          tickText: tickText,
+          avg: avg,
+          band: band,
+          color: color,
+          markers: markers,
+          slots: slots,
+          highlight: highlight,
+          gap: gap,
+          colorAt: colorAt,
+          fill: fill,
+          paintUnder: paintUnder,
+          paintOver: paintOver,
+          at: at,
+          inset: inset,
+        ),
+      ),
+    );
+  }
+}
+
+class _LinePainter extends CustomPainter {
+  final P p;
+  final List<double?> values;
+  final List<String> xLabels, valueLabels;
+  final double lo, hi;
+  final List<double> ticks;
+  final String Function(double) tickText;
+  final double? avg;
+  final ({double lo, double hi})? band;
+  final Color color;
+  final bool markers, slots;
+  final int? highlight, at;
+  final int gap;
+  final Color Function(double v)? colorAt;
+  final bool fill;
+  final ScrubPaint? paintUnder, paintOver;
+  final EdgeInsets inset;
+
+  _LinePainter({
+    required this.p,
+    required this.values,
+    required this.xLabels,
+    required this.valueLabels,
+    required this.lo,
+    required this.hi,
+    required this.ticks,
+    required this.tickText,
+    required this.avg,
+    required this.band,
+    required this.color,
+    required this.markers,
+    required this.slots,
+    required this.highlight,
+    required this.at,
+    required this.gap,
+    required this.colorAt,
+    required this.fill,
+    required this.paintUnder,
+    required this.paintOver,
+    required this.inset,
+  });
+
+  TextPainter _text(String s, TextStyle style, {double? width, TextAlign align = TextAlign.center}) =>
+      TextPainter(
+        text: TextSpan(text: s, style: style),
+        textAlign: align,
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: width ?? double.infinity);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final n = values.length;
+    final span = hi - lo;
+    if (n == 0 || span <= 0) return;
+    final r = plotRect(size, inset);
+    double yOf(double v) => r.bottom - (v - lo) / span * r.height;
+    double xOf(int i) => scrubXOf(i, r, n, slots: slots);
+
+    final grid = Paint()
+      ..color = p.line
+      ..strokeWidth = 1;
+    for (final t in ticks) {
+      final y = yOf(t);
+      canvas.drawLine(Offset(r.left, y), Offset(r.right, y), grid);
+      if (inset.left <= 0) continue;
+      final tp = _text(tickText(t), F.over.copyWith(color: p.ink3, fontWeight: FontWeight.w600),
+          width: inset.left - S.x2, align: TextAlign.right);
+      tp.paint(canvas, Offset(0, y - tp.height / 2));
+    }
+
+    // The typical range: a soft band the line travels through.
+    final b = band;
+    if (b != null) {
+      final top = yOf(math.min(b.hi, hi)), bottom = yOf(math.max(b.lo, lo));
+      if (bottom > top) {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+              Rect.fromLTRB(r.left, top, r.right, bottom), const Radius.circular(R.sm)),
+          Paint()..color = p.ink.withValues(alpha: .07),
+        );
+      }
+    }
+
+    // The column band behind the day the screen is about.
+    final hl = highlight;
+    if (slots && hl != null && hl >= 0 && hl < n) {
+      final slot = r.width / n;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+            Rect.fromLTWH(r.left + hl * slot + slot * .12, r.top - S.x2,
+                slot * .76, r.height + S.x2),
+            const Radius.circular(R.sm)),
+        Paint()..color = p.ink.withValues(alpha: .08),
+      );
+    }
+
+    // The average sits behind the line: dashed, faint, and unlabelled.
+    final a = avg;
+    if (a != null && a >= lo && a <= hi) {
+      final y = yOf(a);
+      final dash = Paint()
+        ..color = p.ink.withValues(alpha: .28)
+        ..strokeWidth = 1;
+      for (var x = r.left; x < r.right; x += S.x2) {
+        canvas.drawLine(Offset(x, y), Offset(math.min(x + S.x1, r.right), y), dash);
+      }
+    }
+
+    paintUnder?.call(canvas, r, xOf, yOf);
+
+    // Runs of consecutive points, broken wherever a gap is too wide to bridge.
+    final runs = <List<int>>[];
+    var run = <int>[];
+    for (var i = 0; i < n; i++) {
+      if (values[i] == null) continue;
+      if (run.isNotEmpty && i - run.last > gap) {
+        runs.add(run);
+        run = <int>[];
+      }
+      run.add(i);
+    }
+    if (run.isNotEmpty) runs.add(run);
+
+    for (final ru in runs) {
+      if (ru.length < 2) continue;
+      final path = Path()..moveTo(xOf(ru.first), yOf(values[ru.first]!));
+      for (final i in ru.skip(1)) {
+        path.lineTo(xOf(i), yOf(values[i]!));
+      }
+      if (colorAt != null) {
+        // Each stretch in the colour of its own height.
+        for (var k = 1; k < ru.length; k++) {
+          final a = values[ru[k - 1]]!, b = values[ru[k]]!;
+          canvas.drawLine(
+            Offset(xOf(ru[k - 1]), yOf(a)),
+            Offset(xOf(ru[k]), yOf(b)),
+            Paint()
+              ..color = colorAt!((a + b) / 2)
+              ..strokeWidth = 2
+              ..strokeCap = StrokeCap.round,
+          );
+        }
+        continue;
+      }
+      if (fill) {
+        final area = Path.from(path)
+          ..lineTo(xOf(ru.last), r.bottom)
+          ..lineTo(xOf(ru.first), r.bottom)
+          ..close();
+        canvas.drawPath(
+          area,
+          Paint()
+            ..shader = LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [color.withValues(alpha: .22), color.withValues(alpha: 0)],
+            ).createShader(r),
+        );
+      }
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = color.withValues(alpha: markers ? .55 : 1)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = markers ? 2.5 : 1.5
+          ..strokeJoin = StrokeJoin.round
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+
+    // Rings and the value over each, last so nothing draws across them.
+    for (var i = 0; i < n; i++) {
+      final v = values[i];
+      if (v == null) continue;
+      final x = xOf(i), y = yOf(v);
+      if (markers) {
+        canvas.drawCircle(Offset(x, y), S.x1 + S.half, Paint()..color = p.bg);
+        canvas.drawCircle(
+          Offset(x, y),
+          S.x1 + S.half - 1,
+          Paint()
+            ..color = color
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3,
+        );
+      }
+      if (i < valueLabels.length && valueLabels[i].isNotEmpty) {
+        final tp = _text(
+          valueLabels[i],
+          F.cap.copyWith(color: at == i ? p.ink : color, fontWeight: FontWeight.w700),
+          width: r.width / n * 2,
+        );
+        final pill = RRect.fromRectAndRadius(
+          Rect.fromCenter(
+              center: Offset(x, y - S.x5 - tp.height / 2),
+              width: tp.width + S.x2,
+              height: tp.height + S.x1),
+          const Radius.circular(R.sm),
+        );
+        canvas.drawRRect(pill, Paint()..color = p.bg.withValues(alpha: .45));
+        tp.paint(canvas, Offset(x - tp.width / 2, pill.center.dy - tp.height / 2));
+      }
+    }
+
+    paintOver?.call(canvas, r, xOf, yOf);
+
+    // The x labels. Labels near an edge are pulled inside it.
+    for (var i = 0; i < n && i < xLabels.length; i++) {
+      if (xLabels[i].isEmpty) continue;
+      final focus = i == at || i == highlight;
+      final tp = _text(
+        xLabels[i],
+        F.over.copyWith(
+          color: focus ? p.ink : p.ink3,
+          fontWeight: focus ? FontWeight.w800 : FontWeight.w600,
+          height: 1.15,
+        ),
+        width: math.max(r.width / n, S.x12 * 1.5),
+      );
+      final x = (xOf(i) - tp.width / 2).clamp(0.0, math.max(0.0, size.width - tp.width)).toDouble();
+      tp.paint(canvas, Offset(x, r.bottom + S.x1));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_LinePainter old) => true;
+}
+
+/// Floating bars on a clock: one bar per night from the time you went to bed
+/// to the time you woke, on an axis of hours of the day that runs downward
+/// from the evening to the morning. The bed time is written over each bar and
+/// the wake time under it.
+class ScrubRanges extends StatelessWidget {
+  /// Per night, minutes after noon at going to bed and at waking (waking can
+  /// pass 1440: it is the next morning). Null draws no bar.
+  final List<({double from, double to})?> ranges;
+
+  /// One x label per bar. Two lines are allowed.
+  final List<String> xLabels;
+
+  /// The axis in the same minutes, and what each tick reads as a clock time.
+  final double lo, hi;
+  final List<double> ticks;
+  final String Function(double) tickText;
+
+  /// How a bed or wake time is written over and under a bar.
+  final String Function(double) timeText;
+
+  /// The bars' colour. With [emphasis] set, only that bar (or the one under a
+  /// finger) wears it and the rest are grey.
+  final Color color;
+  final int? emphasis;
+
+  /// Write the times on every bar, rather than only on the emphasised one.
+  final bool labelAll;
+
+  /// A dashed line through the usual bed and wake times, one point per bar.
+  final List<({double bed, double wake})?>? usual;
+
+  final ValueChanged<int?> onScrub;
+  final double height;
+  final double gutter;
+  final String label;
+  final String Function(int i)? describe;
+
+  const ScrubRanges({
+    super.key,
+    required this.ranges,
+    required this.xLabels,
+    required this.lo,
+    required this.hi,
+    required this.ticks,
+    required this.tickText,
+    required this.timeText,
+    required this.color,
+    required this.onScrub,
+    this.emphasis,
+    this.labelAll = true,
+    this.usual,
+    this.height = 260,
+    this.gutter = S.x10,
+    this.label = 'Chart',
+    this.describe,
+  });
+
+  static const _top = S.x8;
+  static const _band = S.x8;
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final inset = EdgeInsets.fromLTRB(gutter, _top, 0, _band);
+    return ScrubArea(
+      count: ranges.length,
+      slots: true,
+      inset: inset,
+      height: height,
+      onScrub: onScrub,
+      label: label,
+      describe: describe ?? _describeIndex,
+      builder: (c, at) => CustomPaint(
+        size: Size.infinite,
+        painter: _RangesPainter(
+          p: p,
+          ranges: ranges,
+          xLabels: xLabels,
+          lo: lo,
+          hi: hi,
+          ticks: ticks,
+          tickText: tickText,
+          timeText: timeText,
+          color: color,
+          emphasis: emphasis,
+          labelAll: labelAll,
+          usual: usual,
+          at: at,
+          inset: inset,
+        ),
+      ),
+    );
+  }
+}
+
+class _RangesPainter extends CustomPainter {
+  final P p;
+  final List<({double from, double to})?> ranges;
+  final List<String> xLabels;
+  final double lo, hi;
+  final List<double> ticks;
+  final String Function(double) tickText, timeText;
+  final Color color;
+  final int? emphasis, at;
+  final bool labelAll;
+  final List<({double bed, double wake})?>? usual;
+  final EdgeInsets inset;
+
+  _RangesPainter({
+    required this.p,
+    required this.ranges,
+    required this.xLabels,
+    required this.lo,
+    required this.hi,
+    required this.ticks,
+    required this.tickText,
+    required this.timeText,
+    required this.color,
+    required this.emphasis,
+    required this.labelAll,
+    required this.usual,
+    required this.at,
+    required this.inset,
+  });
+
+  TextPainter _text(String s, TextStyle style, {double? width, TextAlign align = TextAlign.center}) =>
+      TextPainter(
+        text: TextSpan(text: s, style: style),
+        textAlign: align,
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: width ?? double.infinity);
+
+  void _dashed(Canvas canvas, Path path, Paint paint) {
+    for (final m in path.computeMetrics()) {
+      var d = 0.0;
+      while (d < m.length) {
+        canvas.drawPath(m.extractPath(d, math.min(d + S.x1, m.length)), paint);
+        d += S.x2 + S.half;
+      }
+    }
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final n = ranges.length;
+    final span = hi - lo;
+    if (n == 0 || span <= 0) return;
+    final r = plotRect(size, inset);
+    // Time runs DOWN: the evening is the top line, the morning the bottom.
+    double yOf(double t) => r.top + (t - lo) / span * r.height;
+    final slot = r.width / n;
+    final bw = slot * (n <= 8 ? .34 : .56);
+
+    final grid = Paint()
+      ..color = p.line
+      ..strokeWidth = 1;
+    for (final t in ticks) {
+      final y = yOf(t);
+      canvas.drawLine(Offset(r.left, y), Offset(r.right, y), grid);
+      if (inset.left <= 0) continue;
+      final tp = _text(tickText(t), F.over.copyWith(color: p.ink3, fontWeight: FontWeight.w600),
+          width: inset.left - S.x2, align: TextAlign.right);
+      tp.paint(canvas, Offset(0, y - tp.height / 2));
+    }
+
+    // What is usual, behind the bars.
+    final u = usual;
+    if (u != null) {
+      final dash = Paint()
+        ..color = p.ink.withValues(alpha: .35)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+      for (final bed in [true, false]) {
+        Path? path;
+        for (var i = 0; i < n; i++) {
+          final v = u[i];
+          if (v == null) {
+            if (path != null) _dashed(canvas, path, dash);
+            path = null;
+            continue;
+          }
+          final pt = Offset(r.left + (i + .5) * slot, yOf(bed ? v.bed : v.wake));
+          if (path == null) {
+            path = Path()..moveTo(pt.dx, pt.dy);
+          } else {
+            path.lineTo(pt.dx, pt.dy);
+          }
+        }
+        if (path != null) _dashed(canvas, path, dash);
+      }
+    }
+
+    final focus = at ?? emphasis;
+    for (var i = 0; i < n; i++) {
+      final rg = ranges[i];
+      if (rg == null) continue;
+      final x = r.left + i * slot + (slot - bw) / 2;
+      final top = yOf(rg.from), bottom = yOf(rg.to);
+      final lit = emphasis != null ? i == focus : (at == null || at == i);
+      final base = emphasis != null
+          ? (lit ? color : C.barGrey)
+          : (lit ? color : Color.lerp(color, p.bg, .72)!);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTRB(x, top, x + bw, bottom), const Radius.circular(R.sm / 3)),
+        Paint()..color = base,
+      );
+      if (labelAll || i == focus) {
+        final style = F.cap.copyWith(
+            color: lit ? (emphasis != null ? color : p.ink2) : p.ink3, fontWeight: FontWeight.w700);
+        final above = _text(timeText(rg.from), style, width: slot * 2);
+        above.paint(canvas, Offset(x + bw / 2 - above.width / 2, top - above.height - S.x1));
+        final below = _text(timeText(rg.to), style, width: slot * 2);
+        below.paint(canvas, Offset(x + bw / 2 - below.width / 2, bottom + S.x1));
+      }
+    }
+
+    for (var i = 0; i < n && i < xLabels.length; i++) {
+      if (xLabels[i].isEmpty) continue;
+      final on = i == (at ?? emphasis);
+      final tp = _text(
+        xLabels[i],
+        F.over.copyWith(
+          color: on ? p.ink : p.ink3,
+          fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+          height: 1.15,
+        ),
+        width: math.max(slot, S.x12),
+      );
+      tp.paint(canvas, Offset(r.left + (i + .5) * slot - tp.width / 2, r.bottom + S.x1));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RangesPainter old) => true;
+}
+
+/// Two lines on one scale, each point a ring: [a] with its numbers over the
+/// points, [b] with its numbers under them. Hours of sleep against the hours
+/// the body asked for, say.
+class ScrubPair extends StatelessWidget {
+  final List<double?> a, b;
+  final List<String> aLabels, bLabels, xLabels;
+  final double lo, hi;
+  final List<double> ticks;
+  final String Function(double) tickText;
+  final Color colorA, colorB;
+  final ValueChanged<int?> onScrub;
+  final double height;
+  final double gutter;
+  final String label;
+  final String Function(int i)? describe;
+
+  const ScrubPair({
+    super.key,
+    required this.a,
+    required this.b,
+    required this.aLabels,
+    required this.bLabels,
+    required this.xLabels,
+    required this.lo,
+    required this.hi,
+    required this.ticks,
+    required this.tickText,
+    required this.colorA,
+    required this.colorB,
+    required this.onScrub,
+    this.height = 260,
+    this.gutter = S.x10,
+    this.label = 'Chart',
+    this.describe,
+  });
+
+  static const _top = S.x8;
+  static const _band = S.x8;
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final inset = EdgeInsets.fromLTRB(gutter, _top, 0, _band);
+    return ScrubArea(
+      count: a.length,
+      slots: true,
+      inset: inset,
+      height: height,
+      onScrub: onScrub,
+      label: label,
+      describe: describe ?? _describeIndex,
+      builder: (c, at) => CustomPaint(
+        size: Size.infinite,
+        painter: _PairPainter(this, p, at, inset),
+      ),
+    );
+  }
+}
+
+class _PairPainter extends CustomPainter {
+  final ScrubPair w;
+  final P p;
+  final int? at;
+  final EdgeInsets inset;
+  _PairPainter(this.w, this.p, this.at, this.inset);
+
+  TextPainter _text(String s, TextStyle style, {double? width, TextAlign align = TextAlign.center}) =>
+      TextPainter(
+        text: TextSpan(text: s, style: style),
+        textAlign: align,
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: width ?? double.infinity);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final n = w.a.length;
+    final span = w.hi - w.lo;
+    if (n == 0 || span <= 0) return;
+    final r = plotRect(size, inset);
+    double yOf(double v) => r.bottom - (v - w.lo) / span * r.height;
+    double xOf(int i) => scrubXOf(i, r, n, slots: true);
+
+    final grid = Paint()
+      ..color = p.line
+      ..strokeWidth = 1;
+    for (final t in w.ticks) {
+      final y = yOf(t);
+      canvas.drawLine(Offset(r.left, y), Offset(r.right, y), grid);
+      final tp = _text(w.tickText(t), F.over.copyWith(color: p.ink3, fontWeight: FontWeight.w600),
+          width: inset.left - S.x2, align: TextAlign.right);
+      tp.paint(canvas, Offset(0, y - tp.height / 2));
+    }
+
+    void series(List<double?> vs, List<String> labels, Color color, bool below) {
+      Path? path;
+      for (var i = 0; i < n; i++) {
+        final v = vs[i];
+        if (v == null) {
+          path = null;
+          continue;
+        }
+        if (path == null) {
+          path = Path()..moveTo(xOf(i), yOf(v));
+        } else {
+          path.lineTo(xOf(i), yOf(v));
+        }
+        if (i + 1 >= n || vs[i + 1] == null) {
+          canvas.drawPath(
+            path,
+            Paint()
+              ..color = color.withValues(alpha: .6)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2.5
+              ..strokeJoin = StrokeJoin.round,
+          );
+        }
+      }
+      for (var i = 0; i < n; i++) {
+        final v = vs[i];
+        if (v == null) continue;
+        final x = xOf(i), y = yOf(v);
+        canvas.drawCircle(Offset(x, y), S.x1 + S.half, Paint()..color = p.bg);
+        canvas.drawCircle(
+          Offset(x, y),
+          S.x1 + S.half - 1,
+          Paint()
+            ..color = color
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3,
+        );
+        if (i < labels.length && labels[i].isNotEmpty) {
+          final tp = _text(labels[i],
+              F.cap.copyWith(color: at == i ? p.ink : color, fontWeight: FontWeight.w700),
+              width: r.width / n * 2);
+          final cy = below ? y + S.x5 + tp.height / 2 : y - S.x5 - tp.height / 2;
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(
+                Rect.fromCenter(center: Offset(x, cy), width: tp.width + S.x2, height: tp.height + S.x1),
+                const Radius.circular(R.sm)),
+            Paint()..color = p.bg.withValues(alpha: .45),
+          );
+          tp.paint(canvas, Offset(x - tp.width / 2, cy - tp.height / 2));
+        }
+      }
+    }
+
+    series(w.a, w.aLabels, w.colorA, false);
+    series(w.b, w.bLabels, w.colorB, true);
+
+    for (var i = 0; i < n && i < w.xLabels.length; i++) {
+      if (w.xLabels[i].isEmpty) continue;
+      final on = i == at;
+      final tp = _text(
+        w.xLabels[i],
+        F.over.copyWith(
+          color: on ? p.ink : p.ink3,
+          fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+          height: 1.15,
+        ),
+        width: math.max(r.width / n, S.x12),
+      );
+      tp.paint(canvas, Offset(xOf(i) - tp.width / 2, r.bottom + S.x1));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PairPainter old) => true;
 }

@@ -2920,7 +2920,7 @@ class NavBar extends StatelessWidget {
                 Text(
                   title.toUpperCase(),
                   textAlign: TextAlign.center,
-                  style: F.caps.copyWith(color: p.ink, letterSpacing: 2),
+                  style: F.caps.copyWith(color: p.ink, letterSpacing: 1.2),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

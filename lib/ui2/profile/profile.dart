@@ -470,7 +470,7 @@ class ProfileHomeView extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: S.x4),
                     child: Text((l?.tabMore ?? 'More').toUpperCase(),
-                        style: F.caps.copyWith(color: p.ink, letterSpacing: 2)),
+                        style: F.caps.copyWith(color: p.ink, letterSpacing: 1.2)),
                   ),
                 const SizedBox(height: S.x4),
                 ProfilePhotoHeader(name: s?.name),

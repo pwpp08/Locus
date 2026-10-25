@@ -35,6 +35,7 @@ import 'package:provider/provider.dart';
 
 import '../../ai/briefing.dart'
     show Briefing, BriefingPeriod, BriefingStore, currentBriefingPeriod, resolveBriefingToShow;
+import '../../compute/stress_monitor.dart' show StressLevel, stressLevel;
 import '../../compute/findings.dart'
     show
         isRecentFindingDate,
@@ -82,6 +83,8 @@ import 'metric_detail.dart';
 import 'readiness_detail.dart';
 import 'sleep_detail.dart';
 import 'sleep_planner.dart';
+import 'strain_recovery_card.dart';
+import 'stress_monitor.dart';
 import 'trend_view.dart';
 
 // ═══════════════════ shared plumbing ═══════════════════
@@ -1711,7 +1714,6 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       _d = widget.data;
       _night = widget.night ?? const {};
       _sessions = widget.sessions ?? const [];
-      _charts = widget.charts ?? const {};
       // Handed series (goldens, gallery): each one a dashboard metric's days.
       _daily = {
         for (final e in (widget.charts ?? const <String, List<ChartPoint>>{}).entries)
@@ -1869,8 +1871,17 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   /// The day's saved sessions, oldest first.
   List<Map<String, dynamic>> _sessions = const [];
 
-  /// Stored points for every dashboard tile and the stress monitor.
-  Map<String, List<ChartPoint>> _charts = const {};
+  /// The day's stress, scored from its minute series. Loaded after everything
+  /// else: it reads fifteen days, and nothing on Home waits for it.
+  StressMonitorData? _stress;
+  StressSource? _stressSource;
+
+  Future<void> _loadStress(LocalRepository repo, String day) async {
+    try {
+      final d = await (_stressSource ??= StressSource(repo)).load(day);
+      if (mounted) setState(() => _stress = d);
+    } catch (_) {}
+  }
 
   /// My Dashboard's tiles, in the order the user put them.
   List<String> _tiles = dashboardTilesOf();
@@ -1881,7 +1892,6 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     final day = d.dayId ?? _day ?? todayLabel();
     var night = const <String, dynamic>{};
     var sessions = const <Map<String, dynamic>>[];
-    final charts = <String, List<ChartPoint>>{};
     try {
       if (!d.sleepMin.isEmpty) night = await repo.getDaySleepV2(day);
     } catch (_) {}
@@ -1900,14 +1910,12 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             .compareTo((b['start_ts'] as num?) ?? 0));
       }
     } catch (_) {}
-    try {
-      charts['stress'] = pointsOf(await repo.getChart('stress'));
-    } catch (_) {}
     // My Dashboard: each row's daily values, through one loader so the reads
     // several metrics share are made once.
     final loader = TrendLoader(repo);
     final daily = <String, Map<String, double>>{};
-    for (final k in _tiles) {
+    // The dashboard's rows, and the two series the week's chart draws.
+    for (final k in {..._tiles, 'strain', 'recovery'}) {
       final m = trendMetricOf(k);
       if (m != null) daily[k] = await loader.daily(m);
     }
@@ -1915,9 +1923,9 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     if (!mounted) return;
     _night = night;
     _sessions = sessions;
-    _charts = charts;
     _daily = daily;
     _firstDay = first;
+    _loadStress(repo, day);
   }
 
   /// My Dashboard's rows: per metric, its value on each local day.
@@ -2152,6 +2160,17 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       const SizedBox(height: S.x3),
       const DetectedActivitiesCard(),
 
+      // ── STRAIN & RECOVERY ── the week's two stories on one chart.
+      const SizedBox(height: S.x3),
+      StrainRecoveryCard(
+        days: [
+          for (var i = 6; i >= 0; i--)
+            shiftDay(d.dayId ?? _day ?? todayLabel(widget.now), -i),
+        ],
+        strain: _daily['strain'] ?? const {},
+        recovery: _daily['recovery'] ?? const {},
+      ),
+
       // ── MY PLAN ── progress toward the goals that are set. Skipped on a
       // past day — "3,000 steps left" about a day already over is an
       // instruction, not a fact.
@@ -2171,7 +2190,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             height: S.tap,
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Text('CUSTOMIZE',
-                  style: F.caps.copyWith(color: p.ink, letterSpacing: 1.6)),
+                  style: F.caps.copyWith(color: p.ink, letterSpacing: .9)),
               const SizedBox(width: S.x2),
               Icon(LucideIcons.pencil, size: I.md, color: p.ink),
             ]),
@@ -2189,8 +2208,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       // ── STRESS MONITOR ── the trend, one tap from the full chart.
       const SizedBox(height: S.x3),
       _StressMonitor(
-        points: _charts['stress'] ?? const [],
-        onTap: () => go(c, const MetricDetail('stress')),
+        data: _stress,
+        onTap: () => go(c, const StressMonitorScreen()),
       ),
 
       if (isToday && !bare) ...[
@@ -2632,7 +2651,7 @@ class _DayPager extends StatelessWidget {
           alignment: Alignment.center,
           child: Text(label,
               style: F.over.copyWith(
-                  color: p.ink, fontWeight: FontWeight.w700, letterSpacing: 1.4)),
+                  color: p.ink, fontWeight: FontWeight.w700, letterSpacing: .8)),
         ),
         arrow(LucideIcons.chevronRight, newer, 'Next day'),
       ]),
@@ -3138,7 +3157,7 @@ class _TonightsSleep extends StatelessWidget {
               Text('RECOMMENDED\nBEDTIME',
                   textAlign: TextAlign.center,
                   style: F.over.copyWith(
-                      color: p.ink2, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+                      color: p.ink2, fontWeight: FontWeight.w700, letterSpacing: .7)),
             ),
           ),
           Padding(
@@ -3161,7 +3180,7 @@ class _TonightsSleep extends StatelessWidget {
                       style: F.over.copyWith(
                           color: dot == p.ink3 ? p.ink2 : dot,
                           fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2)),
+                          letterSpacing: .7)),
                 ),
               ]),
             ),
@@ -3322,35 +3341,25 @@ class _PlanRow extends StatelessWidget {
 }
 
 /// The newest stored reading of [key], formatted, with how old it is.
-({String value, String unit, String when})? _latestOf(
-    BuildContext c, String key, List<ChartPoint> pts) {
-  if (pts.isEmpty) return null;
-  final spec = specOf(key);
-  final v = pts.last.v;
-  final value = key == 'sleep' ? hm(v) : metricValue(spec.unit, v);
-  final behind = daysBehind(pts.last.t) ?? 0;
-  final when = behind <= 0
-      ? (AppLocalizations.of(c)?.healthToday ?? 'Today')
-      : axisDay(pts.last.t);
-  return (value: value, unit: unitBeside(spec.unit), when: when);
-}
-
-/// STRESS MONITOR: the newest score and the last fourteen days behind it.
+/// STRESS MONITOR: the day's latest reading, 0–3, and the day behind it.
 class _StressMonitor extends StatelessWidget {
-  final List<ChartPoint> points;
+  final StressMonitorData? data;
   final VoidCallback onTap;
-  const _StressMonitor({required this.points, required this.onTap});
+  const _StressMonitor({required this.data, required this.onTap});
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    final latest = _latestOf(c, 'stress', points);
-    final fortnight = denseDays(points, 14);
+    final d = data;
+    final last = d?.last;
+    final score = last == null ? null : d!.scores[last];
+    final level = score == null ? null : stressLevel(score);
+    final building = d != null && d.baseline == null;
     return Surface(
       onTap: onTap,
-      semanticLabel: latest == null
-          ? 'Stress monitor. No data'
-          : 'Stress monitor. ${latest.value} of 100. ${latest.when}',
+      semanticLabel: score == null
+          ? 'Stress monitor. No reading'
+          : 'Stress monitor. ${score.toStringAsFixed(1)} of 3, ${level!.name}',
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Icon(LucideIcons.brain, size: I.md, color: p.ink3),
@@ -3364,27 +3373,76 @@ class _StressMonitor extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
           children: [
-            Text(latest?.value ?? '--',
+            Text(score == null ? '--' : score.toStringAsFixed(1),
                 style: F.n34.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-            if (latest != null)
-              Text(' / 100', style: F.cap.copyWith(color: p.ink3)),
+            if (level != null) ...[
+              const SizedBox(width: S.x3),
+              Text(level.name.toUpperCase(),
+                  style: F.caps.copyWith(
+                      color: switch (level) {
+                        StressLevel.low => C.stressLow,
+                        StressLevel.medium => C.stressMedium,
+                        StressLevel.high => C.stressHigh,
+                      },
+                      fontWeight: FontWeight.w700)),
+            ],
             const Spacer(),
-            Text(latest?.when ?? 'No data', style: F.cap.copyWith(color: p.ink3)),
+            Text(
+                building
+                    ? 'Building your baseline'
+                    : last == null
+                        ? (d == null ? '' : 'No reading')
+                        : '${(last ~/ 60).toString().padLeft(2, '0')}:${(last % 60).toString().padLeft(2, '0')}',
+                style: F.cap.copyWith(color: p.ink3)),
           ],
         ),
-        if (fortnight.whereType<double>().length >= 2) ...[
+        if (d != null && last != null) ...[
           const SizedBox(height: S.x3),
           SizedBox(
             height: S.x12,
             child: CustomPaint(
               size: Size.infinite,
-              painter: LineChart(fortnight, C.lavender, fill: false, t: animate(c, 1)),
+              painter: _StressSparkPainter(d.scores, p.line),
             ),
           ),
         ],
       ]),
     );
   }
+}
+
+/// The day's scores as a thin line coloured by height, on a 0–3 scale.
+class _StressSparkPainter extends CustomPainter {
+  final List<double?> scores;
+  final Color grid;
+  _StressSparkPainter(this.scores, this.grid);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawLine(Offset(0, size.height), Offset(size.width, size.height),
+        Paint()..color = grid);
+    // Ten-minute means: a pixel does not need a minute.
+    final pts = <(double, double)>[];
+    for (var i = 0; i + 10 <= scores.length; i += 10) {
+      final xs = [for (var k = i; k < i + 10; k++) ?scores[k]];
+      if (xs.isEmpty) continue;
+      final v = xs.fold<double>(0, (a, b) => a + b) / xs.length;
+      pts.add((i / (scores.length - 1) * size.width, size.height - v / 3 * size.height));
+    }
+    for (var k = 1; k < pts.length; k++) {
+      if (pts[k].$1 - pts[k - 1].$1 > size.width * .03) continue;
+      final v = (1 - (pts[k].$2 + pts[k - 1].$2) / 2 / size.height) * 3;
+      canvas.drawLine(
+          Offset(pts[k - 1].$1, pts[k - 1].$2),
+          Offset(pts[k].$1, pts[k].$2),
+          Paint()
+            ..color = stressColor(v)
+            ..strokeWidth = 1.5);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_StressSparkPainter old) => old.scores != scores;
 }
 
 /// Show or hide each metric, drag to reorder, Save.

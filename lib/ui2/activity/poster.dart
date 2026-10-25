@@ -458,7 +458,7 @@ class PosterCard extends StatelessWidget {
           child: Text(
             uiText(c, s.$1).toUpperCase(),
               style: F.over
-                  .copyWith(color: accent, letterSpacing: 1.1, height: 1.2),
+                  .copyWith(color: accent, letterSpacing: .7, height: 1.2),
               maxLines: 1),
         ),
         const SizedBox(height: S.x1),
