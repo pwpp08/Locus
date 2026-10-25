@@ -23,7 +23,10 @@ import 'package:openstrap_edge/ui2/ui2.dart';
 // same clock or "step forward back to today" would (wrongly, for the
 // fixture's sake only) take the `loadForDay` path instead.
 final _today = todayLabel();
-final _yesterday = dayLabelOf(DateTime.now().subtract(const Duration(days: 1)));
+// By calendar, not 24 elapsed hours: on the night the clocks go back, 24 hours
+// before 23:10 is still today.
+final _yesterday = dayLabelOf(
+    DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day - 1));
 
 /// Two distinct days, each with its own readiness/strain/steps — so a test
 /// asserting the switcher actually swapped the screen's numbers, not just

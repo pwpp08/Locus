@@ -1943,10 +1943,10 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     _daily = daily;
     _firstDay = first;
     _loadStress(repo, day);
-    try {
-      final h = await healthGlanceOf(context);
+    // Not waited for: the day on screen must not hang on this card.
+    unawaited(healthGlanceOf(context).then((h) {
       if (mounted) setState(() => _health = h);
-    } catch (_) {}
+    }).catchError((Object _) {}));
   }
 
   /// My Dashboard's rows: per metric, its value on each local day.

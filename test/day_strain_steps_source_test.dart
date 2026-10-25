@@ -40,7 +40,9 @@ void main() {
 
   final repo = LocalRepositoryImpl(getProfileMap: () => null);
   final today = todayLabel();
-  final yesterday = dayLabelOf(DateTime.now().subtract(const Duration(days: 1)));
+  // By calendar, not 24 elapsed hours (the night the clocks go back is 25).
+  final n = DateTime.now();
+  final yesterday = dayLabelOf(DateTime(n.year, n.month, n.day - 1));
 
   test(
       "when today's own day_result is missing, getDayStrain's steps come "
