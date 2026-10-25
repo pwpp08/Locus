@@ -11084,6 +11084,20 @@ class LocalDb {
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  /// [putMetricSeriesValue], except a null value removes the row instead of
+  /// storing a null: the day then reads as absent, as it did before a pass
+  /// first looked at it, and a day that never had a value gains no row.
+  static Future<void> setMetricSeriesValue(
+    String date,
+    String key,
+    double? value,
+  ) async {
+    if (value != null) return putMetricSeriesValue(date, key, value);
+    final db = await instance;
+    await db.delete('metric_series',
+        where: 'date = ? AND key = ?', whereArgs: [date, key]);
+  }
+
   /// A long-format metric series (oldest first) for trends/sparklines.
   ///
   /// [measuredOnly] drops days another vendor's export wrote (see

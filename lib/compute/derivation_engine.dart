@@ -6541,10 +6541,11 @@ class DerivationEngine {
       // holds for TODAY (it is rebuilt, not appended): tonight's sleep need and
       // the sleep debt behind it, dated the day they were computed for. Trend
       // View's Sleep Performance / Hours vs. Needed / Sleep Debt read them; no
-      // past day is given a value it was never computed with. Null is written
-      // as null, so a day whose need went absent does not keep an older one.
+      // past day is given a value it was never computed with. A null removes
+      // the row, so a day whose need went absent does not keep an older one
+      // and a day that never had one gains no row.
       for (final e in coachDay.entries) {
-        await LocalDb.putMetricSeriesValue(builtForDay, e.key, e.value);
+        await LocalDb.setMetricSeriesValue(builtForDay, e.key, e.value);
       }
       if (dropped.isNotEmpty) {
         // Loud, not debug-only: a dropped field is a metric the user will see
