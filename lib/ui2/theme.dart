@@ -382,21 +382,33 @@ class P {
 
 /// ── TYPE ── 7 steps + 5 numerals, tabular figures on anything that changes ─
 ///
-/// Words are Figtree, numbers are Barlow Bold, both bundled (SIL OFL,
+/// Words are Figtree, numbers are D-DIN, both bundled (SIL OFL,
 /// assets/fonts) so iOS, Android and the golden tests render the same design.
-/// Barlow is bundled as a digits-only face, [numerals]: every style names it
-/// FIRST, so any digit — in a dial, a sentence or a table — is Barlow, and
+/// D-DIN is bundled as a digits-only face, [numerals]: every style names it
+/// FIRST, so any digit — in a dial, a sentence or a table — is D-DIN, and
 /// every letter, which that face does not have, falls to Figtree. Figtree has
 /// no Cyrillic: Russian falls through to the bundled Manrope, and anything
 /// past that to the platform's Helvetica Neue / Helvetica / Arial.
 ///
 /// Headlines are short, uppercase and tracked at 10 % ([caps]); body text is
-/// Figtree semibold; numerals are Barlow bold with its natural spacing.
+/// Figtree semibold; numerals are D-DIN bold.
 class F {
   static const family = 'Figtree';
-  static const numerals = 'BarlowNums';
+  static const numerals = 'DDINNums';
   static const _f = numerals;
   static const _fb = [
+    family,
+    'Manrope',
+    'Helvetica Neue',
+    'Helvetica',
+    'Arial',
+  ];
+  /// The headline face: Montserrat, the closest free match to a geometric
+  /// grotesque header. Used for the uppercase, tracked styles ([caps], [over]);
+  /// digits still come from [numerals] first.
+  static const headline = 'Montserrat';
+  static const _hb = [
+    headline,
     family,
     'Manrope',
     'Helvetica Neue',
@@ -451,40 +463,49 @@ class F {
   /// Callers uppercase it.
   static const over = TextStyle(
       fontFamily: _f,
-      fontFamilyFallback: _fb,
+      fontFamilyFallback: _hb,
       fontSize: 11,
       height: 14 / 11,
-      fontWeight: FontWeight.w600,
-      letterSpacing: .35);
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.1);
 
   /// Widely tracked capitals: card titles, dial names, section kickers.
   /// Callers uppercase it.
   static const caps = TextStyle(
       fontFamily: _f,
-      fontFamilyFallback: _fb,
+      fontFamilyFallback: _hb,
       fontSize: 13,
       height: 18 / 13,
-      fontWeight: FontWeight.w700,
-      letterSpacing: .9);
+      fontWeight: FontWeight.w800,
+      letterSpacing: 1.3);
 
   /// The thin, spaced-out wordmark over the dials.
   static const wordmark = TextStyle(
       fontFamily: _f,
       fontFamilyFallback: _fb,
-      fontSize: 24,
+      fontSize: 22,
       height: 1,
       fontWeight: FontWeight.w300,
-      letterSpacing: 7);
+      letterSpacing: 5);
 
   // Numerals — a parallel display ramp. Tabular, so a live value never jitters
   // its own layout as digits change. Units sit beside them in cap/body, ink3.
+  /// The figure inside a dial.
+  static const n80 = TextStyle(
+      fontFamily: _f,
+      fontFamilyFallback: _fb,
+      fontSize: 80,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -.8,
+      fontFeatures: _tab);
   static const n64 = TextStyle(
       fontFamily: _f,
       fontFamilyFallback: _fb,
       fontSize: 64,
       height: 1,
       fontWeight: FontWeight.w700,
-      letterSpacing: -1.2,
+      letterSpacing: -.6,
       fontFeatures: _tab);
   static const n48 = TextStyle(
       fontFamily: _f,
@@ -492,7 +513,7 @@ class F {
       fontSize: 48,
       height: 1,
       fontWeight: FontWeight.w700,
-      letterSpacing: -1.0,
+      letterSpacing: -.5,
       fontFeatures: _tab);
   static const n34 = TextStyle(
       fontFamily: _f,
@@ -500,7 +521,7 @@ class F {
       fontSize: 34,
       height: 1,
       fontWeight: FontWeight.w700,
-      letterSpacing: -.6,
+      letterSpacing: -.3,
       fontFeatures: _tab);
   static const n24 = TextStyle(
       fontFamily: _f,
@@ -508,7 +529,7 @@ class F {
       fontSize: 24,
       height: 1,
       fontWeight: FontWeight.w700,
-      letterSpacing: -.3,
+      letterSpacing: -.1,
       fontFeatures: _tab);
   static const n17 = TextStyle(
       fontFamily: _f,

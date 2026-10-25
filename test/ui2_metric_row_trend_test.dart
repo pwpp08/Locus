@@ -13,7 +13,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:openstrap_edge/ui2/ui2.dart';
 
@@ -93,14 +92,12 @@ void main() {
         MetricRow(LucideIcons.brain, C.purple, 'Stress', '31',
             unit: '/100', series: falling, rising: Rising.bad),
       ]);
-      final up = t
-          .widgetList<Icon>(find.byIcon(LucideIcons.arrowUpRight))
-          .toList();
+      final marks = t.widgetList<DeltaTriangle>(find.byType(DeltaTriangle)).toList();
+      final up = [for (final m in marks) if (m.up) m];
       expect(up.length, 2, reason: 'both rose, so both point up');
       expect(up[0].color, p.on(C.green));
       expect(up[1].color, p.on(C.orange));
-      final down =
-          t.widgetList<Icon>(find.byIcon(LucideIcons.arrowDownRight)).single;
+      final down = marks.singleWhere((m) => !m.up);
       expect(down.color, p.on(C.green));
     });
 
@@ -110,8 +107,9 @@ void main() {
         MetricRow(LucideIcons.thermometer, C.orange, 'Skin temperature', '+0.3',
             unit: '°', series: rising),
       ]);
-      expect(t.widgetList<Icon>(find.byIcon(LucideIcons.arrowUpRight)).single.color,
-          p.ink3);
+      final mark = t.widget<DeltaTriangle>(find.byType(DeltaTriangle));
+      expect(mark.up, isTrue);
+      expect(mark.color, p.ink3);
     });
 
     testWidgets('a move inside the noise is flat and unjudged', (t) async {
@@ -128,13 +126,8 @@ void main() {
         MetricRow(LucideIcons.wind, C.teal, 'Respiratory rate', '14.2',
             unit: 'br/min', series: [50, 51, 50], rising: Rising.bad),
       ]);
-      for (final i in const [
-        LucideIcons.arrowUpRight,
-        LucideIcons.arrowDownRight,
-        LucideIcons.arrowRight,
-      ]) {
-        expect(find.byIcon(i), findsNothing);
-      }
+      expect(find.byType(DeltaTriangle), findsNothing);
+      expect(find.byIcon(LucideIcons.arrowRight), findsNothing);
       // The absence carries its reason where an empty box cannot: a horizontal
       // arrow here would claim a measured "no change".
       expect(
@@ -148,7 +141,7 @@ void main() {
         MetricRow(LucideIcons.heart, C.red, 'Resting heart rate', '58',
             sub: 'OVERNIGHT', unit: 'bpm', series: rising, rising: Rising.bad),
       ], textScale: 2.0);
-      expect(find.byIcon(LucideIcons.arrowUpRight), findsOneWidget);
+      expect(find.byType(DeltaTriangle), findsOneWidget);
       expect(find.text('58'), findsOneWidget);
     });
   });

@@ -23,7 +23,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../lucide.dart';
 
 // The permission enum only — a pure value type, no geolocator call from this
 // file. The rule this file keeps is no AppState and no LocalDb: the live

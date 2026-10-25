@@ -11,7 +11,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../ui2.dart';
@@ -50,7 +49,7 @@ class StrainRecoveryCard extends StatelessWidget {
           Expanded(
             child: Text('STRAIN & RECOVERY',
                 style: F.caps.copyWith(
-                    color: p.ink, fontWeight: FontWeight.w700, letterSpacing: .7)),
+                    color: p.ink, fontWeight: FontWeight.w700)),
           ),
           Pressable(
             onTap: () => _info(c),
@@ -99,6 +98,7 @@ class StrainRecoveryCard extends StatelessWidget {
                     '${weekdayShortName(DateTime.parse(d).weekday, l)}\n${DateTime.parse(d).day}',
                 ],
                 focus: at ?? n - 1,
+                rest: at == null,
                 inset: _inset,
               ),
             ),
@@ -129,6 +129,10 @@ class _DualPainter extends CustomPainter {
   final List<double?> strain, recovery;
   final List<String> xLabels;
   final int focus;
+
+  /// Nothing is touched: the newest day carries the column itself. A touch
+  /// moves the column to [ScrubArea], which draws it behind this chart.
+  final bool rest;
   final EdgeInsets inset;
 
   _DualPainter({
@@ -137,6 +141,7 @@ class _DualPainter extends CustomPainter {
     required this.recovery,
     required this.xLabels,
     required this.focus,
+    required this.rest,
     required this.inset,
   });
 
@@ -158,13 +163,16 @@ class _DualPainter extends CustomPainter {
 
     // The day under the finger, or the newest, as a column band.
     final slot = r.width / n;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-          Rect.fromLTWH(r.left + focus * slot + slot * .1, r.top - S.x6,
-              slot * .8, r.height + S.x6 + S.x10),
-          const Radius.circular(R.sm)),
-      Paint()..color = p.ink.withValues(alpha: .10),
-    );
+    if (rest) {
+      final w = math.min(slot * .88, S.x12);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+            Rect.fromLTRB(xOf(focus) - w / 2, math.max(0.0, r.top - S.x3),
+                xOf(focus) + w / 2, size.height),
+            const Radius.circular(R.lg)),
+        Paint()..color = p.ink.withValues(alpha: .10),
+      );
+    }
 
     // Four gridlines, and what each is worth on either scale.
     final grid = Paint()

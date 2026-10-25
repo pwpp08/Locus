@@ -29,7 +29,7 @@
 // that config and rejected there; the chevron is what carries it.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'lucide.dart';
 
 import 'theme.dart';
 

@@ -584,7 +584,7 @@ dependencies:
   latlong2: ^0.9.1
   geolocator: ^13.0.2
 
-  # Type: Figtree + Barlow (digits) + Manrope are BUNDLED under assets/fonts/ (declared in
+  # Type: Figtree + D-DIN (digits) + Manrope are BUNDLED under assets/fonts/ (declared in
   # flutter.fonts below), not pulled at runtime — see the note there.
 
   # Declarative motion (flutter_animate) and the five-pack icon mix that
@@ -739,21 +739,34 @@ flutter:
           weight: 700
         - asset: assets/fonts/Figtree/Figtree-800.ttf
           weight: 800
-    # Numbers: Barlow, cut down to the glyphs a number is written with (the
-    # digits and . , : % + and the minus sign). Every style names this family
-    # first and Figtree after it, so a digit anywhere in the app is Barlow and
-    # every letter falls through to Figtree. SIL OFL, licence in
-    # assets/fonts/BarlowNums/OFL.txt.
-    - family: BarlowNums
+    # Numbers: D-DIN (Datto, after DIN 1451), cut down to the glyphs a number
+    # is written with (the digits and . , : % + and the minus sign). Every
+    # style names this family first and Figtree after it, so a digit anywhere
+    # in the app is D-DIN and every letter falls through to Figtree. D-DIN has
+    # a regular and a bold: the lighter weights draw the regular, the heavier
+    # the bold. SIL OFL, licence in assets/fonts/DDINNums/OFL.txt.
+    - family: DDINNums
       fonts:
-        - asset: assets/fonts/BarlowNums/BarlowNums-400.ttf
+        - asset: assets/fonts/DDINNums/DDINNums-400.ttf
           weight: 400
-        - asset: assets/fonts/BarlowNums/BarlowNums-500.ttf
+        - asset: assets/fonts/DDINNums/DDINNums-400.ttf
           weight: 500
-        - asset: assets/fonts/BarlowNums/BarlowNums-600.ttf
+        - asset: assets/fonts/DDINNums/DDINNums-700.ttf
           weight: 600
-        - asset: assets/fonts/BarlowNums/BarlowNums-700.ttf
+        - asset: assets/fonts/DDINNums/DDINNums-700.ttf
           weight: 700
+    # Headlines: Montserrat (SIL OFL, licence in assets/fonts/Montserrat), cut
+    # from the variable font into the weights the uppercase styles use.
+    - family: Montserrat
+      fonts:
+        - asset: assets/fonts/Montserrat/Montserrat-600.ttf
+          weight: 600
+        - asset: assets/fonts/Montserrat/Montserrat-700.ttf
+          weight: 700
+        - asset: assets/fonts/Montserrat/Montserrat-800.ttf
+          weight: 800
+        - asset: assets/fonts/Montserrat/Montserrat-900.ttf
+          weight: 900
     # Figtree has no Cyrillic: Russian falls through to Manrope (F's
     # fontFamilyFallback, lib/ui2/theme.dart), so it stays bundled.
     - family: Manrope

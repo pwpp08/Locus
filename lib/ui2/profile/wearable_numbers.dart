@@ -12,7 +12,6 @@
 // own-scores section, which is that device's page.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../ble/adapters/_registry.dart'
     show DeviceCategory, categoryOf, kBandRegistry, kThermometer;

@@ -7,7 +7,6 @@
 // sleep?", so they live here rather than in the main flow.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../ui2.dart';

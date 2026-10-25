@@ -28,7 +28,6 @@ import '../../l10n/display_text.dart';
 // carry in the notification.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../compute/findings.dart';
 import '../../l10n/app_localizations.dart';

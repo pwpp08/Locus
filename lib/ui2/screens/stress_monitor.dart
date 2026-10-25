@@ -10,7 +10,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../compute/stress_monitor.dart';
 import '../../data/day_label.dart';
@@ -306,7 +305,7 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
         width: S.x16 * 2.5,
         child: Text(label,
             textAlign: TextAlign.center,
-            style: F.caps.copyWith(color: p.ink, letterSpacing: .7)),
+            style: F.caps.copyWith(color: p.ink)),
       ),
       arrow(LucideIcons.chevronRight, 'Later day',
           _day == _today ? null : () => _page(1)),
@@ -461,17 +460,17 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
           Icon(LucideIcons.gauge, size: I.md, color: p.ink2),
           const SizedBox(width: S.x3),
           Text('TOTAL DAY',
-              style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w700, letterSpacing: .7)),
+              style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
         ]),
         const SizedBox(height: S.x5),
         Text.rich(TextSpan(children: [
           TextSpan(
               text: '${weekdayShortName(date.weekday, l)}, ${monthShortName(date.month, l)} ${date.day} STRESS '
                   .toUpperCase(),
-              style: F.over.copyWith(color: p.ink, fontWeight: FontWeight.w700, letterSpacing: .7)),
+              style: F.over.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
           TextSpan(
               text: t == null ? '' : 'VS. TYPICAL DAY',
-              style: F.over.copyWith(color: p.ink3, fontWeight: FontWeight.w700, letterSpacing: .7)),
+              style: F.over.copyWith(color: p.ink3, fontWeight: FontWeight.w700)),
         ])),
         const SizedBox(height: S.x3),
         if (m.low + m.medium + m.high > 0)
@@ -545,9 +544,8 @@ class _VsTypical extends StatelessWidget {
       decoration: BoxDecoration(color: p.card2, borderRadius: R.rSm),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         if (pct != 0) ...[
-          Icon(pct > 0 ? LucideIcons.arrowUp : LucideIcons.arrowDown,
-              size: I.sm, color: p.ink2),
-          const SizedBox(width: S.half),
+          DeltaTriangle(up: pct > 0, color: p.ink2, size: S.x3),
+          const SizedBox(width: S.x1),
         ],
         Text('${pct.abs()}%',
             style: F.cap.copyWith(color: p.ink2, fontWeight: FontWeight.w700)),
@@ -592,7 +590,7 @@ class _Gauge extends StatelessWidget {
                 if (level != null)
                   Text(_levelName(level),
                       style: F.caps.copyWith(
-                          color: _levelColor(level), fontWeight: FontWeight.w700, letterSpacing: .9)),
+                          color: _levelColor(level), fontWeight: FontWeight.w700)),
                 if (time != null) ...[
                   const SizedBox(height: S.x2),
                   Text(time!, style: F.cap.copyWith(color: p.ink2)),

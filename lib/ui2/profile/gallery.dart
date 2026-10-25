@@ -29,7 +29,6 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../data/day_label.dart';
@@ -1594,6 +1593,42 @@ Map<String, Widget> _stateCases() => {
             shiftDay('2026-08-16', i - 6): v,
         },
       ),
+      'stat_icons': const Row(mainAxisSize: MainAxisSize.min, children: [
+        StatIcon(StatMark.zonesLow, color: C.n400),
+        SizedBox(width: S.x3),
+        StatIcon(StatMark.zonesHigh, color: C.n400),
+        SizedBox(width: S.x3),
+        StatIcon(StatMark.strength, color: C.n400),
+        SizedBox(width: S.x3),
+        StatIcon(StatMark.steps, color: C.n400),
+      ]),
+      'delta_triangles': const Row(mainAxisSize: MainAxisSize.min, children: [
+        DeltaTriangle(up: true, color: C.optimal),
+        SizedBox(width: S.x3),
+        DeltaTriangle(up: false, color: C.strainDown),
+      ]),
+      'scrub_months': ScrubMonths(
+        days: [for (var i = 0; i < 90; i++) 56 + 6 * (i % 7) / 6],
+        months: const [
+          MonthMark(from: 0, to: 29, label: 'Jul', value: 58, text: '58'),
+          MonthMark(from: 30, to: 59, label: 'Aug', value: 59, text: '59'),
+          MonthMark(
+              from: 60,
+              to: 89,
+              label: 'Sep',
+              value: 57,
+              text: '57',
+              note: '-3%',
+              tone: C.optimal),
+        ],
+        lo: 50,
+        hi: 66,
+        ticks: const [50, 54, 58, 62, 66],
+        tickText: (v) => '${v.round()}',
+        color: C.dialStrain,
+        height: S.x16 * 3,
+        onScrub: (_) {},
+      ),
       'scrub_area': ScrubArea(
         count: 5,
         height: S.x16,
@@ -2887,6 +2922,7 @@ Map<String, Widget> _voltSystemCases() => {
               ('body', F.body, 'Every number is computed here.'),
               ('cap', F.cap, 'Synced 8:12'),
               ('over', F.over, 'RECOVERY'),
+              ('n80', F.n80, '16.5'),
               ('n64', F.n64, '7h 28m'),
               ('n48', F.n48, '84'),
               ('n34', F.n34, '1,174'),

@@ -19,7 +19,7 @@
 // Strain are the deep dives behind their dials on Home.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'lucide.dart';
 
 import '../l10n/app_localizations.dart';
 import 'grammar.dart';

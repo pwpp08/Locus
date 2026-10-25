@@ -16,7 +16,6 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../data/day_label.dart';
 import '../../data/db.dart';
@@ -48,7 +47,8 @@ enum TrendIntraday {
   /// A value per minute, drawn as a line.
   line,
 
-  /// A value per hour, drawn as bars.
+  /// A value per hour: bars, or a line through the hours for a metric that
+  /// is a line ([TrendMetric.line]).
   hourly,
 }
 
@@ -144,22 +144,19 @@ const kTrendCatalogue = <TrendMetric>[
       unit: 'hr',
       higherBetter: true,
       weekly: true,
-      kind: TrendKind.stacked,
-      intraday: TrendIntraday.hourly),
+      kind: TrendKind.stacked),
   TrendMetric('zones_45', 'Heart rate zones 4-5', TrendGroup.strain,
       LucideIcons.heart, TrendFmt.hmm,
       unit: 'hr',
       higherBetter: true,
       weekly: true,
-      kind: TrendKind.stacked,
-      intraday: TrendIntraday.hourly),
+      kind: TrendKind.stacked),
   TrendMetric('zones_all', 'Heart rate zones all', TrendGroup.strain,
       LucideIcons.timer, TrendFmt.hmm,
       unit: 'hr',
       higherBetter: true,
       weekly: true,
-      kind: TrendKind.stacked,
-      intraday: TrendIntraday.hourly),
+      kind: TrendKind.stacked),
   TrendMetric('strength_time', 'Strength activity time', TrendGroup.strain,
       LucideIcons.dumbbell, TrendFmt.hmm,
       unit: 'hr', higherBetter: true, weekly: true, zeroFill: true),
@@ -171,7 +168,7 @@ const kTrendCatalogue = <TrendMetric>[
       unit: 'bpm', line: true, intraday: TrendIntraday.line),
   TrendMetric('calories', 'Calories', TrendGroup.strain, LucideIcons.flame,
       TrendFmt.grouped,
-      unit: 'cal'),
+      unit: 'cal', intraday: TrendIntraday.hourly),
   TrendMetric('vo2max', 'VO₂ max', TrendGroup.strain, LucideIcons.wind,
       TrendFmt.integer,
       higherBetter: true,
@@ -186,7 +183,7 @@ const kTrendCatalogue = <TrendMetric>[
       unit: 'ms',
       higherBetter: true,
       line: true,
-      intraday: TrendIntraday.line),
+      intraday: TrendIntraday.hourly),
   TrendMetric('resting_hr', 'Resting heart rate', TrendGroup.recovery,
       LucideIcons.heartHandshake, TrendFmt.integer,
       unit: 'bpm', higherBetter: false, line: true),
@@ -442,20 +439,16 @@ class TrendLoader {
           hourly = false;
           values = _perMinute((await r.getDayTimeline(day))['hr'], day);
         case 'hrv':
-          hourly = false;
-          values = _perMinute((await r.getDayTimeline(day))['hrv'], day);
+          // Minute readings are noisy: an hour's value is the mean of its own.
+          hourly = true;
+          values = _meanPerHour(
+              _perMinute((await r.getDayTimeline(day))['hrv'], day));
+        case 'calories':
+          hourly = true;
+          values = _caloriesPerHour(await r.getDayStrain(day), day);
         case 'steps':
           hourly = true;
           values = _stepsPerHour((await r.getDaySteps(day))['spans'], day);
-        case 'zones_13' || 'zones_45' || 'zones_all':
-          hourly = true;
-          final which = switch (m.id) {
-            'zones_13' => const [1, 2, 3],
-            'zones_45' => const [4, 5],
-            _ => const [1, 2, 3, 4, 5],
-          };
-          values =
-              _zoneMinutesPerHour((await r.getDayStrain(day))['zone_timeline'], day, which);
         default:
           return null;
       }
@@ -511,16 +504,35 @@ class TrendLoader {
     return out;
   }
 
-  /// `[{t, z}]`, one entry per waking minute, as minutes spent in [which]
-  /// zones per hour. An hour with no entry at all stays null.
-  static List<double?> _zoneMinutesPerHour(Object? raw, String day, List<int> which) {
+  /// The mean of each hour's minutes that have a reading; an hour with none
+  /// stays null.
+  static List<double?> _meanPerHour(List<double?> minutes) => [
+        for (var h = 0; h < 24; h++)
+          _mean([for (var m = h * 60; m < h * 60 + 60; m++) ?minutes[m]]),
+      ];
+
+  /// The day's calories shared out over its hours in proportion to the strain
+  /// each hour added: both come from the same heart-rate trace, so the hours add
+  /// back up to the day's own total. Null when the day has no total, or no
+  /// strain was gained to share it by.
+  static List<double?> _caloriesPerHour(Map<String, dynamic> strain, String day) {
     final out = List<double?>.filled(24, null);
-    if (raw is! List) return out;
-    for (final e in raw) {
-      if (e is! Map || e['t'] is! num || e['z'] is! num) continue;
-      final t = DateTime.fromMillisecondsSinceEpoch((e['t'] as num).toInt() * 1000);
-      if (dayLabelOf(t) != day) continue;
-      out[t.hour] = (out[t.hour] ?? 0) + (which.contains((e['z'] as num).toInt()) ? 1 : 0);
+    final total = strain['calories'];
+    if (total is! num || total <= 0) return out;
+    final curve = _perMinute(strain['curve'], day);
+    // The curve is a running total: an hour's gain is how far it rose in it.
+    double? last = 0;
+    final gain = List<double>.filled(24, 0);
+    for (var m = 0; m < 1440; m++) {
+      final v = curve[m];
+      if (v == null) continue;
+      gain[m ~/ 60] += math.max(0, v - (last ?? 0));
+      last = v;
+    }
+    final sum = gain.fold<double>(0, (a, b) => a + b);
+    if (sum <= 0) return out;
+    for (var h = 0; h < 24; h++) {
+      if (gain[h] > 0) out[h] = total * gain[h] / sum;
     }
     return out;
   }
@@ -737,30 +749,25 @@ class DashboardRows extends StatelessWidget {
           child: Text(title.toUpperCase(),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: F.caps.copyWith(color: p.ink, letterSpacing: .8)),
+              style: F.caps.copyWith(color: p.ink)),
         ),
         const SizedBox(width: S.x2),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Row(mainAxisSize: MainAxisSize.min, children: [
             Text(m.absent != null ? '--' : trendFormat(m, h.value),
                 style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-            const SizedBox(width: S.x1),
+            const SizedBox(width: S.x2),
             SizedBox(
-              width: I.md,
+              width: S.x3,
               child: dir == null
                   ? null
-                  : Icon(
-                      h.value! > h.against!
-                          ? Icons.arrow_drop_up
-                          : Icons.arrow_drop_down,
-                      size: I.md,
-                      color: dir,
-                    ),
+                  : DeltaTriangle(
+                      up: h.value! > h.against!, color: dir, size: S.x3),
             ),
           ]),
           if (h.against != null && m.absent == null)
             Padding(
-              padding: const EdgeInsets.only(right: I.md + S.x1),
+              padding: const EdgeInsets.only(right: S.x3 + S.x2),
               child: Text(trendFormat(m, h.against),
                   style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
             ),
@@ -771,6 +778,11 @@ class DashboardRows extends StatelessWidget {
 }
 
 enum TrendRange { day, week, month, sixMonths }
+
+/// How many days one step back moves the window. A weekly metric's month is
+/// four whole weeks (a bar per week); anything else's is thirty days.
+int trendWindowDays(TrendMetric m, TrendRange r) =>
+    r == TrendRange.month && m.weekly ? 28 : r.days;
 
 extension on TrendRange {
   int get days => switch (this) {
@@ -803,14 +815,16 @@ List<TrendBar> trendBars(TrendMetric m, Map<String, double> daily,
                   d.compareTo(end) <= 0
               ? 0
               : null);
-  if (range != TrendRange.sixMonths) {
+  if (range == TrendRange.week || range == TrendRange.day ||
+      (range == TrendRange.month && !m.weekly)) {
     return [
       for (var i = range.days - 1; i >= 0; i--)
         (from: shiftDay(end, -i), to: shiftDay(end, -i), v: on(shiftDay(end, -i))),
     ];
   }
+  // A bar per week: four of them for a month, twenty-six for six months.
   return [
-    for (var w = 25; w >= 0; w--)
+    for (var w = range == TrendRange.month ? 3 : 25; w >= 0; w--)
       () {
         final last = shiftDay(end, -w * 7);
         final vs = [
@@ -840,7 +854,7 @@ double? trendDayValue(TrendMetric m, TrendIntra i) {
   final vs = [for (final v in i.values) ?v];
   if (vs.isEmpty) return null;
   if (m.cumulative) return vs.last;
-  if (i.hourly) return vs.fold<double>(0, (a, b) => a + b);
+  if (i.hourly && !m.line) return vs.fold<double>(0, (a, b) => a + b);
   return vs.fold<double>(0, (a, b) => a + b) / vs.length;
 }
 
@@ -892,6 +906,13 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   /// The point under a finger. Null at rest, so the readout shows the average.
   int? _selected;
   bool _picking = false;
+
+  /// The part of the day a minute chart shows, in minutes, after pinching.
+  double _zoomFrom = 0, _zoomTo = 1440;
+  double _zoom0From = 0, _zoom0To = 1440;
+  bool get _zoomed => _zoomTo - _zoomFrom < 1439;
+
+  int get _win => trendWindowDays(_m, _range);
 
   TrendLoader? _loader;
   Map<String, double>? _daily;
@@ -964,10 +985,35 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     });
   }
 
+  void _resetZoom() {
+    _zoomFrom = 0;
+    _zoomTo = 1440;
+  }
+
+  void _pinch(PinchPhase phase, double scale, double focal, double pan) {
+    if (phase == PinchPhase.start) {
+      _zoom0From = _zoomFrom;
+      _zoom0To = _zoomTo;
+      return;
+    }
+    if (phase == PinchPhase.end) return;
+    final span0 = _zoom0To - _zoom0From;
+    final span = (span0 / scale.clamp(.05, 60)).clamp(30.0, 1440.0).toDouble();
+    // The minute under the fingers stays under them, and follows them sideways.
+    final under = _zoom0From + focal * span0;
+    final from = (under - (focal + pan) * span).clamp(0.0, 1440 - span).toDouble();
+    setState(() {
+      _zoomFrom = from;
+      _zoomTo = from + span;
+      _selected = null;
+    });
+  }
+
   void _pick(TrendMetric m) {
     setState(() {
       _m = m;
       _picking = false;
+      _resetZoom();
       _daily = null;
       _selected = null;
       _intra = null;
@@ -983,6 +1029,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     setState(() {
       _range = r;
       _back = 0;
+      _resetZoom();
       _selected = null;
       _auto = false;
     });
@@ -992,6 +1039,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   void _stepBack(int by) {
     setState(() {
       _back += by;
+      _resetZoom();
       _selected = null;
       _auto = false;
     });
@@ -1051,6 +1099,12 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     return switch (_range) {
       TrendRange.day => '',
       TrendRange.week => '${weekdayShortName(d.weekday, l)}\n${d.day}',
+      TrendRange.month when _m.weekly => () {
+          final a = _dateOf(bars[i].from);
+          return a.month == d.month
+              ? '${monthShortName(a.month, l)} ${a.day} - ${d.day}'
+              : '${monthShortName(a.month, l)} ${a.day} - ${monthShortName(d.month, l)} ${d.day}';
+        }(),
       TrendRange.month => (bars.length - 1 - i) % 7 == 0
           ? '${monthShortName(d.month, l)}\n${d.day}'
           : '',
@@ -1069,11 +1123,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     ];
     if (vs.isEmpty) return null;
     final sum = vs.fold<double>(0, (a, b) => a + b);
-    return switch (_range) {
-      TrendRange.week => sum,
-      TrendRange.month => sum / vs.length * 7,
-      _ => sum / vs.length,
-    };
+    // A week is one total; a month or six months are the average week in them.
+    return _range == TrendRange.week ? sum : sum / vs.length;
   }
 
   static const _zoneColours = [
@@ -1083,6 +1134,13 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     C.refZone4,
     C.refZone5,
   ];
+
+  List<String> _layerNames(TrendMetric m) => switch (m.id) {
+        'zones_13' => const ['Zone 1', 'Zone 2', 'Zone 3'],
+        'zones_45' => const ['Zone 4', 'Zone 5'],
+        'zones_all' => const ['Zone 1', 'Zone 2', 'Zone 3', 'Zone 4', 'Zone 5'],
+        _ => const ['REM', 'SWS (Deep)'],
+      };
 
   List<Color> _layerColours(TrendMetric m) => switch (m.id) {
         'zones_13' => _zoneColours.sublist(0, 3),
@@ -1099,7 +1157,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     final m = _m;
     final isDay = _range == TrendRange.day;
     final daily = _daily ?? const <String, double>{};
-    final end = shiftDay(_today, -_back * _range.days);
+    final end = shiftDay(_today, -_back * _win);
+    final monthly = _monthlyStyle(m);
     final bars = isDay
         ? const <TrendBar>[]
         : trendBars(m, daily, _range, end, firstDay: _firstDay);
@@ -1113,10 +1172,10 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       lineAvg = skipped ?? trendAverage(bars);
       if (m.weekly) {
         avg = _weeklyTotal(m, daily, end);
-        prev = _weeklyTotal(m, daily, shiftDay(end, -_range.days));
+        prev = _weeklyTotal(m, daily, shiftDay(end, -_win));
       } else {
         prev = trendAverage(trendBars(m, daily, _range,
-            shiftDay(end, -_range.days), firstDay: _firstDay));
+            shiftDay(end, -_win), firstDay: _firstDay));
         // Today is left out while it is still being lived; with nothing else
         // to average, today is the average.
         avg = lineAvg;
@@ -1131,9 +1190,14 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     final intraLoading = isDay && _intraKey != _intraWant;
     final dayValue = intra == null ? null : trendDayValue(m, intra);
 
-    final sel = !isDay && _selected != null && _selected! < bars.length
-        ? bars[_selected!]
-        : null;
+    final monthBars = monthly ? _monthBars(m, daily, end) : null;
+    final sel = isDay || _selected == null
+        ? null
+        : monthly
+            ? monthBars!.barAt(_selected!)
+            : _selected! < bars.length
+                ? bars[_selected!]
+                : null;
     final dayTouched = isDay && intra != null && _selected != null;
     final dayPoint = dayTouched && _selected! < intra.values.length
         ? intra.values[_selected!]
@@ -1157,7 +1221,9 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
             : _clock(i);
         value = trendFormat(m, dayPoint);
       } else {
-        caption = m.cumulative || (intra?.hourly ?? false) ? 'Total' : 'Average';
+        caption = m.cumulative || ((intra?.hourly ?? false) && !m.line)
+            ? 'Total'
+            : 'Average';
         value = trendFormat(m, dayValue);
       }
     } else if (sel != null) {
@@ -1170,7 +1236,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       value = trendFormat(m, avg);
     }
 
-    final chip = !isDay && sel == null && avg != null && prev != null
+    final chip = !isDay && sel == null && avg != null && prev != null &&
+            !(monthly && _range == TrendRange.sixMonths)
         ? _DeltaChip(m: m, avg: avg, prev: prev, range: _range)
         : null;
 
@@ -1192,7 +1259,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       String at(int k) => trendFormat(m, i != null && i < bars.length ? layerBars[k][i].v : la(k, end));
       Widget? chipFor(int k) {
         if (i != null) return null;
-        final a = la(k, end), b = la(k, shiftDay(end, -_range.days));
+        final a = la(k, end), b = la(k, shiftDay(end, -_win));
         return a == null || b == null
             ? null
             : _DeltaChip(m: m, avg: a, prev: b, range: _range, higherBetter: true);
@@ -1207,16 +1274,26 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
         asAverage: i == null,
       );
     } else if (!isDay &&
-        m.id == 'restorative_hours' &&
+        m.kind == TrendKind.stacked &&
         sel != null &&
-        layerBars != null) {
-      // Touching a night splits the figure into its two kinds of sleep.
+        layerBars != null &&
+        _selected! < layerBars.first.length) {
+      // Touching a column splits its figure into the parts it is made of, the
+      // top of the stack first: Zone 3 over Zone 2 over Zone 1.
       final i = _selected!;
+      final names = _layerNames(m);
+      final colours = _layerColours(m);
       readout = _MultiReadout(
         caption: _caption(sel, l),
         rows: [
-          (value: trendFormat(m, layerBars[1][i].v), unit: 'hr', name: 'SWS (Deep)', color: C.trendSws, chip: null),
-          (value: trendFormat(m, layerBars[0][i].v), unit: 'hr', name: 'REM', color: C.trendRem, chip: null),
+          for (var k = layerBars.length - 1; k >= 0; k--)
+            (
+              value: trendFormat(m, layerBars[k][i].v),
+              unit: 'hr',
+              name: names[k],
+              color: colours[k],
+              chip: null
+            ),
         ],
         asAverage: false,
       );
@@ -1269,7 +1346,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                                 '${_shortDate(end, l)}, ${(_dateOf(end).year % 100).toString().padLeft(2, '0')}')
                         .toUpperCase(),
                     style: F.over.copyWith(
-                        color: p.ink, fontWeight: FontWeight.w700, letterSpacing: .7),
+                        color: p.ink, fontWeight: FontWeight.w700),
                   ),
                   _Step(LucideIcons.chevronRight, 'Later',
                       _back == 0 ? null : () => _stepBack(-1)),
@@ -1352,21 +1429,22 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                 ]),
                 const SizedBox(height: S.x6),
                 _ZoneBreakdown(
-                  title: switch (_range) {
-                    TrendRange.week => 'WEEKLY TOTAL',
-                    TrendRange.month => 'MONTHLY TOTAL',
-                    _ => '6 MONTH TOTAL',
-                  },
-                  names: [
-                    for (var k = 0; k < layerBars.length; k++)
-                      'Zone ${m.id == 'zones_45' ? k + 4 : k + 1}',
-                  ],
+                  title: _range == TrendRange.week ? 'WEEKLY TOTAL' : 'AVG. WEEKLY TOTAL',
+                  names: _layerNames(m),
                   colours: _layerColours(m),
                   minutes: [
                     for (final lb in layerBars)
-                      lb.fold<double>(0, (a, b) => a + (b.v ?? 0)),
+                      _range == TrendRange.week
+                          ? lb.fold<double>(0, (a, b) => a + (b.v ?? 0))
+                          : _mean([for (final b in lb) ?b.v]) ?? 0,
                   ],
                 ),
+              ],
+              // What the figure is, in a few plain sentences.
+              if (trendAbout(m.id) != null) ...[
+                const SizedBox(height: S.x8),
+                _AboutCard(title: 'What is ${_aboutName(m)}?', body: trendAbout(m.id)!),
+                const SizedBox(height: S.x6),
               ],
             ],
           ],
@@ -1389,7 +1467,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
               ),
               const SizedBox(width: S.x3),
               Text(it.label,
-                  style: F.caps.copyWith(color: p.ink, letterSpacing: .7)),
+                  style: F.caps.copyWith(color: p.ink)),
             ],
           ]),
         ),
@@ -1405,14 +1483,51 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
           TrendGroup.sleep => C.dialSleep,
         };
 
-  /// A day's own shape: a line per minute, or bars per hour.
+  /// Where the labels go along the minutes of a zoomed day: the finest round
+  /// step that leaves about five of them.
+  static int _clockStep(int span) {
+    for (final step in const [360, 240, 180, 120, 60, 30, 15, 10, 5, 2]) {
+      if (span / step >= 3.2) return step;
+    }
+    return 1;
+  }
+
+  /// A day's own shape: a line per minute (which two fingers zoom), a line
+  /// through the hours, or bars per hour.
   Widget _dayChart(TrendMetric m, TrendIntra intra) {
-    final vs = [for (final v in intra.values) ?v];
-    final axis = _axisFor(m, vs, line: !intra.hourly);
     if (intra.hourly) {
+      final vs = [for (final v in intra.values) ?v];
+      final axis = _axisFor(m, vs, line: m.line);
+      final xs = [for (var h = 0; h < 24; h++) h % 6 == 0 ? '$h' : ''];
+      if (m.line) {
+        return ScrubLine(
+          values: intra.values,
+          xLabels: xs,
+          lo: axis.lo,
+          hi: axis.hi,
+          ticks: axis.ticks,
+          tickText: (t) => _tickText(m, t),
+          avg: trendDayValue(m, intra),
+          color: _colorOf(m),
+          markers: false,
+          smooth: true,
+          gap: 3,
+          height: S.x16 * 4 + S.x8,
+          // A small dot on each hour that has a value, so the hours read as
+          // readings and not as one continuous trace.
+          paintOver: (canvas, plot, xOf, yOf) {
+            for (var h = 0; h < 24; h++) {
+              final v = intra.values[h];
+              if (v == null) continue;
+              canvas.drawCircle(Offset(xOf(h), yOf(v)), 3, Paint()..color = _colorOf(m));
+            }
+          },
+          onScrub: (i) => setState(() => _selected = i),
+        );
+      }
       return ScrubColumns(
         values: intra.values,
-        xLabels: [for (var h = 0; h < 24; h++) h % 6 == 0 ? '$h' : ''],
+        xLabels: xs,
         lo: axis.lo,
         hi: axis.hi,
         ticks: axis.ticks,
@@ -1422,27 +1537,56 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
         onScrub: (i) => setState(() => _selected = i),
       );
     }
+    final from = _zoomFrom.floor().clamp(0, 1439), to = _zoomTo.ceil().clamp(from + 2, 1440);
+    final window = intra.values.sublist(from, to);
+    final seen = [for (final v in window) ?v];
+    // The axis follows what is on screen, so zooming in re-scales it.
+    final axis = _axisFor(
+        m, seen.isEmpty ? [for (final v in intra.values) ?v] : seen,
+        line: true);
+    final step = _clockStep(to - from);
     const marks = {0: '00:00', 360: '06:00', 720: '12:00', 1080: '18:00', 1439: '24:00'};
     final mean = m.cumulative ? null : trendDayValue(m, intra);
-    return ScrubLine(
-      values: intra.values,
-      xLabels: [for (var i = 0; i < 1440; i++) marks[i] ?? ''],
-      lo: axis.lo,
-      hi: axis.hi,
-      ticks: axis.ticks,
-      tickText: (t) => _tickText(m, t),
-      avg: mean,
-      color: _colorOf(m),
-      markers: false,
-      slots: false,
-      gap: 25,
-      height: S.x16 * 4 + S.x8,
-      onScrub: (i) => setState(() => _selected = i),
-    );
+    return Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+      // Always as tall as the button, so the chart does not jump when it
+      // appears under a pinch.
+      SizedBox(
+        height: S.tap,
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: _zoomed
+              ? TextAction('Reset zoom', () => setState(_resetZoom),
+                  icon: LucideIcons.zoomOut)
+              : null,
+        ),
+      ),
+      ScrubLine(
+        values: window,
+        xLabels: [
+          for (var i = 0; i < window.length; i++)
+            _zoomed
+                ? ((from + i) % step == 0 ? _clock(from + i) : '')
+                : marks[i] ?? '',
+        ],
+        lo: axis.lo,
+        hi: axis.hi,
+        ticks: axis.ticks,
+        tickText: (t) => _tickText(m, t),
+        avg: mean,
+        color: _colorOf(m),
+        markers: false,
+        slots: false,
+        gap: 25,
+        height: S.x16 * 4 + S.x8,
+        onScrub: (i) => setState(() => _selected = i == null ? null : from + i),
+        onPinch: _pinch,
+      ),
+    ]);
   }
 
   Widget _chartFor(TrendMetric m, List<TrendBar> bars, List<List<TrendBar>>? layerBars,
       double? avg, ({double lo, double hi})? band, AppLocalizations? l) {
+    if (_monthlyStyle(m)) return _monthsChart(m, l);
     switch (m.kind) {
       case TrendKind.floating:
         return _floatingChart(m, bars, l);
@@ -1565,12 +1709,165 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     );
   }
 
+  /// Six months of a daily figure, shown a month at a time: the days faint in
+  /// the background, and a white line at each month's average.
+  bool _monthlyStyle(TrendMetric m) =>
+      _range == TrendRange.sixMonths &&
+      m.absent == null &&
+      (m.kind == TrendKind.floating || (m.kind == TrendKind.columns && !m.weekly));
+
+  _MonthBars _monthBars(TrendMetric m, Map<String, double> daily, String end) {
+    final days = [for (var i = 181; i >= 0; i--) shiftDay(end, -i)];
+    final spans = <({int from, int to})>[];
+    var start = 0;
+    for (var i = 1; i <= days.length; i++) {
+      if (i == days.length || _dateOf(days[i]).month != _dateOf(days[i - 1]).month) {
+        spans.add((from: start, to: i - 1));
+        start = i;
+      }
+    }
+    // Today is still being lived: it is left out of an average.
+    final avgs = [
+      for (final sp in spans)
+        _mean([
+          for (var i = sp.from; i <= sp.to; i++)
+            if (days[i] != _today) ?daily[days[i]],
+        ]),
+    ];
+    return _MonthBars(days, spans, avgs);
+  }
+
+  Widget _monthsChart(TrendMetric m, AppLocalizations? l) {
+    final daily = _daily ?? const <String, double>{};
+    final end = shiftDay(_today, -_back * _win);
+    final md = _monthBars(m, daily, end);
+    final floating = m.kind == TrendKind.floating;
+    final nights = _spans ?? const <String, ({double bed, double wake})>{};
+
+    // The newest month with a figure wears the change on the one before it.
+    int? last, before;
+    for (var k = md.avgs.length - 1; k >= 0; k--) {
+      if (md.avgs[k] == null) continue;
+      if (last == null) {
+        last = k;
+      } else {
+        before = k;
+        break;
+      }
+    }
+    String? note;
+    Color? tone;
+    if (last != null && before != null && md.avgs[before]! != 0) {
+      final pct = ((md.avgs[last]! - md.avgs[before]!) / md.avgs[before]!.abs() * 100).round();
+      if (pct != 0) {
+        note = '${pct > 0 ? '+' : '-'}${pct.abs()}%';
+        final good = m.higherBetter;
+        tone = good == null ? null : ((pct > 0) == good ? C.optimal : C.strainDown);
+      }
+    }
+
+    String name(int from) => monthShortName(_dateOf(md.days[from]).month, l);
+    final marks = <MonthMark>[];
+    for (var k = 0; k < md.spans.length; k++) {
+      final sp = md.spans[k];
+      final isLast = k == last;
+      if (floating) {
+        final ns = [
+          for (var i = sp.from; i <= sp.to; i++) ?nights[md.days[i]],
+        ];
+        if (ns.isEmpty) {
+          marks.add(MonthMark(from: sp.from, to: sp.to, label: name(sp.from)));
+          continue;
+        }
+        final bed = ns.fold<double>(0, (a, n) => a + n.bed) / ns.length;
+        final wake = ns.fold<double>(0, (a, n) => a + n.wake) / ns.length;
+        marks.add(MonthMark(
+            from: sp.from,
+            to: sp.to,
+            label: name(sp.from),
+            value: bed,
+            text: _clockAfterNoon(bed),
+            value2: wake,
+            text2: _clockAfterNoon(wake)));
+      } else {
+        final v = md.avgs[k];
+        marks.add(MonthMark(
+          from: sp.from,
+          to: sp.to,
+          label: name(sp.from),
+          value: v,
+          text: v == null ? '' : trendFormat(m, v),
+          note: isLast ? note : null,
+          tone: isLast ? tone : null,
+        ));
+      }
+    }
+
+    final color = _colorOf(m);
+    final dayVals = [for (final d in md.days) daily[d]];
+    String describe(int i) => _longDate(md.days[i], l);
+    if (floating) {
+      final ranges = [
+        for (final d in md.days)
+          nights[d] == null ? null : (from: nights[d]!.bed, to: nights[d]!.wake),
+      ];
+      final axis = _clockAxis(ranges);
+      return ScrubMonths(
+        days: dayVals,
+        spans: ranges,
+        months: marks,
+        lo: axis.lo,
+        hi: axis.hi,
+        ticks: axis.ticks,
+        tickText: _clockAfterNoon,
+        down: true,
+        color: color,
+        height: S.x16 * 4 + S.x16,
+        describe: describe,
+        onScrub: (i) => setState(() => _selected = i),
+      );
+    }
+    final axis = _axisFor(
+        m, [for (final v in dayVals) ?v, for (final v in md.avgs) ?v], line: true);
+    return ScrubMonths(
+      days: dayVals,
+      months: marks,
+      lo: axis.lo,
+      hi: axis.hi,
+      ticks: axis.ticks,
+      tickText: (t) => _tickText(m, t),
+      color: color,
+      height: S.x16 * 4 + S.x8,
+      describe: describe,
+      onScrub: (i) => setState(() => _selected = i),
+    );
+  }
+
+  /// A clock on a four-hour grid from 19:00, grown to hold every night with
+  /// room for the times written over and under its bar: 19:00 at the top,
+  /// 11:00 at the bottom as a week usually sits, and further out when it
+  /// does not.
+  ({double lo, double hi, List<double> ticks}) _clockAxis(
+      Iterable<({double from, double to})?> ranges) {
+    const grid = 420.0, step = 240.0, room = 90.0;
+    var lo = grid, hi = grid + step * 4;
+    for (final r in ranges) {
+      if (r == null) continue;
+      while (r.from < lo + room) {
+        lo -= step;
+      }
+      while (r.to > hi - room) {
+        hi += step;
+      }
+    }
+    return (lo: lo, hi: hi, ticks: [for (var t = lo; t <= hi + 1; t += step) t]);
+  }
+
   /// Each night as a bar floating from bed to wake, on a clock.
   Widget _floatingChart(TrendMetric m, List<TrendBar> bars, AppLocalizations? l) {
     final spans = _spans ?? const <String, ({double bed, double wake})>{};
     final n = bars.length;
     ({double from, double to})? rangeOf(TrendBar b) {
-      // A window of days (six months is a week a bar) is the mean of its nights.
       final days = <({double bed, double wake})>[];
       var d = b.from;
       while (d.compareTo(b.to) <= 0) {
@@ -1587,7 +1884,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     final ranges = [for (final b in bars) rangeOf(b)];
     // Usual: the mean of the seven nights before each, when there are three.
     List<({double bed, double wake})?>? usual;
-    if (m.id == 'consistency' && _range != TrendRange.sixMonths) {
+    if (m.id == 'consistency') {
       usual = [
         for (final b in bars)
           () {
@@ -1602,33 +1899,33 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
           }()
       ];
     }
-    // The axis is a clock on a four-hour grid from 19:00, grown to hold every
-    // night: 19:00 at the top, 11:00 at the bottom, as the week usually sits.
-    const grid = 420.0, step = 240.0;
-    var lo = grid, hi = grid + step * 4;
-    for (final r in ranges) {
-      if (r == null) continue;
-      while (r.from < lo + 30) {
-        lo -= step;
-      }
-      while (r.to > hi - 30) {
-        hi += step;
-      }
-    }
+    final axis = _clockAxis(ranges);
     final week = _range == TrendRange.week;
     final consistency = m.id == 'consistency';
+    // A month names its average bed and wake times on the axis.
+    final seen = [for (final r in ranges) ?r];
+    final tags = week || seen.isEmpty
+        ? const <({double at, String text})>[]
+        : [
+            for (final t in [
+              seen.fold<double>(0, (a, r) => a + r.from) / seen.length,
+              seen.fold<double>(0, (a, r) => a + r.to) / seen.length,
+            ])
+              (at: t, text: _clockAfterNoon(t)),
+          ];
     return ScrubRanges(
       ranges: ranges,
       xLabels: [for (var i = 0; i < n; i++) _xLabel(i, bars, l)],
-      lo: lo,
-      hi: hi,
-      ticks: [for (var t = lo; t <= hi + 1; t += step) t],
+      lo: axis.lo,
+      hi: axis.hi,
+      ticks: axis.ticks,
       tickText: _clockAfterNoon,
       timeText: _clockAfterNoon,
       color: C.dialSleep,
       emphasis: consistency ? n - 1 : null,
       labelAll: !consistency && week,
       usual: usual,
+      tags: tags,
       height: S.x16 * 4 + S.x16,
       onScrub: (i) => setState(() => _selected = i),
     );
@@ -1659,7 +1956,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       final title = m.title.toLowerCase();
       final agg = m.cumulative || title.startsWith('average')
           ? ''
-          : (_intra?.hourly ?? false)
+          : ((_intra?.hourly ?? false) && !m.line)
               ? 'total '
               : 'average ';
       return 'Your $agg$title $when '
@@ -1704,8 +2001,16 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
           '${rel(avg, prev)} your average at the time (${trendFormat(m, prev)}).';
     }
     if (m.weekly) {
-      return 'Your total ${_total(m)} this week is $shown. Keep wearing your '
-          'band to see how this changes over time.';
+      return _range == TrendRange.week
+          ? 'Your total ${_total(m)} this week is $shown. Keep wearing your '
+              'band to see how this changes over time.'
+          : 'Your average weekly total of ${_total(m)} over this '
+              '${_range == TrendRange.month ? 'month' : '6-month period'} is $shown. '
+              'Keep wearing your band to see how this changes over time.';
+    }
+    if (_range == TrendRange.sixMonths) {
+      return 'During this 6-month period, your average ${_short(m)} has been '
+          '$shown. Keep wearing your band to see how this changes over time.';
     }
     return 'Your average ${m.title} this $word is $shown. Keep wearing your '
         'band to see how this changes over time.';
@@ -1805,7 +2110,7 @@ class _Segments extends StatelessWidget {
                   child: Text(labels[i],
                       maxLines: 1,
                       style: F.caps.copyWith(
-                          color: i == index ? p.ink : p.ink3, letterSpacing: .3)),
+                          color: i == index ? p.ink : p.ink3)),
                 ),
               ),
             ),
@@ -1834,7 +2139,7 @@ class _MultiReadout extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (caption != null) ...[
         Text(caption!.toUpperCase(),
-            style: F.over.copyWith(color: p.ink2, letterSpacing: .7)),
+            style: F.over.copyWith(color: p.ink2)),
         const SizedBox(height: S.x1),
       ],
       for (final r in rows) ...[
@@ -1859,7 +2164,7 @@ class _MultiReadout extends StatelessWidget {
         ),
         const SizedBox(height: S.half),
         Text(r.name.toUpperCase(),
-            style: F.over.copyWith(color: p.ink2, letterSpacing: .7)),
+            style: F.over.copyWith(color: p.ink2)),
         const SizedBox(height: S.x2),
       ],
     ]);
@@ -1908,10 +2213,10 @@ class _ZoneBreakdown extends StatelessWidget {
       Text.rich(TextSpan(children: [
         TextSpan(
             text: 'HR ZONES BREAKDOWN ',
-            style: F.caps.copyWith(color: p.ink, letterSpacing: .7)),
+            style: F.caps.copyWith(color: p.ink)),
         TextSpan(
             text: '($title)',
-            style: F.caps.copyWith(color: p.ink3, letterSpacing: .7)),
+            style: F.caps.copyWith(color: p.ink3)),
       ])),
       const SizedBox(height: S.x4),
       if (total <= 0)
@@ -1991,7 +2296,7 @@ class _MetricPill extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: F.caps.copyWith(
-                    color: p.ink, fontWeight: FontWeight.w700, letterSpacing: .9)),
+                    color: p.ink, fontWeight: FontWeight.w700)),
           ),
           Icon(open ? LucideIcons.chevronUp : LucideIcons.chevronDown,
               size: I.lg, color: p.ink),
@@ -2033,10 +2338,10 @@ class _StrainBreakdown extends StatelessWidget {
       Text.rich(TextSpan(children: [
         TextSpan(
             text: 'STRAIN BREAKDOWN ',
-            style: F.caps.copyWith(color: p.ink, letterSpacing: .8)),
+            style: F.caps.copyWith(color: p.ink)),
         TextSpan(
             text: '(DAYS)',
-            style: F.caps.copyWith(color: p.ink3, letterSpacing: .8)),
+            style: F.caps.copyWith(color: p.ink3)),
       ])),
       const SizedBox(height: S.x4),
       if (vs.isEmpty)
@@ -2219,7 +2524,7 @@ class _Picker extends StatelessWidget {
             child: Row(children: [
               Text(trendGroupName(g).toUpperCase(),
                   style: F.over.copyWith(
-                      color: p.ink2, fontWeight: FontWeight.w700, letterSpacing: .8)),
+                      color: p.ink2, fontWeight: FontWeight.w700)),
               const SizedBox(width: S.x3),
               Expanded(child: Container(height: S.half / 2, color: p.line)),
             ]),
@@ -2242,12 +2547,182 @@ class _Picker extends StatelessWidget {
                     const SizedBox(width: S.x4),
                     Expanded(
                       child: Text(m.title.toUpperCase(),
-                          style: F.caps.copyWith(color: p.ink, letterSpacing: .8)),
+                          style: F.caps.copyWith(color: p.ink)),
                     ),
                   ]),
                 ),
               ),
         ],
+      ]),
+    );
+  }
+}
+
+/// The months of a six-month window, for [TrendViewScreen]: their day spans and
+/// the average of each.
+class _MonthBars {
+  /// The window's days, oldest first.
+  final List<String> days;
+  final List<({int from, int to})> spans;
+  final List<double?> avgs;
+  const _MonthBars(this.days, this.spans, this.avgs);
+
+  /// The month holding day [i], as a bar over its days.
+  TrendBar? barAt(int i) {
+    for (var k = 0; k < spans.length; k++) {
+      if (i >= spans[k].from && i <= spans[k].to) {
+        return (from: days[spans[k].from], to: days[spans[k].to], v: avgs[k]);
+      }
+    }
+    return null;
+  }
+}
+
+String _aboutName(TrendMetric m) => switch (m.id) {
+      'hrv' => 'Heart Rate Variability',
+      'avg_hr' => 'Average Heart Rate',
+      _ => m.title.replaceAll(RegExp(r' \(.*\)'), ''),
+    };
+
+/// A short explanation of what a metric is and how to read it, written for this
+/// app's own measure of it. Null for a metric with nothing to explain.
+String? trendAbout(String id) => _about[id];
+
+const _about = <String, String>{
+  'strain':
+      'Day strain scores how much cardiovascular load the day put on your body, '
+          'from 0 to 21. It builds from the time your heart rate spends above its '
+          'resting level, with harder minutes counting for more. Under 10 is '
+          'light, 10 to 13.9 moderate, 14 to 17.9 strenuous, and 18 or more is '
+          'all out.\n\nThe scale is logarithmic: the last few points cost far '
+          'more effort than the first.',
+  'steps':
+      'Steps counts the steps your band detected through the day. It is a beta '
+          'estimate read from wrist movement, so carrying a bag, pushing a '
+          'stroller or a rough car ride can nudge it. A guided walk in settings '
+          'calibrates it to your stride.',
+  'zones_13':
+      'Heart rate zones 1 to 3 are the easy to steady efforts: a gentle pulse, '
+          'an aerobic pace you could hold a conversation at, and a hard but '
+          'sustainable effort. This adds up the time you spend in them each day. '
+          'Most of your endurance is built here.\n\nZones are set from your '
+          'resting and maximum heart rate.',
+  'zones_45':
+      'Heart rate zones 4 and 5 are the hard efforts: threshold work and '
+          'near-maximal effort. Time here is costly, so it is usually counted in '
+          'minutes and needs recovery afterwards.\n\nZones are set from your '
+          'resting and maximum heart rate.',
+  'zones_all':
+      'All five heart rate zones together, from a gentle pulse in zone 1 to '
+          'near-maximal effort in zone 5, added up for each day. The breakdown '
+          'shows how that time was split.',
+  'strength_time':
+      'Strength activity time is the time you logged in strength sessions: '
+          'workouts where you recorded sets. A day with none counts as zero '
+          'once you have been using the app.',
+  'volume_load':
+      'Total volume load is the weight you moved: reps times load, added up over '
+          'every set that has a load. Sets without a weight, such as bodyweight '
+          'work, are left out, so it can read lower than the session felt.',
+  'avg_hr':
+      'Average heart rate is the mean of your heart rate over the day. It moves '
+          'with activity, caffeine, stress, heat and hydration, and a lower '
+          'average for the same routine generally goes with better fitness.\n\n'
+          'Pinch the day chart to zoom into a stretch of it.',
+  'calories':
+      'Calories is the energy your body used, estimated from your heart rate '
+          'through the day together with your age, weight, height and sex. '
+          'Heart-rate estimates are best in steady activity and rougher at rest.'
+          '\n\nThe hourly view shares the day\'s total across its hours in '
+          'proportion to how hard your heart worked in each.',
+  'recovery':
+      'Recovery says how ready your body is to take on strain today. It is built '
+          'each morning from your overnight heart rate variability, resting heart '
+          'rate, respiratory rate and sleep, each held against your own recent '
+          'baseline. Green is 67% and above, yellow 34 to 66%, red below that.',
+  'hrv':
+      'Heart rate variability is how much the time between heartbeats varies. A '
+          'higher number generally means your nervous system is well recovered '
+          'and adaptable, but what is normal differs a lot between people, so '
+          'compare it with your own baseline.\n\nIt is read overnight, when it is '
+          'steadiest. Stress, alcohol, illness and hard training push it down. '
+          'The day view averages each hour.',
+  'resting_hr':
+      'Resting heart rate is the lowest level your heart settles at, measured '
+          'while you sleep. It tends to fall as fitness improves and rise with '
+          'illness, dehydration, alcohol, stress or too little recovery. A '
+          'change of a few beats from your own baseline is worth noticing.',
+  'resp_rate':
+      'Respiratory rate is how many breaths you take a minute while asleep. For '
+          'most healthy adults it is steady, around 12 to 20. A sustained rise '
+          'above your own baseline can be an early sign of illness or heavy '
+          'fatigue.',
+  'sleep_perf':
+      'Sleep performance compares the sleep you got with the sleep your body '
+          'needed that night, capped at 100%. Your need comes from your baseline, '
+          'the strain you took on, any sleep debt carried and naps.',
+  'time_in_bed':
+      'Time in bed is the span from when you settled to sleep to when you woke. '
+          'It includes short wakeful moments, so it runs longer than the hours '
+          'you actually slept.\n\nEach bar floats between your bedtime (top) and '
+          'wake time (bottom), on a clock that runs from evening to morning.',
+  'hvn_hours':
+      'Hours vs. needed compares the hours you slept with the hours your body '
+          'asked for. The green line is what you needed, the blue what you got. '
+          'While the blue sits under the green you are adding to your sleep '
+          'debt.',
+  'hvn_pct':
+      'Hours vs. needed as a percentage is the sleep you got divided by the '
+          'sleep you needed. 100% means you met your need; above it you got more '
+          'than you asked for, below it you fell short.',
+  'consistency':
+      'Sleep consistency measures how regular your bed and wake times are from '
+          'night to night: 100% would be the same times every day. The dashed '
+          'lines mark your usual bed and wake times.\n\nRegular timing steadies '
+          'your body clock and is linked with better sleep.',
+  'restorative_pct':
+      'Restorative sleep is time in deep (slow-wave) sleep and REM sleep, the '
+          'stages in which the body repairs itself and the brain consolidates '
+          'memory and mood. This is that time as a share of the night\'s sleep.',
+  'restorative_hours':
+      'Restorative sleep is time in deep (slow-wave) sleep and REM sleep, the '
+          'stages in which the body repairs itself and the brain consolidates '
+          'memory and mood. Each column stacks deep sleep and REM; touch one to '
+          'see them apart.',
+  'efficiency':
+      'Sleep efficiency is the share of the time you spent in bed that you were '
+          'actually asleep. A few restless minutes are normal; 85% or more is '
+          'generally considered good.',
+  'sleep_debt':
+      'Sleep debt is the accumulated gap between the sleep you needed and the '
+          'sleep you got over recent nights. Under 30 to 45 minutes is optimal. '
+          'Higher levels can cost energy, mood, concentration and immune '
+          'strength.\n\nExtra sleep and short naps of 20 to 30 minutes help repay '
+          'it, though it can take several nights.',
+};
+
+/// The card of plain explanation under a chart.
+class _AboutCard extends StatelessWidget {
+  final String title, body;
+  const _AboutCard({required this.title, required this.body});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(S.x5),
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(p.ink.withValues(alpha: .035), p.card),
+        borderRadius: R.rXl,
+        border: Border.all(color: p.ink.withValues(alpha: .05)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: F.head.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+        const SizedBox(height: S.x4),
+        Text(body,
+            style: F.body.copyWith(
+                color: p.ink2, fontWeight: FontWeight.w500, height: 1.45)),
       ]),
     );
   }

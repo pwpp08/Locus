@@ -21,7 +21,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../data/day_label.dart';
 import '../../data/local_repository.dart';
@@ -357,7 +356,7 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
     final s = d.strain;
     final baseline = _avg30('strain', dayLabelOf(d.day ?? DateTime.now()));
     return LayoutBuilder(builder: (c, box) {
-      final side = math.min(box.maxWidth * .78, S.x16 * 5);
+      final side = math.min(box.maxWidth * .84, S.x16 * 5.4);
       return Center(
         child: SizedBox(
           width: side,
@@ -381,14 +380,14 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Text('LOCUS', style: F.wordmark.copyWith(color: p.ink2)),
-                  const SizedBox(height: S.x2),
+                  Text('LOCUS', style: F.wordmark.copyWith(color: p.ink3)),
+                  const SizedBox(height: S.x1),
                   Text(s == null ? '--' : s.toStringAsFixed(1),
-                      style: F.n64.copyWith(
+                      style: F.n80.copyWith(
                           color: p.ink, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: S.half),
+                  const SizedBox(height: S.x1),
                   Text('STRAIN',
-                      style: F.caps.copyWith(color: p.ink, letterSpacing: .9)),
+                      style: F.caps.copyWith(color: p.ink, letterSpacing: 2.2)),
                 ]),
               ),
             ),
@@ -400,7 +399,7 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
 
   // ── the four comparisons, each against its own 30-day average ───────────
   Widget _statsPanel(P p, String today) {
-    Widget row(String id, IconData icon, String label) {
+    Widget row(String id, StatMark mark, String label) {
       final m = trendMetricOf(id)!;
       final v = _valueOn(id, today);
       final avg = _avg30(id, today);
@@ -412,58 +411,69 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
                   ? -1
                   : null;
       return _StatRow(
-          icon: icon,
+          mark: mark,
           label: m.title.toUpperCase(),
           value: trendFormat(m, v),
+          average: avg == null ? null : trendFormat(m, avg),
           direction: dir);
     }
 
     final rows = [
-      row('zones_13', LucideIcons.heartPulse, 'Heart rate zones 1-3'),
-      row('zones_45', LucideIcons.heart, 'Heart rate zones 4-5'),
-      row('strength_time', LucideIcons.dumbbell, 'Strength activity time'),
-      row('steps', LucideIcons.footprints, 'Steps (beta)'),
+      row('zones_13', StatMark.zonesLow, 'Heart rate zones 1-3'),
+      row('zones_45', StatMark.zonesHigh, 'Heart rate zones 4-5'),
+      row('strength_time', StatMark.strength, 'Strength activity time'),
+      row('steps', StatMark.steps, 'Steps (beta)'),
     ];
     return Column(children: [
       // The caret points up at the ring it belongs to.
       CustomPaint(
-        size: const Size(S.x6, S.x2),
-        painter: _CaretPainter(color: p.card),
+        size: const Size(S.x5, S.x2),
+        painter: _CaretPainter(
+            color: Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
+            edge: p.ink.withValues(alpha: .09)),
       ),
       Container(
-        decoration: BoxDecoration(color: p.card, borderRadius: R.rLg),
+        decoration: _panel(context, p),
         child: Column(children: [
           for (var i = 0; i < rows.length; i++) ...[
             rows[i],
             if (i < rows.length - 1)
-              Divider(height: 1, thickness: 1, color: p.line, indent: S.x4, endIndent: S.x4),
+              Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: p.ink.withValues(alpha: .08),
+                  indent: S.x5,
+                  endIndent: S.x5),
           ],
         ]),
       ),
     ]);
   }
 
-  /// The key to the arrows: green is above your usual, orange below it.
+  /// The key to the triangles: green is above your usual, orange below it.
   Widget _comparisonLegend(P p, DateTime shown, AppLocalizations? l) {
     return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x3),
         decoration: BoxDecoration(
-          color: Color.alphaBlend(p.bg.withValues(alpha: .6), p.card),
+          color: Color.alphaBlend(C.char.withValues(alpha: .55), p.bg),
           borderRadius: R.rMd,
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(LucideIcons.arrowUp, size: I.sm, color: C.optimal),
-          const SizedBox(width: S.half),
-          Icon(LucideIcons.arrowDown, size: I.sm, color: C.amber),
+          const DeltaTriangle(up: true, color: C.optimal, size: S.x3),
+          const SizedBox(width: S.x2),
+          const DeltaTriangle(up: false, color: C.strainDown, size: S.x3),
           const SizedBox(width: S.x3),
           Flexible(
-            child: Text(
-              '${weekdayShortName(shown.weekday, l)}, '
-              '${monthShortName(shown.month, l)} ${shown.day} '
-              'vs. last 30 days',
-              style: F.cap.copyWith(color: p.ink, fontWeight: FontWeight.w600),
-            ),
+            child: Text.rich(TextSpan(children: [
+              TextSpan(
+                  text: '${weekdayShortName(shown.weekday, l)}, '
+                      '${monthShortName(shown.month, l)} ${shown.day}',
+                  style: F.cap.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+              TextSpan(
+                  text: ' vs. last 30 days',
+                  style: F.cap.copyWith(color: p.ink2, fontWeight: FontWeight.w500)),
+            ])),
           ),
         ]),
       );
@@ -484,7 +494,9 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
                     : 'Strain below 10 is considered light. Your cardiovascular system has had an easy day.';
     return Padding(
       padding: const EdgeInsets.only(top: S.x6),
-      child: Text(text, style: F.head.copyWith(color: p.ink, height: 1.3)),
+      child: Text(text,
+          style: F.body.copyWith(
+              color: p.ink, fontWeight: FontWeight.w500, height: 1.4)),
     );
   }
 
@@ -724,20 +736,24 @@ const _zoneColours = <Color>[
   C.refZone5,
 ];
 
-/// One row of the stats panel: the value, its arrow against the 30-day
-/// average, and the label.
+/// One row of the stats panel: its icon and label, the value, the 30-day
+/// average under it, and the triangle that says which side of it the value is.
 class _StatRow extends StatelessWidget {
-  final IconData icon;
+  final StatMark mark;
   final String label;
   final String value;
+
+  /// The 30-day average the triangle compares against, written as the value is.
+  final String? average;
 
   /// 1 above the average, -1 below it, null when there is nothing to compare.
   final int? direction;
 
   const _StatRow({
-    required this.icon,
+    required this.mark,
     required this.label,
     required this.value,
+    required this.average,
     required this.direction,
   });
 
@@ -745,29 +761,60 @@ class _StatRow extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x4),
+      padding: const EdgeInsets.symmetric(horizontal: S.x5, vertical: S.x4),
       child: Row(children: [
-        Icon(icon, size: I.xl, color: p.ink2),
+        StatIcon(mark, color: p.ink2, size: I.lg + S.x1),
         const SizedBox(width: S.x4),
         Expanded(
           child: Text(label,
               style: F.caps.copyWith(
-                  color: p.ink, fontWeight: FontWeight.w700, letterSpacing: .8)),
-        ),
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(value,
-              style: F.n24.copyWith(
                   color: p.ink, fontWeight: FontWeight.w700)),
-          if (direction != null) ...[
-            const SizedBox(width: S.x2),
-            Icon(direction! > 0 ? LucideIcons.arrowUp : LucideIcons.arrowDown,
-                size: I.sm,
-                color: direction! > 0 ? C.optimal : C.amber),
-          ],
+        ),
+        const SizedBox(width: S.x2),
+        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Text(value, style: F.n17.copyWith(color: p.ink)),
+          if (average != null)
+            Padding(
+              padding: const EdgeInsets.only(top: S.half),
+              child: Text(average!,
+                  style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
+            ),
         ]),
+        SizedBox(
+          width: S.x6,
+          child: direction == null
+              ? null
+              : Align(
+                  alignment: Alignment.centerRight,
+                  child: DeltaTriangle(
+                      up: direction! > 0,
+                      color: direction! > 0 ? C.optimal : C.strainDown,
+                      size: S.x3),
+                ),
+        ),
       ]),
     );
   }
+}
+
+/// The dark, softly graded panel the strain screen's figures sit on.
+BoxDecoration _panel(BuildContext c, P p) {
+  final dark = Theme.of(c).brightness == Brightness.dark;
+  return BoxDecoration(
+    borderRadius: R.rXl,
+    color: dark ? null : p.card,
+    gradient: dark
+        ? LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
+              Color.alphaBlend(C.char.withValues(alpha: .4), p.bg),
+            ],
+          )
+        : null,
+    border: Border.all(color: p.ink.withValues(alpha: dark ? .09 : .05)),
+  );
 }
 
 /// A session as a card: its strain in a blue block, its name, and its start
@@ -817,7 +864,7 @@ class _ActivityCard extends StatelessWidget {
           child: Text((act?.name ?? type).toUpperCase(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w700, letterSpacing: .8)),
+              style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
         ),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text(_clock(start), style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
@@ -880,7 +927,7 @@ class _WeekCardState extends State<_WeekCard> {
         Row(children: [
           Expanded(
             child: Text(widget.title.toUpperCase(),
-                style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w700, letterSpacing: .8)),
+                style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
           ),
           Pressable(
             onTap: () => Navigator.of(c).push(MaterialPageRoute(
@@ -936,7 +983,8 @@ class _WeekCardState extends State<_WeekCard> {
           ticks: [for (var k = 0; k <= 3; k++) hi * k / 3],
           tickText: (_) => '',
           color: widget.color,
-          highlight: last,
+          // The newest day carries the column at rest; a touch moves it.
+          highlight: _at == null ? last : null,
           height: S.x16 * 3,
           gutter: 0,
           onScrub: (i) => setState(() => _at = i),
@@ -1018,8 +1066,8 @@ class _CurveCardState extends State<_CurveCard> {
 
 /// The caret above the stats panel: a small triangle in the panel's colour.
 class _CaretPainter extends CustomPainter {
-  final Color color;
-  _CaretPainter({required this.color});
+  final Color color, edge;
+  _CaretPainter({required this.color, required this.edge});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1029,10 +1077,19 @@ class _CaretPainter extends CustomPainter {
       ..lineTo(size.width, size.height)
       ..close();
     canvas.drawPath(path, Paint()..color = color);
+    canvas.drawPath(
+        Path()
+          ..moveTo(0, size.height)
+          ..lineTo(size.width / 2, 0)
+          ..lineTo(size.width, size.height),
+        Paint()
+          ..color = edge
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1);
   }
 
   @override
-  bool shouldRepaint(_CaretPainter old) => old.color != color;
+  bool shouldRepaint(_CaretPainter old) => old.color != color || old.edge != edge;
 }
 
 /// The ring: the day's strain as a sweep from the top, the 30-day average as a
@@ -1051,7 +1108,7 @@ class _StrainRingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final stroke = size.width * .05;
+    final stroke = size.width * .064;
     final rect = Offset.zero & size;
     final ring = rect.deflate(stroke / 2);
     canvas.drawArc(ring, 0, math.pi * 2, false,
@@ -1068,18 +1125,21 @@ class _StrainRingPainter extends CustomPainter {
             ..strokeCap = StrokeCap.round
             ..strokeWidth = stroke);
     }
+    // The 30-day average: a white tick across the ring, no longer than the
+    // ring is thick.
     final b = baselineFraction;
     if (b != null) {
       final a = -math.pi / 2 + math.pi * 2 * b;
       final c = rect.center;
       final r = ring.width / 2;
-      final inner = Offset(c.dx + (r - stroke) * math.cos(a), c.dy + (r - stroke) * math.sin(a));
-      final outer = Offset(c.dx + (r + stroke) * math.cos(a), c.dy + (r + stroke) * math.sin(a));
-      canvas.drawLine(inner, outer,
+      final half = stroke / 2;
+      canvas.drawLine(
+          Offset(c.dx + (r - half) * math.cos(a), c.dy + (r - half) * math.sin(a)),
+          Offset(c.dx + (r + half) * math.cos(a), c.dy + (r + half) * math.sin(a)),
           Paint()
             ..color = tick
-            ..strokeWidth = S.half * 1.5
-            ..strokeCap = StrokeCap.round);
+            ..strokeWidth = stroke * .15
+            ..strokeCap = StrokeCap.butt);
     }
   }
 

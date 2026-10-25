@@ -9,7 +9,6 @@
 // send whatever a stranger's sticker says to openfoodfacts.org.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../scan/barcode_reader.dart';

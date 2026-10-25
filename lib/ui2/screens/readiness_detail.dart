@@ -7,7 +7,6 @@ import '../../l10n/presentation_text.dart';
 // if it decomposed the first would be a small lie that is very hard to catch.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:openstrap_analytics/onehz.dart' show readinessCompositeMinBaseline;
 
 import '../../compute/onehz_pipeline.dart'

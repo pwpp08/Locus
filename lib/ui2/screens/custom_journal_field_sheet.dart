@@ -7,7 +7,6 @@
 // appears in.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../data/journal_fields.dart';
 import '../../l10n/app_localizations.dart';

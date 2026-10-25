@@ -30,7 +30,6 @@
 // phone width instead, and the design snapshots photograph it in its tab.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../ui2.dart';

@@ -26,7 +26,6 @@ import '../../l10n/display_text.dart';
 import 'dart:convert' show jsonDecode;
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../../ble/adapters/signals.dart' show InputSignal;

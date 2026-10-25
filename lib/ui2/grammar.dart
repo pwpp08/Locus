@@ -35,13 +35,15 @@ import '../l10n/presentation_text.dart';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
+import 'package:flutter/gestures.dart' show ScaleGestureRecognizer;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderAbstractViewport;
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'lucide.dart';
 
 import '../data/journal_fields.dart' show formatMinuteOfDay;
 import '../models/metric.dart';
 import 'charts.dart';
+import 'marks.dart';
 import 'scroll_hint.dart';
 import 'theme.dart';
 import 'trend.dart';
@@ -120,6 +122,16 @@ class _PressableState extends State<Pressable> {
   }
 }
 
+/// Where a two-finger pinch is in its life.
+enum PinchPhase { start, update, end }
+
+/// A two-finger pinch on a [Scrubber]. [scale] is how far the fingers have
+/// spread since the pinch began (1 = no change, 2 = twice as far apart),
+/// [focal] is where the fingers' midpoint began, and [pan] how far that midpoint
+/// has since moved — both as fractions of the strip's width.
+typedef PinchCallback = void Function(
+    PinchPhase phase, double scale, double focal, double pan);
+
 /// ── SCRUBBER ── the only continuous drag in lib/ui2 ───────────────────────
 ///
 /// It lives here for the same reason [Pressable] does: a drag is a gesture, and
@@ -167,6 +179,10 @@ class Scrubber extends StatelessWidget {
   /// scrolling list does not scrub while the list moves.
   final bool yieldToScroll;
 
+  /// Not a hold: two fingers on the strip stop the scrub and report a pinch
+  /// instead, so a chart can zoom.
+  final PinchCallback? onPinch;
+
   const Scrubber({
     super.key,
     required this.value,
@@ -179,6 +195,7 @@ class Scrubber extends StatelessWidget {
     this.onEnd,
     this.onLift,
     this.yieldToScroll = false,
+    this.onPinch,
   });
 
   @override
@@ -221,6 +238,8 @@ class Scrubber extends StatelessWidget {
             onSet: set,
             onLift: onLift,
             yieldToScroll: yieldToScroll,
+            onPinch: onPinch,
+            width: w,
             child: child,
           );
         },
@@ -230,17 +249,22 @@ class Scrubber extends StatelessWidget {
 }
 
 /// The pointer side of a [Scrubber] that is not a hold: a finger on the strip
-/// places the position and keeps moving it, and lifting it reports [onLift].
+/// places the position and keeps moving it, and lifting it reports [onLift]. A
+/// second finger turns it into a pinch.
 class _StripPointer extends StatefulWidget {
   final ValueChanged<Offset> onSet;
   final VoidCallback? onLift;
   final bool yieldToScroll;
+  final PinchCallback? onPinch;
+  final double width;
   final Widget child;
 
   const _StripPointer({
     required this.onSet,
     required this.onLift,
     required this.yieldToScroll,
+    required this.onPinch,
+    required this.width,
     required this.child,
   });
 
@@ -253,25 +277,88 @@ class _StripPointerState extends State<_StripPointer> {
   Offset? _down;
   bool _yielded = false;
 
+  final _fingers = <int, Offset>{};
+  bool _pinching = false;
+  double _span0 = 1;
+  Offset _mid0 = Offset.zero;
+
+  double get _span {
+    final a = _fingers.values.first, b = _fingers.values.last;
+    return math.max((a - b).distance, S.x4);
+  }
+
+  Offset get _mid {
+    final a = _fingers.values.first, b = _fingers.values.last;
+    return Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+  }
+
   void _finish(int pointer) {
+    _fingers.remove(pointer);
+    if (_pinching) {
+      if (_fingers.length < 2) {
+        _pinching = false;
+        widget.onPinch?.call(PinchPhase.end, 1, 0, 0);
+      }
+      _pointer = null;
+      return;
+    }
     if (pointer != _pointer) return;
     _pointer = null;
     if (!_yielded) widget.onLift?.call();
   }
 
   @override
-  Widget build(BuildContext c) => Listener(
+  Widget build(BuildContext c) {
+    final strip = _strip();
+    if (widget.onPinch == null) return strip;
+    // A chart that can be pinched has a second contender in the gesture arena.
+    // Alone, a page's scroll recognizer wins the arena the moment a finger
+    // lands, and a scrolling page ignores every finger that lands after it —
+    // the second finger of the pinch would never arrive. With this one in the
+    // arena the scroll has to earn the gesture, and a pinch keeps it.
+    return RawGestureDetector(
+      behavior: HitTestBehavior.opaque,
+      gestures: {
+        ScaleGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<ScaleGestureRecognizer>(
+                ScaleGestureRecognizer.new, (_) {}),
+      },
+      child: strip,
+    );
+  }
+
+  Widget _strip() => Listener(
         // Opaque, like Pressable. A `Listener` defers to its child by
         // default, so the strip was only touchable where the painter
         // happened to claim a hit — which is a coincidence, not a target.
         behavior: HitTestBehavior.opaque,
         onPointerDown: (e) {
+          _fingers[e.pointer] = e.localPosition;
+          if (widget.onPinch != null && _fingers.length == 2) {
+            // Two fingers: the scrub is over, the pinch begins.
+            if (_pointer != null && !_yielded) widget.onLift?.call();
+            _yielded = true;
+            _pinching = true;
+            _span0 = _span;
+            _mid0 = _mid;
+            widget.onPinch!(PinchPhase.start, 1,
+                widget.width <= 0 ? .5 : (_mid0.dx / widget.width).clamp(0.0, 1.0), 0);
+            return;
+          }
+          if (_fingers.length > 1) return;
           _pointer = e.pointer;
           _down = e.localPosition;
           _yielded = false;
           widget.onSet(e.localPosition);
         },
         onPointerMove: (e) {
+          if (_fingers.containsKey(e.pointer)) _fingers[e.pointer] = e.localPosition;
+          if (_pinching && _fingers.length >= 2) {
+            final w = widget.width <= 0 ? 1.0 : widget.width;
+            widget.onPinch!(PinchPhase.update, _span / _span0,
+                (_mid0.dx / w).clamp(0.0, 1.0), (_mid.dx - _mid0.dx) / w);
+            return;
+          }
           final down = _down;
           if (e.pointer != _pointer || _yielded || down == null) return;
           final dx = (e.localPosition.dx - down.dx).abs();
@@ -665,11 +752,7 @@ class _TrendCardState extends State<TrendCard> {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (j != null) ...[
-          Icon(
-            w.up ? LucideIcons.arrowUpRight : LucideIcons.arrowDownRight,
-            size: I.sm,
-            color: dir,
-          ),
+          DeltaTriangle(up: w.up, color: dir, size: S.x3),
           const SizedBox(width: S.x1),
         ],
         Text(
@@ -775,13 +858,7 @@ class _TrendCardState extends State<TrendCard> {
                 const Spacer(),
                 if (band == null) ...[
                   if (j != null) ...[
-                    Icon(
-                      w.up
-                          ? LucideIcons.arrowUpRight
-                          : LucideIcons.arrowDownRight,
-                      size: I.sm,
-                      color: dir,
-                    ),
+                    DeltaTriangle(up: w.up, color: dir, size: S.x3),
                     const SizedBox(width: S.x1),
                   ],
                   Flexible(
@@ -1527,20 +1604,18 @@ class MetricRow extends StatelessWidget {
           )
         : trend == null
         ? const SizedBox.shrink()
-        : Icon(
-            switch (trend) {
-              Trend.rising => LucideIcons.arrowUpRight,
-              Trend.falling => LucideIcons.arrowDownRight,
-              Trend.steady => LucideIcons.arrowRight,
-            },
-            size: I.md,
-            // THE GLYPH CARRIES THE DIRECTION and the hue only carries the
-            // judgement, because roughly one man in twelve cannot read the
-            // hue at all. Green/orange is the pair TrendCard already spends on
-            // this judgement — red in this system is the heart's category
-            // colour, not a verdict.
-            color: _trendHue(p, trend, rising),
-          );
+        // THE SHAPE CARRIES THE DIRECTION and the hue only carries the
+        // judgement, because roughly one man in twelve cannot read the hue at
+        // all. Green/orange is the pair TrendCard already spends on this
+        // judgement — red in this system is the heart's category colour, not a
+        // verdict.
+        : trend == Trend.steady
+            ? Icon(LucideIcons.arrowRight,
+                size: I.md, color: _trendHue(p, trend, rising))
+            : DeltaTriangle(
+                up: trend == Trend.rising,
+                size: S.x4,
+                color: _trendHue(p, trend, rising));
     return Pressable(
       onTap: onTap,
       // WHAT THE ROW SHOWS IS WHAT IT SAYS. `status` REPLACES the arrow in the
@@ -2920,7 +2995,7 @@ class NavBar extends StatelessWidget {
                 Text(
                   title.toUpperCase(),
                   textAlign: TextAlign.center,
-                  style: F.caps.copyWith(color: p.ink, letterSpacing: 1.2),
+                  style: F.caps.copyWith(color: p.ink),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

@@ -15,7 +15,6 @@
 // the pipeline did not measure is a dash, never a zero.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../state/prefs.dart';
 import '../profile/alarm.dart' show AlarmArmState, AlarmScreen;
@@ -185,8 +184,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                   textAlign: TextAlign.center,
                   style: F.over.copyWith(
                       color: p.ink2,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: .7)),
+                      fontWeight: FontWeight.w700)),
               const SizedBox(height: S.x2),
               Text(value,
                   style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
@@ -217,7 +215,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
           const SizedBox(height: S.x6),
           Center(
             child: Text('RECOMMENDED BEDTIME',
-                style: F.caps.copyWith(color: p.ink2, letterSpacing: .9)),
+                style: F.caps.copyWith(color: p.ink2)),
           ),
           const SizedBox(height: S.x2),
           Center(
@@ -248,8 +246,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                   Text('RECOMMENDED TIME IN BED',
                       style: F.over.copyWith(
                           color: p.ink2,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: .7)),
+                          fontWeight: FontWeight.w700)),
                   const SizedBox(height: S.x2),
                   Text(hMm(plan.inBedMin),
                       style: F.n34.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
@@ -297,8 +294,8 @@ class _RecommendationDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext c) {
-    final caps = F.caps.copyWith(color: C.char, letterSpacing: .9);
-    final sub = F.caps.copyWith(color: C.n500, letterSpacing: .9);
+    final caps = F.caps.copyWith(color: C.char);
+    final sub = F.caps.copyWith(color: C.n500);
     final val = F.body.copyWith(color: C.char, fontWeight: FontWeight.w700);
     final subNum = F.body.copyWith(color: C.n500, fontWeight: FontWeight.w600);
 

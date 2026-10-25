@@ -23,7 +23,6 @@
 // know which. Arrows say which way; nothing says whether.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../ai/briefing_engine.dart' show collectSweepSeries;
 import '../../ai/nightly_sweep.dart';
@@ -255,10 +254,10 @@ class SweepFindingRow extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: S.half),
-            child: Icon(
-              f.high ? LucideIcons.arrowUp : LucideIcons.arrowDown,
-              size: I.sm,
-              // Direction, in plain ink. A red arrow would be this screen
+            child: DeltaTriangle(
+              up: f.high,
+              size: S.x3,
+              // Direction, in plain ink. A red mark would be this screen
               // deciding that up is bad, which it cannot know for strain,
               // steps or time asleep.
               color: p.ink3,

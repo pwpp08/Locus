@@ -16,7 +16,7 @@ import 'dart:async' show unawaited;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../lucide.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/db.dart';

@@ -14,7 +14,6 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -470,7 +469,7 @@ class ProfileHomeView extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: S.x4),
                     child: Text((l?.tabMore ?? 'More').toUpperCase(),
-                        style: F.caps.copyWith(color: p.ink, letterSpacing: 1.2)),
+                        style: F.caps.copyWith(color: p.ink)),
                   ),
                 const SizedBox(height: S.x4),
                 ProfilePhotoHeader(name: s?.name),

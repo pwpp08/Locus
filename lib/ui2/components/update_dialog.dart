@@ -1,7 +1,6 @@
 // update_dialog.dart — in-app dialog/sheet presenting available GitHub release updates.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../updater/update_service.dart';
 import '../ui2.dart';

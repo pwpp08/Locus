@@ -10,10 +10,10 @@ import 'dart:ui' show PictureRecorder;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/ui2/charts.dart';
 import 'package:openstrap_edge/ui2/grammar.dart';
+import 'package:openstrap_edge/ui2/marks.dart';
 import 'package:openstrap_edge/ui2/screens/home_screen.dart' show metricValue;
 import 'package:openstrap_edge/ui2/theme.dart';
 
@@ -53,6 +53,9 @@ Widget _host(Widget child, {double scale = 1, Brightness b = Brightness.light}) 
         home: Scaffold(body: Padding(padding: const EdgeInsets.all(S.x4), child: child)),
       ),
     );
+
+/// The one triangle on screen points up.
+bool trianglePointsUp(WidgetTester t) => t.widget<DeltaTriangle>(find.byType(DeltaTriangle)).up;
 
 void main() {
   double identityY(double v) => v;
@@ -869,8 +872,7 @@ void main() {
       expect(label, isNot(contains('worse than usual')));
       expect(label, isNot(contains('an improvement')));
       // …and no arrow either, since there is no direction to point.
-      expect(find.byIcon(LucideIcons.arrowUpRight), findsNothing);
-      expect(find.byIcon(LucideIcons.arrowDownRight), findsNothing);
+      expect(find.byType(DeltaTriangle), findsNothing);
       handle.dispose();
     });
 
@@ -882,7 +884,7 @@ void main() {
           up: true, good: true)));
       expect(tester.getSemantics(find.byType(TrendCard)).label,
           contains('an improvement'));
-      expect(find.byIcon(LucideIcons.arrowUpRight), findsOneWidget);
+      expect(trianglePointsUp(tester), isTrue);
       handle.dispose();
     });
   });

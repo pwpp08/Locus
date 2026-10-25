@@ -11,11 +11,11 @@
 // the caller says so in one short line ([usualNeedsDaysText]).
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../compute/findings.dart' show kReadinessEasyBelow, kReadinessGoodFrom;
 import '../l10n/app_localizations.dart';
 import 'charts.dart';
+import 'marks.dart';
 import 'theme.dart';
 
 /// Days of your own history before a usual range is drawn.
@@ -193,13 +193,7 @@ class ReadingVerdict extends StatelessWidget {
       runSpacing: 2,
       children: [
         if (side != Side.inside)
-          Icon(
-            side == Side.above
-                ? LucideIcons.arrowUpRight
-                : LucideIcons.arrowDownRight,
-            size: I.sm,
-            color: ink,
-          ),
+          DeltaTriangle(up: side == Side.above, color: ink, size: S.x3),
         Text(
           usualWord(l, side),
           style: F.cap.copyWith(color: ink, fontWeight: FontWeight.w600),

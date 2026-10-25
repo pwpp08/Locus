@@ -15,7 +15,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:openstrap_analytics/onehz.dart' as ana;
 import 'package:openstrap_edge/coach/coach_config.dart';
 import 'package:openstrap_edge/compute/derivation_engine.dart';

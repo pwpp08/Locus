@@ -9,7 +9,6 @@ import '../../l10n/display_text.dart';
 // app that are absolute.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../compute/findings.dart';
 import '../../data/day_label.dart';

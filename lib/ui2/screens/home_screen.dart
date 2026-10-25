@@ -30,7 +30,6 @@ import '../../l10n/date_text.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../../ai/briefing.dart'
@@ -2190,7 +2189,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             height: S.tap,
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Text('CUSTOMIZE',
-                  style: F.caps.copyWith(color: p.ink, letterSpacing: .9)),
+                  style: F.caps.copyWith(color: p.ink)),
               const SizedBox(width: S.x2),
               Icon(LucideIcons.pencil, size: I.md, color: p.ink),
             ]),
@@ -2651,7 +2650,7 @@ class _DayPager extends StatelessWidget {
           alignment: Alignment.center,
           child: Text(label,
               style: F.over.copyWith(
-                  color: p.ink, fontWeight: FontWeight.w700, letterSpacing: .8)),
+                  color: p.ink, fontWeight: FontWeight.w700)),
         ),
         arrow(LucideIcons.chevronRight, newer, 'Next day'),
       ]),
@@ -3157,7 +3156,7 @@ class _TonightsSleep extends StatelessWidget {
               Text('RECOMMENDED\nBEDTIME',
                   textAlign: TextAlign.center,
                   style: F.over.copyWith(
-                      color: p.ink2, fontWeight: FontWeight.w700, letterSpacing: .7)),
+                      color: p.ink2, fontWeight: FontWeight.w700)),
             ),
           ),
           Padding(
@@ -3179,8 +3178,7 @@ class _TonightsSleep extends StatelessWidget {
                   child: Text(status,
                       style: F.over.copyWith(
                           color: dot == p.ink3 ? p.ink2 : dot,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: .7)),
+                          fontWeight: FontWeight.w700)),
                 ),
               ]),
             ),

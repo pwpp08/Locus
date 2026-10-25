@@ -12,7 +12,6 @@
 // moment the app is already slowest.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../ui2.dart';
 

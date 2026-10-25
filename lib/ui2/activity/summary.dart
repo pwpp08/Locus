@@ -26,7 +26,7 @@ import 'dart:convert' show utf8;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../lucide.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 

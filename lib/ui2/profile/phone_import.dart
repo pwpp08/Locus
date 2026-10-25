@@ -30,7 +30,6 @@
 // a confidently wrong first month, which is worse than the blank it replaces.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:openstrap_analytics/onehz.dart' as ana;
 
 import '../../data/db.dart';

@@ -12,7 +12,6 @@ import 'package:openstrap_edge/ble/hrs_link.dart';
 import 'package:openstrap_edge/ui2/pairing/device_picker.dart';
 import 'package:openstrap_edge/ui2/profile/devices.dart' show kPairableSensors;
 import 'package:openstrap_edge/ui2/ui2.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 BandCandidate _cand(String id, String entryId, {String? label, int rssi = -60}) =>
     (device: BluetoothDevice.fromId(id), label: label, rssi: rssi, entryId: entryId);

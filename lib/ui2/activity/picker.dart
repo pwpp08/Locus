@@ -7,7 +7,7 @@ import '../../l10n/display_text.dart';
 // screen, so there is one path to a live session, not two.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../lucide.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../grammar.dart';

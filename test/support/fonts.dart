@@ -1,6 +1,6 @@
 // The app's type families for widget tests.
 //
-// `F` sets every style in Barlow digits first and Figtree after it
+// `F` sets every style in D-DIN digits first and Figtree after it
 // (assets/fonts). The test harness knows no family it is not handed, so
 // without this every glyph measures as the harness's block font and a layout
 // test is measuring the wrong text. Manrope is Figtree's Cyrillic fallback.
@@ -13,7 +13,8 @@ import 'package:openstrap_edge/ui2/theme.dart';
 Future<void> loadAppFonts() async {
   for (final (family, dir) in [
     (F.family, 'assets/fonts/Figtree'),
-    (F.numerals, 'assets/fonts/BarlowNums'),
+    (F.numerals, 'assets/fonts/DDINNums'),
+    (F.headline, 'assets/fonts/Montserrat'),
     ('Manrope', 'assets/fonts/Manrope'),
   ]) {
     final loader = FontLoader(family);

@@ -10,6 +10,8 @@ export 'charts.dart';
 
 export 'grammar.dart';
 export 'live_hr.dart';
+export 'lucide.dart';
+export 'marks.dart';
 export 'ecg_widgets.dart';
 export 'paint_activity.dart';
 export 'revision.dart';

@@ -1,5 +1,5 @@
 // Scrubbing: drag a finger along a chart and the point under it is read out
-// big, with a guide line through it. Every chart with a point per day or per
+// big, with a soft column behind it. Every chart with a point per day or per
 // minute goes through [ScrubArea], so the gesture, the guide and the geometry
 // are one implementation. The chart paints itself; the area only reads the
 // finger and draws the guide, and both measure the plot with [plotRect], so
@@ -67,6 +67,13 @@ class ScrubArea extends StatefulWidget {
   final String label;
   final String Function(int i) describe;
 
+  /// The column behind the touched point, when it is not one point wide (a
+  /// whole month). Null takes the default width.
+  final ({double left, double right})? Function(int at, Rect plot)? bandSpan;
+
+  /// Two fingers on the chart, to zoom it.
+  final PinchCallback? onPinch;
+
   const ScrubArea({
     super.key,
     required this.count,
@@ -78,6 +85,8 @@ class ScrubArea extends StatefulWidget {
     this.dotAt,
     this.label = 'Chart',
     this.describe = _describeIndex,
+    this.bandSpan,
+    this.onPinch,
   });
 
   @override
@@ -101,6 +110,22 @@ class _ScrubAreaState extends State<ScrubArea> {
     widget.onScrub(null);
   }
 
+  _ColumnPainter _bandFor(int at, Rect plot, P p) {
+    final x = scrubXOf(at, plot, widget.count, slots: widget.slots);
+    final span = widget.bandSpan?.call(at, plot);
+    final width = span != null
+        ? span.right - span.left
+        : widget.slots
+            ? math.min(plot.width / widget.count * .88, S.x12)
+            : S.x4;
+    return _ColumnPainter(
+      x: span != null ? (span.left + span.right) / 2 : x,
+      width: width,
+      top: math.max(0.0, plot.top - S.x3),
+      tint: p.ink.withValues(alpha: .1),
+    );
+  }
+
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
@@ -118,19 +143,30 @@ class _ScrubAreaState extends State<ScrubArea> {
           onChanged: (f) => _touch(f * size.width, plot),
           onLift: _lift,
           yieldToScroll: true,
+          onPinch: widget.onPinch,
           label: widget.label,
           describe: (f) => widget.describe(scrubIndexAt(f * size.width, plot,
               widget.count, slots: widget.slots)),
           child: Stack(children: [
-            Positioned.fill(child: widget.builder(c, at)),
+            // The column the finger is on, behind the chart so its bars and
+            // lines sit on it.
             if (at != null)
               Positioned.fill(
                 child: IgnorePointer(
                   child: CustomPaint(
-                    painter: _GuidePainter(
+                    painter: _bandFor(at, plot, p),
+                  ),
+                ),
+              ),
+            Positioned.fill(child: widget.builder(c, at)),
+            if (at != null && widget.dotAt?.call(at) != null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _DotPainter(
                       x: scrubXOf(at, plot, widget.count, slots: widget.slots),
                       plot: plot,
-                      dot: widget.dotAt?.call(at),
+                      dot: widget.dotAt!.call(at)!,
                       ink: p.ink,
                       ring: p.bg,
                     ),
@@ -146,14 +182,38 @@ class _ScrubAreaState extends State<ScrubArea> {
 
 String _describeIndex(int i) => '${i + 1}';
 
-/// The dashed guide through the touched point, and the dot on it.
-class _GuidePainter extends CustomPainter {
+/// The soft rounded column behind the touched point, from just above the plot
+/// to the foot of the chart (so it takes in the label under the point).
+class _ColumnPainter extends CustomPainter {
+  final double x, width, top;
+  final Color tint;
+
+  _ColumnPainter(
+      {required this.x, required this.width, required this.top, required this.tint});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+          Rect.fromLTRB(x - width / 2, top, x + width / 2, size.height),
+          const Radius.circular(R.lg)),
+      Paint()..color = tint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ColumnPainter old) =>
+      old.x != x || old.width != width || old.top != top || old.tint != tint;
+}
+
+/// The dot on the touched point of a line.
+class _DotPainter extends CustomPainter {
   final double x;
   final Rect plot;
-  final double? dot;
+  final double dot;
   final Color ink, ring;
 
-  _GuidePainter({
+  _DotPainter({
     required this.x,
     required this.plot,
     required this.dot,
@@ -163,28 +223,14 @@ class _GuidePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final guide = Paint()
-      ..color = ink.withValues(alpha: .85)
-      ..strokeWidth = 1.5;
-    // Dashes of three, gaps of three: the same rhythm the average line uses.
-    for (var y = plot.top; y < plot.bottom; y += S.x1 + S.half) {
-      canvas.drawLine(
-          Offset(x, y), Offset(x, math.min(y + S.half + 1, plot.bottom)), guide);
-    }
-    final v = dot;
-    if (v == null) return;
-    final cy = plot.bottom - v.clamp(0.0, 1.0) * plot.height;
+    final cy = plot.bottom - dot.clamp(0.0, 1.0) * plot.height;
     canvas.drawCircle(Offset(x, cy), S.x2 * .75 + 2, Paint()..color = ring);
     canvas.drawCircle(Offset(x, cy), S.x2 * .75, Paint()..color = ink);
   }
 
   @override
-  bool shouldRepaint(_GuidePainter old) =>
-      old.x != x ||
-      old.dot != dot ||
-      old.plot != plot ||
-      old.ink != ink ||
-      old.ring != ring;
+  bool shouldRepaint(_DotPainter old) =>
+      old.x != x || old.dot != dot || old.plot != plot || old.ink != ink || old.ring != ring;
 }
 
 /// The readout that goes big above a chart: a small caption (the average, or
@@ -218,7 +264,7 @@ class ScrubReadout extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(caption.toUpperCase(),
-            style: F.over.copyWith(color: p.ink2, letterSpacing: .7)),
+            style: F.over.copyWith(color: p.ink2)),
         const SizedBox(height: S.half),
         FittedBox(
           fit: BoxFit.scaleDown,
@@ -327,11 +373,6 @@ class ScrubColumns extends StatelessWidget {
       onScrub: onScrub,
       label: label,
       describe: describe ?? _describeIndex,
-      // A stack has no single top to put a dot on; its guide line is enough.
-      dotAt: (i) {
-        final v = values[i];
-        return v == null || hi <= lo || stacks != null ? null : (v - lo) / (hi - lo);
-      },
       builder: (c, at) => CustomPaint(
         size: Size.infinite,
         painter: _ColumnsPainter(
@@ -408,7 +449,7 @@ class _ColumnsPainter extends CustomPainter {
     final slot = r.width / n;
     // A week's bars are wide, a month's narrow, and both sit centred in
     // their slot.
-    final bw = slot * (n <= 8 ? .34 : .56);
+    final bw = slot * (n <= 4 ? .62 : n <= 8 ? .38 : .56);
 
     // Gridlines and their values, in the gutter.
     final grid = Paint()
@@ -455,14 +496,34 @@ class _ColumnsPainter extends CustomPainter {
       final dimmed = at != null && at != i;
       final stack = stacks?[i];
       if (stack != null && segmentColors != null) {
-        // Bottom to top, each segment its own colour.
+        // Bottom to top, each segment its own colour, rounded, with a sliver
+        // of the page between one segment and the next.
+        final parts = <(Rect, Color)>[];
         var from = zero;
         for (var s = 0; s < stack.length && s < segmentColors!.length; s++) {
           final top = yOf(lo + stack.take(s + 1).fold<double>(0, (a, b) => a + b));
-          final c = dimmed ? Color.lerp(segmentColors![s], p.bg, .72)! : segmentColors![s];
-          canvas.drawRect(Rect.fromLTRB(x, math.min(top, from), x + bw, math.max(top, from)),
-              Paint()..color = c);
+          if ((from - top).abs() >= .5) {
+            final c = dimmed ? Color.lerp(segmentColors![s], p.bg, .72)! : segmentColors![s];
+            parts.add((Rect.fromLTRB(x, math.min(top, from), x + bw, math.max(top, from)), c));
+          }
           from = top;
+        }
+        const gap = 1.5;
+        for (var k = 0; k < parts.length; k++) {
+          final isBottom = k == 0, isTop = k == parts.length - 1;
+          var r0 = parts[k].$1;
+          r0 = Rect.fromLTRB(r0.left, r0.top + (isTop ? 0 : gap / 2),
+              r0.right, r0.bottom - (isBottom ? 0 : gap / 2));
+          if (r0.height < 1) continue;
+          final rad = Radius.circular(math.min(math.min(3.0, bw / 3), r0.height / 2));
+          canvas.drawRRect(
+            RRect.fromRectAndCorners(r0,
+                topLeft: rad,
+                topRight: rad,
+                bottomLeft: isBottom ? Radius.zero : rad,
+                bottomRight: isBottom ? Radius.zero : rad),
+            Paint()..color = parts[k].$2,
+          );
         }
       } else {
         final y = yOf(v);
@@ -559,6 +620,10 @@ class ScrubLine extends StatelessWidget {
   /// The soft fill under the line.
   final bool fill;
 
+  /// Round the corners where the segments meet (a point per hour, say), by
+  /// curving through the midpoints between points.
+  final bool smooth;
+
   /// Painted after the grid and before the line (a shaded span), and after the
   /// markers (a "now" line).
   final ScrubPaint? paintUnder, paintOver;
@@ -568,6 +633,9 @@ class ScrubLine extends StatelessWidget {
   final double gutter;
   final String label;
   final String Function(int i)? describe;
+
+  /// Two fingers on the line, to zoom it.
+  final PinchCallback? onPinch;
 
   const ScrubLine({
     super.key,
@@ -588,12 +656,14 @@ class ScrubLine extends StatelessWidget {
     this.gap = 1 << 30,
     this.colorAt,
     this.fill = true,
+    this.smooth = false,
     this.paintUnder,
     this.paintOver,
     this.height = 200,
     this.gutter = S.x10,
     this.label = 'Chart',
     this.describe,
+    this.onPinch,
   });
 
   static const _band = S.x8;
@@ -612,6 +682,7 @@ class ScrubLine extends StatelessWidget {
       inset: inset,
       height: height,
       onScrub: onScrub,
+      onPinch: onPinch,
       label: label,
       describe: describe ?? _describeIndex,
       dotAt: (i) {
@@ -638,6 +709,7 @@ class ScrubLine extends StatelessWidget {
           gap: gap,
           colorAt: colorAt,
           fill: fill,
+          smooth: smooth,
           paintUnder: paintUnder,
           paintOver: paintOver,
           at: at,
@@ -663,6 +735,7 @@ class _LinePainter extends CustomPainter {
   final int gap;
   final Color Function(double v)? colorAt;
   final bool fill;
+  final bool smooth;
   final ScrubPaint? paintUnder, paintOver;
   final EdgeInsets inset;
 
@@ -685,6 +758,7 @@ class _LinePainter extends CustomPainter {
     required this.gap,
     required this.colorAt,
     required this.fill,
+    required this.smooth,
     required this.paintUnder,
     required this.paintOver,
     required this.inset,
@@ -774,8 +848,18 @@ class _LinePainter extends CustomPainter {
     for (final ru in runs) {
       if (ru.length < 2) continue;
       final path = Path()..moveTo(xOf(ru.first), yOf(values[ru.first]!));
-      for (final i in ru.skip(1)) {
-        path.lineTo(xOf(i), yOf(values[i]!));
+      if (smooth && ru.length > 2) {
+        // Each point is a control point, each midpoint a place the curve passes.
+        for (var k = 1; k < ru.length - 1; k++) {
+          final a = Offset(xOf(ru[k]), yOf(values[ru[k]]!));
+          final b = Offset(xOf(ru[k + 1]), yOf(values[ru[k + 1]]!));
+          path.quadraticBezierTo(a.dx, a.dy, (a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+        }
+        path.lineTo(xOf(ru.last), yOf(values[ru.last]!));
+      } else {
+        for (final i in ru.skip(1)) {
+          path.lineTo(xOf(i), yOf(values[i]!));
+        }
       }
       if (colorAt != null) {
         // Each stretch in the colour of its own height.
@@ -907,6 +991,10 @@ class ScrubRanges extends StatelessWidget {
   /// A dashed line through the usual bed and wake times, one point per bar.
   final List<({double bed, double wake})?>? usual;
 
+  /// Levels to mark across the whole chart: a dashed line with its time in a
+  /// white tag at the left (the average bed and wake times of a month).
+  final List<({double at, String text})> tags;
+
   final ValueChanged<int?> onScrub;
   final double height;
   final double gutter;
@@ -927,6 +1015,7 @@ class ScrubRanges extends StatelessWidget {
     this.emphasis,
     this.labelAll = true,
     this.usual,
+    this.tags = const [],
     this.height = 260,
     this.gutter = S.x10,
     this.label = 'Chart',
@@ -963,6 +1052,7 @@ class ScrubRanges extends StatelessWidget {
           emphasis: emphasis,
           labelAll: labelAll,
           usual: usual,
+          tags: tags,
           at: at,
           inset: inset,
         ),
@@ -982,6 +1072,7 @@ class _RangesPainter extends CustomPainter {
   final int? emphasis, at;
   final bool labelAll;
   final List<({double bed, double wake})?>? usual;
+  final List<({double at, String text})> tags;
   final EdgeInsets inset;
 
   _RangesPainter({
@@ -997,6 +1088,7 @@ class _RangesPainter extends CustomPainter {
     required this.emphasis,
     required this.labelAll,
     required this.usual,
+    required this.tags,
     required this.at,
     required this.inset,
   });
@@ -1027,7 +1119,7 @@ class _RangesPainter extends CustomPainter {
     // Time runs DOWN: the evening is the top line, the morning the bottom.
     double yOf(double t) => r.top + (t - lo) / span * r.height;
     final slot = r.width / n;
-    final bw = slot * (n <= 8 ? .34 : .56);
+    final bw = slot * (n <= 8 ? .38 : .56);
 
     final grid = Paint()
       ..color = p.line
@@ -1039,6 +1131,17 @@ class _RangesPainter extends CustomPainter {
       final tp = _text(tickText(t), F.over.copyWith(color: p.ink3, fontWeight: FontWeight.w600),
           width: inset.left - S.x2, align: TextAlign.right);
       tp.paint(canvas, Offset(0, y - tp.height / 2));
+    }
+
+    // Marked levels, behind the bars: a faint dash across, the time in a tag.
+    for (final t in tags) {
+      final y = yOf(t.at);
+      final dash = Paint()
+        ..color = p.ink.withValues(alpha: .3)
+        ..strokeWidth = 1;
+      for (var x = r.left; x < r.right; x += S.x2) {
+        canvas.drawLine(Offset(x, y), Offset(math.min(x + S.x1, r.right), y), dash);
+      }
     }
 
     // What is usual, behind the bars.
@@ -1105,6 +1208,16 @@ class _RangesPainter extends CustomPainter {
         width: math.max(slot, S.x12),
       );
       tp.paint(canvas, Offset(r.left + (i + .5) * slot - tp.width / 2, r.bottom + S.x1));
+    }
+
+    // The tags sit last, over the axis labels they stand in for.
+    for (final t in tags) {
+      final y = yOf(t.at);
+      final tp = _text(t.text, F.cap.copyWith(color: p.bg, fontWeight: FontWeight.w800));
+      final box = Rect.fromLTWH(0, y - (tp.height + S.x2) / 2, tp.width + S.x4, tp.height + S.x2);
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(box, const Radius.circular(R.sm)), Paint()..color = p.ink);
+      tp.paint(canvas, Offset(S.x2, y - tp.height / 2));
     }
   }
 
@@ -1279,4 +1392,292 @@ class _PairPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PairPainter old) => true;
+}
+
+/// One calendar month on a six-month chart: the days it covers (indexes into
+/// the chart's days, both ends included) and what to write for it.
+class MonthMark {
+  final int from, to;
+
+  /// The month's figure, and what to write over its segment. A floating chart
+  /// has a second pair: the wake time under the bed time.
+  final double? value;
+  final String text;
+  final double? value2;
+  final String text2;
+
+  /// The month's name, under the chart.
+  final String label;
+
+  /// A short line under the segment — the change on the month before — and the
+  /// colour it and the segment wear instead of white.
+  final String? note;
+  final Color? tone;
+
+  const MonthMark({
+    required this.from,
+    required this.to,
+    required this.label,
+    this.value,
+    this.text = '',
+    this.value2,
+    this.text2 = '',
+    this.note,
+    this.tone,
+  });
+}
+
+/// Six months at a glance: the days faintly in the background, and over them a
+/// short white line at each month's average with the figure above it. A
+/// floating chart (bed and wake) marks two lines per month.
+class ScrubMonths extends StatelessWidget {
+  /// One value per day, oldest first; null leaves a gap. Drawn as a ghost.
+  final List<double?> days;
+
+  /// Instead of [days]: a floating bar per day, drawn as a ghost.
+  final List<({double from, double to})?>? spans;
+
+  final List<MonthMark> months;
+  final double lo, hi;
+  final List<double> ticks;
+  final String Function(double) tickText;
+
+  /// Time runs down the axis (a clock from evening to morning).
+  final bool down;
+  final Color color;
+  final ValueChanged<int?> onScrub;
+  final double height;
+  final double gutter;
+  final String label;
+  final String Function(int i)? describe;
+
+  const ScrubMonths({
+    super.key,
+    required this.days,
+    required this.months,
+    required this.lo,
+    required this.hi,
+    required this.ticks,
+    required this.tickText,
+    required this.color,
+    required this.onScrub,
+    this.spans,
+    this.down = false,
+    this.height = 260,
+    this.gutter = S.x10,
+    this.label = 'Chart',
+    this.describe,
+  });
+
+  static const _top = S.x8;
+  static const _band = S.x8;
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final inset = EdgeInsets.fromLTRB(gutter, _top, S.x2, _band);
+    final n = spans?.length ?? days.length;
+    return ScrubArea(
+      count: n,
+      slots: false,
+      inset: inset,
+      height: height,
+      onScrub: onScrub,
+      label: label,
+      describe: describe ?? _describeIndex,
+      bandSpan: (at, plot) {
+        for (final m in months) {
+          if (at >= m.from && at <= m.to) {
+            final half = n > 1 ? plot.width / (n - 1) / 2 : 0.0;
+            return (
+              left: scrubXOf(m.from, plot, n, slots: false) - half,
+              right: scrubXOf(m.to, plot, n, slots: false) + half,
+            );
+          }
+        }
+        return null;
+      },
+      builder: (c, at) => CustomPaint(
+        size: Size.infinite,
+        painter: _MonthsPainter(
+            p: p,
+            days: days,
+            spans: spans,
+            months: months,
+            lo: lo,
+            hi: hi,
+            ticks: ticks,
+            tickText: tickText,
+            down: down,
+            color: color,
+            at: at,
+            inset: inset),
+      ),
+    );
+  }
+}
+
+class _MonthsPainter extends CustomPainter {
+  final P p;
+  final List<double?> days;
+  final List<({double from, double to})?>? spans;
+  final List<MonthMark> months;
+  final double lo, hi;
+  final List<double> ticks;
+  final String Function(double) tickText;
+  final bool down;
+  final Color color;
+  final int? at;
+  final EdgeInsets inset;
+
+  _MonthsPainter({
+    required this.p,
+    required this.days,
+    required this.spans,
+    required this.months,
+    required this.lo,
+    required this.hi,
+    required this.ticks,
+    required this.tickText,
+    required this.down,
+    required this.color,
+    required this.at,
+    required this.inset,
+  });
+
+  TextPainter _text(String s, TextStyle style, {double? width}) => TextPainter(
+        text: TextSpan(text: s, style: style),
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: width ?? double.infinity);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final n = spans?.length ?? days.length;
+    final span = hi - lo;
+    if (n < 2 || span <= 0) return;
+    final r = plotRect(size, inset);
+    double yOf(double v) => down
+        ? r.top + (v - lo) / span * r.height
+        : r.bottom - (v - lo) / span * r.height;
+    double xOf(int i) => scrubXOf(i, r, n, slots: false);
+    final dayW = r.width / (n - 1);
+
+    final grid = Paint()
+      ..color = p.line
+      ..strokeWidth = 1;
+    for (final t in ticks) {
+      final y = yOf(t);
+      canvas.drawLine(Offset(r.left, y), Offset(r.right, y), grid);
+      final tp = _text(tickText(t), F.over.copyWith(color: p.ink3, fontWeight: FontWeight.w600),
+          width: inset.left - S.x2);
+      tp.paint(canvas, Offset(inset.left - S.x2 - tp.width, y - tp.height / 2));
+    }
+
+    // The ghost: every day, faint.
+    final ghost = color.withValues(alpha: .22);
+    final sp = spans;
+    if (sp != null) {
+      for (var i = 0; i < n; i++) {
+        final g = sp[i];
+        if (g == null) continue;
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+              Rect.fromLTRB(xOf(i) - math.max(dayW * .3, .8), yOf(g.from),
+                  xOf(i) + math.max(dayW * .3, .8), yOf(g.to)),
+              const Radius.circular(1)),
+          Paint()..color = color.withValues(alpha: .16),
+        );
+      }
+    } else {
+      Path? path;
+      int? first, last;
+      void close() {
+        if (path == null || first == null || last == null) return;
+        canvas.drawPath(
+            path!,
+            Paint()
+              ..color = ghost
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.5
+              ..strokeJoin = StrokeJoin.round);
+        final area = Path.from(path!)
+          ..lineTo(xOf(last!), r.bottom)
+          ..lineTo(xOf(first!), r.bottom)
+          ..close();
+        canvas.drawPath(
+            area,
+            Paint()
+              ..shader = LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [color.withValues(alpha: .12), color.withValues(alpha: 0)],
+              ).createShader(r));
+        path = null;
+        first = last = null;
+      }
+
+      for (var i = 0; i < n; i++) {
+        final v = days[i];
+        if (v == null) {
+          close();
+          continue;
+        }
+        if (path == null) {
+          path = Path()..moveTo(xOf(i), yOf(v));
+          first = i;
+        } else {
+          path!.lineTo(xOf(i), yOf(v));
+        }
+        last = i;
+      }
+      close();
+    }
+
+    // Each month's average, as a short line with its figure over it.
+    void segment(MonthMark m, double v, String text, bool lit) {
+      final y = yOf(v);
+      final x0 = xOf(m.from) - dayW / 2 + S.half, x1 = xOf(m.to) + dayW / 2 - S.half;
+      final tone = m.tone ?? p.ink;
+      canvas.drawLine(
+          Offset(x0, y),
+          Offset(x1, y),
+          Paint()
+            ..color = tone.withValues(alpha: lit ? 1 : .6)
+            ..strokeWidth = 2.5
+            ..strokeCap = StrokeCap.round);
+      // A sliver of a month at either end has no room for its figure.
+      if (x1 - x0 < S.x10) return;
+      final tp = _text(text, F.cap.copyWith(color: tone, fontWeight: FontWeight.w700));
+      final cx = ((x0 + x1) / 2 - tp.width / 2)
+          .clamp(0.0, math.max(0.0, size.width - tp.width))
+          .toDouble();
+      tp.paint(canvas, Offset(cx, y - tp.height - S.x1));
+      final note = m.note;
+      if (note != null) {
+        final np = _text(note, F.cap.copyWith(color: tone, fontWeight: FontWeight.w700));
+        np.paint(
+            canvas,
+            Offset(((x0 + x1) / 2 - np.width / 2)
+                .clamp(0.0, math.max(0.0, size.width - np.width))
+                .toDouble(),
+                y + S.x1));
+      }
+    }
+
+    for (final m in months) {
+      final lit = at == null || (at! >= m.from && at! <= m.to);
+      if (m.value != null) segment(m, m.value!, m.text, lit);
+      if (m.value2 != null) segment(m, m.value2!, m.text2, lit);
+      // Its name under the chart, in the middle of its days.
+      final mid = (xOf(m.from) + xOf(m.to)) / 2;
+      if (xOf(m.to) - xOf(m.from) < S.x10) continue;
+      final tp = _text(m.label,
+          F.over.copyWith(color: lit && at != null ? p.ink : p.ink3, fontWeight: FontWeight.w600));
+      tp.paint(canvas, Offset(mid - tp.width / 2, r.bottom + S.x1));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_MonthsPainter old) => true;
 }

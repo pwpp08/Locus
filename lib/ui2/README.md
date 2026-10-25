@@ -121,9 +121,9 @@ actually paint.
 
 ### Type — 7 steps, 3 weights
 
-Words are **Figtree**, numbers are **Barlow** Bold (SIL OFL, bundled under
-`assets/fonts`), on every platform. Barlow is bundled as a digits-only face
-(`F.numerals`) that every style names first, so any digit is Barlow and any
+Words are **Figtree**, numbers are **D-DIN** Bold (SIL OFL, bundled under
+`assets/fonts`), on every platform. D-DIN is bundled as a digits-only face
+(`F.numerals`) that every style names first, so any digit is D-DIN and any
 letter falls to Figtree. Figtree has no Cyrillic, so Russian falls through to
 the bundled **Manrope**, then to Helvetica Neue / Helvetica / Arial. Body is
 Figtree semibold, headlines are bold, uppercase, tracked 10 %.
@@ -132,7 +132,7 @@ Figtree semibold, headlines are bold, uppercase, tracked 10 %.
 `F.cap` 13 · `F.over` 11 (callers uppercase it).
 
 Numerals (tabular figures — a changing value must not re-flow its own layout):
-`F.n64`, `F.n48`, `F.n34`, `F.n24`, `F.n17`. **Use these for every number
+`F.n80` (inside a dial), `F.n64`, `F.n48`, `F.n34`, `F.n24`, `F.n17`. **Use these for every number
 that can change**, and `Numeral(value, unit:)` to set a unit on its baseline.
 A hero numeral that can be wider than its card at accessibility sizes goes in
 a `FittedBox(fit: BoxFit.scaleDown)` — a shrunk measurement is still the
@@ -148,7 +148,9 @@ of the floating tab bar.
 tiles, sheet tops) · `pill`. `R.rSm … R.rPill` are the `BorderRadius` forms.
 
 `I.sm` 16 · `I.md` 20 · `I.lg` 24 · `I.xl` 32 · `I.hero` 48. Lucide is the
-icon set.
+icon set, cut at one fine stroke weight: import `lib/ui2/lucide.dart`, never
+the package. The strain screen's stat rows (`StatIcon`) and the above/below
+triangles (`DeltaTriangle`) are drawn in `marks.dart`.
 
 ### Imagery, effects
 

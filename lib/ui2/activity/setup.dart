@@ -15,7 +15,7 @@
 // same thirty-minute basis the picker's rows use, so the two screens compare.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../lucide.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../grammar.dart';

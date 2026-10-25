@@ -25,7 +25,6 @@
 // a driver is a term in a formula we control, and the footer says so.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/metric.dart' show whyFromNote;

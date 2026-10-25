@@ -15,7 +15,7 @@
 // type back to its entry, and an unknown type simply falls through to null.
 
 import 'package:flutter/widgets.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../lucide.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../theme.dart';

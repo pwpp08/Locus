@@ -33,7 +33,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../lucide.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../l10n/display_text.dart';
@@ -575,7 +575,7 @@ class PosterStatRow extends StatelessWidget {
             children: [
               Text(
                 uiText(c, label).toUpperCase(),
-                style: F.over.copyWith(color: muted, letterSpacing: 1),
+                style: F.over.copyWith(color: muted),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

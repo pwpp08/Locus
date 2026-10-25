@@ -15,7 +15,6 @@
 // absent AND SAY SO, rather than leaving a gap to guess at.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../../gestures/device_action.dart';

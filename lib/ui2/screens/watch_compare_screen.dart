@@ -4,7 +4,6 @@
 // are never blended into anything the band measured.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../data/day_label.dart';
 import '../../health/watch_compare.dart';

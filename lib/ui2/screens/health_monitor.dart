@@ -8,7 +8,6 @@
 // this morning's.
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../../compute/hr_max.dart' show estimatedMaxHr;
@@ -315,8 +314,7 @@ class _VitalTile extends StatelessWidget {
               child: Text(v.label.toUpperCase(),
                   style: F.over.copyWith(
                       color: p.ink2,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: .7))),
+                      fontWeight: FontWeight.w700))),
         ]),
         const SizedBox(height: S.x8),
         Row(
