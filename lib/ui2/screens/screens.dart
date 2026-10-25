@@ -27,6 +27,7 @@ export 'readiness_detail.dart';
 export 'rough_night.dart';
 export 'sleep_detail.dart';
 export 'sleep_planner.dart';
+export 'add_activity.dart';
 export 'strain_recovery_card.dart';
 export 'stress_monitor.dart';
 export 'trend_view.dart';

@@ -30,7 +30,7 @@ class StrainRecoveryCard extends StatelessWidget {
     required this.recovery,
   });
 
-  static const _inset = EdgeInsets.fromLTRB(S.x8, S.x8, S.x10, S.x10);
+  static const _inset = EdgeInsets.fromLTRB(S.x6, S.x8, S.x8 + S.x1, S.x10);
 
   @override
   Widget build(BuildContext c) {
@@ -164,12 +164,12 @@ class _DualPainter extends CustomPainter {
     // The day under the finger, or the newest, as a column band.
     final slot = r.width / n;
     if (rest) {
-      final w = math.min(slot * .88, S.x12);
+      final w = math.min(slot * .8, S.x12);
       canvas.drawRRect(
         RRect.fromRectAndRadius(
             Rect.fromLTRB(xOf(focus) - w / 2, math.max(0.0, r.top - S.x3),
                 xOf(focus) + w / 2, size.height),
-            const Radius.circular(R.lg)),
+            const Radius.circular(S.x1)),
         Paint()..color = p.ink.withValues(alpha: .10),
       );
     }
@@ -213,7 +213,7 @@ class _DualPainter extends CustomPainter {
             Paint()
               ..color = color.withValues(alpha: alpha)
               ..style = PaintingStyle.stroke
-              ..strokeWidth = 3
+              ..strokeWidth = 2.2
               ..strokeJoin = StrokeJoin.round
               ..strokeCap = StrokeCap.round,
           );
@@ -225,21 +225,21 @@ class _DualPainter extends CustomPainter {
     line(strain, yS, C.dialStrain, .6);
 
     void marker(double x, double y, Color color) {
-      canvas.drawCircle(Offset(x, y), S.x2 + S.half, Paint()..color = p.bg);
+      canvas.drawCircle(Offset(x, y), 6.5, Paint()..color = p.bg);
       canvas.drawCircle(
         Offset(x, y),
-        S.x2,
+        5,
         Paint()
           ..color = color
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 3.5,
+          ..strokeWidth = 2.4,
       );
     }
 
     void label(String s, double x, double y, Color color, bool below, bool focused) {
-      final tp = _text(s, F.head.copyWith(color: focused ? p.ink : color, fontWeight: FontWeight.w700),
+      final tp = _text(s, F.cap.copyWith(color: focused ? p.ink : color, fontWeight: FontWeight.w700),
           width: slot * 2);
-      final dy = below ? S.x4 : -S.x4 - tp.height;
+      final dy = below ? S.x3 : -S.x3 - tp.height;
       tp.paint(canvas, Offset(x - tp.width / 2, y + dy));
     }
 

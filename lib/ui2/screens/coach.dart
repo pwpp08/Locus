@@ -635,7 +635,6 @@ class _CoachScreenState extends State<CoachScreen> {
             decoration: BoxDecoration(
               color: p.card,
               borderRadius: R.rXl,
-              border: Border.all(color: p.line),
             ),
             child: Semantics(
               label: l?.coachAskLabel ?? 'Ask the coach',

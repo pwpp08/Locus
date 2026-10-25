@@ -111,6 +111,15 @@ void main() {
     expect(find.text('22:41'), findsWidgets);
   });
 
+  testWidgets('sleep and the workout are each marked by their own icon',
+      (t) async {
+    await _show(t, _Repo());
+    // The night is the shaded stretch at the start of the day; the cycling
+    // session is the one at five. Each has its icon over the middle of it.
+    expect(find.byIcon(LucideIcons.moon), findsOneWidget);
+    expect(find.byIcon(LucideIcons.bike), findsOneWidget);
+  });
+
   testWidgets('with too little history it says it is building a baseline',
       (t) async {
     await _show(t, _Repo(days: 2));

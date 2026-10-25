@@ -433,7 +433,7 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
             edge: p.ink.withValues(alpha: .09)),
       ),
       Container(
-        decoration: _panel(context, p),
+        decoration: panelDecoration(context, tone: PanelTone.rich),
         child: Column(children: [
           for (var i = 0; i < rows.length; i++) ...[
             rows[i],
@@ -795,26 +795,6 @@ class _StatRow extends StatelessWidget {
       ]),
     );
   }
-}
-
-/// The dark, softly graded panel the strain screen's figures sit on.
-BoxDecoration _panel(BuildContext c, P p) {
-  final dark = Theme.of(c).brightness == Brightness.dark;
-  return BoxDecoration(
-    borderRadius: R.rXl,
-    color: dark ? null : p.card,
-    gradient: dark
-        ? LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
-              Color.alphaBlend(C.char.withValues(alpha: .4), p.bg),
-            ],
-          )
-        : null,
-    border: Border.all(color: p.ink.withValues(alpha: dark ? .09 : .05)),
-  );
 }
 
 /// A session as a card: its strain in a blue block, its name, and its start

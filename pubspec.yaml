@@ -755,18 +755,6 @@ flutter:
           weight: 600
         - asset: assets/fonts/DDINNums/DDINNums-700.ttf
           weight: 700
-    # Headlines: Montserrat (SIL OFL, licence in assets/fonts/Montserrat), cut
-    # from the variable font into the weights the uppercase styles use.
-    - family: Montserrat
-      fonts:
-        - asset: assets/fonts/Montserrat/Montserrat-600.ttf
-          weight: 600
-        - asset: assets/fonts/Montserrat/Montserrat-700.ttf
-          weight: 700
-        - asset: assets/fonts/Montserrat/Montserrat-800.ttf
-          weight: 800
-        - asset: assets/fonts/Montserrat/Montserrat-900.ttf
-          weight: 900
     # Figtree has no Cyrillic: Russian falls through to Manrope (F's
     # fontFamilyFallback, lib/ui2/theme.dart), so it stays bundled.
     - family: Manrope

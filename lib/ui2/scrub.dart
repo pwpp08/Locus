@@ -116,7 +116,7 @@ class _ScrubAreaState extends State<ScrubArea> {
     final width = span != null
         ? span.right - span.left
         : widget.slots
-            ? math.min(plot.width / widget.count * .88, S.x12)
+            ? math.min(plot.width / widget.count * .8, S.x12)
             : S.x4;
     return _ColumnPainter(
       x: span != null ? (span.left + span.right) / 2 : x,
@@ -196,7 +196,7 @@ class _ColumnPainter extends CustomPainter {
     canvas.drawRRect(
       RRect.fromRectAndRadius(
           Rect.fromLTRB(x - width / 2, top, x + width / 2, size.height),
-          const Radius.circular(R.lg)),
+          const Radius.circular(S.x1)),
       Paint()..color = tint,
     );
   }
@@ -292,6 +292,10 @@ class ScrubReadout extends StatelessWidget {
   }
 }
 
+/// A short white line across columns [from]..[to] (both included) at [v], with
+/// [text] over it: a month's average on a six-month chart.
+typedef ColumnMark = ({int from, int to, double v, String text});
+
 /// One column chart, scrubbable: bars (or stacks of bars) over gridlines, a
 /// value above each bar, the day or month under it, and an optional dashed
 /// average with its tag.
@@ -317,6 +321,9 @@ class ScrubColumns extends StatelessWidget {
 
   /// The subtle dashed average behind the bars, or null for none.
   final double? avg;
+
+  /// White average lines over stretches of columns, each with its figure.
+  final List<ColumnMark> marks;
 
   final Color color;
 
@@ -350,6 +357,7 @@ class ScrubColumns extends StatelessWidget {
     this.segmentColors,
     this.valueLabels = const [],
     this.avg,
+    this.marks = const [],
     this.colorOf,
     this.highlight,
     this.height = 200,
@@ -387,6 +395,7 @@ class ScrubColumns extends StatelessWidget {
           ticks: ticks,
           tickText: tickText,
           avg: avg,
+          marks: marks,
           color: color,
           colorOf: colorOf,
           highlight: highlight,
@@ -408,6 +417,7 @@ class _ColumnsPainter extends CustomPainter {
   final List<double> ticks;
   final String Function(double) tickText;
   final double? avg;
+  final List<ColumnMark> marks;
   final Color color;
   final Color Function(int i, double v)? colorOf;
   final int? highlight, at;
@@ -425,6 +435,7 @@ class _ColumnsPainter extends CustomPainter {
     required this.ticks,
     required this.tickText,
     required this.avg,
+    required this.marks,
     required this.color,
     required this.colorOf,
     required this.highlight,
@@ -547,6 +558,32 @@ class _ColumnsPainter extends CustomPainter {
         ), width: slot * 2);
         tp.paint(canvas, Offset(x + bw / 2 - tp.width / 2, top - tp.height - S.half));
       }
+    }
+
+    // Each month's average, a white line over its columns with the figure on it.
+    for (final m in marks) {
+      if (m.v < lo || m.v > hi) continue;
+      final y = yOf(m.v);
+      final x0 = r.left + m.from * slot + S.half, x1 = r.left + (m.to + 1) * slot - S.half;
+      canvas.drawLine(
+          Offset(x0, y),
+          Offset(x1, y),
+          Paint()
+            ..color = p.ink
+            ..strokeWidth = 2.5
+            ..strokeCap = StrokeCap.round);
+      if (x1 - x0 < S.x10) continue;
+      final tp = _text(m.text, F.cap.copyWith(color: p.ink, fontWeight: FontWeight.w700));
+      final c = (x0 + x1) / 2;
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(
+              Rect.fromCenter(
+                  center: Offset(c, y - S.x2 - tp.height / 2),
+                  width: tp.width + S.x2,
+                  height: tp.height + S.x1),
+              const Radius.circular(R.sm)),
+          Paint()..color = p.bg.withValues(alpha: .55));
+      tp.paint(canvas, Offset(c - tp.width / 2, y - S.x2 - tp.height));
     }
 
     // The x labels, in the band under the plot. The touched day is bolder.

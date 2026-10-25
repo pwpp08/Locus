@@ -390,25 +390,13 @@ class P {
 /// no Cyrillic: Russian falls through to the bundled Manrope, and anything
 /// past that to the platform's Helvetica Neue / Helvetica / Arial.
 ///
-/// Headlines are short, uppercase and tracked at 10 % ([caps]); body text is
+/// Headlines are short, uppercase and set close, tracked at about 3 % ([caps]); body text is
 /// Figtree semibold; numerals are D-DIN bold.
 class F {
   static const family = 'Figtree';
   static const numerals = 'DDINNums';
   static const _f = numerals;
   static const _fb = [
-    family,
-    'Manrope',
-    'Helvetica Neue',
-    'Helvetica',
-    'Arial',
-  ];
-  /// The headline face: Montserrat, the closest free match to a geometric
-  /// grotesque header. Used for the uppercase, tracked styles ([caps], [over]);
-  /// digits still come from [numerals] first.
-  static const headline = 'Montserrat';
-  static const _hb = [
-    headline,
     family,
     'Manrope',
     'Helvetica Neue',
@@ -463,21 +451,21 @@ class F {
   /// Callers uppercase it.
   static const over = TextStyle(
       fontFamily: _f,
-      fontFamilyFallback: _hb,
+      fontFamilyFallback: _fb,
       fontSize: 11,
       height: 14 / 11,
       fontWeight: FontWeight.w700,
-      letterSpacing: 1.1);
+      letterSpacing: .3);
 
   /// Widely tracked capitals: card titles, dial names, section kickers.
   /// Callers uppercase it.
   static const caps = TextStyle(
       fontFamily: _f,
-      fontFamilyFallback: _hb,
-      fontSize: 13,
-      height: 18 / 13,
-      fontWeight: FontWeight.w800,
-      letterSpacing: 1.3);
+      fontFamilyFallback: _fb,
+      fontSize: 12,
+      height: 16 / 12,
+      fontWeight: FontWeight.w700,
+      letterSpacing: .35);
 
   /// The thin, spaced-out wordmark over the dials.
   static const wordmark = TextStyle(

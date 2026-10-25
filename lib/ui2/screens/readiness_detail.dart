@@ -528,10 +528,11 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
         .where((r) => r['used'] == true)
         .fold<double>(0, (a, r) => a + ((r['weight'] as num?)?.toDouble() ?? 0));
     return Surface(
-      pad: const EdgeInsets.symmetric(horizontal: S.x4),
+      tone: PanelTone.rich,
+      pad: const EdgeInsets.symmetric(horizontal: S.x5),
       child: Column(children: [
         for (var i = 0; i < rows.length; i++) ...[
-          if (i > 0) Divider(color: p.line, height: 1),
+          if (i > 0) Divider(color: p.ink.withValues(alpha: .08), height: 1),
           _row(c, p, rows[i], wsum),
         ],
       ]),

@@ -6,7 +6,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:openstrap_edge/state/prefs.dart';
 import 'package:openstrap_edge/ui2/screens/trend_view.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
 import 'support/fonts.dart';
@@ -21,8 +23,12 @@ class _Loader extends TrendLoader {
   final Map<String, TrendIntra> intra;
   final Map<String, List<Map<String, double>>> layered;
   final Map<String, ({double bed, double wake})> spans;
+  final TrendSleep? sleep;
   _Loader(this.data,
-      {this.intra = const {}, this.layered = const {}, this.spans = const {}})
+      {this.intra = const {},
+      this.layered = const {},
+      this.spans = const {},
+      this.sleep})
       : super(null);
 
   @override
@@ -36,6 +42,8 @@ class _Loader extends TrendLoader {
   Future<Map<String, ({double bed, double wake})>> sleepSpans() async => spans;
   @override
   Future<TrendIntra?> intraday(TrendMetric m, String day) async => intra[m.id];
+  @override
+  Future<TrendSleep?> sleepHrv(String day) async => sleep;
 }
 
 void main() {
@@ -159,21 +167,64 @@ void main() {
     expect(t.widget<ScrubMonths>(find.byType(ScrubMonths)).down, isTrue);
   });
 
-  testWidgets('hours of HRV are a line of their hourly means', (t) async {
+  testWidgets('hours of HRV are a line, and only the night is averaged',
+      (t) async {
+    final intra = {
+      'hrv': (
+        values: <double?>[for (var h = 0; h < 24; h++) h < 12 ? 40.0 + h : null],
+        hourly: true,
+        day: _today
+      ),
+    };
     await pump(
         t,
         'hrv',
-        _Loader({'hrv': _days((i) => 60)}, intra: {
-          'hrv': (
-            values: <double?>[for (var h = 0; h < 24; h++) h < 12 ? 40.0 + h : null],
-            hourly: true,
-            day: _today
-          ),
-        }));
+        _Loader({'hrv': _days((i) => 60)},
+            intra: intra, sleep: (from: 0, to: 420, mean: 63.4)));
     expect(find.byType(ScrubLine), findsOneWidget);
     expect(find.text('AVERAGE'), findsWidgets);
-    // 40..51: mean 45.5 (rounds to 46 in the readout).
-    expect(find.text('46'), findsWidgets);
+    // The night's mean, not the 45.5 the whole day's hours would give.
+    expect(find.text('63'), findsWidgets);
+    expect(find.text('SLEEP'), findsOneWidget);
+
+    // With no night on record there is no average to give.
+    await pump(t, 'hrv', _Loader({'hrv': _days((i) => 60)}, intra: intra));
+    expect(find.text('63'), findsNothing);
+    expect(find.text('46'), findsNothing);
+    expect(find.text('--'), findsWidgets);
+    expect(find.text('SLEEP'), findsNothing);
+  });
+
+  testWidgets('a six-month weekly chart marks the average of each month',
+      (t) async {
+    final week = _days((i) => 10);
+    await pump(
+        t,
+        'zones_13',
+        _Loader({'zones_13': _days((i) => 30)}, layered: {
+          'zones_13': [week, week, week]
+        }));
+    await tab(t, '6M');
+    final marks = t.widget<ScrubColumns>(find.byType(ScrubColumns)).marks;
+    expect(marks, isNotEmpty);
+    // Every week holds 7 x 3 x 10 minutes, so each month averages 3:30.
+    expect(marks.map((m) => m.text).toSet(), {'3:30'});
+  });
+
+  test('the picker lists what My Dashboard shows', () {
+    SharedPreferences.setMockInitialValues({});
+    // Never customized: the default tiles, and every metric listed.
+    return Prefs.ensureLoaded().then((_) {
+      expect(dashboardMetricsOf(), isNull);
+      expect(dashboardTilesOf().first, kStrainRecoveryTile);
+      // A list saved before the chart was a tile keeps the chart, first.
+      Prefs.setString(Prefs.dashboardTiles, 'hrv,steps');
+      expect(dashboardTilesOf(), [kStrainRecoveryTile, 'hrv', 'steps']);
+      // Once the user has chosen, a tile that is off stays off.
+      Prefs.setBool(Prefs.dashboardChartChosen, true);
+      expect(dashboardTilesOf(), ['hrv', 'steps']);
+      expect(dashboardMetricsOf(), {'hrv', 'steps'});
+    });
   });
 
   testWidgets('two fingers zoom a minute chart, and reset puts the day back',

@@ -103,7 +103,6 @@ class _BatteryDetailScreenState extends State<BatteryDetailScreen> {
               decoration: BoxDecoration(
                 color: isCharging ? p.wash(C.green) : p.wash(C.blue),
                 borderRadius: R.rLg,
-                border: Border.all(color: p.line.withValues(alpha: 0.6)),
               ),
               child: Column(
                 children: [
@@ -216,7 +215,6 @@ class _BatteryDetailScreenState extends State<BatteryDetailScreen> {
               decoration: BoxDecoration(
                 color: p.card,
                 borderRadius: R.rLg,
-                border: Border.all(color: p.line),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,7 +290,6 @@ class _BatteryDetailScreenState extends State<BatteryDetailScreen> {
               decoration: BoxDecoration(
                 color: p.wash(p.ink3).withValues(alpha: 0.05),
                 borderRadius: R.rMd,
-                border: Border.all(color: p.line.withValues(alpha: 0.6)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

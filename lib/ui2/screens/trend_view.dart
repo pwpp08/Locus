@@ -21,6 +21,7 @@ import '../../data/day_label.dart';
 import '../../data/db.dart';
 import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../state/prefs.dart';
 import '../activity/catalogue.dart' show Track, activityByName;
 import '../ui2.dart';
 import 'home_screen.dart'
@@ -221,6 +222,39 @@ TrendMetric? trendMetricOf(String id) {
   }
   return null;
 }
+
+/// My Dashboard's one tile that is not a metric: the week's strain and
+/// recovery on one chart.
+const kStrainRecoveryTile = 'strain_recovery';
+
+/// What My Dashboard shows until the user customizes it.
+const kDashboardDefault = [
+  kStrainRecoveryTile, 'hrv', 'resting_hr', 'steps', 'zones_13', 'zones_45',
+  'sleep_perf',
+];
+
+/// The saved tile order, unknown keys dropped. Unset is the default set.
+List<String> dashboardTilesOf() {
+  final raw = Prefs.getString(Prefs.dashboardTiles, '');
+  if (raw.isEmpty) return kDashboardDefault;
+  final saved = [
+    for (final k in raw.split(','))
+      if (k == kStrainRecoveryTile || trendMetricOf(k) != null) k,
+  ];
+  // The chart used to sit above the dashboard whatever was chosen: a list saved
+  // before it was a tile keeps it, first, until the user decides.
+  return !saved.contains(kStrainRecoveryTile) &&
+          !Prefs.getBool(Prefs.dashboardChartChosen, false)
+      ? [kStrainRecoveryTile, ...saved]
+      : saved;
+}
+
+/// The metrics Trend View lists: the ones switched on in My Dashboard. Null
+/// while the dashboard has never been customized, which lists them all.
+Set<String>? dashboardMetricsOf() =>
+    Prefs.getString(Prefs.dashboardTiles, '').isEmpty
+        ? null
+        : {...dashboardTilesOf()};
 
 String trendGroupName(TrendGroup g) => switch (g) {
       TrendGroup.strain => 'Strain',
@@ -437,12 +471,12 @@ class TrendLoader {
           values = _perMinute((await r.getDayStrain(day))['curve'], day);
         case 'avg_hr':
           hourly = false;
-          values = _perMinute((await r.getDayTimeline(day))['hr'], day);
+          values = _perMinute((await _timeline(r, day))['hr'], day);
         case 'hrv':
           // Minute readings are noisy: an hour's value is the mean of its own.
           hourly = true;
           values = _meanPerHour(
-              _perMinute((await r.getDayTimeline(day))['hrv'], day));
+              _perMinute((await _timeline(r, day))['hrv'], day));
         case 'calories':
           hourly = true;
           values = _caloriesPerHour(await r.getDayStrain(day), day);
@@ -454,6 +488,45 @@ class TrendLoader {
       }
       if (!values.any((v) => v != null)) return null;
       return (values: values, hourly: hourly, day: day);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  final _timelines = <String, Future<Map<String, dynamic>>>{};
+
+  /// A day's timeline, read once however many charts ask.
+  Future<Map<String, dynamic>> _timeline(LocalRepository r, String day) =>
+      _timelines[day] ??= r.getDayTimeline(day);
+
+  /// The night that ended on [day], as minutes of that day, with the mean of
+  /// the HRV readings taken inside it. The day's own readings (walking about,
+  /// working, training) are noisier and say little about recovery, so they are
+  /// drawn but never counted. Null with no night on record for the day.
+  Future<TrendSleep?> sleepHrv(String day) async {
+    final r = repo;
+    if (r == null) return null;
+    try {
+      final tl = await _timeline(r, day);
+      final w = (tl['sleep'] as List?)?.whereType<Map>().firstOrNull;
+      final on = w?['onset_ts'], off = w?['wake_ts'];
+      if (on is! num || off is! num || off <= on) return null;
+      int minuteOf(num ts) {
+        final t = DateTime.fromMillisecondsSinceEpoch(ts.toInt() * 1000);
+        final d = dayLabelOf(t);
+        if (d.compareTo(day) < 0) return 0;
+        if (d.compareTo(day) > 0) return 1440;
+        return t.hour * 60 + t.minute;
+      }
+
+      final from = minuteOf(on), to = minuteOf(off);
+      if (to <= from) return null;
+      final minutes = _perMinute(tl['hrv'], day);
+      return (
+        from: from,
+        to: to,
+        mean: _mean([for (var m = from; m < to; m++) ?minutes[m]]),
+      );
     } catch (_) {
       return null;
     }
@@ -705,6 +778,9 @@ class DashboardRows extends StatelessWidget {
   final String? firstDay;
   final ValueChanged<String> onOpen;
 
+  /// Tiles that are not a metric's row, by id: drawn in their place in [ids].
+  final Map<String, Widget> tiles;
+
   const DashboardRows({
     super.key,
     required this.ids,
@@ -712,25 +788,34 @@ class DashboardRows extends StatelessWidget {
     required this.today,
     this.firstDay,
     required this.onOpen,
+    this.tiles = const {},
   });
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    final metrics = [for (final id in ids) ?trendMetricOf(id)];
-    if (metrics.isEmpty) {
+    final shown = [
+      for (final id in ids)
+        if (tiles[id] != null)
+          tiles[id]!
+        else if (trendMetricOf(id) case final m?)
+          _row(c, p, m),
+    ];
+    if (shown.isEmpty) {
       return Surface(
         child: Text('No metrics on your dashboard. Tap Customize to add some.',
             style: F.body.copyWith(color: p.ink3)),
       );
     }
     return Column(children: [
-      for (var i = 0; i < metrics.length; i++) ...[
+      for (var i = 0; i < shown.length; i++) ...[
         if (i > 0) const SizedBox(height: S.x3),
-        _row(c, p, metrics[i]),
+        shown[i],
       ],
     ]);
   }
+
+  static const _triangle = S.x2 + S.half;
 
   Widget _row(BuildContext c, P p, TrendMetric m) {
     final h = trendHeadline(m, daily[m.id] ?? const {},
@@ -756,18 +841,18 @@ class DashboardRows extends StatelessWidget {
           Row(mainAxisSize: MainAxisSize.min, children: [
             Text(m.absent != null ? '--' : trendFormat(m, h.value),
                 style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-            const SizedBox(width: S.x2),
-            SizedBox(
-              width: S.x3,
-              child: dir == null
-                  ? null
-                  : DeltaTriangle(
-                      up: h.value! > h.against!, color: dir, size: S.x3),
-            ),
+            // A number with no arrow beside it takes the arrow's room, and
+            // sits at the card's edge.
+            if (dir != null) ...[
+              const SizedBox(width: S.x2),
+              DeltaTriangle(
+                  up: h.value! > h.against!, color: dir, size: _triangle),
+            ],
           ]),
           if (h.against != null && m.absent == null)
             Padding(
-              padding: const EdgeInsets.only(right: S.x3 + S.x2),
+              padding: EdgeInsets.only(
+                  right: dir == null ? 0 : _triangle + S.x2),
               child: Text(trendFormat(m, h.against),
                   style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
             ),
@@ -848,6 +933,9 @@ double? trendAverage(List<TrendBar> bars) => _mean([for (final b in bars) ?b.v])
 /// A day's own shape: [values] per minute (1440) or per hour (24), for [day].
 typedef TrendIntra = ({List<double?> values, bool hourly, String day});
 
+/// A night inside a day, in minutes of it, and what the HRV read across it.
+typedef TrendSleep = ({int from, int to, double? mean});
+
 /// What a Day view is summarised by: the last point of a running total, the sum
 /// of an hourly count, or the mean of a series. Null when nothing was recorded.
 double? trendDayValue(TrendMetric m, TrendIntra i) {
@@ -920,6 +1008,9 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   TrendIntra? _intra;
   String? _intraKey;
 
+  /// The night shaded on the HRV day chart, and what its readings average.
+  TrendSleep? _sleep;
+
   /// The layers behind a stacked or paired chart, and the nights behind a
   /// floating one.
   List<Map<String, double>>? _layers;
@@ -972,9 +1063,11 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     final want = _intraWant;
     final day = _dayShown;
     final r = await loader.intraday(m, day);
+    final sleep = m.id == 'hrv' && r != null ? await loader.sleepHrv(day) : null;
     if (!mounted || want != _intraWant) return;
     setState(() {
       _intra = r;
+      _sleep = sleep;
       _intraKey = want;
       // Nothing to draw for today and the user has not chosen: the week is
       // the useful default, not an empty chart.
@@ -1188,7 +1281,12 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
 
     final intra = _intraKey == _intraWant ? _intra : null;
     final intraLoading = isDay && _intraKey != _intraWant;
-    final dayValue = intra == null ? null : trendDayValue(m, intra);
+    // HRV counts only the night's readings; every other metric its whole day.
+    final dayValue = intra == null
+        ? null
+        : m.id == 'hrv'
+            ? _sleep?.mean
+            : trendDayValue(m, intra);
 
     final monthBars = monthly ? _monthBars(m, daily, end) : null;
     final sel = isDay || _selected == null
@@ -1321,7 +1419,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
           ),
           if (_picking) ...[
             const SizedBox(height: S.x2),
-            _Picker(current: m, onPick: _pick),
+            _Picker(current: m, onPick: _pick, allowed: dashboardMetricsOf()),
           ] else ...[
             const SizedBox(height: S.x6),
             if (m.absent != null)
@@ -1357,6 +1455,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                   style: F.head.copyWith(color: p.ink, height: 1.3)),
               if (band != null)
                 _legend(p, [(label: 'TYPICAL RANGE', color: p.ink.withValues(alpha: .12))]),
+              if (isDay && m.id == 'hrv' && _sleep != null)
+                _legend(p, [(label: 'SLEEP', color: C.dialSleep.withValues(alpha: .4))]),
               if (!isDay && m.id == 'restorative_hours')
                 _legend(p, const [
                   (label: 'SWS (DEEP)', color: C.trendSws),
@@ -1507,12 +1607,28 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
           hi: axis.hi,
           ticks: axis.ticks,
           tickText: (t) => _tickText(m, t),
-          avg: trendDayValue(m, intra),
+          avg: m.id == 'hrv' ? _sleep?.mean : trendDayValue(m, intra),
           color: _colorOf(m),
           markers: false,
           smooth: true,
           gap: 3,
           height: S.x16 * 4 + S.x8,
+          // The night, shaded: the part of the day that is counted.
+          paintUnder: m.id == 'hrv' && _sleep != null
+              ? (canvas, plot, xOf, yOf) {
+                  final s = _sleep!;
+                  canvas.drawRRect(
+                    RRect.fromRectAndRadius(
+                        Rect.fromLTRB(
+                            plot.left + plot.width * s.from / 1440,
+                            plot.top,
+                            plot.left + plot.width * s.to / 1440,
+                            plot.bottom),
+                        const Radius.circular(R.sm)),
+                    Paint()..color = C.dialSleep.withValues(alpha: .16),
+                  );
+                }
+              : null,
           // A small dot on each hour that has a value, so the hours read as
           // readings and not as one continuous trace.
           paintOver: (canvas, plot, xOf, yOf) {
@@ -1640,11 +1756,32 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       ticks: axis.ticks,
       tickText: (t) => _tickText(m, t),
       avg: avg,
+      marks: _monthMarks(m, bars, [for (final b in bars) b.v]),
       color: color,
       colorOf: m.id == 'recovery' ? (i, v) => recoveryColor(v) : null,
       height: S.x16 * 4 + S.x8,
       onScrub: (i) => setState(() => _selected = i),
     );
+  }
+
+  /// On six months, a white line at each month's average over the weekly
+  /// columns it spans, the figure on it. Empty on any other range.
+  List<ColumnMark> _monthMarks(TrendMetric m, List<TrendBar> bars, List<double?> totals) {
+    if (_range != TrendRange.sixMonths) return const [];
+    final out = <ColumnMark>[];
+    var from = 0;
+    for (var i = 1; i <= bars.length; i++) {
+      if (i < bars.length &&
+          _dateOf(bars[i].to).month == _dateOf(bars[i - 1].to).month) {
+        continue;
+      }
+      final avg = _mean([for (var k = from; k < i; k++) ?totals[k]]);
+      if (avg != null) {
+        out.add((from: from, to: i - 1, v: avg, text: trendFormat(m, avg)));
+      }
+      from = i;
+    }
+    return out;
   }
 
   /// Columns stacked from the layers, each in its own colour.
@@ -1678,6 +1815,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       ticks: axis.ticks,
       tickText: (t) => _tickText(m, t),
       avg: avg,
+      marks: _monthMarks(m, bars, totals),
       color: _colorOf(m),
       height: S.x16 * 4 + S.x8,
       onScrub: (i) => setState(() => _selected = i),
@@ -1951,8 +2089,16 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       ({double lo, double hi})? band, double? dayValue,
       List<List<TrendBar>>? layerBars, AppLocalizations? l) {
     if (_range == TrendRange.day) {
-      if (dayValue == null) return 'No ${m.title.toLowerCase()} recorded for this day.';
+      if (dayValue == null) {
+        return m.id == 'hrv'
+            ? 'No heart rate variability from a night\'s sleep for this day.'
+            : 'No ${m.title.toLowerCase()} recorded for this day.';
+      }
       final when = _dayShown == _today ? 'today' : 'on ${_dayName(_dayShown, l)}';
+      if (m.id == 'hrv') {
+        return 'Your average heart rate variability asleep $when '
+            '${_dayShown == _today ? 'is' : 'was'} ${trendFormat(m, dayValue)} ms.';
+      }
       final title = m.title.toLowerCase();
       final agg = m.cumulative || title.startsWith('average')
           ? ''
@@ -2509,7 +2655,14 @@ class _TrianglePainter extends CustomPainter {
 class _Picker extends StatelessWidget {
   final TrendMetric current;
   final ValueChanged<TrendMetric> onPick;
-  const _Picker({required this.current, required this.onPick});
+
+  /// The metrics switched on in My Dashboard (null: all of them). The one on
+  /// screen is always listed, so the picker never loses its own place.
+  final Set<String>? allowed;
+  const _Picker({required this.current, required this.onPick, this.allowed});
+
+  bool _listed(TrendMetric m) =>
+      allowed == null || allowed!.contains(m.id) || m == current;
 
   @override
   Widget build(BuildContext c) {
@@ -2518,7 +2671,8 @@ class _Picker extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: S.x2),
       decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        for (final g in TrendGroup.values) ...[
+        for (final g in TrendGroup.values)
+          if (kTrendCatalogue.any((m) => m.group == g && _listed(m))) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x4, S.x2),
             child: Row(children: [
@@ -2530,7 +2684,7 @@ class _Picker extends StatelessWidget {
             ]),
           ),
           for (final m in kTrendCatalogue)
-            if (m.group == g)
+            if (m.group == g && _listed(m))
               Pressable(
                 onTap: () => onPick(m),
                 semanticLabel: m.title,
@@ -2646,7 +2800,8 @@ const _about = <String, String>{
           'and adaptable, but what is normal differs a lot between people, so '
           'compare it with your own baseline.\n\nIt is read overnight, when it is '
           'steadiest. Stress, alcohol, illness and hard training push it down. '
-          'The day view averages each hour.',
+          'The day view draws each hour, and shades your sleep: only the '
+          'readings taken asleep count towards the average.',
   'resting_hr':
       'Resting heart rate is the lowest level your heart settles at, measured '
           'while you sleep. It tends to fall as fitness improves and rise with '
@@ -2715,7 +2870,6 @@ class _AboutCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Color.alphaBlend(p.ink.withValues(alpha: .035), p.card),
         borderRadius: R.rXl,
-        border: Border.all(color: p.ink.withValues(alpha: .05)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(title, style: F.head.copyWith(color: p.ink, fontWeight: FontWeight.w700)),

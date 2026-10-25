@@ -1602,6 +1602,13 @@ Map<String, Widget> _stateCases() => {
         SizedBox(width: S.x3),
         StatIcon(StatMark.steps, color: C.n400),
       ]),
+      'strap_icon': const Row(mainAxisSize: MainAxisSize.min, children: [
+        StrapIcon(color: C.white, badge: SyncArrowMark()),
+        SizedBox(width: S.x4),
+        BoldChevron(left: true, color: C.white),
+        SizedBox(width: S.x4),
+        BoldChevron(left: false, color: C.white),
+      ]),
       'delta_triangles': const Row(mainAxisSize: MainAxisSize.min, children: [
         DeltaTriangle(up: true, color: C.optimal),
         SizedBox(width: S.x3),

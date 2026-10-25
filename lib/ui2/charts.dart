@@ -613,8 +613,25 @@ class Ring extends CustomPainter {
   /// calibrating" and "this is missing" into one look.
   final bool solid;
 
+  /// The home dial's finish: the arc starts square at the top and ends in a
+  /// round cap.
+  final bool flatStart;
+
+  /// A lighter stretch of the track, as fractions of the turn (the strain
+  /// target), and a tick across the track at [tick]. Both draw under the arc.
+  final (double, double)? band;
+  final Color? bandColor, tickColor;
+  final double? tick;
+
   Ring(this.v, this.color, this.track,
-      {this.stroke = 10, this.t = 1, this.solid = false});
+      {this.stroke = 10,
+      this.t = 1,
+      this.solid = false,
+      this.flatStart = false,
+      this.band,
+      this.bandColor,
+      this.tick,
+      this.tickColor});
 
   @override
   void paint(Canvas cv, Size s) {
@@ -629,8 +646,51 @@ class Ring extends CustomPainter {
         ..strokeWidth = stroke
         ..color = track,
     );
+    final b = band;
+    if (b != null && b.$2 > b.$1) {
+      cv.drawArc(
+        Rect.fromCircle(center: c, radius: r),
+        -pi / 2 + 2 * pi * b.$1.clamp(0, 1),
+        2 * pi * (b.$2.clamp(0, 1) - b.$1.clamp(0, 1)),
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..color = bandColor ?? track,
+      );
+    }
+    final tk = tick;
+    if (tk != null) {
+      final a = -pi / 2 + 2 * pi * tk.clamp(0, 1);
+      cv.drawLine(
+        c + Offset(cos(a), sin(a)) * (r - stroke / 2),
+        c + Offset(cos(a), sin(a)) * (r + stroke / 2),
+        Paint()
+          ..color = tickColor ?? color
+          ..strokeWidth = stroke * .16,
+      );
+    }
     final sweep = 2 * pi * v.clamp(0, 1) * t.clamp(0, 1);
     if (sweep <= 0) return;
+    if (flatStart && solid) {
+      cv.drawArc(
+        Rect.fromCircle(center: c, radius: r),
+        -pi / 2,
+        sweep,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..color = color,
+      );
+      // The round end, unless the turn is complete.
+      if (sweep < 2 * pi - .02) {
+        final a = -pi / 2 + sweep;
+        cv.drawCircle(c + Offset(cos(a), sin(a)) * r, stroke / 2,
+            Paint()..color = color);
+      }
+      return;
+    }
     cv.drawArc(
       Rect.fromCircle(center: c, radius: r),
       -pi / 2,
@@ -654,7 +714,13 @@ class Ring extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant Ring o) =>
-      o.v != v || o.t != t || o.solid != solid || o.color != color;
+      o.v != v ||
+      o.t != t ||
+      o.solid != solid ||
+      o.color != color ||
+      o.stroke != stroke ||
+      o.band != band ||
+      o.tick != tick;
 }
 
 /// A ring made of discrete dashes rather than a continuous arc — for a value

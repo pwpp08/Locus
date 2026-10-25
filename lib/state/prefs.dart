@@ -91,6 +91,14 @@ class Prefs {
   // a saved v1 order is not carried over.
   static const String dashboardTiles = 'ui.dashboard_tiles.v2';
 
+  /// True once the user has saved My Dashboard with the Strain & Recovery chart
+  /// as a tile of its own. A list saved before that keeps the chart, first.
+  static const String dashboardChartChosen = 'ui.dashboard_chart_chosen';
+
+  /// The day (local label) the user swiped the "Your first weeks" card away.
+  /// It stays gone for the rest of that day and is back the next.
+  static const String firstWeeksDismissedOn = 'ui.first_weeks_dismissed_on';
+
   /// The Sleep Planner's wake time, minute of day. Unset (-1): the armed
   /// alarm, else the usual wake time the sleep coach learned.
   static const String sleepPlannerWakeMin = 'sleep_planner.wake_min';

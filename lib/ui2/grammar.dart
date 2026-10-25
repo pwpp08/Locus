@@ -376,8 +376,48 @@ class _StripPointerState extends State<_StripPointer> {
       );
 }
 
-/// The base card surface. Dark: the card plus a 1 px hairline, no shadow.
-/// Light: the card plus one soft shadow, no hairline (§5.1).
+/// How much a dark card is graded from its top-left corner to its bottom-right.
+enum PanelTone {
+  /// A hint of light in one corner: every ordinary card.
+  subtle,
+
+  /// A real fall-off to near the page colour: the figures panels under a dial.
+  rich,
+}
+
+/// A card's ground. Dark: graded from a touch lighter at the top left to a
+/// touch darker at the bottom right, with no outline. Light: the plain card.
+BoxDecoration panelDecoration(BuildContext c,
+    {PanelTone tone = PanelTone.subtle,
+    BorderRadius radius = R.rXl,
+    Color? color}) {
+  final p = P.of(c);
+  final base = color ?? p.card;
+  if (!p.dark) {
+    return BoxDecoration(color: base, borderRadius: radius, boxShadow: p.el(1));
+  }
+  final rich = tone == PanelTone.rich;
+  return BoxDecoration(
+    borderRadius: radius,
+    gradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: rich
+          ? [
+              Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
+              Color.alphaBlend(C.char.withValues(alpha: .4), p.bg),
+            ]
+          : [
+              Color.alphaBlend(p.ink.withValues(alpha: .035), base),
+              Color.alphaBlend(C.char.withValues(alpha: .16), base),
+            ],
+    ),
+  );
+}
+
+/// The base card surface. Dark: the card, graded a little, no outline and no
+/// shadow. Light: the card plus one soft shadow (§5.1). A [color] given to it
+/// is used flat.
 class Surface extends StatelessWidget {
   final Widget child;
   final EdgeInsets pad;
@@ -385,6 +425,9 @@ class Surface extends StatelessWidget {
   final Color? color;
   final int elevation;
   final String? semanticLabel;
+
+  /// How strongly the ground is graded in dark mode. Ignored with a [color].
+  final PanelTone tone;
 
   const Surface({
     super.key,
@@ -394,6 +437,7 @@ class Surface extends StatelessWidget {
     this.color,
     this.elevation = 1,
     this.semanticLabel,
+    this.tone = PanelTone.subtle,
   });
 
   @override
@@ -405,12 +449,13 @@ class Surface extends StatelessWidget {
       child: Container(
         width: double.infinity,
         padding: pad,
-        decoration: BoxDecoration(
-          color: color ?? p.card,
-          borderRadius: R.rXl,
-          border: p.dark && elevation > 0 ? Border.all(color: p.line) : null,
-          boxShadow: p.el(elevation),
-        ),
+        decoration: color != null || elevation == 0
+            ? BoxDecoration(
+                color: color ?? p.card,
+                borderRadius: R.rXl,
+                boxShadow: p.el(elevation),
+              )
+            : panelDecoration(c, tone: tone),
         child: child,
       ),
     );

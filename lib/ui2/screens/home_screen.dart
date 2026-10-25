@@ -75,6 +75,7 @@ import '../profile/wearable_numbers.dart'
     show WearableCells, kHomeWearableRows;
 import '../ui2.dart';
 import 'action_sheet.dart' show openActionSheet;
+import 'add_activity.dart' show openAddActivity;
 import 'ai_briefing.dart' show AiBriefingScreen;
 import 'detected_activities.dart';
 import 'day_timeline.dart' show DayTimelineScreen;
@@ -2142,6 +2143,9 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         onExpand: () => go(c, DayTimelineScreen(day: _day)),
         onSleep: () => go(c, SleepDetail(day: isToday ? null : _day)),
         onSession: () => go(c, const DayStrainDetail()),
+        onAdd: () async {
+          if (await openAddActivity(c) == true) _load();
+        },
       ),
       if (isToday) ...[
         const SizedBox(height: S.x3),
@@ -2159,27 +2163,9 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       const SizedBox(height: S.x3),
       const DetectedActivitiesCard(),
 
-      // ── STRAIN & RECOVERY ── the week's two stories on one chart.
-      const SizedBox(height: S.x3),
-      StrainRecoveryCard(
-        days: [
-          for (var i = 6; i >= 0; i--)
-            shiftDay(d.dayId ?? _day ?? todayLabel(widget.now), -i),
-        ],
-        strain: _daily['strain'] ?? const {},
-        recovery: _daily['recovery'] ?? const {},
-      ),
-
-      // ── MY PLAN ── progress toward the goals that are set. Skipped on a
-      // past day — "3,000 steps left" about a day already over is an
-      // instruction, not a fact.
-      if (isToday && !bare) ...[
-        const _SectionHead('My Plan'),
-        _myPlan(c, p, d),
-      ],
-
-      // ── MY DASHBOARD ── the metrics the user picked, one row each, in
-      // their order. A row opens Trend View on that metric.
+      // ── MY DASHBOARD ── what the user picked, one tile each, in their order:
+      // the week's strain and recovery chart, and a row per metric that opens
+      // Trend View on it.
       _SectionHead(
         'My Dashboard',
         trailing: Pressable(
@@ -2202,6 +2188,16 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         today: d.dayId ?? todayLabel(widget.now),
         firstDay: _firstDay,
         onOpen: (k) => go(c, TrendViewScreen(initial: k)),
+        tiles: {
+          kStrainRecoveryTile: StrainRecoveryCard(
+            days: [
+              for (var i = 6; i >= 0; i--)
+                shiftDay(d.dayId ?? _day ?? todayLabel(widget.now), -i),
+            ],
+            strain: _daily['strain'] ?? const {},
+            recovery: _daily['recovery'] ?? const {},
+          ),
+        },
       ),
 
       // ── STRESS MONITOR ── the trend, one tap from the full chart.
@@ -2258,6 +2254,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     );
     if (next == null || !mounted) return;
     Prefs.setString(Prefs.dashboardTiles, next.join(','));
+    Prefs.setBool(Prefs.dashboardChartChosen, true);
     setState(() => _tiles = next);
     _load();
   }
@@ -2344,87 +2341,6 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     await _load();
   }
 
-  /// My Plan: each goal that is actually set, as a bar toward it. Only goals
-  /// the app can stand behind — the step goal, the strain target the coach
-  /// computed, and the computed sleep need. A goal that is not set is not a
-  /// row.
-  Widget _myPlan(BuildContext c, P p, HomeData d) {
-    final l = AppLocalizations.of(c);
-    final rows = <Widget>[];
-
-    final steps = d.steps.value;
-    if (steps != null && d.stepGoal > 0) {
-      rows.add(_PlanRow(
-        icon: LucideIcons.footprints,
-        label: l?.homeSteps ?? 'Steps',
-        value: thousands(steps),
-        target: l?.homeGoalSteps(thousands(d.stepGoal)) ??
-            'Goal ${thousands(d.stepGoal)}',
-        frac: steps / d.stepGoal,
-        color: C.recGreen,
-        onTap: () => go(c, const MetricDetail('steps')),
-      ));
-    }
-
-    final target = d.strainTarget;
-    if (target != null && target['value'] is num) {
-      final aim = (target['value'] as num).toDouble();
-      final strain = d.strain.value?.toDouble();
-      rows.add(_PlanRow(
-        icon: LucideIcons.zap,
-        label: [
-          l?.homeRingStrain ?? 'Strain',
-          // Built on a wearable's estimated TRIMP: say so.
-          if (target['estimated'] == true) l?.wearableEstimated ?? 'Estimated',
-        ].join(' · '),
-        value: strain == null ? '--' : strain.toStringAsFixed(1),
-        target: l?.homeAimForStrain(aim.toStringAsFixed(1)) ??
-            'Aim for ${aim.toStringAsFixed(1)}',
-        frac: strain == null || aim <= 0 ? 0 : strain / aim,
-        color: C.dialStrain,
-        onTap: () => go(c, const DayStrainDetail()),
-      ));
-    }
-
-    final need = d.sleepNeedMin.value;
-    if (need != null) {
-      rows.add(_PlanRow(
-        icon: LucideIcons.bedDouble,
-        label: l?.homeTonight ?? 'Tonight',
-        value: hm(need),
-        target: d.bedtime.value == null
-            ? (l?.homeNeed ?? 'Need')
-            : (l?.homeBedTime(clock(d.bedtime.value)) ??
-                'Bed ${clock(d.bedtime.value)}'),
-        // A target for tonight, not progress: nothing has been slept yet.
-        frac: null,
-        color: C.dialSleep,
-        onTap: () => go(c, SleepDetail(day: null)),
-      ));
-    }
-
-    if (rows.isEmpty) {
-      return StatusCard.forMetric(
-              l?.homeNoPlanTitle ?? 'No plan for today yet', d.sleepNeedMin,
-              // "none are established yet" is the COLD-START reason, and it is
-              // a wrong answer when the baselines exist and are being withheld.
-              why: d.insightsStale != null
-                  ? (l?.homeNoPlanWhyStale ??
-                      'Your trends are being updated. This takes a minute after a sync.')
-                  : (l?.homeNoPlanWhyNone ?? 'None are established yet.')) ??
-          const SizedBox.shrink();
-    }
-    return Surface(
-      pad: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x2),
-      child: Column(children: [
-        for (var i = 0; i < rows.length; i++) ...[
-          if (i > 0) Divider(color: p.line, height: 1),
-          rows[i],
-        ],
-      ]),
-    );
-  }
-
   /// The only quick way into [AiBriefingScreen] used to be the notification
   /// that fires when a briefing is ready — dismiss or miss it, and the
   /// screen was two non-obvious taps deep behind Coach's overflow menu
@@ -2508,7 +2424,8 @@ Widget firstWeekCard(BuildContext c,
           ]),
         ),
       );
-  return Surface(
+  return _SwipeAway(
+    child: Surface(
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(l?.homeFirstWeekTitle ?? 'Your first weeks',
           style: F.head.copyWith(color: p.ink)),
@@ -2531,25 +2448,37 @@ Widget firstWeekCard(BuildContext c,
       Text(l?.homeFirstWeekSoFar(days) ?? '$days days recorded so far',
           style: F.cap.copyWith(color: p.ink3)),
     ]),
-  );
+  ));
+}
+
+/// A card the user can swipe either way to be rid of it for the rest of the
+/// day. It comes back tomorrow: the card is a checklist, not a message.
+class _SwipeAway extends StatefulWidget {
+  final Widget child;
+  const _SwipeAway({required this.child});
+
+  @override
+  State<_SwipeAway> createState() => _SwipeAwayState();
+}
+
+class _SwipeAwayState extends State<_SwipeAway> {
+  late bool _gone = Prefs.getString(Prefs.firstWeeksDismissedOn, '') == todayLabel();
+
+  @override
+  Widget build(BuildContext c) {
+    if (_gone) return const SizedBox.shrink();
+    return Dismissible(
+      key: const ValueKey('first-weeks-card'),
+      onDismissed: (_) {
+        Prefs.setString(Prefs.firstWeeksDismissedOn, todayLabel());
+        setState(() => _gone = true);
+      },
+      child: widget.child,
+    );
+  }
 }
 
 // ═══════════════════ the Home components ═══════════════════
-
-/// What My Dashboard shows until the user customizes it.
-const kDashboardDefault = [
-  'hrv', 'resting_hr', 'steps', 'zones_13', 'zones_45', 'sleep_perf',
-];
-
-/// The saved row order, unknown keys dropped. Unset is the default set.
-List<String> dashboardTilesOf() {
-  final raw = Prefs.getString(Prefs.dashboardTiles, '');
-  if (raw.isEmpty) return kDashboardDefault;
-  return [
-    for (final k in raw.split(','))
-      if (trendMetricOf(k) != null) k,
-  ];
-}
 
 /// Consecutive days with data, ending today — or yesterday, while today has
 /// not derived yet (a streak is not broken by it being morning).
@@ -2619,7 +2548,7 @@ class _DayPager extends StatelessWidget {
     final dt = DateTime.tryParse(day);
     final label = day == today || dt == null
         ? (l?.dayStrainToday ?? 'TODAY')
-        : '${weekdayShortName(dt.weekday, l)} ${dt.day} ${monthShortName(dt.month, l)}'
+        : '${weekdayShortName(dt.weekday, l)}, ${monthShortName(dt.month, l)} ${dt.day}'
             .toUpperCase();
 
     // Labelled even when dead: a screen reader still hears there is no
@@ -2632,25 +2561,46 @@ class _DayPager extends StatelessWidget {
           child: Pressable(
             onTap: to == null ? null : () => onDay(to),
             child: SizedBox(
-              width: S.x10,
-              height: S.x10,
-              child: Icon(i, size: I.sm, color: to == null ? p.track : p.ink),
+              width: S.x10 + S.x1,
+              height: S.x10 - S.half,
+              child: Center(
+                child: BoldChevron(
+                    left: i == LucideIcons.chevronLeft,
+                    color: to == null ? p.ink.withValues(alpha: .22) : p.ink),
+              ),
             ),
           ),
         );
 
+    // 200 wide and 38 tall: the date's pill fills the bar's height, with a
+    // bold chevron either side.
     return Container(
-      decoration: BoxDecoration(color: p.card2, borderRadius: R.rMd),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
+      width: S.x16 * 3 + S.x2,
+      height: S.x10 - S.half,
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
+        borderRadius: R.rLg,
+      ),
+      child: Row(children: [
         arrow(LucideIcons.chevronLeft, older, 'Previous day'),
-        Container(
-          constraints: const BoxConstraints(minWidth: S.x16 + S.x4),
-          padding: const EdgeInsets.symmetric(horizontal: S.x2, vertical: S.x1),
-          decoration: BoxDecoration(color: p.track, borderRadius: R.rMd),
-          alignment: Alignment.center,
-          child: Text(label,
-              style: F.over.copyWith(
-                  color: p.ink, fontWeight: FontWeight.w700)),
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Color.alphaBlend(p.ink.withValues(alpha: .15), p.bg),
+              borderRadius: R.rLg,
+            ),
+            alignment: Alignment.center,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(label,
+                  maxLines: 1,
+                  style: F.cap.copyWith(
+                      color: p.ink,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                      height: 1)),
+            ),
+          ),
         ),
         arrow(LucideIcons.chevronRight, newer, 'Next day'),
       ]),
@@ -2682,41 +2632,25 @@ class _DeviceStatus extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         if (battery != null) ...[
           Text('${battery.$1.round()}%',
-              style: F.cap.copyWith(
-                  color: low ? p.on(C.red) : p.ink3, fontWeight: FontWeight.w700)),
-          const SizedBox(width: S.half),
+              style: F.n17.copyWith(
+                  color: low ? p.on(C.red) : p.ink, fontWeight: FontWeight.w700)),
+          const SizedBox(width: S.x3),
         ],
-        SizedBox(
-          width: S.x8,
-          height: S.x8,
-          child: Stack(children: [
-            Center(
-              child: Icon(
-                  battery?.$2 == true && !syncing
-                      ? LucideIcons.batteryCharging
-                      : LucideIcons.watch,
-                  size: I.lg,
-                  color: p.ink2),
-            ),
-            // Receiving from the strap: an arrow hops up and down where the
-            // link dot sits.
-            if (syncing)
-              const Positioned(right: 0, top: 0, child: _SyncArrow())
-            else
-            Positioned(
-              right: 0,
-              top: 0,
-              child: Container(
-                width: S.x2 + S.half,
-                height: S.x2 + S.half,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: connected ? C.recGreen : p.ink3,
-                  border: Border.all(color: p.bg, width: S.half),
+        // Receiving from the strap, an arrow hops up and down in the gap of
+        // the band's outline; otherwise a dot says whether it is linked.
+        StrapIcon(
+          color: p.ink,
+          height: S.x10 - S.half,
+          badge: syncing
+              ? const _SyncArrow()
+              : Container(
+                  width: S.x2 + S.half,
+                  height: S.x2 + S.half,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: connected ? C.recGreen : p.ink3,
+                  ),
                 ),
-              ),
-            ),
-          ]),
         ),
       ]),
     );
@@ -2738,7 +2672,7 @@ class _SyncArrowState extends State<_SyncArrow> {
 
   @override
   Widget build(BuildContext c) {
-    const arrow = Icon(LucideIcons.arrowUp, size: I.sm, color: C.orange);
+    const arrow = SyncArrowMark();
     if (!Motion.enabled(c)) return arrow;
     return TweenAnimationBuilder<double>(
       tween: Tween(end: _up ? 1 : 0),
@@ -2845,7 +2779,18 @@ String _dialName(HomeRingKind k, AppLocalizations? l) => switch (k) {
       HomeRingKind.strain => l?.homeRingStrain ?? 'Strain',
     };
 
-class _ScoreDial extends StatelessWidget {  final _RingState r;
+/// The strain target as stretches of the 21-point turn: where the day's aim
+/// begins and ends. Null with no target to show.
+(double, double)? _strainBand(HomeData d) {
+  final t = d.strainTarget;
+  final lo = (t?['low'] as num?)?.toDouble();
+  final hi = (t?['high'] as num?)?.toDouble();
+  if (lo == null || hi == null || hi <= lo || lo < 0) return null;
+  return (lo / 21, hi / 21);
+}
+
+class _ScoreDial extends StatelessWidget {
+  final _RingState r;
   final HomeData d;
   final VoidCallback onTap;
 
@@ -2868,17 +2813,29 @@ class _ScoreDial extends StatelessWidget {  final _RingState r;
            widthFactor: 0.85,
            child: AspectRatio(
             aspectRatio: 1,
-            child: Stack(alignment: Alignment.center, children: [
+            child: LayoutBuilder(builder: (c, box) {
+             // A thin ring: under a fifteenth of the dial across.
+             final stroke = box.maxWidth * .058;
+             final target = r.kind == HomeRingKind.strain ? _strainBand(d) : null;
+             return Stack(alignment: Alignment.center, children: [
               CustomPaint(
                 size: Size.infinite,
                 painter: r.calibrating
                     ? DashedRing(frac ?? 0, p.ink3, p.track,
-                        stroke: S.x2 + S.half, segments: r.need ?? 24)
+                        stroke: stroke, segments: r.need ?? 24)
                     : Ring(frac ?? 0, arc, p.track,
-                        stroke: S.x2 + S.half, t: animate(c, 1), solid: true),
+                        stroke: stroke,
+                        t: animate(c, 1),
+                        solid: true,
+                        flatStart: true,
+                        band: target,
+                        bandColor: Color.alphaBlend(
+                            p.ink.withValues(alpha: .14), p.track),
+                        tick: target?.$1,
+                        tickColor: p.ink),
               ),
               Padding(
-                padding: const EdgeInsets.all(S.x4),
+                padding: EdgeInsets.all(stroke + S.x2),
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Row(
@@ -2898,7 +2855,8 @@ class _ScoreDial extends StatelessWidget {  final _RingState r;
                   ),
                 ),
               ),
-            ]),
+             ]);
+            }),
            ),
           ),
         ),
@@ -2909,8 +2867,8 @@ class _ScoreDial extends StatelessWidget {  final _RingState r;
                 textAlign: TextAlign.center,
                 style: F.caps.copyWith(color: p.ink)),
           ),
-          const SizedBox(width: S.half),
-          Icon(LucideIcons.chevronRight, size: I.sm, color: p.ink3),
+          const SizedBox(width: S.x2),
+          BoldChevron(left: false, color: p.ink3, height: S.x3),
         ]),
         if (r.provisional || r.calibrating) ...[
           const SizedBox(height: S.half),
@@ -2957,10 +2915,11 @@ class _PlusButton extends StatelessWidget {
       onTap: onTap,
       semanticLabel: 'Start an activity, log the journal or go live',
       child: Container(
-        width: S.x12,
-        height: S.x12,
-        decoration: BoxDecoration(color: p.ink, borderRadius: R.rMd),
-        child: Icon(LucideIcons.plus, size: I.lg, color: p.bg),
+        width: S.x10 + S.x1,
+        height: S.x10 + S.x1,
+        decoration: BoxDecoration(
+            color: p.ink, borderRadius: BorderRadius.circular(S.x2 + S.half)),
+        child: Icon(LucideIcons.plus, size: I.md, color: p.bg),
       ),
     );
   }
@@ -2971,7 +2930,7 @@ class _MyDay extends StatelessWidget {
   final String day;
   final Map<String, dynamic> night;
   final List<Map<String, dynamic>> sessions;
-  final VoidCallback onExpand, onSleep, onSession;
+  final VoidCallback onExpand, onSleep, onSession, onAdd;
 
   const _MyDay({
     required this.day,
@@ -2980,6 +2939,7 @@ class _MyDay extends StatelessWidget {
     required this.onExpand,
     required this.onSleep,
     required this.onSession,
+    required this.onAdd,
   });
 
   @override
@@ -3019,11 +2979,15 @@ class _MyDay extends StatelessWidget {
       ));
     }
     return Surface(
-      pad: const EdgeInsets.all(S.x4),
+      pad: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x4),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
           Expanded(
-              child: Text('ACTIVITIES', style: F.caps.copyWith(color: p.ink))),
+              child: Padding(
+            padding: const EdgeInsets.only(left: S.x1),
+            child: Text('ACTIVITIES',
+                style: F.caps.copyWith(color: p.ink, letterSpacing: .6)),
+          )),
           Pressable(
             onTap: onExpand,
             semanticLabel: l?.homeBreakdownTitle ?? 'Breakdown of your day',
@@ -3045,6 +3009,25 @@ class _MyDay extends StatelessWidget {
             if (i > 0) const SizedBox(height: S.x3),
             rows[i],
           ],
+        const SizedBox(height: S.x6),
+        Pressable(
+          onTap: onAdd,
+          semanticLabel: 'Add activity',
+          child: Container(
+            height: S.x12 + S.x1,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: p.ink.withValues(alpha: .09),
+              borderRadius: R.rLg,
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(LucideIcons.plus, size: I.lg, color: p.ink),
+              const SizedBox(width: S.x3),
+              Text('ADD ACTIVITY',
+                  style: F.caps.copyWith(color: p.ink, letterSpacing: .6)),
+            ]),
+          ),
+        ),
       ]),
     );
   }
@@ -3239,39 +3222,46 @@ class _ActivityRow extends StatelessWidget {
       onTap: onTap,
       semanticLabel: '$name, $value, ${_when(c, start)} to ${_when(c, end)}',
       child: Container(
-        padding: const EdgeInsets.all(S.x2),
-        decoration: BoxDecoration(color: p.card2, borderRadius: R.rLg),
+        padding: const EdgeInsets.fromLTRB(S.x2, S.x2, S.x4, S.x2),
+        decoration: BoxDecoration(
+          color: Color.alphaBlend(p.ink.withValues(alpha: .08), p.card),
+          borderRadius: R.rLg,
+        ),
         child: Row(children: [
           Container(
-            constraints: const BoxConstraints(minWidth: S.x16 + S.x10),
-            padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x3),
+            constraints: const BoxConstraints(minWidth: S.x16 + S.x12),
+            height: S.x12,
+            padding: const EdgeInsets.symmetric(horizontal: S.x4),
             decoration: BoxDecoration(color: color, borderRadius: R.rMd),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(icon, size: I.lg, color: C.white),
-              const SizedBox(width: S.x2),
+              const SizedBox(width: S.x3),
               // White on the block: bold display type, where 3:1 is the floor.
               Text(value,
-                  style: F.n17.copyWith(color: C.white, fontWeight: FontWeight.w700)),
+                  style: F.n24.copyWith(color: C.white, fontWeight: FontWeight.w700)),
             ]),
           ),
-          const SizedBox(width: S.x4),
+          const SizedBox(width: S.x5),
           Expanded(
             child: Text(name.toUpperCase(),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: F.caps.copyWith(color: p.ink)),
+                style: F.caps.copyWith(color: p.ink, letterSpacing: .6)),
           ),
           const SizedBox(width: S.x2),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text(_when(c, start), style: F.cap.copyWith(color: p.ink2)),
-            const SizedBox(height: S.x1),
-            Text(_when(c, end), style: F.cap.copyWith(color: p.ink2)),
+            Text(_when(c, start),
+                style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w700)),
+            const SizedBox(height: S.x2),
+            Text(_when(c, end),
+                style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w700)),
           ]),
-          const SizedBox(width: S.x2),
-          Container(
-            width: S.half,
-            height: S.x8,
-            decoration: BoxDecoration(color: color, borderRadius: R.rPill),
+          const SizedBox(width: S.x3),
+          // The span as a bar with a dot at each end: from, to.
+          SizedBox(
+            width: S.x2,
+            height: S.x10,
+            child: CustomPaint(painter: _SpanPainter(color)),
           ),
         ]),
       ),
@@ -3279,63 +3269,28 @@ class _ActivityRow extends StatelessWidget {
   }
 }
 
-/// One goal: what it is, where the day stands, and a bar toward it. [frac]
-/// null draws no bar — a target that has nothing to be progress toward yet.
-class _PlanRow extends StatelessWidget {
-  final IconData icon;
-  final String label, value, target;
-  final double? frac;
+/// The span an activity ran, as a thin bar with a dot at each end.
+class _SpanPainter extends CustomPainter {
   final Color color;
-  final VoidCallback onTap;
-
-  const _PlanRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.target,
-    required this.frac,
-    required this.color,
-    required this.onTap,
-  });
+  _SpanPainter(this.color);
 
   @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    final f = frac;
-    return Pressable(
-      onTap: onTap,
-      semanticLabel: '$label, $value, $target',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: S.x3),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Row(children: [
-            Icon(icon, size: I.md, color: p.ink3),
-            const SizedBox(width: S.x3),
-            Expanded(
-                child: Text(label.toUpperCase(),
-                    style: F.caps.copyWith(color: p.ink2))),
-            Text(value, style: F.n17.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-          ]),
-          if (f != null) ...[
-            const SizedBox(height: S.x2),
-            Container(
-              height: S.x1 + S.half,
-              decoration: BoxDecoration(color: p.track, borderRadius: R.rPill),
-              alignment: Alignment.centerLeft,
-              child: FractionallySizedBox(
-                widthFactor: f.clamp(0.0, 1.0),
-                child: Container(
-                  decoration: BoxDecoration(color: color, borderRadius: R.rPill),
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: S.x1),
-          Text(target, style: F.cap.copyWith(color: p.ink3)),
-        ]),
-      ),
-    );
+  void paint(Canvas canvas, Size size) {
+    final x = size.width / 2;
+    canvas.drawLine(
+        Offset(x, 2),
+        Offset(x, size.height - 2),
+        Paint()
+          ..color = color
+          ..strokeWidth = 2.5
+          ..strokeCap = StrokeCap.round);
+    for (final y in [2.0, size.height - 2]) {
+      canvas.drawCircle(Offset(x, y), 3, Paint()..color = C.white);
+    }
   }
+
+  @override
+  bool shouldRepaint(_SpanPainter old) => old.color != color;
 }
 
 /// The newest stored reading of [key], formatted, with how old it is.
@@ -3455,8 +3410,8 @@ class _DashboardEditor extends StatefulWidget {
 class _DashboardEditorState extends State<_DashboardEditor> {
   late final List<String> _order = [
     ...widget.selected,
-    for (final m in kTrendCatalogue)
-      if (!widget.selected.contains(m.id)) m.id,
+    for (final k in [kStrainRecoveryTile, for (final m in kTrendCatalogue) m.id])
+      if (!widget.selected.contains(k)) k,
   ];
   late final Set<String> _on = {...widget.selected};
 
@@ -3484,7 +3439,8 @@ class _DashboardEditorState extends State<_DashboardEditor> {
               }),
               itemBuilder: (c, i) {
                 final k = _order[i];
-                final m = trendMetricOf(k)!;
+                final m = trendMetricOf(k);
+                final title = m?.title ?? 'Strain & Recovery';
                 return Padding(
                   key: ValueKey(k),
                   padding: const EdgeInsets.symmetric(vertical: S.x1),
@@ -3498,15 +3454,16 @@ class _DashboardEditorState extends State<_DashboardEditor> {
                             size: I.md, color: p.ink3),
                       ),
                     ),
-                    Icon(m.icon, size: I.md, color: p.ink2),
+                    Icon(m?.icon ?? LucideIcons.chartColumn,
+                        size: I.md, color: p.ink2),
                     const SizedBox(width: S.x3),
                     Expanded(
-                      child: Text(m.title, style: F.body.copyWith(color: p.ink)),
+                      child: Text(title, style: F.body.copyWith(color: p.ink)),
                     ),
                     AppSwitch(
                       _on.contains(k),
                       (v) => setState(() => v ? _on.add(k) : _on.remove(k)),
-                      semanticLabel: m.title,
+                      semanticLabel: title,
                     ),
                   ]),
                 );

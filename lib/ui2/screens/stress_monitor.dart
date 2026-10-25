@@ -389,13 +389,19 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
       double xAt(int minute) => gutter + (minute - from) / math.max(1, n - 1) * plotW;
       return Stack(children: [
         line,
-        for (final s in d.sessions)
-          if (s.from >= from && s.from <= last)
+        // What each marked stretch was, over the middle of it: a moon for
+        // sleep, the activity's own icon for a workout.
+        for (final (a, b, icon) in [
+          for (final (a, b) in d.sleep) (a, b, LucideIcons.moon),
+          for (final s in d.sessions)
+            (s.from, s.to, activityByName(s.type)?.icon ?? LucideIcons.activity),
+        ])
+          if (b > from && a <= last)
             Positioned(
-              left: (xAt(s.from) - S.x3).clamp(gutter - S.x3, box.maxWidth - S.x6),
+              left: ((xAt(math.max(a, from)) + xAt(math.min(b, last))) / 2 - I.md / 2)
+                  .clamp(gutter - I.md / 2, box.maxWidth - I.md),
               top: 0,
-              child: Icon(activityByName(s.type)?.icon ?? LucideIcons.activity,
-                  size: I.md, color: p.ink),
+              child: Icon(icon, size: I.md, color: p.ink),
             ),
         Positioned(
           right: S.x3,
@@ -566,7 +572,9 @@ class _Gauge extends StatelessWidget {
     final p = P.of(c);
     final level = score == null ? null : stressLevel(score!);
     return LayoutBuilder(builder: (c, box) {
-      final w = math.min(box.maxWidth, S.x16 * 5.6);
+      // A tenth smaller than the width it could take, so the chart under it
+      // has the room.
+      final w = math.min(box.maxWidth, S.x16 * 5.6) * .9;
       final h = w * .74;
       return Center(
         child: SizedBox(

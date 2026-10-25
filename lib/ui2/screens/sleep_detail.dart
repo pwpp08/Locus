@@ -756,16 +756,19 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
       ),
       const SizedBox(height: S.x5),
       Surface(
-        pad: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x2),
+        tone: PanelTone.rich,
+        pad: const EdgeInsets.symmetric(horizontal: S.x5, vertical: S.x2),
         child: Column(children: [
           for (var i = 0; i < rows.length; i++) ...[
-            if (i > 0) Divider(color: p.line, height: 1),
+            if (i > 0) Divider(color: p.ink.withValues(alpha: .08), height: 1),
             Builder(builder: (c) {
               final label = Row(children: [
-                Icon(rows[i].$1, size: I.md, color: p.ink3),
-                const SizedBox(width: S.x3),
+                Icon(rows[i].$1, size: I.md, color: p.ink2),
+                const SizedBox(width: S.x4),
                 Expanded(
                   child: Text(rows[i].$2.toUpperCase(),
+                      maxLines: bigText(c) ? 2 : 1,
+                      overflow: TextOverflow.ellipsis,
                       style: F.caps.copyWith(color: p.ink)),
                 ),
               ]);
@@ -774,13 +777,16 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
                     ? null
                     : _tierOf(rows[i].$3!)),
                 const SizedBox(width: S.x4),
-                Text(rows[i].$3 == null ? '--' : '${rows[i].$3!.round()}%',
-                    textAlign: TextAlign.right,
-                    style: F.n17
-                        .copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+                SizedBox(
+                  width: S.x12,
+                  child: Text(rows[i].$3 == null ? '--' : '${rows[i].$3!.round()}%',
+                      textAlign: TextAlign.right,
+                      style: F.n17
+                          .copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+                ),
               ];
               return Padding(
-                padding: const EdgeInsets.symmetric(vertical: S.x4),
+                padding: const EdgeInsets.symmetric(vertical: S.x3 + S.half),
                 // At accessibility sizes the label takes its own line and
                 // the bar and number sit under it.
                 child: bigText(c)
@@ -800,7 +806,9 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
           Container(
             padding: const EdgeInsets.symmetric(
                 horizontal: S.x4, vertical: S.x3),
-            decoration: BoxDecoration(color: p.bg, borderRadius: R.rMd),
+            decoration: BoxDecoration(
+                color: Color.alphaBlend(C.char.withValues(alpha: .55), p.bg),
+                borderRadius: R.rMd),
             child: Wrap(
               spacing: S.x5,
               runSpacing: S.x2,
@@ -2462,10 +2470,10 @@ class _TierBar extends StatelessWidget {
       label: tier == null ? null : const ['Poor', 'Sufficient', 'Optimal'][tier!],
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         for (var i = 0; i < 3; i++) ...[
-          if (i > 0) const SizedBox(width: S.x1),
+          if (i > 0) const SizedBox(width: S.half),
           Container(
-            width: S.x8 + S.half,
-            height: S.x1 + S.half,
+            width: S.x4,
+            height: S.x1,
             decoration: BoxDecoration(
               color: i == tier ? lit[i] : p.track,
               borderRadius: R.rPill,
