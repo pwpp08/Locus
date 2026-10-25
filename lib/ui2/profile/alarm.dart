@@ -2,6 +2,7 @@
 // system alarm sync, and instant strap confirmation.
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
@@ -269,6 +270,9 @@ class AlarmScreenView extends StatefulWidget {
 }
 
 class _AlarmScreenViewState extends State<AlarmScreenView> {
+  /// The options under the schedule: phone clock, shake, test and cancel.
+  bool _options = false;
+
   Future<void> _editAlarm(BuildContext context, AlarmItem alarm) async {
     final mgr = widget.alarmManager;
     if (mgr == null) return;
@@ -278,6 +282,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
     final labelCtrl = TextEditingController(text: alarm.label);
     int smartMin = alarm.smartWindowMinutes;
     var mode = alarm.mode;
+    var on = alarm.enabled;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -419,6 +424,17 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                     hint: 'Wake up',
                   ),
                   const SizedBox(height: S.x4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Alarm on',
+                          style: F.body.copyWith(
+                              fontWeight: FontWeight.w600, color: p.ink)),
+                      AppSwitch(on, (v) => setSheetState(() => on = v),
+                          semanticLabel: 'Alarm on'),
+                    ],
+                  ),
+                  const SizedBox(height: S.x4),
                   // What the alarm waits for.
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -487,6 +503,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                         days: selectedDays,
                         smartWindowMinutes: smartMin,
                         mode: mode,
+                        enabled: on,
                       );
                       await mgr.updateAlarm(updated);
                     },
@@ -606,10 +623,10 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
           '${formatClock(alarm.hour, alarm.minute)}, ${alarm.repeatSummary()}, ${alarm.mode.title}',
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(S.x6, S.x6, S.x5, S.x5),
+        padding: const EdgeInsets.fromLTRB(S.x5, S.x5, S.x5, S.x4),
         decoration: BoxDecoration(
           color: Color.alphaBlend(p.ink.withValues(alpha: .2), p.bg),
-          borderRadius: R.rXl,
+          borderRadius: BorderRadius.circular(S.x5),
         ),
         child: Opacity(
           opacity: dim,
@@ -625,21 +642,25 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                         color: p.ink3.withValues(alpha: .7), shape: BoxShape.circle),
                   ),
                 Text(names[i],
-                    style: F.caps.copyWith(
-                        color: p.ink2, fontWeight: FontWeight.w800, letterSpacing: .9)),
+                    style: F.over.copyWith(
+                        color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: .9)),
               ],
-            ]),
-            const SizedBox(height: S.x4),
-            Row(children: [
-              Expanded(
-                child: Text(formatClock(alarm.hour, alarm.minute),
-                    style: F.n48.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-              ),
-              Icon(LucideIcons.chevronDown, size: I.xl, color: p.ink),
             ]),
             const SizedBox(height: S.x3),
             Row(children: [
-              Pressable(
+              Expanded(
+                child: Text(formatClock(alarm.hour, alarm.minute),
+                    style: F.n34.copyWith(
+                        color: p.ink, fontWeight: FontWeight.w700, letterSpacing: .4)),
+              ),
+              Transform.rotate(
+                  angle: math.pi / 2,
+                  child: BoldChevron(left: false, height: S.x4, color: p.ink)),
+            ]),
+            const SizedBox(height: S.x3),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Pressable(
                 onTap: () => _pickMode(c, alarm),
                 semanticLabel: 'Alarm mode ${alarm.mode.title}',
                 child: Container(
@@ -658,13 +679,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                   ]),
                 ),
               ),
-              const Spacer(),
-              AppSwitch(
-                alarm.enabled,
-                (v) => widget.alarmManager?.toggleAlarm(alarm.id, v),
-                semanticLabel: 'Alarm at ${formatClock(alarm.hour, alarm.minute)}',
-              ),
-            ]),
+            ),
           ]),
         ),
       ),
@@ -728,10 +743,10 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                     child: Semantics(
                       header: true,
                       child: Text('MY SCHEDULE',
-                          style: F.head.copyWith(
+                          style: F.body.copyWith(
                               color: p.ink,
                               fontWeight: FontWeight.w800,
-                              letterSpacing: 1.6)),
+                              letterSpacing: 1.8)),
                     ),
                   ),
                 ),
@@ -745,7 +760,18 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                   semanticLabel: 'Schedule on',
                 ),
               ]),
-              const SizedBox(height: S.x12 + S.x4),
+              const SizedBox(height: S.x8),
+              if (fired != null && calendarDaysBetween(fired, now) == 0) ...[
+                Center(
+                  child: Pill(
+                      l?.alarmFiredAt(AlarmScreenView._hhmm(fired)) ??
+                          'Fired at ${AlarmScreenView._hhmm(fired)}',
+                      C.green,
+                      icon: LucideIcons.alarmClockCheck),
+                ),
+                const SizedBox(height: S.x6),
+              ] else
+                const SizedBox(height: S.x8),
               for (final alarm in alarms) ...[
                 _scheduleCard(c, p, alarm),
                 const SizedBox(height: S.x3),
@@ -757,13 +783,13 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                   semanticLabel: 'Create schedule',
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: S.x10 + S.x2, vertical: S.x5),
+                        horizontal: S.x8, vertical: S.x4),
                     decoration: BoxDecoration(
                       borderRadius: R.rPill,
                       border: Border.all(color: p.ink, width: S.half),
                     ),
                     child: Text('CREATE SCHEDULE',
-                        style: F.head.copyWith(
+                        style: F.body.copyWith(
                             color: p.ink,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.6)),
@@ -771,47 +797,43 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                 ),
               ),
               if (unscheduled) ...[
-                const SizedBox(height: S.x8),
+                const SizedBox(height: S.x6),
                 Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Container(
-                    width: S.x8,
-                    height: S.x8,
+                    width: S.x6 + S.x1,
+                    height: S.x6 + S.x1,
                     alignment: Alignment.center,
                     decoration:
                         const BoxDecoration(color: C.orange, shape: BoxShape.circle),
                     child: Text('!',
-                        style: F.head.copyWith(
-                            color: C.char, fontWeight: FontWeight.w900)),
+                        style: F.body.copyWith(
+                            color: C.char, fontWeight: FontWeight.w900, height: 1)),
                   ),
                   const SizedBox(width: S.x3),
                   Text('You have unscheduled days',
-                      style: F.head.copyWith(
+                      style: F.body.copyWith(
                           color: C.orange, fontWeight: FontWeight.w500)),
                 ]),
-                const SizedBox(height: S.x6),
+                const SizedBox(height: S.x5),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: S.x2),
+                  padding: const EdgeInsets.symmetric(horizontal: S.x3),
                   child: Text(
                     'On unscheduled days, Sleep Planner will default to your '
                     'most recent wake time and set your alarm to off',
                     textAlign: TextAlign.center,
-                    style: F.head.copyWith(
-                        color: p.ink3, fontWeight: FontWeight.w400, height: 1.35),
+                    style: F.cap.copyWith(
+                        color: p.ink3, fontWeight: FontWeight.w400, height: 1.4),
                   ),
                 ),
               ],
-              const SizedBox(height: S.x10),
-              if (fired != null && calendarDaysBetween(fired, now) == 0) ...[
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Pill(
-                      l?.alarmFiredAt(AlarmScreenView._hhmm(fired)) ??
-                          'Fired at ${AlarmScreenView._hhmm(fired)}',
-                      C.green,
-                      icon: LucideIcons.alarmClockCheck),
-                ),
-                const SizedBox(height: S.x4),
-              ],
+              const SizedBox(height: S.x8),
+              Center(
+                child: TextAction(
+                    _options ? 'Hide alarm options' : 'Alarm options',
+                    () => setState(() => _options = !_options)),
+              ),
+              if (_options) ...[
+              const SizedBox(height: S.x4),
               if (at != null) ...[
                 Row(children: [
                   Expanded(
@@ -883,6 +905,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                     onTap: () => _runAction(c, widget.onCancel,
                         l?.alarmCancelled ?? 'Alarm cancelled'),
                   ),
+              ],
               ],
             ],
           ),

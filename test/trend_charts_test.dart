@@ -257,4 +257,47 @@ void main() {
     await t.pump();
     expect(find.text('Reset zoom'), findsNothing);
   });
+
+  testWidgets('picking another metric opens it at the top of the page',
+      (t) async {
+    // Every metric listed: an earlier test chose a short dashboard.
+    SharedPreferences.setMockInitialValues({});
+    await Prefs.ensureLoaded();
+    Prefs.setString(Prefs.dashboardTiles, '');
+    // A short screen, so the page scrolls.
+    t.view.physicalSize = const Size(390 * 2, 500 * 2);
+    t.view.devicePixelRatio = 2;
+    addTearDown(t.view.reset);
+    await t.pumpWidget(MaterialApp(
+      theme: buildTheme(Brightness.dark),
+      home: TrendViewScreen(
+          key: UniqueKey(),
+          initial: 'hrv',
+          today: _today,
+          loader: _Loader({
+            'hrv': _days((i) => 60),
+            'resting_hr': _days((i) => 55),
+          })),
+    ));
+    for (var i = 0; i < 4; i++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    double offset() => t
+        .state<ScrollableState>(find
+            .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+            .first)
+        .position
+        .pixels;
+    // Open the list, scroll down it, choose Resting heart rate.
+    await t.tap(find.text('HEART RATE VARIABILITY'));
+    await t.pump(const Duration(milliseconds: 200));
+    await t.drag(find.byType(ListView).first, const Offset(0, -600));
+    await t.pump(const Duration(milliseconds: 200));
+    expect(offset(), greaterThan(0));
+    await t.tap(find.text('RESTING HEART RATE'));
+    for (var i = 0; i < 3; i++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    expect(offset(), 0);
+  });
 }

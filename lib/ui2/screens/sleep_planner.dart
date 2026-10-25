@@ -282,6 +282,13 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
     if (mounted) setState(() {});
   }
 
+  /// `11:31 PM`, the way a sentence says a time (the bar keeps the clock's own).
+  static String _said(int min) {
+    final h = min ~/ 60 % 24, m = min % 60;
+    final h12 = h % 12 == 0 ? 12 : h % 12;
+    return '$h12:${m.toString().padLeft(2, '0')} ${h < 12 ? 'AM' : 'PM'}';
+  }
+
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
@@ -319,47 +326,69 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
     final headline = plan.needMin == null || bed == null || wake == null
         ? 'Sleep Planner needs a few nights to learn your sleep need.'
         : isNow
-            ? 'Go to bed now to get ${hMm(plan.needMin)} of sleep before your '
-                '${clock(wake)} wake time.'
-            : 'Go to bed at ${clock(bed)} today to get ${hMm(plan.needMin)} of '
-                'sleep before your ${clock(wake)} wake time.';
+            ? 'Try getting to bed now to achieve 100% Sleep Need by '
+                '${_said(wake)}.'
+            : 'Try getting to bed by ${_said(bed)} to achieve 100% Sleep '
+                'Need by ${_said(wake)}.';
 
     Widget dockButton(String label, String value, VoidCallback onTap) => Expanded(
           child: Pressable(
             onTap: onTap,
             semanticLabel: '$label $value',
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: S.x5),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: S.x6),
               decoration: BoxDecoration(
-                color: p.ink.withValues(alpha: .08),
+                color: Color.alphaBlend(p.ink.withValues(alpha: .12), p.bg),
                 borderRadius: R.rMd,
+                border: Border.all(
+                    color: C.char.withValues(alpha: .9), width: S.half),
               ),
               child: Column(children: [
                 Text(label,
                     textAlign: TextAlign.center,
-                    style: F.over.copyWith(
-                        color: p.ink2, fontWeight: FontWeight.w800, letterSpacing: .8)),
+                    style: F.caps.copyWith(
+                        color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
                 const SizedBox(height: S.x2),
                 Text(value,
                     style: F.num(F.head).copyWith(
-                        color: p.ink, fontWeight: FontWeight.w800)),
+                        color: p.ink, fontWeight: FontWeight.w800, letterSpacing: .8)),
               ]),
             ),
           ),
         );
 
+    final h = MediaQuery.sizeOf(c).height;
     return Scaffold(
       backgroundColor: p.bg,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            stops: const [0, .45],
-            colors: [Color.alphaBlend(p.ink.withValues(alpha: .1), p.bg), p.bg],
+      body: Stack(children: [
+        // Two grounds: a lit one over the top of the page, and under it the
+        // night, nearly black down to the dock.
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+                color: Color.alphaBlend(C.char.withValues(alpha: .55), p.bg)),
           ),
         ),
-        child: SafeArea(
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          height: h * .39,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color.alphaBlend(p.ink.withValues(alpha: .17), p.bg),
+                  Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SafeArea(
           child: Column(children: [
             Expanded(
               child: ListView(padding: pad, children: [
@@ -370,16 +399,19 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                     child: SizedBox(
                       width: S.tap,
                       height: S.tap,
-                      child: Icon(LucideIcons.chevronLeft, size: I.xl, color: p.ink),
+                      child: Center(
+                          child: BoldChevron(left: true, height: S.x5, color: p.ink)),
                     ),
                   ),
                   Expanded(
                     child: Center(
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
                         Text('SLEEP PLANNER',
-                            style: F.caps.copyWith(
-                                color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
-                        const SizedBox(width: S.x2),
+                            style: F.head.copyWith(
+                                color: p.ink,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.6)),
+                        const SizedBox(width: S.x3),
                         Pressable(
                           onTap: () => showSleepRecommendation(c, plan),
                           semanticLabel: 'How the plan is made',
@@ -390,43 +422,47 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                               shape: BoxShape.circle,
                               border: Border.all(color: p.ink3, width: S.half),
                             ),
-                            child: Icon(LucideIcons.circleHelp,
-                                size: I.sm, color: p.ink3),
+                            child: Center(
+                              child: Text('?',
+                                  style: F.cap.copyWith(
+                                      color: p.ink3, fontWeight: FontWeight.w800, height: 1)),
+                            ),
                           ),
                         ),
                       ]),
                     ),
                   ),
-                  Column(children: [
-                    Pressable(
-                      onTap: () => go(c, const AlarmScreen()),
-                      semanticLabel: 'My schedule',
-                      child: Container(
-                        width: S.x10 + S.x1,
-                        height: S.x10 + S.x1,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: p.ink, width: S.half),
-                        ),
-                        child: Icon(LucideIcons.calendarClock,
-                            size: I.md, color: p.ink),
+                  Pressable(
+                    onTap: () => go(c, const AlarmScreen()),
+                    semanticLabel: 'My schedule',
+                    child: Container(
+                      width: S.x10 + S.x2,
+                      height: S.x10 + S.x2,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: p.ink, width: S.half),
                       ),
+                      child: Icon(LucideIcons.calendarClock, size: I.md, color: p.ink),
                     ),
-                    const SizedBox(height: S.x2),
-                    Container(
+                  ),
+                ]),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: S.x1),
+                    child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: S.x2, vertical: S.half),
+                          horizontal: S.x3, vertical: S.x1),
                       decoration: BoxDecoration(
                         color: p.ink.withValues(alpha: .12),
                         borderRadius: R.rSm,
                       ),
                       child: Text(scheduleOn ? 'ON' : 'OFF',
-                          style: F.over.copyWith(
+                          style: F.caps.copyWith(
                               color: p.ink3, fontWeight: FontWeight.w800)),
                     ),
-                  ]),
-                ]),
-                const SizedBox(height: S.x6),
+                  ),
+                ),
                 Center(
                   child: Container(
                     width: S.x10 + S.x1,
@@ -438,19 +474,19 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                     child: Icon(LucideIcons.moon, size: I.md, color: p.ink),
                   ),
                 ),
-                const SizedBox(height: S.x5),
+                const SizedBox(height: S.x6),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: S.x4),
+                  padding: const EdgeInsets.symmetric(horizontal: S.x6),
                   child: Text(headline,
                       textAlign: TextAlign.center,
-                      style: F.head.copyWith(
-                          color: p.ink, fontWeight: FontWeight.w500, height: 1.35)),
+                      style: F.t2.copyWith(
+                          color: p.ink, fontWeight: FontWeight.w500, height: 1.2)),
                 ),
-                const SizedBox(height: S.x10),
+                const SizedBox(height: S.x8),
                 Center(
                   child: Text('TOMORROW I WANT TO',
                       style: F.over.copyWith(
-                          color: p.ink3, fontWeight: FontWeight.w700, letterSpacing: .8)),
+                          color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
                 ),
                 const SizedBox(height: S.x3),
                 Center(
@@ -458,20 +494,24 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                     onTap: _pickGoal,
                     semanticLabel: 'Planner goal',
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: S.x10, vertical: S.x4),
+                      width: S.x16 * 3 + S.x8 + S.x4,
+                      padding: const EdgeInsets.symmetric(vertical: S.x5 + S.x1),
                       decoration: BoxDecoration(
+                        color: Color.alphaBlend(C.char.withValues(alpha: .4), p.bg),
                         borderRadius: R.rPill,
                         border: Border.all(color: p.ink, width: S.half),
                       ),
                       child: Text(
-                          goal == 'consistent' ? 'STAY CONSISTENT' : 'OPTIMIZE SLEEP',
-                          style: F.caps.copyWith(
-                              color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+                          goal == 'consistent' ? 'STAY CONSISTENT' : 'REACH MY SLEEP NEED',
+                          textAlign: TextAlign.center,
+                          style: F.body.copyWith(
+                              color: p.ink,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.2)),
                     ),
                   ),
                 ),
-                const SizedBox(height: S.x12 + S.x6),
+                const SizedBox(height: S.x16 + S.x6),
                 _PlannerBar(
                   bed: bed,
                   wake: wake,
@@ -483,15 +523,15 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                   alarmOn: planAlarm != null,
                   onWake: () => _pickWake(wake),
                 ),
-                const SizedBox(height: S.x8),
+                const SizedBox(height: S.x6),
               ]),
             ),
             // The alarm dock.
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(S.x3, S.x4, S.x3, S.x3),
+              padding: const EdgeInsets.fromLTRB(S.x3, S.x5, S.x3, S.x4),
               decoration: BoxDecoration(
-                color: Color.alphaBlend(p.ink.withValues(alpha: .07), p.bg),
+                color: Color.alphaBlend(p.ink.withValues(alpha: .09), p.bg),
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(R.xxl)),
               ),
@@ -501,12 +541,14 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                   children: [
                 Row(children: [
                   const SizedBox(width: S.x2),
-                  StrapIcon(color: p.ink3, height: S.x6),
+                  StrapIcon(color: p.ink3, height: S.x8),
                   Expanded(
                     child: Center(
                       child: Text('ALARM',
-                          style: F.caps.copyWith(
-                              color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
+                          style: F.head.copyWith(
+                              color: p.ink,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.6)),
                     ),
                   ),
                   AppSwitch(
@@ -516,13 +558,13 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                   ),
                   const SizedBox(width: S.x2),
                 ]),
-                const SizedBox(height: S.x3),
+                const SizedBox(height: S.x4),
                 Row(children: [
                   dockButton('ALARM SET TO', armedAt == null ? 'OFF' : clock(armedAt),
                       () => planAlarm != null && wake != null
                           ? _setAlarm(wake)
                           : _toggleAlarm(true, wake)),
-                  const SizedBox(width: S.x3),
+                  const SizedBox(width: S.x5),
                   dockButton('WAKE TIME SET TO', wake == null ? '--' : clock(wake),
                       () => _pickWake(wake)),
                 ]),
@@ -530,7 +572,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
             ),
           ]),
         ),
-      ),
+      ]),
     );
   }
 }
@@ -618,7 +660,7 @@ class _GoalSheet extends StatelessWidget {
         Text('Tomorrow I want to',
             style: F.t2.copyWith(color: p.ink, fontWeight: FontWeight.w500)),
         const SizedBox(height: S.x5),
-        option('optimize', 'OPTIMIZE SLEEP',
+        option('optimize', 'REACH MY SLEEP NEED',
             'Bed early enough to get your full sleep need'),
         option('consistent', 'STAY CONSISTENT',
             'Bed at your usual time, from your own nights'),
@@ -647,14 +689,21 @@ class _PlannerBar extends StatelessWidget {
     required this.onWake,
   });
 
-  static const _lo = .13, _hi = .87;
+  // Where the two ends of the night stand across the screen, and where the
+  // times written over them are centred (a little inside the ends).
+  static const _lo = .125, _hi = .875, _loText = .19, _hiText = .81;
+
+  // Down the bar, from the top of the times.
+  static const _labelsH = 72.0, _barTop = 104.0, _barH = 37.0, _height = 214.0;
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
     return LayoutBuilder(builder: (c, box) {
       final w = box.maxWidth + S.gutter * 2;
-      final xl = w * _lo - S.gutter, xr = w * _hi - S.gutter;
+      // In this widget's own coordinates (the screen's, less the gutter).
+      double x(double f) => w * f - S.gutter;
+      final xl = x(_lo), xr = x(_hi);
       final span = bed == null || wake == null ? null : (wake! - bed!) % 1440;
       // A time on the bar's own scale; null off the plan.
       double? xAt(int? t) {
@@ -665,9 +714,10 @@ class _PlannerBar extends StatelessWidget {
 
       Widget time(String t, String caption, double cx, {VoidCallback? onTap}) =>
           Positioned(
-            left: cx - S.x16 * 1.1,
-            width: S.x16 * 2.2,
+            left: cx - S.x16,
+            width: S.x16 * 2,
             top: 0,
+            height: _labelsH,
             child: Pressable(
               onTap: onTap,
               semanticLabel: '$caption $t',
@@ -678,62 +728,71 @@ class _PlannerBar extends StatelessWidget {
                 Text(caption,
                     textAlign: TextAlign.center,
                     style: F.over.copyWith(
-                        color: p.ink3, fontWeight: FontWeight.w700, letterSpacing: .6)),
+                        color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: .9)),
               ]),
             ),
           );
 
       final from = xAt(recFrom), to = xAt(recTo);
       final haveRec = from != null && to != null && to > from;
+      final muted = C.dialSleep.withValues(alpha: .85);
       return SizedBox(
-        height: S.x16 * 3 + S.x10,
+        height: _height,
         child: Stack(clipBehavior: Clip.none, children: [
-          time(bedLabel, 'SUGGESTED\nTIME TO BED', xl),
-          time(wakeLabel, 'YOUR\nWAKE TIME', xr, onTap: onWake),
+          time(bedLabel, 'SUGGESTED\nTIME TO BED', x(_loText)),
+          time(wakeLabel, 'YOUR\nWAKE TIME', x(_hiText), onTap: onWake),
           Positioned(
             left: -S.gutter,
             right: -S.gutter,
-            top: S.x16 + S.x4,
-            height: S.x16 * 2,
+            top: 0,
+            height: _height,
             child: CustomPaint(
               painter: _BarPaint(
                 ink: p.ink,
-                stripe: p.ink.withValues(alpha: .28),
-                band: C.char,
+                stripe: p.ink.withValues(alpha: .3),
+                band: Color.alphaBlend(C.char.withValues(alpha: .85), p.bg),
+                dash: p.ink3,
                 xl: w * _lo,
                 xr: w * _hi,
                 from: haveRec ? from + S.gutter : null,
                 to: haveRec ? to + S.gutter : null,
-                dash: p.ink3,
+                barTop: _barTop,
+                barH: _barH,
+                dropFrom: _labelsH + S.half,
               ),
             ),
           ),
           Positioned(
             left: 0,
             right: 0,
-            top: S.x16 + S.x4 + S.half,
-            child: Column(children: [
-              Text('TIME IN BED',
-                  style: F.over.copyWith(
-                      color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1)),
-              const SizedBox(height: S.x1),
-              Container(
+            top: _barTop - 22,
+            child: Text('TIME IN BED',
+                textAlign: TextAlign.center,
+                style: F.over.copyWith(
+                    color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            top: _barTop - S.x1 - S.half,
+            child: Center(
+              child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: S.x5, vertical: S.x2 + S.half),
+                    horizontal: S.x5, vertical: S.x2 + S.x1),
                 decoration: BoxDecoration(
-                  color: C.char,
+                  color: Color.alphaBlend(C.char.withValues(alpha: .95), p.bg),
                   borderRadius: R.rPill,
                   border: Border.all(color: p.ink, width: S.half),
                 ),
                 child: Text(inBedLabel,
                     style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w800)),
               ),
-            ]),
+            ),
           ),
           if (alarmOn)
             Positioned(
               left: xr - S.x4 - S.half,
-              top: S.x16 + S.x2,
+              top: _barTop - S.x8 - S.x2,
               child: Container(
                 width: S.x8,
                 height: S.x8,
@@ -741,28 +800,31 @@ class _PlannerBar extends StatelessWidget {
                 child: Center(child: StrapIcon(color: C.char, height: S.x4)),
               ),
             ),
+          // What your own nights recommend, or why there is nothing yet.
           Positioned(
             left: 0,
             right: 0,
-            top: S.x16 * 2 + S.x10 + S.x2,
+            top: haveRec ? _barTop + _barH + S.x6 + S.x1 : _barTop + _barH + S.x6,
             child: Center(
               child: haveRec
                   ? Column(mainAxisSize: MainAxisSize.min, children: [
                       Text('RECOMMENDED',
                           style: F.caps.copyWith(
-                              color: C.dialSleep, fontWeight: FontWeight.w800)),
+                              color: muted, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                      const SizedBox(height: S.x1),
                       Text('${clock(recFrom!)} - ${clock(recTo!)}',
                           style: F.num(F.cap).copyWith(color: p.ink3)),
                     ])
                   : Column(mainAxisSize: MainAxisSize.min, children: [
                       Text('OPTIMAL',
                           style: F.caps.copyWith(
-                              color: C.dialSleep, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: S.x1),
+                              color: muted, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                      const SizedBox(height: S.x2),
                       Text(
                           'Three consecutive nights of sleep needed to\ncalculate optimal bed and wake times.',
                           textAlign: TextAlign.center,
-                          style: F.cap.copyWith(color: C.dialSleep.withValues(alpha: .8))),
+                          style: F.over.copyWith(
+                              color: muted, fontWeight: FontWeight.w500, height: 1.5)),
                     ]),
             ),
           ),
@@ -774,7 +836,7 @@ class _PlannerBar extends StatelessWidget {
 
 class _BarPaint extends CustomPainter {
   final Color ink, stripe, band, dash;
-  final double xl, xr;
+  final double xl, xr, barTop, barH, dropFrom;
   final double? from, to;
   _BarPaint({
     required this.ink,
@@ -785,65 +847,72 @@ class _BarPaint extends CustomPainter {
     required this.xr,
     required this.from,
     required this.to,
+    required this.barTop,
+    required this.barH,
+    required this.dropFrom,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    const barTop = S.x6 + S.x2, barH = S.x10 + S.x2;
-    // The dashed drops from the times to the bar.
-    final drop = Paint()
-      ..color = dash
-      ..strokeWidth = 1;
-    for (final x in [xl, xr]) {
-      for (var y = 0.0; y < barTop; y += S.x2 + S.half) {
-        canvas.drawLine(Offset(x, y), Offset(x, y + S.x1), drop);
+    void dashed(Path path, Paint paint, double on, double off) {
+      for (final m in path.computeMetrics()) {
+        for (var d = 0.0; d < m.length; d += on + off) {
+          canvas.drawPath(m.extractPath(d, d + on), paint);
+        }
       }
+    }
+
+    final line = Paint()
+      ..color = dash
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    // The dashed drops from the times to the ends of the bar.
+    for (final x in [xl, xr]) {
+      dashed(Path()..moveTo(x, dropFrom)..lineTo(x, barTop), line, S.x1, S.x1);
     }
     // The band, edge to edge, hatched between the two ends.
     canvas.drawRect(Rect.fromLTWH(0, barTop, size.width, barH), Paint()..color = band);
+    const inset = S.x1 + S.half;
     canvas.save();
-    canvas.clipRect(Rect.fromLTRB(xl, barTop + S.x1, xr, barTop + barH - S.x1));
+    canvas.clipRect(Rect.fromLTRB(xl, barTop + inset, xr, barTop + barH - inset));
     final hatch = Paint()
       ..color = stripe
       ..strokeWidth = 2;
-    for (var x = xl - barH; x < xr; x += S.x2 + S.x1) {
-      canvas.drawLine(Offset(x, barTop + barH), Offset(x + barH, barTop), hatch);
+    final h = barH - inset * 2;
+    for (var x = xl - h; x < xr; x += S.x2 + S.x1) {
+      canvas.drawLine(Offset(x, barTop + barH - inset), Offset(x + h, barTop + inset), hatch);
     }
     canvas.restore();
     final end = Paint()
       ..color = ink
       ..strokeWidth = 3;
     for (final x in [xl, xr]) {
-      canvas.drawLine(Offset(x, barTop + S.x1), Offset(x, barTop + barH + S.x1), end);
+      canvas.drawLine(Offset(x, barTop + inset), Offset(x, barTop + barH - inset), end);
     }
-    // The recommended window: a dashed bracket under the bar.
+
     final f = from, t = to;
+    final top = barTop + barH + S.x2;
+    final y = top + S.x5;
+    final mid = size.width / 2, gap = S.x16 + S.x2;
     if (f != null && t != null) {
+      // The recommended window: a dashed bracket under the bar.
       const r = S.x3;
-      final top = barTop + barH + S.x6, bottom = top + S.x6;
-      // Left of the label, and right of it.
-      final mid = size.width / 2, gap = S.x16 + S.x2;
       final left = Path()
         ..moveTo(f, top)
-        ..lineTo(f, bottom - r)
-        ..quadraticBezierTo(f, bottom, f + r, bottom)
-        ..lineTo(math.max(f + r, mid - gap), bottom);
+        ..lineTo(f, y - r)
+        ..quadraticBezierTo(f, y, f + r, y)
+        ..lineTo(math.max(f + r, mid - gap), y);
       final right = Path()
-        ..moveTo(math.min(t - r, mid + gap), bottom)
-        ..lineTo(t - r, bottom)
-        ..quadraticBezierTo(t, bottom, t, bottom - r)
+        ..moveTo(math.min(t - r, mid + gap), y)
+        ..lineTo(t - r, y)
+        ..quadraticBezierTo(t, y, t, y - r)
         ..lineTo(t, top);
-      final line = Paint()
-        ..color = dash
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1;
-      for (final path in [left, right]) {
-        for (final m in path.computeMetrics()) {
-          for (var d = 0.0; d < m.length; d += S.x1 + S.x1) {
-            canvas.drawPath(m.extractPath(d, d + S.x1), line);
-          }
-        }
-      }
+      dashed(left, line, S.x1, S.x1);
+      dashed(right, line, S.x1, S.x1);
+    } else {
+      // Nothing to recommend yet: a dashed rule each side of the word.
+      dashed(Path()..moveTo(xl, y)..lineTo(mid - S.x10, y), line, S.x1, S.x1);
+      dashed(Path()..moveTo(mid + S.x10, y)..lineTo(xr, y), line, S.x1, S.x1);
     }
   }
 

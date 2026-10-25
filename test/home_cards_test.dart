@@ -81,4 +81,31 @@ void main() {
     expect(find.text('MEDITATION'), findsOneWidget);
     expect(find.text('SELECT ACTIVITY'), findsNothing);
   });
+
+  test('a new day with nothing scored yet is not a sync problem', () {
+    final now = DateTime(2026, 10, 26, 0, 8);
+    bool quiet({
+      bool bare = true,
+      bool isToday = true,
+      bool history = true,
+      DateTime? last,
+    }) =>
+        newDayNothingYet(
+            bare: bare,
+            isToday: isToday,
+            hasHistory: history,
+            lastData: last ?? DateTime(2026, 10, 26, 0, 6),
+            now: now);
+    expect(quiet(), isTrue);
+    // The band went quiet long ago: that one does want a sync.
+    expect(quiet(last: DateTime(2026, 10, 25, 12)), isFalse);
+    // A first run, a past day and a day with its own numbers are different.
+    expect(quiet(history: false), isFalse);
+    expect(quiet(isToday: false), isFalse);
+    expect(quiet(bare: false), isFalse);
+    expect(
+        newDayNothingYet(
+            bare: true, isToday: true, hasHistory: true, lastData: null, now: now),
+        isFalse);
+  });
 }

@@ -78,7 +78,7 @@ class StrainRecoveryCard extends StatelessWidget {
             count: n,
             slots: true,
             inset: _inset,
-            height: S.x16 * 4 + S.x12,
+            height: S.x16 * 4 + S.x2,
             label: 'Strain and recovery, last $n days',
             describe: (i) {
               final d = DateTime.parse(days[i]);

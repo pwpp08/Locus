@@ -64,6 +64,7 @@ import '../../ble/ultrahuman_link.dart' show UltrahumanLink;
 import '../../ble/band_status_l10n.dart' show localizedBandStatus;
 import '../../ble/ble_state.dart' show BandStatus, kMaxConcurrentSecondaryLinks;
 import '../../compute/inputs/canonical.dart' show columnFor, flagOnOrPrimary;
+import '../../data/day_label.dart' show todayLabel;
 import '../../data/db.dart' show LocalDb;
 import '../../data/step_calibration.dart';
 import '../../l10n/app_localizations.dart';
@@ -75,6 +76,7 @@ import '../../state/clock_format.dart' show formatClockOf;
 import '../pairing/device_picker.dart' show DevicePickerScreen;
 import '../onboarding/profile_setup.dart' show formatDay;
 import '../screens/battery_detail_screen.dart';
+import '../screens/home_screen.dart' show syncedThroughLine;
 import '../ui2.dart';
 import 'profile.dart';
 import 'settings.dart' show backToRoot;
@@ -1312,6 +1314,11 @@ class MyDevicesView extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
               children: [
+                // How far the data goes: the line Home used to carry.
+                if (hasBand) ...[
+                  Center(child: syncedThroughLine(c, todayLabel(), l)),
+                  const SizedBox(height: S.x4),
+                ],
                 // FIRST, in the tier-2 slot the missing band would occupy —
                 // not appended under the phone. Someone who has just forgotten
                 // a band is here to add one, and the row they can see is not

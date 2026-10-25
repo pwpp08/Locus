@@ -615,9 +615,9 @@ class _Gauge extends StatelessWidget {
               bottom: 0,
               child: Text('3.0', style: F.n24.copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
             ),
+            // Under the middle, between the two ends of the arc: out of its way.
             Positioned(
-              right: 0,
-              top: h * .1,
+              bottom: -S.x1,
               child: Pressable(
                 onTap: onInfo,
                 semanticLabel: 'How stress is measured',
@@ -652,9 +652,12 @@ class _GaugePainter extends CustomPainter {
     final rect = Rect.fromCircle(center: c, radius: r);
 
     // Blue → green → warm → orange, dimmer at both ends where the arc runs out.
+    // Drawn from angle 0 and turned into place: the arc ends past a full turn
+    // (146 + 248 degrees), and a sweep gradient does not run on through 360,
+    // which left the lower right end without its colour.
     final shader = SweepGradient(
-      startAngle: _start,
-      endAngle: _start + _sweep,
+      startAngle: 0,
+      endAngle: _sweep,
       colors: [
         C.stressLow.withValues(alpha: .35),
         C.stressLow,
@@ -665,7 +668,7 @@ class _GaugePainter extends CustomPainter {
         C.stressHigh.withValues(alpha: .3),
       ],
       stops: const [0, .08, .3, .5, .72, .9, 1],
-      transform: const GradientRotation(0),
+      transform: const GradientRotation(_start),
     ).createShader(rect);
     canvas.drawArc(
         rect,

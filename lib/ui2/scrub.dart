@@ -893,13 +893,18 @@ class _LinePainter extends CustomPainter {
       if (ru.length < 2) continue;
       final path = Path()..moveTo(xOf(ru.first), yOf(values[ru.first]!));
       if (smooth && ru.length > 2) {
-        // Each point is a control point, each midpoint a place the curve passes.
-        for (var k = 1; k < ru.length - 1; k++) {
-          final a = Offset(xOf(ru[k]), yOf(values[ru[k]]!));
-          final b = Offset(xOf(ru[k + 1]), yOf(values[ru[k + 1]]!));
-          path.quadraticBezierTo(a.dx, a.dy, (a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+        // A curve THROUGH every point: a cardinal spline, with each stretch's
+        // control points held between its two ends so it never swings past a
+        // reading (a peak is a peak, not an overshoot beside it).
+        final pts = [for (final i in ru) Offset(xOf(i), yOf(values[i]!))];
+        for (var k = 0; k < pts.length - 1; k++) {
+          final p0 = pts[math.max(0, k - 1)], p1 = pts[k], p2 = pts[k + 1];
+          final p3 = pts[math.min(pts.length - 1, k + 2)];
+          final lo = math.min(p1.dy, p2.dy), hi = math.max(p1.dy, p2.dy);
+          final c1 = p1 + (p2 - p0) / 6, c2 = p2 - (p3 - p1) / 6;
+          path.cubicTo(c1.dx, c1.dy.clamp(lo, hi), c2.dx, c2.dy.clamp(lo, hi),
+              p2.dx, p2.dy);
         }
-        path.lineTo(xOf(ru.last), yOf(values[ru.last]!));
       } else {
         for (final i in ru.skip(1)) {
           path.lineTo(xOf(i), yOf(values[i]!));

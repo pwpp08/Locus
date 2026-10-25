@@ -62,6 +62,22 @@ Future<void> _pump(WidgetTester t, SleepData d, {double scale = 1}) async {
 }
 
 void main() {
+  testWidgets('today before any sleep says no sleep yet, and scores nothing',
+      (t) async {
+    await _pump(
+      t,
+      const SleepData(
+        day: '2026-05-20',
+        night: {'has_sleep': false, 'in_progress': true},
+      ),
+    );
+    expect(find.text('No sleep yet'), findsOneWidget);
+    expect(find.textContaining('scored once you have slept'), findsOneWidget);
+    // Nothing to correct or confirm, and no figure.
+    expect(find.text('I was asleep'), findsNothing);
+    expect(find.textContaining('%'), findsNothing);
+  });
+
   testWidgets('a measure inside the middle half of your nights is typical',
       (t) async {
     await _pump(

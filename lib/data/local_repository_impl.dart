@@ -1046,6 +1046,32 @@ class LocalRepositoryImpl extends LocalRepository {
     final effPct = (acct?['efficiency_pct'] as num?);
     num? sec(String k) =>
         (win?[k] as num?) == null ? null : ((win![k] as num) / 1000).round();
+    // TODAY'S NIGHT, STILL BEING SLEPT: a window the data has not yet run past
+    // its wake is where the sync stopped, not a wake; and one that "ends" before
+    // 03:00 is the first hours of a night, never a finished one (the same rule
+    // that keeps such a night from being pinned). Either way there is no night
+    // to score yet, and a score off it would be a number for sleep that has not
+    // happened. Past days are settled and never come through here.
+    if (served == _todayLocalLabel()) {
+      var inProgress = false;
+      try {
+        final fresh = await _freshness('today');
+        inProgress = fresh?['today_day']?.toString() == served &&
+            fresh?['recovery_state'] == RecoveryState.nightInProgress.wire;
+      } catch (_) {}
+      final wake = sec('offset_ms');
+      if (!inProgress && wake != null) {
+        inProgress = DateTime.fromMillisecondsSinceEpoch(wake.toInt() * 1000).hour <
+            kMinPinWakeHour;
+      }
+      if (inProgress) {
+        return {
+          'has_sleep': false,
+          'in_progress': true,
+          'sleep_source': sleepSource,
+        };
+      }
+    }
     // 4-class stage minutes straight from the single-source segmentation seconds
     // (Light + Deep == NREM). Deep is the LOW-CONFIDENCE HR-depth overlay.
     int? min(String k) {

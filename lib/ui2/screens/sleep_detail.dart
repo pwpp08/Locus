@@ -547,6 +547,9 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
       final rejectedDay = d.day;
       final rejected =
           (d.night['sleep_source'] as String?) == 'rejected' && rejectedDay != null;
+      // Today, and not slept yet (or still asleep): nothing to score, and
+      // nothing to correct.
+      final yet = d.night['in_progress'] == true;
       return _frame(c, title, [
         ...dayNavRow(_day ?? d.day, d.days, _goDay),
         const SizedBox(height: S.x2),
@@ -557,14 +560,18 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
         StatusCard(
           rejected
               ? (l?.sleepDetailRejectedTitle ?? 'Marked as not sleep')
-              : (l?.sleepDetailNoNightTitle ?? 'No night to show'),
+              : yet
+                  ? 'No sleep yet'
+                  : (l?.sleepDetailNoNightTitle ?? 'No night to show'),
           rejected
               ? (l?.sleepDetailRejectedBody ??
                   'You told us this stretch was not sleep, so nothing is '
                       'scored for it.')
-              : (l?.sleepDetailNoNightBody ??
-                  'No stretch of band recordings long enough to score.'),
-          fix: rejected ? '' : (l?.sleepDetailNoNightFix ??
+              : yet
+                  ? 'Your night is scored once you have slept and woken up.'
+                  : (l?.sleepDetailNoNightBody ??
+                      'No stretch of band recordings long enough to score.'),
+          fix: rejected || yet ? '' : (l?.sleepDetailNoNightFix ??
               'Wear the band overnight and sync in the morning'),
           icon: rejected ? LucideIcons.undo2 : LucideIcons.moon,
           // A day with no night is an invitation to wear the band, so the
@@ -574,7 +581,7 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
         if (rejected) ...[
           const SizedBox(height: S.x2),
           TextAction(l?.sleepDetailUndoRejection ?? 'Undo — go back to automatic', _saving ? null : () => _clearWindow(rejectedDay)),
-        ] else if (rejectedDay != null) ...[
+        ] else if (rejectedDay != null && !yet) ...[
           // A night the detector missed is the other half of "it got it
           // wrong": the same manual window a mis-staged night gets, stored as
           // an override so every later re-analysis stages from it.

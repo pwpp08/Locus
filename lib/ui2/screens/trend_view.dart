@@ -821,7 +821,7 @@ class DashboardRows extends StatelessWidget {
     final h = trendHeadline(m, daily[m.id] ?? const {},
         today: today, firstDay: firstDay);
     final dir = _directionColor(m, h.value, h.against);
-    final title = m.weekly ? '${m.title} (weekly)' : m.title;
+    final title = m.title;
     return Surface(
       onTap: () => onOpen(m.id),
       semanticLabel: '$title. ${trendFormat(m, h.value)}'
@@ -841,18 +841,19 @@ class DashboardRows extends StatelessWidget {
           Row(mainAxisSize: MainAxisSize.min, children: [
             Text(m.absent != null ? '--' : trendFormat(m, h.value),
                 style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-            // A number with no arrow beside it takes the arrow's room, and
-            // sits at the card's edge.
+            // A number with no arrow beside it ends at the middle of where the
+            // arrows sit, so the figures of every card line up on one edge.
             if (dir != null) ...[
               const SizedBox(width: S.x2),
               DeltaTriangle(
                   up: h.value! > h.against!, color: dir, size: _triangle),
-            ],
+            ] else
+              const SizedBox(width: _triangle / 2),
           ]),
           if (h.against != null && m.absent == null)
             Padding(
               padding: EdgeInsets.only(
-                  right: dir == null ? 0 : _triangle + S.x2),
+                  right: dir == null ? _triangle / 2 : _triangle + S.x2),
               child: Text(trendFormat(m, h.against),
                   style: F.num(F.cap).copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
             ),
@@ -994,6 +995,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   /// The point under a finger. Null at rest, so the readout shows the average.
   int? _selected;
   bool _picking = false;
+  final _page = ScrollController();
 
   /// The part of the day a minute chart shows, in minutes, after pinching.
   double _zoomFrom = 0, _zoomTo = 1440;
@@ -1035,6 +1037,12 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     // Every chart opens on the day when it has one and the day is today.
     _range = _hasDay && _openDay == _today ? TrendRange.day : TrendRange.week;
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _page.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -1103,6 +1111,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   }
 
   void _pick(TrendMetric m) {
+    // The new chart opens at its top, not where the list was left: the page is
+    // keyed by its metric, so a new metric is a new page.
     setState(() {
       _m = m;
       _picking = false;
@@ -1409,7 +1419,11 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
-        child: ListView(padding: pad, children: [
+        child: ListView(
+            key: ValueKey(m.id),
+            controller: _page,
+            padding: pad,
+            children: [
           const NavBar('Trend View'),
           const SizedBox(height: S.x3),
           _MetricPill(

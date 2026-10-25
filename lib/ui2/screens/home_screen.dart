@@ -28,12 +28,12 @@ import '../../l10n/date_text.dart';
 // only three of them and they are read together.
 
 import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../ai/briefing.dart'
-    show Briefing, BriefingPeriod, BriefingStore, currentBriefingPeriod, resolveBriefingToShow;
 import '../../compute/stress_monitor.dart' show StressLevel, stressLevel;
 import '../../compute/findings.dart'
     show
@@ -77,7 +77,6 @@ import '../ui2.dart';
 import 'action_sheet.dart' show openActionSheet;
 import 'add_activity.dart' show openAddActivity;
 import 'recovery_calendar.dart' show openRecoveryCalendar;
-import 'ai_briefing.dart' show AiBriefingScreen;
 import 'detected_activities.dart';
 import 'day_timeline.dart' show DayTimelineScreen;
 import 'metric_detail.dart';
@@ -1669,26 +1668,34 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   bool _syncTapped = false;
   Timer? _syncTapTimer;
 
-  /// The big dials scrolled out of sight: the compact bar slides in.
+  /// The big dials fold into the bar at the top as the page scrolls: each ring
+  /// travels from where it sits to its place in the bar, shrinking on the way.
   final _scroll = ScrollController();
-  final _dialsKey = GlobalKey();
-  final _collapsed = ValueNotifier<bool>(false);
+  final _stackKey = GlobalKey();
+  final _dialKeys = {for (final k in _kDialOrder) k: GlobalKey()};
 
-  void _onScroll() {
-    final dials = _dialsKey.currentContext?.findRenderObject() as RenderBox?;
-    final self = context.findRenderObject() as RenderBox?;
-    bool gone;
-    if (dials == null || !dials.attached || self == null) {
-      // A ListView drops children far off screen; by then they are long gone.
-      gone = _scroll.hasClients && _scroll.offset > 0 && _dialsKey.currentContext == null;
-    } else {
-      final bottom = dials
-          .localToGlobal(Offset(0, dials.size.height), ancestor: self)
-          .dy;
-      gone = bottom <= 0;
+  /// Where each big dial sits with the page at the top (centre, diameter),
+  /// measured after every build so the fold needs no layout of its own.
+  final _dialRest = <HomeRingKind, (Offset, double)>{};
+
+  void _measureDials() {
+    final stack = _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (!mounted || stack == null || !stack.attached) return;
+    final offset = _scroll.hasClients ? _scroll.offset : 0.0;
+    for (final k in _kDialOrder) {
+      final rb = _dialKeys[k]!.currentContext?.findRenderObject() as RenderBox?;
+      if (rb == null || !rb.attached || !rb.hasSize) {
+        _dialRest.remove(k);
+        continue;
+      }
+      final top = stack.globalToLocal(rb.localToGlobal(Offset.zero));
+      _dialRest[k] = (
+        Offset(top.dx + rb.size.width / 2, top.dy + rb.size.height / 2 + offset),
+        rb.size.width,
+      );
     }
-    _collapsed.value = gone;
   }
+
   static const _tapGrace = Duration(seconds: 20);
 
   void _tapSync(VoidCallback sync) {
@@ -1704,14 +1711,12 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   void dispose() {
     _syncTapTimer?.cancel();
     _scroll.dispose();
-    _collapsed.dispose();
     super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
-    _scroll.addListener(_onScroll);
     if (widget.data != null) {
       _d = widget.data;
       _night = widget.night ?? const {};
@@ -1807,7 +1812,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   /// gets the same connecting/syncing feedback as every other one. Returns
   /// null when none of the three phases apply, so the caller falls through
   /// to its own "nothing yet" copy.
-  Widget? _phaseStatusCard(BuildContext c, AppLocalizations? l, {bool sleepComputed = false}) {
+  Widget? _phaseStatusCard(BuildContext c, AppLocalizations? l,
+      {bool sleepComputed = false, bool firstRun = true}) {
     final syncing = syncingNowOf(c);
     final deriving = derivingOf(c);
     // The tap latch is otherwise cleared only by its 20s grace timer — if
@@ -1825,7 +1831,12 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     );
 
     // Syncing has no card: the loader in the header's device badge says it.
-    if (deriving && !sleepComputed) {
+    //
+    // First run only. Once a night has been scored the pipeline re-derives with
+    // every record that lands, so "crunching last night's numbers" would sit on
+    // screen for as long as the band keeps streaming, over a day that is simply
+    // new and has nothing in it yet.
+    if (deriving && !sleepComputed && firstRun) {
       return StatusCard(
         l?.homeAnalyzingTitle ?? 'Crunching last night\'s numbers',
         l?.homeAnalyzingBody ?? 'The data is in — sleep, recovery and strain '
@@ -1857,7 +1868,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         icon: LucideIcons.calendarOff,
       );
     }
-    final phase = _phaseStatusCard(c, l);
+    final phase = _phaseStatusCard(c, l, firstRun: d.heldOverNight == null);
     if (phase != null) return phase;
 
     final sync = syncOf(c);
@@ -1991,7 +2002,6 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         const _Wordmark(),
         const SizedBox(height: S.x5),
         // No day on screen ⇒ no `todayId`, so this renders the dated form.
-        Align(alignment: Alignment.center, child: syncedThroughLine(c, null, l)),
         const SizedBox(height: S.x3),
         const DetectedActivitiesCard(),
         if (_loading)
@@ -2048,6 +2058,19 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     // the plan, which is about what to DO today.
     final isToday = _day == null || _day == todayLabel();
 
+    // A new day, and the band is talking to the app, but nothing has been
+    // scored for the day yet (it is past midnight and the night has not
+    // happened): that is not a problem to fix, it is a day that has just begun.
+    // The dials show, empty, with one quiet line, instead of a card asking for
+    // a sync.
+    final quietDay = newDayNothingYet(
+        bare: bare,
+        isToday: isToday,
+        hasHistory: d.heldOverNight != null,
+        lastData: lastDataAtOf(c),
+        now: DateTime.now());
+    final showBare = bare && !quietDay;
+
     final recoveryNightsLeft = needMoreNightsFromNote(d.readiness.note);
     final firstWeeks = isToday &&
         widget.data == null &&
@@ -2067,9 +2090,10 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           // The night the dial was drawn from, not last night.
           HomeRingKind.sleep => SleepDetail(day: isToday ? null : _day),
         });
-    final dialsShown = !bare && RingTrio.has(d);
+    final dialsShown = (!bare && RingTrio.has(d)) || quietDay;
 
-    return Stack(children: [
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureDials());
+    return Stack(key: _stackKey, children: [
      _refreshable(ListView(
         controller: _scroll,
         padding: pad.copyWith(bottom: S.navClear(c)),
@@ -2088,12 +2112,13 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           c,
           l,
           sleepComputed: d.sleepMin.value != null || d.readiness.value != null,
+          firstRun: d.heldOverNight == null,
         ) case final phase?) ...[
           phase,
           const SizedBox(height: S.x3),
         ],
 
-      if (bare) ...[
+      if (showBare) ...[
         // A live workout holds derivation, so a bare day with a session open
         // is the hold at work, not a sync problem — see [workoutHoldCard].
         isToday && (widget.workoutLive ?? workoutLiveOf(c))
@@ -2111,7 +2136,12 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         // as long as ONE of them has something to draw; three empty dials
         // say less than the one written absence below, which is a door.
         if (dialsShown) ...[
-          _Dials(key: _dialsKey, d: d, onOpen: openDial),
+          _Dials(
+              d: d,
+              onOpen: openDial,
+              keys: _dialKeys,
+              scroll: _scroll,
+              note: quietDay ? 'No sleep yet today.' : null),
           // ── the two monitors ── a glance each, one tap from the full screen.
           _Monitors(
             health: _health,
@@ -2142,7 +2172,6 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
               onFix: () => go(c, const ReadinessDetail()),
             );
           }),
-        Center(child: syncedThroughLine(c, d.dayId, l)),
         if (stale != null) ...[const SizedBox(height: S.x3), stale],
         if (firstWeeks) ...[
           const SizedBox(height: S.x3),
@@ -2228,44 +2257,154 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           ),
         },
       ),
-
-      if (isToday && !bare) ...[
-        const SizedBox(height: S.x3),
-        _briefingDoor(c, d),
-      ],
     ])),
-      // The dials, folded: slides down from the top once they scroll away.
-      if (dialsShown)
-        Positioned(
-          left: 0,
-          right: 0,
-          top: 0,
-          child: ValueListenableBuilder<bool>(
-            valueListenable: _collapsed,
-            builder: (c, on, child) => IgnorePointer(
-              ignoring: !on,
-              child: AnimatedSlide(
-                offset: on ? Offset.zero : const Offset(0, -1),
-                duration: motion(c, Motion.base),
-                curve: Curves.easeOutCubic,
-                child: AnimatedOpacity(
-                  opacity: on ? 1 : 0,
-                  duration: motion(c, Motion.base),
-                  child: child,
+      // The dials, folded into the bar at the top as the page scrolls.
+      if (dialsShown) _foldedDials(c, d, openDial),
+    ]);
+  }
+
+  /// The bar the three dials fold into. Driven by the scroll offset alone: a
+  /// ring starts where its big dial is, follows the page up, and as it nears
+  /// the top it slides sideways to its place in the bar and shrinks to fit it,
+  /// while the bar itself fades in behind and the names come in last.
+  Widget _foldedDials(
+      BuildContext c, HomeData d, void Function(HomeRingKind) open) {
+    final p = P.of(c);
+    final l = AppLocalizations.of(c);
+    return Positioned.fill(
+      child: ListenableBuilder(
+        listenable: _scroll,
+        builder: (c, _) {
+          final stack = _stackKey.currentContext?.findRenderObject() as RenderBox?;
+          final offset = _scroll.hasClients ? _scroll.offset : 0.0;
+          if (stack == null || !stack.attached || offset <= .5) {
+            return const SizedBox.shrink();
+          }
+          final w = stack.size.width;
+          const ring = S.x8, barH = ring + S.x3 * 2, barY = barH / 2;
+          final colW = (w - S.gutter * 2) / 3;
+
+          // How far each dial has travelled, 0 at rest to 1 in the bar. A dial
+          // the list has dropped is long gone: in the bar.
+          double progress(HomeRingKind k) {
+            final rest = _dialRest[k];
+            if (rest == null) return 1;
+            return (offset / math.max(1, rest.$1.dy - barY)).clamp(0.0, 1.0);
+          }
+
+          final all = _kDialOrder.map(progress).reduce(math.max);
+          final bar = ((all - .35) / .65).clamp(0.0, 1.0);
+          final names = ((all - .75) / .25).clamp(0.0, 1.0);
+
+          final rings = <Widget>[];
+          final labels = <Widget>[];
+          for (var i = 0; i < _kDialOrder.length; i++) {
+            final k = _kDialOrder[i];
+            final r = _ringOf(k, d, l);
+            final (value, suffix, frac, arc) = _dialFace(r, d, p);
+            final rest = _dialRest[k];
+            final t = progress(k);
+            final e = Curves.easeInOutCubic.transform(t);
+            final slotX = S.gutter + colW * i + ring / 2;
+            final x = rest == null ? slotX : lerpDouble(rest.$1.dx, slotX, e)!;
+            final y = rest == null ? barY : lerpDouble(rest.$1.dy - offset, barY, e)!;
+            final size = rest == null ? ring : lerpDouble(rest.$2, ring, e)!;
+            // Thin as the big dial's at first, as the bar's by the end.
+            final stroke = size * lerpDouble(.058, .125, e)!;
+            final target = k == HomeRingKind.strain && e < .5 ? _strainBand(d) : null;
+            rings.add(Positioned(
+              left: x - size / 2,
+              top: y - size / 2,
+              width: size,
+              height: size,
+              child: IgnorePointer(
+                child: Stack(alignment: Alignment.center, children: [
+                  CustomPaint(
+                    size: Size.infinite,
+                    painter: r.calibrating
+                        ? DashedRing(frac ?? 0, p.ink3, p.track,
+                            stroke: stroke, segments: r.need ?? 24)
+                        : Ring(frac ?? 0, arc, p.track,
+                            stroke: stroke,
+                            solid: true,
+                            flatStart: true,
+                            band: target,
+                            bandColor: Color.alphaBlend(
+                                p.ink.withValues(alpha: .24), p.track),
+                            tick: target?.$1,
+                            tickColor: p.ink),
+                  ),
+                  Opacity(
+                    opacity: (1 - e * 2.4).clamp(0.0, 1.0),
+                    child: Padding(
+                      padding: EdgeInsets.all(size * .2),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text('$value$suffix',
+                            style: F.n34.copyWith(
+                                color: r.provisional ? p.ink3 : p.ink,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
+            ));
+            labels.add(Positioned(
+              left: S.gutter + colW * i,
+              top: 0,
+              width: colW,
+              height: barH,
+              child: IgnorePointer(
+                ignoring: all < .99,
+                child: Pressable(
+                  onTap: () => open(k),
+                  semanticLabel:
+                      '${_dialName(k, l)}. ${r.measured ? '$value$suffix' : r.value}',
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: ring + S.x2),
+                      child: Opacity(
+                        opacity: names,
+                        child: Text(_dialName(k, l).toUpperCase(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: F.caps.copyWith(
+                                color: p.ink, fontWeight: FontWeight.w800)),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ));
+          }
+
+          return Stack(children: [
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              height: barH,
+              child: Opacity(
+                opacity: bar,
+                child: Transform.translate(
+                  offset: Offset(0, -(1 - bar) * S.x2),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: p.bgTop,
+                      border: Border(bottom: BorderSide(color: p.line)),
+                    ),
+                  ),
                 ),
               ),
             ),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(S.gutter, S.x3, S.gutter, S.x3),
-              decoration: BoxDecoration(
-                color: p.bgTop,
-                border: Border(bottom: BorderSide(color: p.line)),
-              ),
-              child: _CompactDials(d: d, onOpen: openDial),
-            ),
-          ),
-        ),
-    ]);
+            ...labels,
+            ...rings,
+          ]);
+        },
+      ),
+    );
   }
 
   Future<void> _editDashboard() async {
@@ -2362,62 +2501,6 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     }
     await _load();
   }
-
-  /// The only quick way into [AiBriefingScreen] used to be the notification
-  /// that fires when a briefing is ready — dismiss or miss it, and the
-  /// screen was two non-obvious taps deep behind Coach's overflow menu
-  /// instead (see EDGE-14). Shown unconditionally, not gated on AI/BYOK
-  /// being configured: the screen itself already has a graceful
-  /// "no model set up" state with its own way to fix that, so gating here
-  /// would just duplicate that door rather than simplify anything.
-  /// Re-run on every call rather than cached by the caller: Home is kept
-  /// alive by the shell's `IndexedStack` (see revision.dart), so a build can
-  /// sit for hours without rerunning. Resolving once at build time and
-  /// capturing the result in the row's `onTap` closure would let a stale
-  /// morning/evening decision — or a briefing written in the background
-  /// after that build — survive across the 17:00 boundary until Home
-  /// happens to rebuild for an unrelated reason.
-  ({BriefingPeriod period, Briefing? briefing}) _resolveBriefingNow(HomeData d) {
-    final period = currentBriefingPeriod(DateTime.now());
-    return resolveBriefingToShow(
-      period,
-      BriefingStore.read(period, day: d.dayId),
-      BriefingStore.read(BriefingPeriod.morning, day: d.dayId),
-    );
-  }
-
-  Widget _briefingDoor(BuildContext c, HomeData d) {
-    final l = AppLocalizations.of(c);
-    final cached = _resolveBriefingNow(d).briefing;
-    return detailLinkRow(
-      c,
-      LucideIcons.newspaper,
-      l?.homeBriefingTitle ?? 'Briefing',
-      cached?.oneLiner == 'Nothing stood out tonight.'
-          ? uiText(c, cached!.oneLiner)
-          : cached?.oneLiner ?? (l?.homeBriefingSubtitleEmpty ?? 'Tap to write today\'s summary'),
-      () => _openBriefing(c),
-    );
-  }
-
-  Future<void> _openBriefing(BuildContext c) async {
-    // Resolved fresh at tap time via _resolveBriefingNow, not read from a
-    // value captured at build — see that method's doc for why.
-    //
-    // Writing a briefing (BriefingStore.write, in briefing_engine.dart)
-    // does not bump AppState.insightsRevision, so RevisionReload's
-    // automatic reload never fires for it — awaiting the route and
-    // reloading on return is the only way this row picks up a briefing
-    // written during the visit instead of showing stale/empty text until
-    // some UNRELATED revision bump happens to refresh Home.
-    final d = _d;
-    if (d == null) return;
-    final screen = AiBriefingScreen(period: _resolveBriefingNow(d).period);
-    await Navigator.of(c).push(
-        themedRoute<void>((_) => screen, name: screen.runtimeType.toString()));
-    if (mounted) reload();
-  }
-
 }
 
 /// What happens in the first weeks, with the counts the pipeline actually
@@ -2734,14 +2817,26 @@ class _Dials extends StatelessWidget {
   final HomeData d;
   final void Function(HomeRingKind) onOpen;
 
-  const _Dials({super.key, required this.d, required this.onOpen});
+  /// The ring of each dial, measured by the page; and the page's scroll, which
+  /// hides a ring once its twin has left for the bar.
+  final Map<HomeRingKind, GlobalKey>? keys;
+  final ScrollController? scroll;
+
+  /// One quiet line in place of the reason under each empty dial.
+  final String? note;
+
+  const _Dials(
+      {required this.d,
+      required this.onOpen,
+      this.keys,
+      this.scroll,
+      this.note});
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
-    const kinds = [HomeRingKind.sleep, HomeRingKind.recovery, HomeRingKind.strain];
-    final rings = [for (final k in kinds) _ringOf(k, d, l)];
+    final rings = [for (final k in _kDialOrder) _ringOf(k, d, l)];
     final gaps = rings.where((r) => r.why != null).toList();
     return Column(children: [
       Row(
@@ -2751,15 +2846,23 @@ class _Dials extends StatelessWidget {
           for (var i = 0; i < rings.length; i++) ...[
             if (i > 0) const SizedBox(width: S.x3),
             Expanded(
-              child: _ScoreDial(rings[i], d: d, onTap: () => onOpen(rings[i].kind)),
+              child: _ScoreDial(rings[i],
+                  d: d,
+                  onTap: () => onOpen(rings[i].kind),
+                  ringKey: keys?[rings[i].kind],
+                  scroll: scroll),
             ),
           ],
         ],
       ),
-      for (final r in gaps) ...[
+      if (note != null) ...[
         const SizedBox(height: S.x2),
-        _GapRow(r, onTap: () => onOpen(r.kind)),
-      ],
+        Text(note!, style: F.cap.copyWith(color: p.ink3)),
+      ] else
+        for (final r in gaps) ...[
+          const SizedBox(height: S.x2),
+          _GapRow(r, onTap: () => onOpen(r.kind)),
+        ],
       if (recoveryUpdatedLine(d.readinessUpdate, l) case final note?) ...[
         const SizedBox(height: S.x2),
         Text(note, style: F.cap.copyWith(color: p.ink3)),
@@ -2832,8 +2935,11 @@ class _ScoreDial extends StatelessWidget {
   final _RingState r;
   final HomeData d;
   final VoidCallback onTap;
+  final GlobalKey? ringKey;
+  final ScrollController? scroll;
 
-  const _ScoreDial(this.r, {required this.d, required this.onTap});
+  const _ScoreDial(this.r,
+      {required this.d, required this.onTap, this.ringKey, this.scroll});
 
   @override
   Widget build(BuildContext c) {
@@ -2851,8 +2957,17 @@ class _ScoreDial extends StatelessWidget {
           child: FractionallySizedBox(
            widthFactor: 0.85,
            child: AspectRatio(
+            key: ringKey,
             aspectRatio: 1,
-            child: LayoutBuilder(builder: (c, box) {
+            // Once the page has moved, the ring is drawn by the bar's own
+            // copy of it, which is already on its way up.
+            child: ListenableBuilder(
+             listenable: scroll ?? _never,
+             builder: (c, ring) => Opacity(
+               opacity: scroll != null && scroll!.hasClients && scroll!.offset > .5 ? 0 : 1,
+               child: ring,
+             ),
+             child: LayoutBuilder(builder: (c, box) {
              // A thin ring: under a fifteenth of the dial across.
              final stroke = box.maxWidth * .058;
              final target = r.kind == HomeRingKind.strain ? _strainBand(d) : null;
@@ -2896,6 +3011,7 @@ class _ScoreDial extends StatelessWidget {
               ),
              ]);
             }),
+            ),
            ),
           ),
         ),
@@ -3074,49 +3190,30 @@ class _MyDay extends StatelessWidget {
 
 /// The three dials, folded into one row: what slides in at the top once the
 /// big dials have scrolled away. Same faces, same doors.
-class _CompactDials extends StatelessWidget {
-  final HomeData d;
-  final void Function(HomeRingKind) onOpen;
-  const _CompactDials({required this.d, required this.onOpen});
+/// The order of the three dials, on the page and in the bar.
+const _kDialOrder = [HomeRingKind.sleep, HomeRingKind.recovery, HomeRingKind.strain];
 
-  @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    final l = AppLocalizations.of(c);
-    Widget one(HomeRingKind k) {
-      final r = _ringOf(k, d, l);
-      final (value, suffix, frac, arc) = _dialFace(r, d, p);
-      final name = _dialName(k, l);
-      return Pressable(
-        onTap: () => onOpen(k),
-        semanticLabel: '$name. ${r.measured ? '$value$suffix' : r.value}',
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          SizedBox(
-            width: S.x8,
-            height: S.x8,
-            child: CustomPaint(
-              painter: r.calibrating
-                  ? DashedRing(frac ?? 0, p.ink3, p.track,
-                      stroke: S.x1, segments: r.need ?? 24)
-                  : Ring(frac ?? 0, arc, p.track, stroke: S.x1, solid: true),
-            ),
-          ),
-          const SizedBox(width: S.x2),
-          Flexible(
-            child: Text(name.toUpperCase(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: F.caps.copyWith(color: p.ink)),
-          ),
-        ]),
-      );
-    }
+/// A day that has only just begun: today, with nothing scored for it yet, for
+/// someone whose earlier nights were, and a band that has been talking to the
+/// app within the last six hours. It is not a fault, so Home shows its dials
+/// empty rather than a card asking for a sync. A band silent for longer is a
+/// sync problem, and keeps its card.
+bool newDayNothingYet({
+  required bool bare,
+  required bool isToday,
+  required bool hasHistory,
+  required DateTime? lastData,
+  required DateTime now,
+}) =>
+    bare &&
+    isToday &&
+    hasHistory &&
+    lastData != null &&
+    now.millisecondsSinceEpoch - lastData.millisecondsSinceEpoch <
+        6 * 3600 * 1000;
 
-    return Row(children: [
-      for (final k in HomeRingKind.values) Expanded(child: one(k)),
-    ]);
-  }
-}
+/// A listenable that never fires: a dial with no page to follow.
+final _never = ValueNotifier<int>(0);
 
 /// TONIGHT'S SLEEP: the bedtime the sleep coach recommends and the alarm that
 /// ends the night. Each half is a dash when there is nothing behind it.
