@@ -9,6 +9,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/l10n/app_localizations.dart';
+import 'package:openstrap_edge/theme/theme_controller.dart';
+import 'package:provider/provider.dart';
 import 'package:openstrap_edge/models/metric.dart';
 import 'package:openstrap_edge/ui2/screens/screens.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
@@ -51,18 +53,22 @@ Future<void> _pump(WidgetTester t, SleepData d, {double scale = 1}) async {
   t.view.physicalSize = Size(390 * 3, 5200 * 3 * scale);
   t.view.devicePixelRatio = 3;
   addTearDown(t.view.reset);
-  await t.pumpWidget(MediaQuery(
-    data: MediaQueryData(textScaler: TextScaler.linear(scale)),
-    child: MaterialApp(
-      theme: buildTheme(Brightness.light),
-      home: SleepDetail(data: d),
+  await t.pumpWidget(ChangeNotifierProvider<ThemeController>(
+    // The routes this screen opens (the window editor) read the theme.
+    create: (_) => ThemeController.seed(AppThemeChoice.light, Brightness.light),
+    child: MediaQuery(
+      data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+      child: MaterialApp(
+        theme: buildTheme(Brightness.light),
+        home: SleepDetail(data: d),
+      ),
     ),
   ));
   await t.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('today before any sleep says no sleep yet, and scores nothing',
+  testWidgets('today before any sleep says none is recorded, and scores nothing',
       (t) async {
     await _pump(
       t,
@@ -71,10 +77,8 @@ void main() {
         night: {'has_sleep': false, 'in_progress': true},
       ),
     );
-    expect(find.text('No sleep yet'), findsOneWidget);
-    expect(find.textContaining('scored once you have slept'), findsOneWidget);
-    // Nothing to correct or confirm, and no figure.
-    expect(find.text('I was asleep'), findsNothing);
+    expect(find.text('No sleep recorded'), findsOneWidget);
+    expect(find.text('Set one manually'), findsOneWidget);
     expect(find.textContaining('%'), findsNothing);
   });
 
@@ -577,24 +581,27 @@ void main() {
     expect(find.text('REM'), findsNothing);
   });
 
-  testWidgets('a night with nothing found offers "I was asleep" at 44 pt',
+  testWidgets('a night with nothing found is set by hand on the heart rate',
       (t) async {
     await _pump(t, const SleepData(day: '2026-05-20'));
-    expect(find.text('No night to show'), findsOneWidget);
-    final b = find.widgetWithText(TextAction, 'I was asleep');
+    expect(find.text('No sleep recorded'), findsOneWidget);
+    final b = find.text('Set one manually');
     expect(b, findsOneWidget);
-    expect(t.getSize(b).height, greaterThanOrEqualTo(44));
     await t.tap(b);
     await t.pumpAndSettle();
-    // The same pickers as "Change the times", seeded on the night before.
-    expect(find.text('WHEN YOU GOT INTO BED'), findsOneWidget);
+    // The window editor: the heart rate chart, two times, and save.
+    expect(find.byType(WindowEditor), findsOneWidget);
+    expect(find.text('START'), findsOneWidget);
+    expect(find.text('END'), findsOneWidget);
+    expect(find.text('Save sleep'), findsOneWidget);
   });
 
-  testWidgets('a night marked not sleep offers undo, not "I was asleep"',
+  testWidgets('a night marked not sleep is set by hand the same way',
       (t) async {
     await _pump(t, const SleepData(
         day: '2026-05-20', night: {'sleep_source': 'rejected'}));
-    expect(find.text('Marked as not sleep'), findsOneWidget);
-    expect(find.text('I was asleep'), findsNothing);
+    expect(find.text('No sleep recorded'), findsOneWidget);
+    expect(find.text('Marked as not sleep'), findsNothing);
+    expect(find.text('Set one manually'), findsOneWidget);
   });
 }

@@ -7,6 +7,7 @@ import 'package:openstrap_edge/compute/manual_session.dart';
 import 'package:openstrap_edge/models/activity_suggestion.dart';
 import 'package:openstrap_edge/state/app_state.dart';
 import 'package:openstrap_edge/ui2/screens/detected_activities.dart';
+import 'package:openstrap_edge/ui2/screens/window_editor.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 import 'package:openstrap_edge/theme/theme_controller.dart';
 
@@ -127,7 +128,7 @@ void main() {
     await t.tap(find.text('Edit').first);
     await t.pumpAndSettle();
     expect(find.text('Save and confirm'), findsOneWidget);
-    Navigator.of(t.element(find.byType(NapProposalEditor))).pop();
+    Navigator.of(t.element(find.byType(WindowEditor))).pop();
     await t.pumpAndSettle();
     expect(repo.items, hasLength(2));
   });

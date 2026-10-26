@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../compute/nap_edits.dart';
 import '../../models/activity_suggestion.dart';
 import '../../theme/theme_switcher.dart' show themedRoute;
 import '../activity/catalogue.dart';
 import '../ui2.dart';
 import 'home_screen.dart';
 import 'log_workout.dart';
+import 'window_editor.dart';
 
 class DetectedActivitiesScreen extends StatefulWidget {
   const DetectedActivitiesScreen({super.key, this.focusId, this.preloaded});
@@ -115,9 +115,7 @@ class _DetectedActivitiesScreenState extends State<DetectedActivitiesScreen>
       );
       if (mounted) await _load();
     } else {
-      final result = await Navigator.of(
-        context,
-      ).push<(int, int)>(themedActivityRoute(NapProposalEditor(suggestion: s)));
+      final result = await editNapWindow(context, s);
       if (result != null && mounted) {
         await _act(s, start: result.$1, end: result.$2);
       }
@@ -195,10 +193,14 @@ class ActivityProposalCard extends StatelessWidget {
     this.onConfirm,
     this.onEdit,
     this.onDiscard,
+    this.hr,
   });
   final ActivitySuggestion suggestion;
   final bool highlighted;
   final VoidCallback? onConfirm, onEdit, onDiscard;
+
+  /// Where the preview's heart rate comes from; the band's store when null.
+  final HrReader? hr;
 
   @override
   Widget build(BuildContext c) {
@@ -246,6 +248,15 @@ class ActivityProposalCard extends StatelessWidget {
             l?.activityLengthMinutes(suggestion.durationMin) ??
                 '${suggestion.durationMin} min',
             style: F.cap.copyWith(color: p.ink3),
+          ),
+          const SizedBox(height: S.x3),
+          // The heart rate around it, the window drawn on it the way the
+          // editor draws it: what the detector saw, before it is confirmed.
+          WindowPreview(
+            start: suggestion.startTs,
+            end: suggestion.endTs,
+            kind: nap ? WindowKind.nap : WindowKind.workout,
+            hr: hr,
           ),
           const SizedBox(height: S.x3),
           Wrap(
@@ -301,6 +312,10 @@ class ActivityProposalCard extends StatelessWidget {
   );
 }
 
+/// Home's banner for what the detector found: the first proposal itself, with
+/// its heart rate and its three answers, so most of them are settled without
+/// leaving Home; the rest are one tap away. [pendingCount] (the gallery, tests)
+/// draws the plain summary card instead of reading the database.
 class DetectedActivitiesCard extends StatefulWidget {
   const DetectedActivitiesCard({super.key, this.pendingCount});
   final int? pendingCount;
@@ -310,18 +325,20 @@ class DetectedActivitiesCard extends StatefulWidget {
 
 class _DetectedActivitiesCardState extends State<DetectedActivitiesCard>
     with RevisionReload {
-  int? _count;
+  List<ActivitySuggestion>? _items;
   bool _failed = false;
+  bool _busy = false;
+  String? _error;
+
   @override
   void initState() {
     super.initState();
-    _count = widget.pendingCount;
     reload();
   }
 
   @override
   void reload() {
-    _load();
+    if (!_busy) _load();
   }
 
   Future<void> _load() async {
@@ -329,10 +346,10 @@ class _DetectedActivitiesCardState extends State<DetectedActivitiesCard>
       if (widget.pendingCount != null) return;
       final repo = repoOf(context);
       if (repo == null) return;
-      final count = await repo.pendingActivityCount();
+      final items = await repo.pendingActivities();
       if (mounted) {
         setState(() {
-          _count = count;
+          _items = items;
           _failed = false;
         });
       }
@@ -341,133 +358,107 @@ class _DetectedActivitiesCardState extends State<DetectedActivitiesCard>
     }
   }
 
+  Future<void> _act(ActivitySuggestion s,
+      {bool discard = false, int? start, int? end}) async {
+    final repo = repoOf(context);
+    if (_busy || repo == null) return;
+    setState(() => (_busy = true, _error = null));
+    String? error;
+    try {
+      if (discard) {
+        await repo.discardActivity(s);
+      } else {
+        await repo.confirmActivity(s,
+            startTs: start,
+            endTs: end,
+            workoutType: activityByName(s.sport)?.typeKey ?? 'other');
+      }
+    } catch (e) {
+      error = e.toString();
+    }
+    if (!mounted) return;
+    setState(() => _busy = false);
+    bumpInsights(context);
+    await _load();
+    if (mounted && error != null) setState(() => _error = error);
+  }
+
+  Future<void> _edit(ActivitySuggestion s) async {
+    if (s.kind == ActivityKind.nap) {
+      final r = await editNapWindow(context, s);
+      if (r != null && mounted) await _act(s, start: r.$1, end: r.$2);
+      return;
+    }
+    // A workout's editor is where its sport is picked too; the list
+    // re-reads when it comes back (RevisionReload).
+    go(context, const DetectedActivitiesScreen());
+  }
+
   @override
   Widget build(BuildContext c) {
-    // nothing pending (or not loaded yet) = no card on home. a failed load
-    // isn't "nothing", so that still shows with the retry text.
-    final n = _count;
-    if (!_failed && (n == null || n <= 0)) return const SizedBox.shrink();
     final l = AppLocalizations.of(c);
+    final given = widget.pendingCount;
+    // A failed load is not "nothing", so that still shows, with the retry.
+    if (given != null || _failed) {
+      final n = given ?? 0;
+      if (!_failed && n <= 0) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(bottom: S.x3),
+        child: ActionCard(
+          l?.activityReviewTitle ?? 'Detected activities',
+          _failed
+              ? (l?.activityLoadFailed ?? 'Could not load activities. Try again.')
+              : (l?.activityPending(n) ?? '$n to review'),
+          l?.activityReview ?? 'Review',
+          LucideIcons.radar,
+          C.domHome,
+          onTap: () => go(c, const DetectedActivitiesScreen()),
+        ),
+      );
+    }
+    final items = _items;
+    if (items == null || items.isEmpty) return const SizedBox.shrink();
+    final first = items.first;
     return Padding(
       padding: const EdgeInsets.only(bottom: S.x3),
-      child: ActionCard(
-        l?.activityReviewTitle ?? 'Detected activities',
-        _failed
-            ? (l?.activityLoadFailed ?? 'Could not load activities. Try again.')
-            : (l?.activityPending(n!) ?? '$n to review'),
-        l?.activityReview ?? 'Review',
-        LucideIcons.radar,
-        C.domHome,
-        onTap: () => go(c, const DetectedActivitiesScreen()),
-      ),
-    );
-  }
-}
-
-class NapProposalEditor extends StatefulWidget {
-  const NapProposalEditor({super.key, required this.suggestion});
-  final ActivitySuggestion suggestion;
-  @override
-  State<NapProposalEditor> createState() => _NapProposalEditorState();
-}
-
-class _NapProposalEditorState extends State<NapProposalEditor> {
-  late DateTime _start, _end;
-  @override
-  void initState() {
-    super.initState();
-    _start = DateTime.fromMillisecondsSinceEpoch(
-      widget.suggestion.startTs * 1000,
-    );
-    _end = DateTime.fromMillisecondsSinceEpoch(widget.suggestion.endTs * 1000);
-  }
-
-  Future<void> _pick(bool start) async {
-    final value = start ? _start : _end;
-    final day = await showDatePicker(
-      context: context,
-      initialDate: value,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-    );
-    if (day == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(value),
-    );
-    if (time == null || !mounted) return;
-    final picked = DateTime(
-      day.year,
-      day.month,
-      day.day,
-      time.hour,
-      time.minute,
-    );
-    setState(() {
-      if (start) {
-        _start = picked;
-      } else {
-        _end = picked;
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext c) {
-    final l = AppLocalizations.of(c);
-    final valid =
-        manualNapWindowIsValid(
-          _start.millisecondsSinceEpoch ~/ 1000,
-          _end.millisecondsSinceEpoch ~/ 1000,
-        ) &&
-        !_end.isAfter(DateTime.now());
-    final material = MaterialLocalizations.of(c);
-    String label(DateTime d) =>
-        '${material.formatMediumDate(d)} ${material.formatTimeOfDay(TimeOfDay.fromDateTime(d), alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(c))}';
-    return Scaffold(
-      backgroundColor: P.of(c).bg,
-      body: SafeArea(
-        child: ListView(
-          padding: pad,
-          children: [
-            NavBar(l?.activityEditNap ?? 'Edit nap'),
-            ActionCard(
-              l?.activityStart ?? 'Start',
-              label(_start),
-              l?.activityEdit ?? 'Edit',
-              LucideIcons.clock,
-              C.domHealth,
-              onTap: () => _pick(true),
-            ),
-            const SizedBox(height: S.x3),
-            ActionCard(
-              l?.activityEnd ?? 'End',
-              label(_end),
-              l?.activityEdit ?? 'Edit',
-              LucideIcons.clock,
-              C.domHealth,
-              onTap: () => _pick(false),
-            ),
-            const SizedBox(height: S.x4),
-            if (!valid)
-              StatusCard(
-                l?.activityCheckTimes ?? 'Check the times',
-                l?.activityNapWindow ??
-                    'Choose a past window between 5 minutes and 6 hours.',
-              ),
-            BigButton(
-              l?.activitySaveConfirm ?? 'Save and confirm',
-              icon: LucideIcons.check,
-              onTap: valid
-                  ? () => Navigator.of(c).pop((
-                      _start.millisecondsSinceEpoch ~/ 1000,
-                      _end.millisecondsSinceEpoch ~/ 1000,
-                    ))
-                  : null,
-            ),
-          ],
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        ActivityProposalCard(
+          suggestion: first,
+          onConfirm: _busy ? null : () => _act(first),
+          onEdit: _busy ? null : () => _edit(first),
+          onDiscard: _busy ? null : () => _act(first, discard: true),
         ),
-      ),
+        if (_error != null) ...[
+          const SizedBox(height: S.x2),
+          Text(_error!, style: F.cap.copyWith(color: C.orange)),
+        ],
+        if (items.length > 1)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextAction(
+                '${items.length - 1} more to review',
+                () => go(c, const DetectedActivitiesScreen())),
+          ),
+      ]),
     );
   }
+}
+
+/// A detected nap's times, on the heart rate: the window editor seeded with
+/// the proposal. Epoch seconds, or null when it was left.
+Future<(int, int)?> editNapWindow(BuildContext c, ActivitySuggestion s) async {
+  final l = AppLocalizations.of(c);
+  final r = await openWindowEditor(
+    c,
+    kind: WindowKind.nap,
+    title: l?.activityEditNap ?? 'Edit nap',
+    start: DateTime.fromMillisecondsSinceEpoch(s.startTs * 1000),
+    end: DateTime.fromMillisecondsSinceEpoch(s.endTs * 1000),
+    save: l?.activitySaveConfirm ?? 'Save and confirm',
+  );
+  if (r == null) return null;
+  return (
+    r.$1.millisecondsSinceEpoch ~/ 1000,
+    r.$2.millisecondsSinceEpoch ~/ 1000,
+  );
 }

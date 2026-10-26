@@ -444,10 +444,15 @@ class WorkoutController {
     );
   }
 
+  /// [trackRoute] false keeps the map off for a type that would record one:
+  /// the Start Activity screen's TRACK ROUTE switch.
+  // ponytail: not persisted, so a session resumed after a relaunch records
+  // its route again; store it with the session if that matters.
   void startWorkout({
     double targetKcal = 300,
     String? workoutId,
     String type = 'other',
+    bool trackRoute = true,
   }) {
     if (activeWorkout != null) return;
     // A new session owns no draft yet. One left in Prefs belongs to a session
@@ -526,7 +531,7 @@ class WorkoutController {
     );
     _lastLaPush = DateTime.fromMillisecondsSinceEpoch(0);
     // GPS route: only for run/ride/walk, and only if the user grants location.
-    unawaited(_maybeStartRouteTracking(id, type));
+    if (trackRoute) unawaited(_maybeStartRouteTracking(id, type));
     // A paired heart-rate sensor is armed by a workout and only by a workout —
     // the same rule GPS follows. No-op when nothing is paired. A sensor still
     // recording the last workout's recovery tail stays armed into this one.

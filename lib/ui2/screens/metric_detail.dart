@@ -2100,16 +2100,13 @@ class DayNav extends StatelessWidget {
   }
 }
 
-/// [DayNav] and the gap under it, spread into a `detailScaffold` body — or
-/// nothing at all when there is only one day to look at.
+/// Home's day pager, spread into a `detailScaffold` body — or nothing at all
+/// when no day is on record.
 List<Widget> dayNavRow(
         String? day, List<String> days, ValueChanged<String> onDay) =>
-    days.length < 2
+    days.isEmpty
         ? const []
-        : [
-            DayNav(day: day, days: days, onDay: onDay),
-            const SizedBox(height: S.x3),
-          ];
+        : [DetailDayPager(day: day, days: days, onDay: onDay)];
 
 /// A plain door onto another screen. Deliberately quiet: a doorway is not a
 /// card, and a metric screen that grows a second loud card stops having a

@@ -429,5 +429,8 @@ const _notComponents = {
   // time picker on tap. Covered by `log_workout_test.dart`, which pumps each
   // at a real phone width against injected rows.
   'WorkoutSuggestionScreen', 'LogWorkout',
-  'DetectedActivitiesScreen', 'NapProposalEditor', // Full review/editor routes.
+  'DetectedActivitiesScreen', 'WindowEditor', 'WindowPreview',
+  // The activity list is a sheet's whole page; the start screen owns the live
+  // heart rate and opens a session.
+  'ActivityChooser', 'StartActivityScreen', // Full review/editor routes.
 };

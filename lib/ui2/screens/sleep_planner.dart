@@ -27,7 +27,7 @@ import '../../state/prefs.dart';
 import '../profile/alarm.dart' show AlarmArmState, AlarmScreen;
 import '../ui2.dart';
 import 'alarm_mode_sheet.dart';
-import 'home_screen.dart' show alarmArmOfContext, clock, go, pad, repoOf;
+import 'home_screen.dart' show alarmArmOfContext, clock, go, repoOf;
 
 /// Tonight's sleep need, its parts, and the time in bed that covers it.
 class SleepPlan {
@@ -337,7 +337,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
             semanticLabel: '$label $value',
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: S.x6),
+              padding: const EdgeInsets.symmetric(vertical: S.x4),
               decoration: BoxDecoration(
                 color: Color.alphaBlend(p.ink.withValues(alpha: .12), p.bg),
                 borderRadius: R.rMd,
@@ -391,7 +391,11 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
         SafeArea(
           child: Column(children: [
             Expanded(
-              child: ListView(padding: pad, children: [
+              // Sized to sit on one screen with the dock under it: it only
+              // scrolls on a phone too short for that.
+              child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: S.x4),
+                  children: [
                 Row(children: [
                   Pressable(
                     onTap: () => Navigator.of(c).maybePop(),
@@ -407,7 +411,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                     child: Center(
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
                         Text('SLEEP PLANNER',
-                            style: F.head.copyWith(
+                            style: F.body.copyWith(
                                 color: p.ink,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 1.6)),
@@ -435,67 +439,65 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                   Pressable(
                     onTap: () => go(c, const AlarmScreen()),
                     semanticLabel: 'My schedule',
-                    child: Container(
-                      width: S.x10 + S.x2,
-                      height: S.x10 + S.x2,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: p.ink, width: S.half),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Container(
+                        width: S.x8 + S.x1,
+                        height: S.x8 + S.x1,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: p.ink, width: S.half),
+                        ),
+                        child: Icon(LucideIcons.calendarClock,
+                            size: I.sm, color: p.ink),
                       ),
-                      child: Icon(LucideIcons.calendarClock, size: I.md, color: p.ink),
-                    ),
+                      const SizedBox(height: S.half),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: S.x2, vertical: S.half),
+                        decoration: BoxDecoration(
+                          color: p.ink.withValues(alpha: .12),
+                          borderRadius: R.rSm,
+                        ),
+                        child: Text(scheduleOn ? 'ON' : 'OFF',
+                            style: F.over.copyWith(
+                                color: p.ink3, fontWeight: FontWeight.w800)),
+                      ),
+                    ]),
                   ),
                 ]),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: S.x1),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: S.x3, vertical: S.x1),
-                      decoration: BoxDecoration(
-                        color: p.ink.withValues(alpha: .12),
-                        borderRadius: R.rSm,
-                      ),
-                      child: Text(scheduleOn ? 'ON' : 'OFF',
-                          style: F.caps.copyWith(
-                              color: p.ink3, fontWeight: FontWeight.w800)),
-                    ),
-                  ),
-                ),
                 Center(
                   child: Container(
-                    width: S.x10 + S.x1,
-                    height: S.x10 + S.x1,
+                    width: S.x8 + S.x1,
+                    height: S.x8 + S.x1,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(color: p.ink, width: S.half),
                     ),
-                    child: Icon(LucideIcons.moon, size: I.md, color: p.ink),
+                    child: Icon(LucideIcons.moon, size: I.sm, color: p.ink),
                   ),
                 ),
-                const SizedBox(height: S.x6),
+                const SizedBox(height: S.x3),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: S.x6),
+                  padding: const EdgeInsets.symmetric(horizontal: S.x4),
                   child: Text(headline,
                       textAlign: TextAlign.center,
-                      style: F.t2.copyWith(
-                          color: p.ink, fontWeight: FontWeight.w500, height: 1.2)),
+                      style: F.head.copyWith(
+                          color: p.ink, fontWeight: FontWeight.w500, height: 1.25)),
                 ),
-                const SizedBox(height: S.x8),
+                const SizedBox(height: S.x5),
                 Center(
                   child: Text('TOMORROW I WANT TO',
                       style: F.over.copyWith(
                           color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
                 ),
-                const SizedBox(height: S.x3),
+                const SizedBox(height: S.x2),
                 Center(
                   child: Pressable(
                     onTap: _pickGoal,
                     semanticLabel: 'Planner goal',
                     child: Container(
                       width: S.x16 * 3 + S.x8 + S.x4,
-                      padding: const EdgeInsets.symmetric(vertical: S.x5 + S.x1),
+                      padding: const EdgeInsets.symmetric(vertical: S.x4),
                       decoration: BoxDecoration(
                         color: Color.alphaBlend(C.char.withValues(alpha: .4), p.bg),
                         borderRadius: R.rPill,
@@ -511,7 +513,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: S.x16 + S.x6),
+                const SizedBox(height: S.x6),
                 _PlannerBar(
                   bed: bed,
                   wake: wake,
@@ -523,13 +525,13 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                   alarmOn: planAlarm != null,
                   onWake: () => _pickWake(wake),
                 ),
-                const SizedBox(height: S.x6),
+                const SizedBox(height: S.x2),
               ]),
             ),
             // The alarm dock.
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(S.x3, S.x5, S.x3, S.x4),
+              padding: const EdgeInsets.fromLTRB(S.x3, S.x3, S.x3, S.x3),
               decoration: BoxDecoration(
                 color: Color.alphaBlend(p.ink.withValues(alpha: .09), p.bg),
                 borderRadius:
@@ -541,11 +543,11 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                   children: [
                 Row(children: [
                   const SizedBox(width: S.x2),
-                  StrapIcon(color: p.ink3, height: S.x8),
+                  StrapIcon(color: p.ink3, height: S.x6),
                   Expanded(
                     child: Center(
                       child: Text('ALARM',
-                          style: F.head.copyWith(
+                          style: F.body.copyWith(
                               color: p.ink,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.6)),
@@ -558,7 +560,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                   ),
                   const SizedBox(width: S.x2),
                 ]),
-                const SizedBox(height: S.x4),
+                const SizedBox(height: S.x3),
                 Row(children: [
                   dockButton('ALARM SET TO', armedAt == null ? 'OFF' : clock(armedAt),
                       () => planAlarm != null && wake != null
@@ -694,7 +696,7 @@ class _PlannerBar extends StatelessWidget {
   static const _lo = .125, _hi = .875, _loText = .19, _hiText = .81;
 
   // Down the bar, from the top of the times.
-  static const _labelsH = 72.0, _barTop = 104.0, _barH = 37.0, _height = 214.0;
+  static const _labelsH = 72.0, _barTop = 100.0, _barH = 34.0, _height = 190.0;
 
   @override
   Widget build(BuildContext c) {
@@ -804,7 +806,7 @@ class _PlannerBar extends StatelessWidget {
           Positioned(
             left: 0,
             right: 0,
-            top: haveRec ? _barTop + _barH + S.x6 + S.x1 : _barTop + _barH + S.x6,
+            top: _barTop + _barH + S.x4,
             child: Center(
               child: haveRec
                   ? Column(mainAxisSize: MainAxisSize.min, children: [

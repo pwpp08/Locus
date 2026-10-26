@@ -560,11 +560,27 @@ class LocalRepositoryImpl extends LocalRepository {
             'confidence': hrvConfidenceForToday(clinical),
           };
 
+    // Today's own night while it is still settling: slept and woken, but the
+    // data has not yet run far enough past the wake to call it final. Shown on
+    // Home in place of the held-over night, marked provisional; a "wake"
+    // before 03:00 is the first hours of a night still going, so not this.
+    Map<String, dynamic>? sleepProvisional;
+    if (overnightState != 'ready' && todayBundle != null) {
+      final wakeMs = _sub(todayBundle, 'sleep.window.value')?['offset_ms'];
+      if (wakeMs is num &&
+          DateTime.fromMillisecondsSinceEpoch(wakeMs.toInt()).hour >=
+              kMinPinWakeHour) {
+        final s = _sleepSummary(todayBundle, needMin: _sleepNeedMin(cd));
+        if (s.isNotEmpty) sleepProvisional = s;
+      }
+    }
+
     return {
       'daily': daily,
       'sleep': sleepBundle == null
           ? const {}
           : _sleepSummary(sleepBundle, needMin: _sleepNeedMin(cd)),
+      'sleep_provisional': ?sleepProvisional,
       if (sleepBundle != null && rhrEnv != null)
         'nocturnal': _nocturnal(
           sleepBundle,
@@ -1046,31 +1062,30 @@ class LocalRepositoryImpl extends LocalRepository {
     final effPct = (acct?['efficiency_pct'] as num?);
     num? sec(String k) =>
         (win?[k] as num?) == null ? null : ((win![k] as num) / 1000).round();
-    // TODAY'S NIGHT, STILL BEING SLEPT: a window the data has not yet run past
-    // its wake is where the sync stopped, not a wake; and one that "ends" before
-    // 03:00 is the first hours of a night, never a finished one (the same rule
-    // that keeps such a night from being pinned). Either way there is no night
-    // to score yet, and a score off it would be a number for sleep that has not
-    // happened. Past days are settled and never come through here.
+    // TODAY'S NIGHT: one that "ends" before 03:00 is the first hours of a
+    // night, never a finished one (the same rule that keeps such a night from
+    // being pinned), so there is no night to score yet. A later wake the data
+    // has not yet run well past is still today's night: it is shown, marked
+    // provisional, rather than hidden behind yesterday's. Past days are
+    // settled and never come through here.
+    var provisional = false;
     if (served == _todayLocalLabel()) {
-      var inProgress = false;
-      try {
-        final fresh = await _freshness('today');
-        inProgress = fresh?['today_day']?.toString() == served &&
-            fresh?['recovery_state'] == RecoveryState.nightInProgress.wire;
-      } catch (_) {}
       final wake = sec('offset_ms');
-      if (!inProgress && wake != null) {
-        inProgress = DateTime.fromMillisecondsSinceEpoch(wake.toInt() * 1000).hour <
-            kMinPinWakeHour;
-      }
-      if (inProgress) {
+      if (wake != null &&
+          DateTime.fromMillisecondsSinceEpoch(wake.toInt() * 1000).hour <
+              kMinPinWakeHour) {
         return {
           'has_sleep': false,
           'in_progress': true,
           'sleep_source': sleepSource,
         };
       }
+      try {
+        final fresh = await _freshness('today');
+        provisional = fresh?['today_day']?.toString() == served &&
+            fresh?['overnight_state'] != 'ready' &&
+            fresh?['recovery_state'] != RecoveryState.finalReady.wire;
+      } catch (_) {}
     }
     // 4-class stage minutes straight from the single-source segmentation seconds
     // (Light + Deep == NREM). Deep is the LOW-CONFIDENCE HR-depth overlay.
@@ -1102,6 +1117,7 @@ class LocalRepositoryImpl extends LocalRepository {
       // Shape matches sleep_detail_screen's contract exactly.
       'has_sleep': true,
       'sleep_source': sleepSource,
+      if (provisional) 'provisional': true,
       'duration_min': (tst / 60).round(),
       'in_bed_min': spt == null ? null : (spt / 60).round(),
       'awake_min': waso == null ? null : (waso / 60).round(),

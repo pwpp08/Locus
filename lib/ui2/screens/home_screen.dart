@@ -76,6 +76,7 @@ import '../profile/wearable_numbers.dart'
 import '../ui2.dart';
 import 'action_sheet.dart' show openActionSheet;
 import 'add_activity.dart' show openAddActivity;
+import 'start_activity.dart';
 import 'recovery_calendar.dart' show openRecoveryCalendar;
 import 'detected_activities.dart';
 import 'day_timeline.dart' show DayTimelineScreen;
@@ -1582,7 +1583,11 @@ class HomeData {
           if (e is Map) e.cast<String, dynamic>(),
       ],
       strain: metricOf(d('strain')),
-      sleepMin: overnightMetric(today, s('duration_min'), l),
+      // Today's own night as soon as it has a wake, even before it settles;
+      // otherwise the night getToday holds, refused when it is not today's.
+      sleepMin: today['sleep_provisional'] is Map
+          ? metricOf((today['sleep_provisional'] as Map)['duration_min'])
+          : overnightMetric(today, s('duration_min'), l),
       rhr: overnightMetric(today, d('resting_hr'), l),
       steps: metricOf(d('steps')),
       calories: metricOf(d('calories')),
@@ -1921,7 +1926,9 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     var night = const <String, dynamic>{};
     var sessions = const <Map<String, dynamic>>[];
     try {
-      if (!d.sleepMin.isEmpty) night = await repo.getDaySleepV2(day);
+      // The day's own night, whatever the dial shows: a night still settling,
+      // or one entered by hand, belongs in My Day as soon as it is stored.
+      night = await repo.getDaySleepV2(day);
     } catch (_) {}
     try {
       final start = localDayStartSec(day);
@@ -1974,7 +1981,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       // A Stack, not a Row: the two ends differ in width (avatar vs. battery
       // and band), and the pager has to sit on the screen's own centre.
       child: Stack(alignment: Alignment.center, children: [
-        _DayPager(
+        DayPager(
           day: cur,
           today: today,
           days: _days,
@@ -2085,8 +2092,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     void openDial(HomeRingKind k) => go(
         c,
         switch (k) {
-          HomeRingKind.recovery => const ReadinessDetail(),
-          HomeRingKind.strain => const DayStrainDetail(),
+          HomeRingKind.recovery => ReadinessDetail(day: isToday ? null : _day),
+          HomeRingKind.strain => DayStrainDetail(day: isToday ? null : _day),
           // The night the dial was drawn from, not last night.
           HomeRingKind.sleep => SleepDetail(day: isToday ? null : _day),
         });
@@ -2189,6 +2196,10 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         WearableCells(kHomeWearableRows, date: isToday ? null : _day),
       ],
 
+      // What the detector found and is waiting on, over the day it belongs to.
+      const SizedBox(height: S.x3),
+      const DetectedActivitiesCard(),
+
       // ── MY DAY ── today's activities and last night's sleep.
       _SectionHead(
         'My Day',
@@ -2200,10 +2211,11 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         sessions: _sessions,
         onExpand: () => go(c, DayTimelineScreen(day: _day)),
         onSleep: () => go(c, SleepDetail(day: isToday ? null : _day)),
-        onSession: () => go(c, const DayStrainDetail()),
+        onSession: () => go(c, DayStrainDetail(day: isToday ? null : _day)),
         onAdd: () async {
           if (await openAddActivity(c) == true) _load();
         },
+        onStart: isToday ? () => go(c, const StartActivityScreen()) : null,
       ),
       if (isToday) ...[
         const SizedBox(height: S.x3),
@@ -2218,8 +2230,6 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           );
         }),
       ],
-      const SizedBox(height: S.x3),
-      const DetectedActivitiesCard(),
 
       // ── MY DASHBOARD ── what the user picked, one tile each, in their order:
       // the week's strain and recovery chart, and a row per metric that opens
@@ -2620,8 +2630,53 @@ class _Wordmark extends StatelessWidget {
       );
 }
 
+/// Home's day pager over a detail screen (Sleep, Recovery, Strain): the same
+/// `< TODAY >`, centred, and the date opens the same recovery calendar.
+/// [days] is `availableDays()`, newest first; a null [day] is today.
+class DetailDayPager extends StatelessWidget {
+  final String? day;
+  final List<String> days;
+  final ValueChanged<String> onDay;
+
+  const DetailDayPager(
+      {super.key, required this.day, required this.days, required this.onDay});
+
+  Future<void> _calendar(BuildContext c, String cur, String today) async {
+    var recovery = const <String, double>{};
+    final repo = repoOf(c);
+    final m = trendMetricOf('recovery');
+    if (repo != null && m != null) {
+      try {
+        recovery = await TrendLoader(repo).daily(m);
+      } catch (_) {}
+    }
+    if (!c.mounted) return;
+    final picked = await openRecoveryCalendar(c,
+        today: today, selected: cur, recovery: recovery, days: {...days, today});
+    if (picked != null && picked != cur) onDay(picked);
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final today = todayLabel();
+    final cur = day ?? today;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: S.x4),
+      child: Center(
+        child: DayPager(
+          day: cur,
+          today: today,
+          days: days,
+          onDay: onDay,
+          onCalendar: () => _calendar(c, cur, today),
+        ),
+      ),
+    );
+  }
+}
+
 /// `< TODAY >`: steps through the days on record, newest first in [days].
-class _DayPager extends StatelessWidget {
+class DayPager extends StatelessWidget {
   final String day, today;
   final List<String> days;
   final ValueChanged<String> onDay;
@@ -2629,8 +2684,9 @@ class _DayPager extends StatelessWidget {
   /// The date was tapped: the calendar opens.
   final VoidCallback onCalendar;
 
-  const _DayPager(
-      {required this.day,
+  const DayPager(
+      {super.key,
+      required this.day,
       required this.today,
       required this.days,
       required this.onDay,
@@ -2674,7 +2730,7 @@ class _DayPager extends StatelessWidget {
             onTap: to == null ? null : () => onDay(to),
             child: SizedBox(
               width: S.x8 + S.x1,
-              height: _h,
+              height: S.tap,
               child: Center(
                 child: BoldChevron(
                     left: i == LucideIcons.chevronLeft,
@@ -2688,14 +2744,20 @@ class _DayPager extends StatelessWidget {
     // 168 wide and 32 tall, as the original sits against the avatar: the
     // date's pill fills the bar's height (a little over half its width), with
     // a bold chevron either side.
-    return Container(
+    // The bar is drawn 32 tall; each of its three doors is touched over the
+    // full 44.
+    return SizedBox(
       width: S.x16 * 2 + S.x8 + S.x1 * 2,
-      height: _h,
-      decoration: BoxDecoration(
-        color: Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
-        borderRadius: _r,
-      ),
-      child: Row(children: [
+      height: S.tap,
+      child: Stack(alignment: Alignment.center, children: [
+        Container(
+          height: _h,
+          decoration: BoxDecoration(
+            color: Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
+            borderRadius: _r,
+          ),
+        ),
+        Row(children: [
         arrow(LucideIcons.chevronLeft, older, 'Previous day'),
         Expanded(
           child: Semantics(
@@ -2704,7 +2766,11 @@ class _DayPager extends StatelessWidget {
             excludeSemantics: true,
             child: Pressable(
               onTap: onCalendar,
-              child: Container(
+              child: SizedBox(
+               height: S.tap,
+               child: Center(
+                child: Container(
+                height: _h,
                 decoration: BoxDecoration(
                   color: Color.alphaBlend(p.ink.withValues(alpha: .15), p.bg),
                   borderRadius: _r,
@@ -2721,10 +2787,13 @@ class _DayPager extends StatelessWidget {
                           height: 1)),
                 ),
               ),
+               ),
+              ),
             ),
           ),
         ),
         arrow(LucideIcons.chevronRight, newer, 'Next day'),
+        ]),
       ]),
     );
   }
@@ -2837,7 +2906,6 @@ class _Dials extends StatelessWidget {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
     final rings = [for (final k in _kDialOrder) _ringOf(k, d, l)];
-    final gaps = rings.where((r) => r.why != null).toList();
     return Column(children: [
       Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2855,14 +2923,11 @@ class _Dials extends StatelessWidget {
           ],
         ],
       ),
+      // The dials alone: an empty one says why on its own screen, a tap away.
       if (note != null) ...[
         const SizedBox(height: S.x2),
         Text(note!, style: F.cap.copyWith(color: p.ink3)),
-      ] else
-        for (final r in gaps) ...[
-          const SizedBox(height: S.x2),
-          _GapRow(r, onTap: () => onOpen(r.kind)),
-        ],
+      ],
       if (recoveryUpdatedLine(d.readinessUpdate, l) case final note?) ...[
         const SizedBox(height: S.x2),
         Text(note, style: F.cap.copyWith(color: p.ink3)),
@@ -3087,6 +3152,10 @@ class _MyDay extends StatelessWidget {
   final List<Map<String, dynamic>> sessions;
   final VoidCallback onExpand, onSleep, onSession, onAdd;
 
+  /// START ACTIVITY beside ADD ACTIVITY: a live session, picked from the same
+  /// list. Null leaves ADD ACTIVITY on its own (a past day).
+  final VoidCallback? onStart;
+
   const _MyDay({
     required this.day,
     required this.night,
@@ -3095,6 +3164,7 @@ class _MyDay extends StatelessWidget {
     required this.onSleep,
     required this.onSession,
     required this.onAdd,
+    this.onStart,
   });
 
   @override
@@ -3165,28 +3235,43 @@ class _MyDay extends StatelessWidget {
             rows[i],
           ],
         const SizedBox(height: S.x6),
-        Pressable(
-          onTap: onAdd,
-          semanticLabel: 'Add activity',
-          child: Container(
-            height: S.x12 + S.x1,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: p.ink.withValues(alpha: .09),
-              borderRadius: R.rLg,
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(LucideIcons.plus, size: I.lg, color: p.ink),
-              const SizedBox(width: S.x3),
-              Text('ADD ACTIVITY',
-                  style: F.caps.copyWith(color: p.ink, letterSpacing: .6)),
-            ]),
-          ),
-        ),
+        Row(children: [
+          Expanded(
+              child: _dayButton(p, LucideIcons.plus, 'ADD ACTIVITY', onAdd)),
+          if (onStart != null) ...[
+            const SizedBox(width: S.x3),
+            Expanded(
+                child: _dayButton(
+                    p, LucideIcons.timer, 'START ACTIVITY', onStart!)),
+          ],
+        ]),
       ]),
     );
   }
 }
+
+Widget _dayButton(P p, IconData icon, String label, VoidCallback onTap) =>
+    Pressable(
+      onTap: onTap,
+      semanticLabel: label[0] + label.substring(1).toLowerCase(),
+      child: Container(
+        height: S.x12 + S.x1,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: S.x2),
+        decoration: BoxDecoration(
+          color: p.ink.withValues(alpha: .09),
+          borderRadius: R.rLg,
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: I.md, color: p.ink),
+            const SizedBox(width: S.x2),
+            Text(label, style: F.caps.copyWith(color: p.ink, letterSpacing: .6)),
+          ]),
+        ),
+      ),
+    );
 
 /// The three dials, folded into one row: what slides in at the top once the
 /// big dials have scrolled away. Same faces, same doors.

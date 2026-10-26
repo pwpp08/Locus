@@ -10,7 +10,10 @@ import 'package:flutter/material.dart';
 import 'package:openstrap_analytics/onehz.dart' show readinessCompositeMinBaseline;
 
 import '../../compute/onehz_pipeline.dart'
-    show readinessInputShortfallNote, readinessUnstableBaselineNote;
+    show
+        kUnknownAbsenceNote,
+        readinessInputShortfallNote,
+        readinessUnstableBaselineNote;
 import '../../data/day_label.dart';
 import '../../data/db.dart';
 import '../../data/local_repository.dart';
@@ -65,9 +68,44 @@ class ReadinessData {
     this.heldOverNight,
     this.series = const [],
     this.absentDiag,
+    this.days = const [],
+    this.day,
   });
 
-  static Future<ReadinessData> load(LocalRepository repo) async {
+  /// The days on record, newest first, for the pager.
+  final List<String> days;
+
+  /// The day on screen when it is not today: its stored score alone, since
+  /// the breakdown and the state line are today's.
+  final String? day;
+
+  /// A past [day]: its stored score off the recovery series, and why it is
+  /// missing when it is.
+  static Future<ReadinessData> loadDay(
+      LocalRepository repo, String day, List<String> days) async {
+    final chart = await repo.getChart('recovery');
+    final noon = DateTime.tryParse(day);
+    final at = noon == null
+        ? null
+        : DateTime(noon.year, noon.month, noon.day, 12).millisecondsSinceEpoch ~/
+            1000;
+    double? v;
+    for (final p in pointsOf(chart)) {
+      if (p.t == at) v = p.v;
+    }
+    return ReadinessData(
+      day: day,
+      days: days,
+      readiness: v == null ? const Metric(note: kUnknownAbsenceNote) : Metric(value: v),
+      series: denseDays(pointsOf(chart), 90),
+      absentDiag: v != null ? null : await LocalDb.readinessAbsentDiag(day),
+    );
+  }
+
+  static Future<ReadinessData> load(LocalRepository repo,
+      {String? day}) async {
+    final days = await repo.availableDays();
+    if (day != null && day != todayLabel()) return loadDay(repo, day, days);
     final today = await repo.getToday();
     final cd = await repo.getInsights();
     final chart = await repo.getChart('recovery');
@@ -85,6 +123,7 @@ class ReadinessData {
             today, daily is Map ? daily['readiness'] : null);
 
     return ReadinessData(
+      days: days,
       head: head,
       readiness: readiness,
       // `narrative` and the glass-box `score` are DELIBERATELY not read. Both
@@ -119,7 +158,10 @@ class ReadinessData {
 
 class ReadinessDetail extends StatefulWidget {
   final ReadinessData? data;
-  const ReadinessDetail({super.key, this.data});
+
+  /// The day to open; null is today.
+  final String? day;
+  const ReadinessDetail({super.key, this.data, this.day});
 
   @override
   State<ReadinessDetail> createState() => _ReadinessDetailState();
@@ -128,6 +170,16 @@ class ReadinessDetail extends StatefulWidget {
 class _ReadinessDetailState extends State<ReadinessDetail> {
   ReadinessData? _d;
   bool _loading = true;
+  late String? _day = widget.day;
+
+  void _goDay(String day) {
+    setState(() {
+      _day = day;
+      _loading = true;
+      _pick = null;
+    });
+    _load();
+  }
 
   /// The history slot under the finger, or null.
   int? _pick;
@@ -150,8 +202,9 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
       return;
     }
     try {
-      final d = await ReadinessData.load(repo);
-      if (mounted) setState(() => (_d = d, _loading = false));
+      final want = _day;
+      final d = await ReadinessData.load(repo, day: want);
+      if (mounted && want == _day) setState(() => (_d = d, _loading = false));
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -169,6 +222,7 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
     // can no longer BE that night — a date up here now would be labelling
     // today's number with somebody else's day.
     return detailScaffold(c, l?.readinessDetailTitle ?? 'Recovery', [
+      ...dayNavRow(_day, d.days, _goDay),
       if (_loading && _d == null) ...[
         const SizedBox(height: S.x8),
         const Center(child: CircularProgressIndicator()),

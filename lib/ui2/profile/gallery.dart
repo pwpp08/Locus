@@ -985,12 +985,40 @@ Map<String, Widget> extraCases() => {
         suggestion: ActivitySuggestion(id: 'nap-fixture', kind: ActivityKind.nap,
           startTs: 1787157000, endTs: 1787160600, revision: 0,
           status: ActivityReviewStatus.pending, details: const {}),
+        hr: _galleryHr,
         highlighted: true, onConfirm: () {}, onEdit: () {}, onDiscard: () {}),
       'activity_proposal_workout': ActivityProposalCard(
         suggestion: ActivitySuggestion(id: 'workout-fixture', kind: ActivityKind.workout,
           startTs: 1787157000, endTs: 1787164200, revision: 0,
           status: ActivityReviewStatus.pending, details: const {}),
+        hr: _galleryHr,
         onConfirm: () {}, onEdit: () {}, onDiscard: () {}),
+      // The window editor's chart: a night drawn on its heart rate.
+      'window_chart': SizedBox(
+        height: S.x16 * 2,
+        child: WindowChart(
+          hr: [
+            for (var t = 1787130000; t < 1787166000; t += 300)
+              (t: t, v: 50.0 + 25 * ((t ~/ 300) % 7) / 7),
+          ],
+          from: 1787130000,
+          span: 36000,
+          start: 1787140000,
+          end: 1787160000,
+          kind: WindowKind.sleep,
+        ),
+      ),
+      // Home's day pager, and the same over a detail screen.
+      'day_pager': DayPager(
+          day: '2026-08-15',
+          today: '2026-08-16',
+          days: const ['2026-08-16', '2026-08-15', '2026-08-14'],
+          onDay: (_) {},
+          onCalendar: () {}),
+      'detail_day_pager': DetailDayPager(
+          day: '2026-08-15',
+          days: const ['2026-08-16', '2026-08-15', '2026-08-14'],
+          onDay: (_) {}),
       'nap_row': const MetricRow(LucideIcons.sun, C.indigo, 'Daytime sleep',
           '1h 12m',
           sub: '2 naps · Sunday, 16 August'),
@@ -3020,3 +3048,9 @@ class _Swatches extends StatelessWidget {
     ]);
   }
 }
+
+/// A heart rate for the gallery's activity cards: a slow wave, no database.
+Future<List<HrPoint>> _galleryHr(int from, int to) async => [
+      for (var t = from; t < to; t += 300)
+        (t: t, v: 55.0 + 20 * ((t ~/ 300) % 9) / 9),
+    ];

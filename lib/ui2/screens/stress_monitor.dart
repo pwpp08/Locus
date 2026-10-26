@@ -333,7 +333,9 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
     final line = ScrubLine(
       values: values,
       xLabels: xLabels,
-      lo: 0,
+      // A little under zero, so a calm minute sits just off the floor of the
+      // chart rather than on it.
+      lo: -.08,
       hi: 3,
       ticks: const [0, 1, 2, 3],
       tickText: (t) => t.toStringAsFixed(1),
@@ -572,16 +574,21 @@ class _Gauge extends StatelessWidget {
     final p = P.of(c);
     final level = score == null ? null : stressLevel(score!);
     return LayoutBuilder(builder: (c, box) {
-      // A tenth smaller than the width it could take, so the chart under it
-      // has the room.
-      final w = math.min(box.maxWidth, S.x16 * 5.6) * .9;
-      final h = w * .74;
+      // Smaller than the width it could take, so the chart under it has the
+      // room. The height is the arc's own: its top, and its two ends.
+      final w = math.min(box.maxWidth, S.x16 * 5.6) * .78;
+      final h = w * _GaugePainter.heightFor;
       return Center(
         child: SizedBox(
           width: w,
-          height: h,
+          // Room under the arc's two ends for 0.0 and 3.0.
+          height: h + S.x6,
           child: Stack(alignment: Alignment.center, children: [
-            Positioned.fill(
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              height: h,
               child: CustomPaint(
                 painter: _GaugePainter(
                   value: score,
@@ -591,7 +598,7 @@ class _Gauge extends StatelessWidget {
               ),
             ),
             Positioned(
-              top: h * .27,
+              top: w * .2,
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Text(score == null ? '--' : score!.toStringAsFixed(1),
                     style: F.n64.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
@@ -644,11 +651,22 @@ class _GaugePainter extends CustomPainter {
   static const _start = 146 * math.pi / 180;
   static const _sweep = 248 * math.pi / 180;
 
+  static const _r = .44, _stroke = .035;
+
+  /// Height over width that holds the whole arc: the top of the ring and its
+  /// caps, down to the two ends (sin 146° of the radius under the centre).
+  static final heightFor = _r + _stroke + _r * math.sin(_start) + _stroke;
+
+  /// The gradient begins this far before the arc, so the round cap at its
+  /// start reads the first colour. Begun exactly at the arc, the cap fell
+  /// before the gradient and took the LAST colour: orange at the lower left.
+  static const _lead = .2;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final stroke = size.width * .035;
-    final c = Offset(size.width / 2, size.height * .52);
-    final r = size.width * .44;
+    final stroke = size.width * _stroke;
+    final r = size.width * _r;
+    final c = Offset(size.width / 2, r + stroke);
     final rect = Rect.fromCircle(center: c, radius: r);
 
     // Blue → green → warm → orange, dimmer at both ends where the arc runs out.
@@ -656,8 +674,8 @@ class _GaugePainter extends CustomPainter {
     // (146 + 248 degrees), and a sweep gradient does not run on through 360,
     // which left the lower right end without its colour.
     final shader = SweepGradient(
-      startAngle: 0,
-      endAngle: _sweep,
+      startAngle: _lead,
+      endAngle: _lead + _sweep,
       colors: [
         C.stressLow.withValues(alpha: .35),
         C.stressLow,
@@ -668,7 +686,7 @@ class _GaugePainter extends CustomPainter {
         C.stressHigh.withValues(alpha: .3),
       ],
       stops: const [0, .08, .3, .5, .72, .9, 1],
-      transform: const GradientRotation(_start),
+      transform: const GradientRotation(_start - _lead),
     ).createShader(rect);
     canvas.drawArc(
         rect,

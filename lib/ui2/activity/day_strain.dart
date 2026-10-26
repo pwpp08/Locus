@@ -29,7 +29,7 @@ import '../../l10n/date_text.dart';
 import '../../models/metric.dart' show whyFromNote;
 import '../screens/home_screen.dart'
     show monthShortName, repoOf, weekdayShortName;
-import '../screens/metric_detail.dart' show detailScaffold;
+import '../screens/metric_detail.dart' show dayNavRow, detailScaffold;
 import '../screens/trend_view.dart';
 import '../ui2.dart';
 import 'catalogue.dart' show activityByName, zonesWhy;
@@ -96,8 +96,8 @@ class DayStrainData {
 
   bool get hasCurve => curve.any((v) => v != null);
 
-  static Future<DayStrainData> load(LocalRepository repo) async {
-    final asked = todayLabel();
+  static Future<DayStrainData> load(LocalRepository repo, {String? forDay}) async {
+    final asked = forDay ?? todayLabel();
     final s = await repo.getDayStrain(asked);
     if (s.isEmpty) return const DayStrainData();
 
@@ -176,7 +176,10 @@ class DayStrainDetail extends StatefulWidget {
   /// Injected by tests; production reads the repo.
   final TrendLoader? loader;
 
-  const DayStrainDetail({super.key, this.data, this.loader});
+  /// The day to open; null is today.
+  final String? day;
+
+  const DayStrainDetail({super.key, this.data, this.loader, this.day});
 
   @override
   State<DayStrainDetail> createState() => _DayStrainDetailState();
@@ -249,6 +252,8 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
   DayStrainData? _d;
   bool _loading = true;
   _StrainTrends _t = const _StrainTrends();
+  late String? _day = widget.day;
+  List<String> _days = const [];
 
   @override
   void initState() {
@@ -257,19 +262,35 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
+  void _goDay(String day) {
+    setState(() {
+      _day = day;
+      _loading = true;
+    });
+    _load();
+  }
+
   Future<void> _load() async {
     final repo = _repoOrNull();
     if (repo == null && widget.loader == null) {
       if (mounted) setState(() => _loading = false);
       return;
     }
+    final want = _day;
     try {
+      if (repo != null) {
+        try {
+          _days = await repo.availableDays();
+        } catch (_) {}
+      }
       final d = widget.data ??
-          (repo == null ? const DayStrainData() : await DayStrainData.load(repo));
-      final today = dayLabelOf(d.day ?? DateTime.now());
+          (repo == null
+              ? const DayStrainData()
+              : await DayStrainData.load(repo, forDay: want));
+      final today = dayLabelOf(d.day ?? DateTime.tryParse(want ?? '') ?? DateTime.now());
       final t = await _StrainTrends.load(
           widget.loader ?? TrendLoader(repo), repo, today);
-      if (mounted) {
+      if (mounted && want == _day) {
         setState(() {
           _d = d;
           _t = t;
@@ -318,13 +339,17 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
     final d = _d ?? const DayStrainData();
     final shown = d.day ?? DateTime.now();
     final today = dayLabelOf(shown);
-    final title = localizedDate(shown, l?.localeName ?? 'en',
-        pattern: 'EEE, MMM d');
+    // The pager under the bar names the day, as on Sleep and Recovery; with
+    // no days on record to page through, the bar still dates the screen.
+    final title = _days.isEmpty
+        ? localizedDate(shown, l?.localeName ?? 'en', pattern: 'EEE, MMM d')
+        : 'Strain';
 
     return detailScaffold(
       c,
       title,
       [
+        ...dayNavRow(_day, _days, _goDay),
         if (_loading && _d == null) ...[
           const SizedBox(height: S.x8),
           const Center(child: CircularProgressIndicator()),

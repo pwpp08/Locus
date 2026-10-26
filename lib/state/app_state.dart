@@ -5380,11 +5380,13 @@ class AppState extends ChangeNotifier {
     double targetKcal = 300,
     String? workoutId,
     String type = 'other',
+    bool trackRoute = true,
   }) =>
       _workoutController.startWorkout(
         targetKcal: targetKcal,
         workoutId: workoutId,
         type: type,
+        trackRoute: trackRoute,
       );
 
   Future<void> retryRouteTracking() => _workoutController.retryRouteTracking();

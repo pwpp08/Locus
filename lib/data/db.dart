@@ -2342,6 +2342,23 @@ class LocalDb {
     );
   }
 
+  /// The band's heart rate as per-minute means between two epoch seconds,
+  /// oldest first: `t` is the minute's start, `v` its mean bpm. For the window
+  /// editor's chart (two days at most, so under 3 000 rows); zero readings are
+  /// off-wrist, not a heart rate, and are left out.
+  static Future<List<Map<String, Object?>>> hrPerMinuteBetween(
+    int sinceEpochSec,
+    int untilEpochSec,
+  ) async {
+    final db = await instance;
+    return db.rawQuery(
+      'SELECT (rec_ts / 60) * 60 AS t, AVG(hr) AS v FROM decoded_onehz '
+      'WHERE rec_ts >= ? AND rec_ts <= ? AND hr > 0 '
+      'GROUP BY rec_ts / 60 ORDER BY t ASC',
+      [sinceEpochSec, untilEpochSec],
+    );
+  }
+
   /// sleep_nap — the user's edits to a day's naps.
   ///
   /// Separate from `sleep_override` on purpose: that table means "the main

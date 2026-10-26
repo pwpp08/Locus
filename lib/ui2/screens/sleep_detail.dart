@@ -24,6 +24,7 @@ import 'package:provider/provider.dart';
 
 import '../../compute/vendor_sleep.dart' show vendorStagesReported;
 import '../../data/day_label.dart';
+import '../../data/db.dart' show LocalDb;
 import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
@@ -38,6 +39,7 @@ import 'investigate.dart';
 import 'metric_detail.dart';
 import 'naps.dart';
 import 'rough_night.dart';
+import 'window_editor.dart';
 
 /// Nights of history before a personal normal is claimed at all. Below this the
 /// quartiles of three or four nights are noise wearing a band's clothing.
@@ -297,14 +299,21 @@ class SleepData {
     // off overnight and the card said "7h 04m" while this screen answered "No
     // night to show" about the same tap.
     final days = await repo.availableDays();
-    final day = pickDay(
-        days,
-        want,
-        heldOverNightOf(today) ??
-            (today['status'] as Map?)?['today_day']?.toString());
+    final todayDay = (today['status'] as Map?)?['today_day']?.toString();
+    // Today's own night first, as soon as it has one, settled or not: the
+    // held-over night is yesterday's, and opening it under "Today" showed last
+    // night's sleep while this morning's was already on Home.
+    Map<String, dynamic>? todayNight;
+    if (want == null && todayDay != null && days.contains(todayDay)) {
+      final n = await repo.getDaySleepV2(todayDay);
+      if (n['has_sleep'] == true) todayNight = n;
+    }
+    final day = todayNight != null
+        ? todayDay
+        : pickDay(days, want, heldOverNightOf(today) ?? todayDay);
     if (day == null) return SleepData(days: days);
 
-    final night = await repo.getDaySleepV2(day);
+    final night = todayNight ?? await repo.getDaySleepV2(day);
     var deviceNights = const <Map<String, Object?>>[];
     try {
       deviceNights = await repo.getDeviceNights(day);
@@ -544,61 +553,36 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
       // "No night" also covers a night the user REJECTED outright (edge#248):
       // staging was skipped on purpose, so this day has no window at all — but
       // that must stay reversible the same way any other override is.
-      final rejectedDay = d.day;
-      final rejected =
-          (d.night['sleep_source'] as String?) == 'rejected' && rejectedDay != null;
-      // Today, and not slept yet (or still asleep): nothing to score, and
-      // nothing to correct.
-      final yet = d.night['in_progress'] == true;
+      // One answer for every night with nothing scored: none detected, one
+      // the user marked as not sleep, or today before any. Each is put right
+      // the same way, by entering the night by hand on the heart rate chart;
+      // a manual window replaces a rejection like any other override.
+      final shown = _day ?? d.day ?? todayLabel();
       return _frame(c, title, [
         ...dayNavRow(_day ?? d.day, d.days, _goDay),
         const SizedBox(height: S.x2),
-        // A day CAN be in `availableDays` and still hold no night — the band
-        // was worn through the day and off overnight. Stepping onto one of
-        // those says so and leaves the stepper above it, so it is a day you
-        // walk off rather than a dead end.
         StatusCard(
-          rejected
-              ? (l?.sleepDetailRejectedTitle ?? 'Marked as not sleep')
-              : yet
-                  ? 'No sleep yet'
-                  : (l?.sleepDetailNoNightTitle ?? 'No night to show'),
-          rejected
-              ? (l?.sleepDetailRejectedBody ??
-                  'You told us this stretch was not sleep, so nothing is '
-                      'scored for it.')
-              : yet
-                  ? 'Your night is scored once you have slept and woken up.'
-                  : (l?.sleepDetailNoNightBody ??
-                      'No stretch of band recordings long enough to score.'),
-          fix: rejected || yet ? '' : (l?.sleepDetailNoNightFix ??
-              'Wear the band overnight and sync in the morning'),
-          icon: rejected ? LucideIcons.undo2 : LucideIcons.moon,
-          // A day with no night is an invitation to wear the band, so the
-          // moon; a night the user rejected is a decision, so no picture.
-          art: rejected ? null : Art.sleep,
+          'No sleep recorded',
+          'Nothing was scored as sleep for this night. Set the times you '
+              'slept and it is scored like any other night.',
+          fix: 'Set one manually',
+          onFix: _saving || _loading ? null : () => _addWindow(shown),
+          icon: LucideIcons.moon,
+          art: Art.sleep,
         ),
-        if (rejected) ...[
+        if (_saving) ...[
           const SizedBox(height: S.x2),
-          TextAction(l?.sleepDetailUndoRejection ?? 'Undo — go back to automatic', _saving ? null : () => _clearWindow(rejectedDay)),
-        ] else if (rejectedDay != null && !yet) ...[
-          // A night the detector missed is the other half of "it got it
-          // wrong": the same manual window a mis-staged night gets, stored as
-          // an override so every later re-analysis stages from it.
+          Text(l?.sleepDetailReanalysing ?? 'Re-analysing the night…',
+              style: F.cap.copyWith(color: P.of(c).ink3)),
+        ],
+        if (!_saving && _overrideFailed != null) ...[
           const SizedBox(height: S.x2),
-          TextAction(l?.sleepDetailIWasAsleep ?? 'I was asleep', _saving || _loading
-                ? null
-                : () => _addWindow(rejectedDay)),
-          if (_saving)
-            Text(l?.sleepDetailReanalysing ?? 'Re-analysing the night…',
-                style: F.cap.copyWith(color: P.of(c).ink3)),
-          if (!_saving && _overrideFailed != null)
-            StatusCard(
-              l?.sleepDetailCorrectionFailedTitle ??
-                  'That correction has not been applied',
-              _overrideFailed!,
-              icon: LucideIcons.triangleAlert,
-            ),
+          StatusCard(
+            l?.sleepDetailCorrectionFailedTitle ??
+                'That correction has not been applied',
+            _overrideFailed!,
+            icon: LucideIcons.triangleAlert,
+          ),
         ],
         // A day with no main-sleep window can still have naps — worn all
         // day, off overnight, or a rejected night — so this door to the naps
@@ -617,6 +601,16 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
     return _frame(c, title,
         sub: d.days.length < 2 ? (d.day ?? '').toUpperCase() : '', [
       ...dayNavRow(_day ?? d.day, d.days, _goDay),
+      // This morning's night before the data has run far past the wake: shown,
+      // and said to be still settling.
+      if (n['provisional'] == true)
+        Padding(
+          padding: const EdgeInsets.only(bottom: S.x3),
+          child: Center(
+            child: Text('Still finishing up: these figures may move a little.',
+                style: F.cap.copyWith(color: p.ink3)),
+          ),
+        ),
 
       // ── 0 · SLEEP PERFORMANCE ── and what it is made of.
       _performance(c, p, d, n),
@@ -1114,32 +1108,38 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
 
   /// Two pickers, seeded from the window we already have — the user is
   /// correcting times, not entering a date. See [correctedSleepWindow].
+  /// The window editor over the heart rate, seeded with the night's own
+  /// window. The night is stored under the day it ENDS on, whichever day the
+  /// screen was showing, so a wake moved across midnight lands where the
+  /// derive will look for it; a hand-set window left behind on the old day is
+  /// cleared so one night is not stored twice.
   Future<void> _editWindow(String day, int t0, int t1) async {
-    final onset = DateTime.fromMillisecondsSinceEpoch(t0 * 1000);
-    final wake = DateTime.fromMillisecondsSinceEpoch(t1 * 1000);
-    final l = AppLocalizations.of(context);
-    final bed = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(onset),
-      helpText: l?.sleepDetailBedTimeHelp ?? 'WHEN YOU GOT INTO BED',
+    final r = await openWindowEditor(
+      context,
+      kind: WindowKind.sleep,
+      title: 'Set sleep',
+      start: DateTime.fromMillisecondsSinceEpoch(t0 * 1000),
+      end: DateTime.fromMillisecondsSinceEpoch(t1 * 1000),
+      save: 'Save sleep',
     );
-    if (bed == null || !mounted) return;
-    final up = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(wake),
-      helpText: l?.sleepDetailWakeTimeHelp ?? 'WHEN YOU GOT UP',
-    );
-    if (up == null || !mounted) return;
-    final (newOnset, newWake) = correctedSleepWindow(onset, wake, bed, up);
-    // Applied = the stored night IS the typed window. The source alone can't
+    if (r == null || !mounted) return;
+    final (newOnset, newWake) = r;
+    final target = dayLabelOf(newWake);
+    final handSet = _source == 'manual' || _source == 'confirmed';
+    final app = context.read<AppState>();
+    if (target != _day) setState(() => _day = target);
+    // Applied = the stored night IS the chosen window. The source alone can't
     // say: re-timing a night that is already manual leaves it unchanged, and
     // a window erased by the derive comes back as a different source.
     bool near(Object? ts, DateTime t) =>
         ts is num &&
         (ts.round() - t.millisecondsSinceEpoch ~/ 1000).abs() <= 120;
     await _runOverride(
-      day,
-      () => context.read<AppState>().setSleepOverride(day, newOnset, newWake),
+      target,
+      () async {
+        if (target != day && handSet) await LocalDb.deleteSleepOverride(day);
+        await app.setSleepOverride(target, newOnset, newWake);
+      },
       applied: (n) =>
           n['sleep_source'] == 'manual' &&
           near(n['onset_ts'], newOnset) &&
@@ -1147,17 +1147,21 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
     );
   }
 
-  /// "I was asleep" on a night with no window: the edit pickers, seeded with
-  /// 23:00 the evening before and 07:00 on [day] (the night belongs to the
-  /// day it ends on).
+  /// "Set one manually" on a night with nothing scored: the editor, seeded
+  /// with eight hours ending 07:00 on [day] (or now, on a morning that has not
+  /// reached 07:00 yet).
   Future<void> _addWindow(String day) async {
     final d = DateTime.tryParse(day);
     if (d == null) return;
-    await _editWindow(
-      day,
-      DateTime(d.year, d.month, d.day - 1, 23).millisecondsSinceEpoch ~/ 1000,
-      DateTime(d.year, d.month, d.day, 7).millisecondsSinceEpoch ~/ 1000,
-    );
+    final now = DateTime.now();
+    var end = DateTime(d.year, d.month, d.day, 7);
+    if (end.isAfter(now)) {
+      end = DateTime(now.year, now.month, now.day, now.hour, now.minute);
+    }
+    final start =
+        DateTime(end.year, end.month, end.day, end.hour - 8, end.minute);
+    await _editWindow(day, start.millisecondsSinceEpoch ~/ 1000,
+        end.millisecondsSinceEpoch ~/ 1000);
   }
 
   /// Every override path is the same shape: write it, wait for the forced
