@@ -1021,10 +1021,17 @@ List<(String, String)> _commonStats(
     BuildContext c, Activity a, LiveFeed feed, double? weightKg, int elapsed) {
   final l = AppLocalizations.of(c);
   final kcal = _kcal(a, feed, weightKg, elapsed);
+  final goal = double.tryParse(Prefs.getString(Prefs.activityStrainTarget, ''));
   return [
     if (kcal != null) ('$kcal', l?.activityLiveKcalEstUnit ?? 'kcal · est'),
     if (feed.strain != null)
-      (feed.strain!.toStringAsFixed(1), l?.activityLiveStrainUnit ?? 'strain'),
+      (
+        // Against the goal set on Start Activity, when there is one.
+        goal == null
+            ? feed.strain!.toStringAsFixed(1)
+            : '${feed.strain!.toStringAsFixed(1)}/${goal.toStringAsFixed(1)}',
+        l?.activityLiveStrainUnit ?? 'strain'
+      ),
     if (feed.steps != null) ('${feed.steps}', l?.activityLiveStepsUnit ?? 'steps'),
   ];
 }

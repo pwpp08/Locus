@@ -282,6 +282,7 @@ abstract class LocalRepository {
     String id, {
     required int startTs,
     required int endTs,
+    String? type,
   }) => throw UnimplementedError('re-layer: setWorkoutWindow');
 
   /// Saved session spans (excluding stranded live rows), for the manual-entry

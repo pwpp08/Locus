@@ -18,6 +18,7 @@ import '../../data/day_label.dart';
 import '../../data/db.dart' show LocalDb;
 import '../../health/health_export.dart';
 import '../../l10n/app_localizations.dart';
+import '../../state/app_state.dart';
 import '../activity/catalogue.dart';
 import '../ui2.dart';
 import 'home_screen.dart' show monthShortName, repoOf;
@@ -29,24 +30,52 @@ Future<bool?> openAddActivity(BuildContext c, {DateTime? now}) =>
     AppSheet.open<bool>(c,
         builder: (_) => _AddActivitySheet(now: now), scroll: true, bare: true);
 
+/// The session an Edit Activity sheet changes: its id, what it is, and when.
+typedef EditedSession = ({String id, Activity activity, DateTime start, DateTime end});
+
+/// Opens the same sheet on a saved session: its activity and its times, and
+/// SAVE writes them back over it. Resolves true when it was saved.
+Future<bool?> openEditActivity(BuildContext c, EditedSession session,
+        {DateTime? now}) =>
+    AppSheet.open<bool>(c,
+        builder: (_) => _AddActivitySheet(now: now, edit: session),
+        scroll: true,
+        bare: true);
+
 /// What the list hands back: an activity, or a sleep or a nap.
 typedef ActivityChoice = ({Activity? activity, WindowKind? sleep});
 
-/// The activity list on a sheet of its own, for Start Activity: no Sleep tab,
-/// since a sleep is not something you start. Null when it was closed.
-Future<Activity?> chooseActivity(BuildContext c) async {
-  final r = await AppSheet.open<ActivityChoice>(c,
-      builder: (sheet) => _SheetFrame(
-            child: ActivityChooser(
-              sleep: false,
-              close: true,
-              onPick: (r) => Navigator.of(sheet).pop(r),
-              onBack: () => Navigator.of(sheet).pop(),
+/// The activity list on a sheet of its own, for Start Activity: with the Sleep
+/// tab, since a sleep or a nap can be started and ended by hand there. Null
+/// when it was closed.
+Future<ActivityChoice?> chooseActivity(BuildContext c) =>
+    AppSheet.open<ActivityChoice>(c,
+        builder: (sheet) => _SheetFrame(
+              child: ActivityChooser(
+                close: true,
+                onPick: (r) => Navigator.of(sheet).pop(r),
+                onBack: () => Navigator.of(sheet).pop(),
+              ),
             ),
-          ),
-      scroll: true,
-      bare: true);
-  return r?.activity;
+        scroll: true,
+        bare: true);
+
+/// A sleep is the night it ends on, re-derived from the window; a nap is a
+/// manual nap on the day it starts, and the day's naps re-read. The one write
+/// behind Add Activity's Sleep tab and the end of a started sleep or nap.
+Future<void> saveRestWindow(
+    AppState? app, WindowKind k, DateTime start, DateTime end) async {
+  if (k == WindowKind.sleep) {
+    await app?.setSleepOverride(dayLabelOf(end), start, end);
+  } else {
+    await LocalDb.putNapEdit(
+        dayId: dayLabelOf(start),
+        startTs: start.millisecondsSinceEpoch ~/ 1000,
+        endTs: end.millisecondsSinceEpoch ~/ 1000,
+        source: 'manual');
+    await app?.reanalyzeForNapEdit();
+  }
+  app?.insightsRevision.value++;
 }
 
 /// The sheet's ground: lit at the top, a handle, then [child].
@@ -59,7 +88,7 @@ class _SheetFrame extends StatelessWidget {
     final p = P.of(c);
     final top = Color.alphaBlend(C.dialSleep.withValues(alpha: .10), p.card);
     return FractionallySizedBox(
-      heightFactor: .86,
+      heightFactor: .825,
       alignment: Alignment.bottomCenter,
       child: Container(
         decoration: BoxDecoration(
@@ -74,7 +103,7 @@ class _SheetFrame extends StatelessWidget {
         ),
         padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(c).bottom),
         child: Column(children: [
-          const SizedBox(height: S.x3),
+          const SizedBox(height: S.x5),
           Container(
             width: S.x16 + S.x4,
             height: S.x1,
@@ -90,7 +119,10 @@ class _SheetFrame extends StatelessWidget {
 
 class _AddActivitySheet extends StatefulWidget {
   final DateTime? now;
-  const _AddActivitySheet({this.now});
+
+  /// Set when this edits a saved session instead of adding one.
+  final EditedSession? edit;
+  const _AddActivitySheet({this.now, this.edit});
 
   @override
   State<_AddActivitySheet> createState() => _AddActivitySheetState();
@@ -111,7 +143,14 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
   @override
   void initState() {
     super.initState();
-    _hourToNow();
+    final e = widget.edit;
+    if (e == null) {
+      _hourToNow();
+    } else {
+      _activity = e.activity;
+      _start = e.start;
+      _end = e.end;
+    }
     _loadSpans();
   }
 
@@ -152,7 +191,7 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
       endSec: _endSec,
       nowSec: _now.millisecondsSinceEpoch ~/ 1000,
       existing: _spans,
-      editingId: manualSessionId(_startSec),
+      editingId: widget.edit?.id ?? manualSessionId(_startSec),
     )?.message;
   }
 
@@ -245,9 +284,14 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
       _message = null;
     });
     try {
-      final r = await repo.logManualWorkout(
-          startTs: _startSec, endTs: _endSec, type: a.typeKey);
-      await HealthExporter.exportWorkoutId(r['workout_id'] as String?);
+      final edit = widget.edit;
+      final r = edit == null
+          ? await repo.logManualWorkout(
+              startTs: _startSec, endTs: _endSec, type: a.typeKey)
+          : await repo.setWorkoutWindow(edit.id,
+              startTs: _startSec, endTs: _endSec, type: a.typeKey);
+      await HealthExporter.exportWorkoutId(
+          (r['workout_id'] ?? widget.edit?.id) as String?);
       app?.insightsRevision.value++;
       if (r['unscored'] == true) {
         // Saved, with only its times: say so rather than pop silently.
@@ -287,17 +331,7 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
       _message = null;
     });
     try {
-      if (k == WindowKind.sleep) {
-        await app?.setSleepOverride(dayLabelOf(_end), _start, _end);
-      } else {
-        await LocalDb.putNapEdit(
-            dayId: dayLabelOf(_start),
-            startTs: _startSec,
-            endTs: _endSec,
-            source: 'manual');
-        await app?.reanalyzeForNapEdit();
-      }
-      app?.insightsRevision.value++;
+      await saveRestWindow(app, k, _start, _end);
       nav.pop(true);
     } catch (_) {
       if (!mounted) return;
@@ -313,6 +347,7 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
     return _SheetFrame(
       child: _picking
           ? ActivityChooser(
+              sleep: widget.edit == null,
               onPick: _choose,
               onBack: () => setState(() => _picking = false))
           : _form(c, P.of(c)),
@@ -336,7 +371,7 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
             ? LucideIcons.sun
             : a?.icon;
     return Column(children: [
-      _sheetHeader(c, p, 'Add activity',
+      _sheetHeader(c, p, widget.edit == null ? 'Add activity' : 'Edit activity',
           leading: LucideIcons.x, onLeading: () => Navigator.of(c).pop()),
       Expanded(
         child: ListView(
@@ -346,7 +381,7 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
               onTap: () => setState(() => _picking = true),
               semanticLabel: 'Select activity',
               child: Container(
-                height: S.x16 + S.x4,
+                height: S.x16 + S.half,
                 padding: const EdgeInsets.symmetric(horizontal: S.x5),
                 decoration: BoxDecoration(
                   color: p.ink.withValues(alpha: .09),
@@ -360,17 +395,20 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
                     child: Text((name ?? 'Select activity').toUpperCase(),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: F.caps.copyWith(color: p.ink)),
+                        style: F.body.copyWith(
+                            color: p.ink,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.6)),
                   ),
                   Icon(LucideIcons.chevronRight, size: I.lg, color: p.ink2),
                 ]),
               ),
             ),
-            const SizedBox(height: S.x8),
+            const SizedBox(height: S.x12 + S.x2),
             _rule(p, 'Time'),
-            const SizedBox(height: S.x4),
+            const SizedBox(height: S.x8 + S.x1),
             _timeRow(c, p, 'Start Time', _start, true),
-            const SizedBox(height: S.x3),
+            const SizedBox(height: S.x5),
             _timeRow(c, p, 'End Time', _end, false),
             if (k != null) ...[
               const SizedBox(height: S.x5),
@@ -405,7 +443,7 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
         ),
       ),
       Padding(
-        padding: const EdgeInsets.fromLTRB(S.x6, S.x2, S.x6, S.x8),
+        padding: const EdgeInsets.fromLTRB(S.x12, S.x2, S.x12, S.x16 + S.x4),
         child: _SaveButton(
           label: _saving ? (l?.logWorkoutSaving ?? 'Saving…') : 'Save',
           enabled: _canSave,
@@ -422,7 +460,7 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
           semanticLabel: '$label, $hint: $text',
           child: Container(
             width: width,
-            height: S.x10,
+            height: S.x8 + S.x1,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: p.ink.withValues(alpha: .09),
@@ -435,10 +473,10 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
     return Row(children: [
       Expanded(child: Text(label, style: F.body.copyWith(color: p.ink))),
       chip('${monthShortName(at.month, l)} ${at.day}',
-          () => _pickDate(start: start), 'date', S.x16 + S.x4),
-      const SizedBox(width: S.x3),
-      chip('${two(at.hour)}:${two(at.minute)}',
-          () => _pickTime(start: start), 'time', S.x16),
+          () => _pickDate(start: start), 'date', S.x16 + S.x1 + S.half),
+      const SizedBox(width: S.x2 + S.half),
+      chip('${at.hour}:${two(at.minute)}',
+          () => _pickTime(start: start), 'time', S.x12 + S.x2 + S.half + S.half),
     ]);
   }
 }
@@ -446,7 +484,7 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
 Widget _sheetHeader(BuildContext c, P p, String title,
     {required IconData leading, required VoidCallback onLeading}) {
   return Padding(
-    padding: const EdgeInsets.fromLTRB(S.x3, S.x4, S.x3, 0),
+    padding: const EdgeInsets.fromLTRB(S.x3, S.x3, S.x3, 0),
     child: SizedBox(
       height: S.tap,
       child: Stack(alignment: Alignment.center, children: [
@@ -465,7 +503,8 @@ Widget _sheetHeader(BuildContext c, P p, String title,
         Semantics(
           header: true,
           child: Text(title.toUpperCase(),
-              style: F.caps.copyWith(color: p.ink, letterSpacing: .8)),
+              style: F.body.copyWith(
+                  color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.6)),
         ),
       ]),
     ),
@@ -644,7 +683,8 @@ class _ActivityChooserState extends State<ActivityChooser> {
   }
 }
 
-/// The sheet's one action: an outline until it can be pressed, then filled.
+/// The sheet's one action: an outline until it can be pressed, then a white
+/// pill.
 class _SaveButton extends StatelessWidget {
   final String label;
   final bool enabled;
@@ -659,19 +699,19 @@ class _SaveButton extends StatelessWidget {
       onTap: enabled ? onTap : null,
       semanticLabel: label,
       child: Container(
-        height: S.x16,
+        height: S.x12 + S.x1 + S.half,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: enabled ? C.optimal : const Color(0x00000000),
+          color: enabled ? p.ink : const Color(0x00000000),
           borderRadius: R.rPill,
           border: Border.all(
-              color: enabled ? C.optimal : C.optimal.withValues(alpha: .32),
-              width: 2),
+              color: enabled ? p.ink : p.ink.withValues(alpha: .3), width: 2),
         ),
         child: Text(label.toUpperCase(),
-            style: F.caps.copyWith(
-                color: enabled ? p.on(C.optimal) : C.optimal.withValues(alpha: .4),
-                letterSpacing: 1)),
+            style: F.body.copyWith(
+                color: enabled ? p.inkOn(p.ink) : p.ink.withValues(alpha: .4),
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.6)),
       ),
     );
   }

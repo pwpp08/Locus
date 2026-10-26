@@ -25,7 +25,8 @@ import '../activity/share.dart' show ShareSheet;
 import '../activity/tiles.dart';
 import '../ui2.dart';
 import 'home_screen.dart' show repoOf, unitsOf;
-import 'log_workout.dart' show LogWorkout, bumpInsights;
+import 'add_activity.dart' show openEditActivity;
+import 'log_workout.dart' show bumpInsights;
 import 'window_editor.dart' show HrPoint;
 import 'workout_screen.dart' show sessionResultOf;
 
@@ -325,6 +326,51 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
   /// The zone lit on the chart, 0…4, or null.
   int? _zone;
 
+  /// The chart's view in epoch seconds (the whole of it when null), the time
+  /// under the finger, and where a pinch began.
+  int? _v0, _v1, _scrubT;
+  int _pinchSpan = 1, _pinchFrom = 0;
+
+  (int, int) _view(WorkoutDetail d) => (_v0 ?? d.from, _v1 ?? d.to);
+
+  void _setView(WorkoutDetail d, int from, int span) {
+    final full = math.max(1, d.to - d.from);
+    span = span.clamp(math.min(120, full), full);
+    from = from.clamp(d.from, d.to - span);
+    setState(() {
+      _v0 = from;
+      _v1 = from + span;
+    });
+  }
+
+  /// Two fingers zoom the chart about where they began, and moving them
+  /// together moves the view along: down to a couple of minutes, minute by
+  /// minute.
+  void _pinch(WorkoutDetail d, PinchPhase phase, double scale, double focal, double pan) {
+    if (phase == PinchPhase.start) {
+      final (a, b) = _view(d);
+      _pinchSpan = b - a;
+      _pinchFrom = a;
+      setState(() => _scrubT = null);
+    } else if (phase == PinchPhase.update) {
+      final span = (_pinchSpan / math.max(scale, .01)).round();
+      final at = _pinchFrom + (focal * _pinchSpan).round();
+      _setView(d, at - ((focal + pan) * span).round(), span);
+    }
+  }
+
+  /// A finger on the chart: the reading at the nearest sample to it.
+  void _scrub(WorkoutDetail d, double f) {
+    if (d.hr.isEmpty) return;
+    final (a, b) = _view(d);
+    final t = a + (f * (b - a)).round();
+    var best = d.hr.first;
+    for (final e in d.hr) {
+      if ((e.t - t).abs() < (best.t - t).abs()) best = e;
+    }
+    setState(() => _scrubT = best.t);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -366,14 +412,11 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
         await nav.push(MaterialPageRoute<void>(builder: (_) => ShareSheet(r)));
       case 'edit':
         if (d == null) return;
-        await Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (_) => LogWorkout(
-            sessionId: d.id,
-            start: DateTime.fromMillisecondsSinceEpoch(d.start * 1000),
-            end: DateTime.fromMillisecondsSinceEpoch(d.end * 1000),
-            activity: d.activity,
-            title: 'Edit activity',
-          ),
+        await openEditActivity(context, (
+          id: d.id,
+          activity: d.activity,
+          start: DateTime.fromMillisecondsSinceEpoch(d.start * 1000),
+          end: DateTime.fromMillisecondsSinceEpoch(d.end * 1000),
         ));
         if (mounted) {
           bumpInsights(context);
@@ -426,9 +469,9 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                     padding: EdgeInsets.only(bottom: S.navClear(c)),
                     children: [
                       _strain(c, p, d),
+                      const SizedBox(height: S.x2),
+                      _chart(c, p, d),
                       const SizedBox(height: S.x6),
-                      _WorkoutChart(d: d, zone: _zone),
-                      const SizedBox(height: S.x8),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: S.x4),
                         child: Column(children: [
@@ -484,35 +527,34 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
         '${formatClock(s.hour, s.minute)} to ${formatClock(e.hour, e.minute)}';
     final menuKey = GlobalKey();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(S.x2, S.x4, S.x3, S.x4),
+      padding: const EdgeInsets.fromLTRB(S.x2, S.x2, S.x3, S.x2),
       child: Row(children: [
         Pressable(
           onTap: () => Navigator.of(c).maybePop(),
           semanticLabel: 'Back',
           child: SizedBox(
-            width: S.tap + S.x2,
+            width: S.tap,
             height: S.tap,
             child: Center(
-                child: BoldChevron(left: true, height: S.x6, color: p.ink)),
+                child: BoldChevron(left: true, height: S.x5, color: p.ink)),
           ),
         ),
+        const SizedBox(width: S.x2),
+        Icon(a.icon, size: I.lg + S.x1, color: p.ink),
         const SizedBox(width: S.x3),
-        Icon(a.icon, size: I.xl + S.x2, color: p.ink),
-        const SizedBox(width: S.x4),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(a.displayName(c).toUpperCase(),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: F.body.copyWith(
-                    color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
-            const SizedBox(height: S.half),
+                style: F.cap.copyWith(
+                    color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.3)),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(when,
                   maxLines: 1,
-                  style: F.body.copyWith(color: p.ink3, fontWeight: FontWeight.w500)),
+                  style: F.over.copyWith(color: p.ink3, fontWeight: FontWeight.w500)),
             ),
           ]),
         ),
@@ -527,14 +569,14 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
           },
           semanticLabel: 'More',
           child: SizedBox(
-            width: S.tap + S.x4,
+            width: S.tap + S.x2,
             height: S.tap,
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               for (var i = 0; i < 3; i++) ...[
-                if (i > 0) const SizedBox(width: S.x1 + S.half),
+                if (i > 0) const SizedBox(width: S.x1),
                 Container(
-                  width: S.x3 + S.half,
-                  height: S.x3 + S.half,
+                  width: S.x2 + S.half,
+                  height: S.x2 + S.half,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(color: p.ink, width: S.half),
@@ -549,28 +591,101 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
   }
 
   // ── the strain, against the sport's month ──────────────────────────────
+  // While a finger is on the chart this row is the reading under it instead:
+  // the beats a minute and the time, in the strain's place and size.
   Widget _strain(BuildContext c, P p, WorkoutDetail d) {
     final v = d.strain;
     final avg = d.avg.strain;
+    final t = _scrubT;
+    HrPoint? at;
+    if (t != null) {
+      for (final e in d.hr) {
+        if (e.t == t) at = e;
+      }
+    }
+    final label = F.over.copyWith(
+        color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: 1.4);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: S.x4),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-          Text(v == null ? '--' : v.toStringAsFixed(1),
-              style: F.n48.copyWith(color: C.dialStrain, fontWeight: FontWeight.w700)),
-          if (v != null && avg != null) ...[
-            const SizedBox(width: S.x3),
-            _VsPill(
-                up: v >= avg,
-                text: avg.toStringAsFixed(1),
-                big: true),
-          ],
-        ]),
-        Text('ACTIVITY STRAIN',
-            style: F.body.copyWith(
-                color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: 1.6)),
-      ]),
+      child: SizedBox(
+        height: S.x16,
+        child: at != null
+            ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text('${at.v.round()}',
+                          style: F.n34.copyWith(
+                              color: C.dialStrain, fontWeight: FontWeight.w700)),
+                      const SizedBox(width: S.x2),
+                      Text('bpm',
+                          style: F.body.copyWith(
+                              color: C.dialStrain, fontWeight: FontWeight.w500)),
+                    ]),
+                Text(_clockAt(at.t), style: F.num(F.cap).copyWith(color: p.ink3)),
+              ])
+            : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                  Text(v == null ? '--' : v.toStringAsFixed(1),
+                      style: F.n34
+                          .copyWith(color: C.dialStrain, fontWeight: FontWeight.w700)),
+                  if (v != null && avg != null) ...[
+                    const SizedBox(width: S.x3),
+                    _VsPill(up: v >= avg, text: avg.toStringAsFixed(1)),
+                  ],
+                ]),
+                Text('ACTIVITY STRAIN', style: label),
+              ]),
+      ),
     );
+  }
+
+  static String _clockAt(int t) {
+    final x = DateTime.fromMillisecondsSinceEpoch(t * 1000);
+    return formatClock(x.hour, x.minute);
+  }
+
+  // ── the heart rate: touch to read, pinch to zoom ───────────────────────
+  Widget _chart(BuildContext c, P p, WorkoutDetail d) {
+    final (v0, v1) = _view(d);
+    final zoomed = v1 - v0 < d.to - d.from;
+    return Stack(children: [
+      Scrubber(
+        value: null,
+        onChanged: (f) => _scrub(d, f),
+        onLift: () => setState(() => _scrubT = null),
+        yieldToScroll: true,
+        onPinch: (ph, sc, fo, pa) => _pinch(d, ph, sc, fo, pa),
+        label: 'Heart rate through the activity',
+        describe: (f) => _clockAt(v0 + (f * (v1 - v0)).round()),
+        child: _WorkoutChart(d: d, zone: _zone, v0: v0, v1: v1, scrubT: _scrubT),
+      ),
+      if (zoomed)
+        Positioned(
+          right: S.x3,
+          top: S.x2,
+          child: Pressable(
+            onTap: () => setState(() {
+              _v0 = _v1 = null;
+            }),
+            semanticLabel: 'Show the whole activity',
+            child: Container(
+              height: S.x8,
+              padding: const EdgeInsets.symmetric(horizontal: S.x3),
+              decoration: BoxDecoration(
+                color: p.ink.withValues(alpha: .12),
+                borderRadius: R.rPill,
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(LucideIcons.zoomOut, size: I.sm, color: p.ink),
+                const SizedBox(width: S.x1),
+                Text('RESET', style: F.over.copyWith(color: p.ink, fontWeight: FontWeight.w800)),
+              ]),
+            ),
+          ),
+        ),
+    ]);
   }
 
   // ── the legend over the zones ───────────────────────────────────────────
@@ -695,7 +810,7 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
       ]);
 
   Widget _keyStats(BuildContext c, P p, WorkoutDetail d) {
-    final w = MediaQuery.sizeOf(c).width * .53;
+    final w = MediaQuery.sizeOf(c).width * .43;
     final dur = d.durationSec;
     final (dm, ds) = _hmParts(dur);
     final cards = [
@@ -720,7 +835,7 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
               : (dur >= d.avg.durationSec!, _hms(d.avg.durationSec!.round()))),
     ];
     return SizedBox(
-      height: S.x16 * 3 + S.x4,
+      height: S.x16 * 2 + S.x4,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: S.x4),
@@ -732,30 +847,30 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
   }
 
   Widget _statCard(P p, _Stat s) => Container(
-        padding: const EdgeInsets.fromLTRB(S.x5, S.x6, S.x4, S.x5),
+        padding: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x3, S.x4),
         decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Icon(s.icon, size: I.lg, color: p.ink),
-            const SizedBox(width: S.x4),
+            Icon(s.icon, size: I.md, color: p.ink),
+            const SizedBox(width: S.x3),
             Text(s.label,
-                style: F.caps.copyWith(
+                style: F.over.copyWith(
                     color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
           ]),
           const Spacer(),
           Row(crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic, children: [
             Text(s.value,
-                style: F.n48.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+                style: F.n34.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
             if (s.small != null)
               Text(s.small!,
-                  style: F.num(F.t2).copyWith(color: p.ink, fontWeight: FontWeight.w600)),
+                  style: F.num(F.head).copyWith(color: p.ink, fontWeight: FontWeight.w600)),
             if (s.unit.isNotEmpty) ...[
-              const SizedBox(width: S.x2),
-              Text(s.unit, style: F.t2.copyWith(color: p.ink, fontWeight: FontWeight.w500)),
+              const SizedBox(width: S.x1),
+              Text(s.unit, style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w500)),
             ],
           ]),
-          const SizedBox(height: S.x3),
+          const SizedBox(height: S.x2),
           if (s.vs != null) _VsPill(up: s.vs!.$1, text: s.vs!.$2),
         ]),
       );
@@ -835,25 +950,22 @@ class _Stat {
 class _VsPill extends StatelessWidget {
   final bool up;
   final String text;
-  final bool big;
-  const _VsPill({required this.up, required this.text, this.big = false});
+  const _VsPill({required this.up, required this.text});
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
     return Container(
-      padding: EdgeInsets.symmetric(
-          horizontal: big ? S.x3 : S.x2 + S.half, vertical: big ? S.x2 : S.x1),
+      padding: const EdgeInsets.symmetric(horizontal: S.x2 + S.half, vertical: S.x1),
       decoration: BoxDecoration(
         color: p.ink.withValues(alpha: .1),
         borderRadius: R.rSm,
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        DeltaTriangle(up: up, color: p.ink2, size: big ? S.x3 + S.half : S.x3),
-        SizedBox(width: big ? S.x3 : S.x2),
+        DeltaTriangle(up: up, color: p.ink2, size: S.x3),
+        const SizedBox(width: S.x2),
         Text(text,
-            style: F.num(big ? F.head : F.body)
-                .copyWith(color: p.ink2, fontWeight: FontWeight.w700)),
+            style: F.num(F.body).copyWith(color: p.ink2, fontWeight: FontWeight.w700)),
       ]),
     );
   }
@@ -875,18 +987,30 @@ String _hms(int sec) {
 class _WorkoutChart extends StatelessWidget {
   final WorkoutDetail d;
   final int? zone;
-  const _WorkoutChart({required this.d, required this.zone});
+
+  /// The seconds in view, and the sample under a finger.
+  final int v0, v1;
+  final int? scrubT;
+  const _WorkoutChart(
+      {required this.d,
+      required this.zone,
+      required this.v0,
+      required this.v1,
+      required this.scrubT});
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
     return SizedBox(
-      height: S.x16 * 4 + S.x12,
+      height: S.x16 * 3 + S.x4,
       child: CustomPaint(
         size: Size.infinite,
         painter: _ChartPaint(
           d: d,
           zone: zone,
+          v0: v0,
+          v1: v1,
+          scrubT: scrubT,
           ink: p.ink,
           ink3: p.ink3,
           grid: p.ink.withValues(alpha: .1),
@@ -900,10 +1024,15 @@ class _WorkoutChart extends StatelessWidget {
 class _ChartPaint extends CustomPainter {
   final WorkoutDetail d;
   final int? zone;
+  final int v0, v1;
+  final int? scrubT;
   final Color ink, ink3, grid, ground;
   _ChartPaint({
     required this.d,
     required this.zone,
+    required this.v0,
+    required this.v1,
+    required this.scrubT,
     required this.ink,
     required this.ink3,
     required this.grid,
@@ -916,12 +1045,22 @@ class _ChartPaint extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final plot = Rect.fromLTRB(0, S.x2, size.width, size.height - _foot);
     canvas.drawRect(plot, Paint()..color = ground);
-    final span = math.max(1, d.to - d.from);
-    double xOf(num t) => (t - d.from) / span * size.width;
-    final pts = d.hr;
+    final span = math.max(1, v1 - v0);
+    double xOf(num t) => (t - v0) / span * size.width;
+    // What is in view, with a sample either side so the trace runs off the edge.
+    final all = d.hr;
+    var a = 0, b = all.length;
+    while (a + 1 < b && all[a + 1].t < v0) {
+      a++;
+    }
+    while (b - 2 > a && all[b - 2].t > v1) {
+      b--;
+    }
+    final pts = all.sublist(a, b);
+    // The scale stays the session's own, so a zoom changes the width only.
     var lo = 75.0, hi = 150.0;
-    if (pts.isNotEmpty) {
-      final vs = pts.map((e) => e.v);
+    if (all.isNotEmpty) {
+      final vs = all.map((e) => e.v);
       lo = ((vs.reduce(math.min) - 4) / 25).floor() * 25.0;
       hi = ((vs.reduce(math.max) + 4) / 25).ceil() * 25.0;
       if (hi - lo < 50) hi = lo + 50;
@@ -940,6 +1079,8 @@ class _ChartPaint extends CustomPainter {
       canvas.drawLine(Offset(0, yOf(v)), Offset(size.width, yOf(v)), gp);
     }
 
+    canvas.save();
+    canvas.clipRect(plot.inflate(2));
     if (pts.length >= 2) {
       final line = Path()..moveTo(xOf(pts.first.t), yOf(pts.first.v));
       for (final e in pts.skip(1)) {
@@ -984,10 +1125,11 @@ class _ChartPaint extends CustomPainter {
           ..color = col
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2;
-        for (final (a, b) in d.zoneRuns[z]) {
-          final seg = [for (final e in pts) if (e.t >= a && e.t <= b) e];
+        for (final (ra, rb) in d.zoneRuns[z]) {
+          if (rb < v0 || ra > v1) continue;
+          final seg = [for (final e in pts) if (e.t >= ra && e.t <= rb) e];
           if (seg.isEmpty) continue;
-          final x0 = xOf(a), x1 = math.max(xOf(b), x0 + 1.5);
+          final x0 = xOf(ra), x1 = math.max(xOf(rb), x0 + 1.5);
           final top = Path()..moveTo(x0, yOf(seg.first.v));
           for (final e in seg) {
             top.lineTo(xOf(e.t), yOf(e.v));
@@ -1004,6 +1146,7 @@ class _ChartPaint extends CustomPainter {
         }
       }
     }
+    canvas.restore();
 
     // Labels on the left, over the grid.
     for (var v = lo + 25; v < hi; v += 25) {
@@ -1011,8 +1154,9 @@ class _ChartPaint extends CustomPainter {
     }
 
     // Where the session starts and ends: dashed lines, dots at the foot, and
-    // the clock times under them.
+    // the clock times under them, for whichever of them is in view.
     for (final (t, left) in [(d.start, true), (d.end, false)]) {
+      if (t < v0 || t > v1) continue;
       final x = xOf(t);
       final dash = Paint()
         ..color = ink.withValues(alpha: .8)
@@ -1023,9 +1167,30 @@ class _ChartPaint extends CustomPainter {
       canvas.drawCircle(Offset(x, plot.bottom), S.x1, Paint()..color = ink);
       final at = DateTime.fromMillisecondsSinceEpoch(t * 1000);
       final tp = _layout(formatClock(at.hour, at.minute),
-          F.num(F.body).copyWith(color: ink, fontWeight: FontWeight.w700));
+          F.num(F.cap).copyWith(color: ink, fontWeight: FontWeight.w700));
       final tx = left ? x : x - tp.width;
       tp.paint(canvas, Offset(tx.clamp(0, size.width - tp.width), plot.bottom + S.x2));
+    }
+
+    // The finger: a dotted line down the chart, and a dot on the reading.
+    final st = scrubT;
+    if (st != null && st >= v0 && st <= v1) {
+      HrPoint? hit;
+      for (final e in all) {
+        if (e.t == st) hit = e;
+      }
+      final x = xOf(st);
+      final dot = Paint()
+        ..color = ink
+        ..strokeWidth = 1.5;
+      for (var y = S.x1; y < plot.bottom + S.x2; y += S.x2) {
+        canvas.drawLine(Offset(x, y), Offset(x, y + S.x1), dot);
+      }
+      if (hit != null) {
+        canvas.drawCircle(Offset(x, yOf(hit.v)), S.x2 + S.half, Paint()..color = ink);
+        canvas.drawCircle(
+            Offset(x, yOf(hit.v)), S.x2, Paint()..color = C.dialStrain);
+      }
     }
   }
 
@@ -1037,7 +1202,13 @@ class _ChartPaint extends CustomPainter {
       _layout(s, st.copyWith(color: color)).paint(canvas, at);
 
   @override
-  bool shouldRepaint(_ChartPaint o) => o.d != d || o.zone != zone || o.ink != ink;
+  bool shouldRepaint(_ChartPaint o) =>
+      o.d != d ||
+      o.zone != zone ||
+      o.ink != ink ||
+      o.v0 != v0 ||
+      o.v1 != v1 ||
+      o.scrubT != scrubT;
 }
 
 /// One zone's bar: its share filled over a hatched track and the sport's

@@ -168,6 +168,7 @@ class LucideIcons {
   static const IconData refreshCw = base.LucideIcons.refreshCw300;
   static const IconData repeat = base.LucideIcons.repeat300;
   static const IconData repeat2 = base.LucideIcons.repeat2300;
+  static const IconData rotateCcw = base.LucideIcons.rotateCcw300;
   static const IconData rotateCw = base.LucideIcons.rotateCw300;
   static const IconData ruler = base.LucideIcons.ruler300;
   static const IconData sailboat = base.LucideIcons.sailboat300;

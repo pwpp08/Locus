@@ -3040,6 +3040,7 @@ class LocalRepositoryImpl extends LocalRepository {
     String id, {
     required int startTs,
     required int endTs,
+    String? type,
   }) async {
     final existing = await LocalDb.session(id);
     if (existing == null) {
@@ -3067,7 +3068,7 @@ class LocalRepositoryImpl extends LocalRepository {
     return _writeManualSession(
       startTs: startTs,
       endTs: endTs,
-      type: (existing['type'] as String?) ?? 'other',
+      type: type ?? (existing['type'] as String?) ?? 'other',
       existing: existing,
       validateAgainstId: id,
     );

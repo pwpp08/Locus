@@ -1083,6 +1083,40 @@ Map<String, Widget> extraCases() => {
           ),
         );
       }),
+      // The dial's drag, round a ring; and a sheet's handle, swiped or tapped.
+      'dial_scrubber': Builder(builder: (c) {
+        final p = P.of(c);
+        return DialScrubber(
+          value: .4,
+          onChanged: (_) {},
+          label: 'Strain target',
+          describe: (_) => '8.4 strain',
+          child: SizedBox(
+            width: 160,
+            height: 160,
+            child: CustomPaint(painter: Ring(.4, C.dialStrain, p.track, stroke: 12)),
+          ),
+        );
+      }),
+      'swipe_handle': Builder(builder: (c) {
+        final p = P.of(c);
+        return SwipeHandle(
+          onSwipe: (_) {},
+          onTap: () {},
+          semanticLabel: 'Open the sheet',
+          child: SizedBox(
+            height: S.tap,
+            child: Center(
+              child: Container(
+                width: S.x12,
+                height: S.x1,
+                decoration: BoxDecoration(
+                    color: p.ink.withValues(alpha: .22), borderRadius: R.rPill),
+              ),
+            ),
+          ),
+        );
+      }),
       'chart_ring': Builder(builder: (c) {
         final p = P.of(c);
         return Surface(

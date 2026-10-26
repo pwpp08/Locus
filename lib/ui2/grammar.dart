@@ -376,6 +376,173 @@ class _StripPointerState extends State<_StripPointer> {
       );
 }
 
+/// ── DIAL SCRUBBER ── a drag round a ring ─────────────────────────────────
+///
+/// The [Scrubber] for a dial: the finger's angle round the child's centre,
+/// clockwise from twelve o'clock, is the value (0 at the top, 1 a full turn
+/// on). It never wraps: a finger carried past twelve stays at the end it left
+/// by, so a target cannot jump from the top of its scale to the bottom.
+/// A touch that begins inside [dead] of the radius (the middle of the dial,
+/// where its own buttons sit) is not a drag. Same slider role and step walk as
+/// the strip, for the same reason.
+class DialScrubber extends StatefulWidget {
+  final double? value;
+  final ValueChanged<double> onChanged;
+  final String label;
+  final String Function(double) describe;
+  final double step;
+  final double dead;
+  final Widget child;
+
+  const DialScrubber({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    required this.label,
+    required this.describe,
+    required this.child,
+    this.step = .05,
+    this.dead = .55,
+  });
+
+  @override
+  State<DialScrubber> createState() => _DialScrubberState();
+}
+
+class _DialScrubberState extends State<DialScrubber> {
+  int? _pointer;
+  double? _last;
+
+  /// The dial's own size: its child's, not what the parent offered.
+  Size get _size => (context.findRenderObject() as RenderBox).size;
+
+  double _angle(Offset o, Size s) {
+    final d = o - Offset(s.width / 2, s.height / 2);
+    final a = math.atan2(d.dx, -d.dy) / (2 * math.pi);
+    return a < 0 ? a + 1 : a;
+  }
+
+  void _set(Offset o, Size s, {required bool down}) {
+    final d = o - Offset(s.width / 2, s.height / 2);
+    final r = math.min(s.width, s.height) / 2;
+    if (down) {
+      if (d.distance < r * widget.dead) return;
+      _pointer = _pointer ?? -1;
+    }
+    var v = _angle(o, s);
+    final last = _last;
+    // Carried across twelve: hold at the end it came from.
+    if (!down && last != null && (v - last).abs() > .5) v = last > .5 ? 1 : 0;
+    _last = v;
+    widget.onChanged(v);
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final v = widget.value;
+    final up = ((v ?? -widget.step) + widget.step).clamp(0.0, 1.0);
+    final down = ((v ?? 1 + widget.step) - widget.step).clamp(0.0, 1.0);
+    return Semantics(
+      label: widget.label,
+      slider: true,
+      value: v == null
+          ? (AppLocalizations.of(c)?.scrubberNothingSelected ?? 'Nothing selected')
+          : widget.describe(v),
+      increasedValue: widget.describe(up),
+      decreasedValue: widget.describe(down),
+      onIncrease: () => widget.onChanged(up),
+      onDecrease: () => widget.onChanged(down),
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (e) {
+          if (_pointer != null) return;
+          _last = widget.value;
+          _set(e.localPosition, _size, down: true);
+          if (_pointer == -1) _pointer = e.pointer;
+        },
+        onPointerMove: (e) {
+          if (e.pointer == _pointer) _set(e.localPosition, _size, down: false);
+        },
+        onPointerUp: (e) {
+          if (e.pointer == _pointer) _pointer = null;
+        },
+        onPointerCancel: (e) {
+          if (e.pointer == _pointer) _pointer = null;
+        },
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// A swipe up or down on [child], and a tap: the handle of a sheet that opens
+/// and closes by hand. [onSwipe] gets true for up. Past [reach] of travel in
+/// one direction it fires once and the gesture is spent.
+class SwipeHandle extends StatefulWidget {
+  final void Function(bool up) onSwipe;
+  final VoidCallback onTap;
+  final String semanticLabel;
+  final double reach;
+  final Widget child;
+
+  const SwipeHandle({
+    super.key,
+    required this.onSwipe,
+    required this.onTap,
+    required this.semanticLabel,
+    required this.child,
+    this.reach = S.x6,
+  });
+
+  @override
+  State<SwipeHandle> createState() => _SwipeHandleState();
+}
+
+class _SwipeHandleState extends State<SwipeHandle> {
+  int? _pointer;
+  Offset? _from;
+  bool _spent = false;
+
+  @override
+  Widget build(BuildContext c) => Semantics(
+        button: true,
+        label: widget.semanticLabel,
+        onTap: widget.onTap,
+        child: Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: (e) {
+            if (_pointer != null) return;
+            _pointer = e.pointer;
+            _from = e.localPosition;
+            _spent = false;
+          },
+          onPointerMove: (e) {
+            final from = _from;
+            if (e.pointer != _pointer || _spent || from == null) return;
+            final dy = e.localPosition.dy - from.dy;
+            if (dy.abs() >= widget.reach) {
+              _spent = true;
+              widget.onSwipe(dy < 0);
+            }
+          },
+          onPointerUp: (e) {
+            if (e.pointer != _pointer) return;
+            _pointer = null;
+            final from = _from;
+            if (!_spent &&
+                from != null &&
+                (e.localPosition - from).distance < S.x2) {
+              widget.onTap();
+            }
+          },
+          onPointerCancel: (e) {
+            if (e.pointer == _pointer) _pointer = null;
+          },
+          child: widget.child,
+        ),
+      );
+}
+
 /// How much a dark card is graded from its top-left corner to its bottom-right.
 enum PanelTone {
   /// A hint of light in one corner: every ordinary card.

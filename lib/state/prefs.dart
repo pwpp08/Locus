@@ -99,6 +99,14 @@ class Prefs {
   /// It stays gone for the rest of that day and is back the next.
   static const String firstWeeksDismissedOn = 'ui.first_weeks_dismissed_on';
 
+  /// The strain the person set as the goal of an activity on Start Activity,
+  /// as text ('8.5'); empty when no goal is set.
+  static const String activityStrainTarget = 'activity.strain_target';
+
+  /// A sleep or a nap started by hand and not yet ended: 'sleep|(epoch ms)' or
+  /// 'nap|(epoch ms)'. Empty when none is running.
+  static const String restPending = 'rest.pending';
+
   /// The Sleep Planner's wake time, minute of day. Unset (-1): the armed
   /// alarm, else the usual wake time the sleep coach learned.
   static const String sleepPlannerWakeMin = 'sleep_planner.wake_min';

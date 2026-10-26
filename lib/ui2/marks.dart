@@ -206,7 +206,7 @@ class StrapIcon extends StatelessWidget {
           if (badge != null)
             Positioned(
               left: 290 * k,
-              top: 75 * k,
+              top: 105 * k,
               width: 125 * k,
               height: 140 * k,
               child: Center(child: badge),

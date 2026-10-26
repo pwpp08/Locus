@@ -2862,9 +2862,9 @@ class _DeviceStatus extends StatelessWidget {
   }
 }
 
-/// An up arrow that hops while data comes off the band. Each hop retargets the
-/// tween on its own end — no `.repeat(` — and with reduced motion it simply
-/// sits still.
+/// An up arrow that hops while data comes off the band. A controller owned
+/// here swings out and back (each end starts the other way: no `.repeat(`),
+/// and with reduced motion it simply sits still.
 class _SyncArrow extends StatefulWidget {
   const _SyncArrow();
 
@@ -2872,22 +2872,39 @@ class _SyncArrow extends StatefulWidget {
   State<_SyncArrow> createState() => _SyncArrowState();
 }
 
-class _SyncArrowState extends State<_SyncArrow> {
-  bool _up = true;
+class _SyncArrowState extends State<_SyncArrow>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _t =
+      AnimationController(vsync: this, duration: Motion.slow * 2)
+        ..addStatusListener((s) {
+          if (s == AnimationStatus.completed) _t.reverse();
+          if (s == AnimationStatus.dismissed) _t.forward();
+        });
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (Motion.enabled(context)) {
+      if (!_t.isAnimating) _t.forward();
+    } else {
+      _t.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _t.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext c) {
     const arrow = SyncArrowMark();
-    if (!Motion.enabled(c)) return arrow;
-    return TweenAnimationBuilder<double>(
-      tween: Tween(end: _up ? 1 : 0),
-      duration: Motion.slow,
-      curve: Curves.easeInOut,
-      onEnd: () {
-        if (mounted) setState(() => _up = !_up);
-      },
-      builder: (_, t, child) =>
-          Transform.translate(offset: Offset(0, -S.x1 * t), child: child),
+    return AnimatedBuilder(
+      animation: _t,
+      builder: (_, child) => Transform.translate(
+          offset: Offset(0, -S.x1 * Curves.easeInOut.transform(_t.value)),
+          child: child),
       child: arrow,
     );
   }

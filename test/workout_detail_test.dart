@@ -132,6 +132,46 @@ void main() {
     await t.pumpAndSettle();
   });
 
+  testWidgets('a finger on the chart reads the minute; two fingers zoom it',
+      (t) async {
+    t.view.physicalSize = const Size(390 * 2, 2600 * 2);
+    t.view.devicePixelRatio = 2;
+    addTearDown(t.view.reset);
+    await t.pumpWidget(MaterialApp(
+      theme: buildTheme(Brightness.dark),
+      home: WorkoutDetailScreen(session: const {}, data: _detail()),
+    ));
+    await t.pumpAndSettle();
+    final chart = find.byType(Scrubber).first;
+    final c = t.getCenter(chart);
+
+    // A touch swaps the strain for the reading under it, and lifting restores it.
+    // (Two key figures carry a bpm of their own.)
+    final unit = t.widgetList(find.text('bpm')).length;
+    final g = await t.startGesture(c + const Offset(20, 0));
+    await t.pump();
+    expect(find.text('bpm'), findsNWidgets(unit + 1));
+    expect(find.text('ACTIVITY STRAIN'), findsNothing);
+    await g.up();
+    await t.pump();
+    expect(find.text('bpm'), findsNWidgets(unit));
+    expect(find.text('ACTIVITY STRAIN'), findsOneWidget);
+
+    // Spread two fingers: zoomed, with a way back.
+    expect(find.text('RESET'), findsNothing);
+    final a = await t.startGesture(c - const Offset(20, 0));
+    final b = await t.startGesture(c + const Offset(20, 0), pointer: 8);
+    await a.moveBy(const Offset(-60, 0));
+    await b.moveBy(const Offset(60, 0));
+    await a.up();
+    await b.up();
+    await t.pump();
+    expect(find.text('RESET'), findsOneWidget);
+    await t.tap(find.text('RESET'));
+    await t.pump();
+    expect(find.text('RESET'), findsNothing);
+  });
+
   testWidgets('a workout with no route draws no map', (t) async {
     final d = _detail();
     final bare = WorkoutDetail(
