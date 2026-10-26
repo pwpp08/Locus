@@ -106,6 +106,9 @@ class Prefs {
   /// What the planner plans for: 'optimize' (the bedtime that covers the sleep
   /// need) or 'consistent' (the usual bedtime).
   static const String sleepPlannerGoal = 'sleep_planner.goal';
+
+  /// A VO₂ max test taken in a lab, entered by hand: `yyyy-MM-dd|value`.
+  static const String vo2maxLab = 'vo2max.lab';
   static const String recapRange = 'ui.recap_range';
   static const String workoutsRange = 'ui.workouts_range';
 

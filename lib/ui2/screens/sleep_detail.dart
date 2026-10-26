@@ -23,6 +23,9 @@ import 'package:openstrap_analytics/onehz.dart' as ana;
 import 'package:provider/provider.dart';
 
 import '../../compute/vendor_sleep.dart' show vendorStagesReported;
+import 'dart:async' show unawaited;
+
+import '../../compute/sleep_stress.dart';
 import '../../data/day_label.dart';
 import '../../data/db.dart' show LocalDb;
 import '../../data/local_repository.dart';
@@ -39,6 +42,7 @@ import 'investigate.dart';
 import 'metric_detail.dart';
 import 'naps.dart';
 import 'rough_night.dart';
+import 'stress_monitor.dart' show StressSource;
 import 'window_editor.dart';
 
 /// Nights of history before a personal normal is claimed at all. Below this the
@@ -437,6 +441,12 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
   SleepData? _d;
   bool _loading = true;
   String? _day;
+
+  /// High sleep stress for the night on screen, read after the screen has
+  /// drawn (it decodes a dozen days) and keyed by the night it belongs to.
+  SleepStress? _sleepStress;
+  String? _sleepStressDay;
+  StressSource? _stressSource;
   bool _saving = false; // an override write + its forced re-derive is in flight
   double? _scrub; // 0..1 across the night
 
@@ -518,9 +528,23 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
           : null;
       if (mounted && gen == _loadGen) {
         setState(() => (_d = d, _rough = rough, _loading = false));
+        unawaited(_loadSleepStress(d, gen));
       }
     } catch (_) {
       if (mounted && gen == _loadGen) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadSleepStress(SleepData d, int gen) async {
+    final day = d.day;
+    final repo = repoOf(context);
+    if (day == null || repo == null || !d.hasNight) {
+      if (mounted) setState(() => (_sleepStress = null, _sleepStressDay = day));
+      return;
+    }
+    final r = await (_stressSource ??= StressSource(repo)).sleepStressOf(day);
+    if (mounted && gen == _loadGen) {
+      setState(() => (_sleepStress = r, _sleepStressDay = day));
     }
   }
 
@@ -701,12 +725,18 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
         ? null
         : (tst / need * 100).clamp(0, 100).toDouble();
     final eff = (n['efficiency'] as num?)?.toDouble();
-    final rows = <(IconData, String, double?, bool)>[
-      (LucideIcons.clock3, 'Hours vs. needed', perf, true),
-      (LucideIcons.repeat, 'Sleep consistency', d.consistency, true),
-      (LucideIcons.bedDouble, 'Sleep efficiency', eff == null ? null : eff * 100, true),
-      // Not computed by the pipeline (nocturnal arousal): a dash, never a 0.
-      (LucideIcons.gauge, 'High sleep stress', null, false),
+    // Each row: its figure and its tier, 0 poor … 2 optimal. Sleep stress is
+    // the share of the night spent in the high stress zone, so LESS is better;
+    // it is a dash, never a 0, until a few earlier nights give it a baseline.
+    final stress = _sleepStressDay == d.day ? _sleepStress?.pct : null;
+    final rows = <(IconData, String, double?, int?)>[
+      (LucideIcons.clock3, 'Hours vs. needed', perf, perf == null ? null : _tierOf(perf)),
+      (LucideIcons.repeat, 'Sleep consistency', d.consistency,
+          d.consistency == null ? null : _tierOf(d.consistency!)),
+      (LucideIcons.bedDouble, 'Sleep efficiency', eff == null ? null : eff * 100,
+          eff == null ? null : _tierOf(eff * 100)),
+      (LucideIcons.gauge, 'High sleep stress', stress,
+          stress == null ? null : (stress <= 10 ? 2 : (stress <= 25 ? 1 : 0))),
     ];
     final tier = perf == null ? null : _tierOf(perf);
 
@@ -774,9 +804,7 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
                 ),
               ]);
               final reading = [
-                _TierBar(rows[i].$3 == null || !rows[i].$4
-                    ? null
-                    : _tierOf(rows[i].$3!)),
+                _TierBar(rows[i].$4),
                 const SizedBox(width: S.x4),
                 SizedBox(
                   width: S.x12,

@@ -397,7 +397,11 @@ void main() {
     expect(t.takeException(), isNull);
   });
 
-  testWidgets('VO2 max says why it is empty instead of drawing', (t) async {
+  testWidgets('VO2 max says why it has no figure, and offers a lab anchor',
+      (t) async {
+    t.view.physicalSize = const Size(800, 4000);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
     await t.pumpWidget(MaterialApp(
       theme: buildTheme(Brightness.dark),
       home: TrendViewScreen(
@@ -405,6 +409,10 @@ void main() {
     ));
     await t.pump();
     await t.pump();
-    expect(find.textContaining('does not estimate VO₂ max'), findsOneWidget);
+    await t.pump();
+    expect(find.text('NOT ENOUGH YET'), findsOneWidget);
+    expect(find.text('Enter a lab result'), findsOneWidget);
+    // It is a chart like any other now, not a refusal.
+    expect(find.text('Not available'), findsNothing);
   });
 }

@@ -21,6 +21,8 @@ import '../../data/day_label.dart';
 import '../../data/db.dart';
 import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../compute/profile.dart' show Profile;
+import '../../compute/vo2max_estimate.dart';
 import '../../state/prefs.dart';
 import '../activity/catalogue.dart' show Track, activityByName;
 import '../ui2.dart';
@@ -171,11 +173,8 @@ const kTrendCatalogue = <TrendMetric>[
       TrendFmt.grouped,
       unit: 'cal', intraday: TrendIntraday.hourly),
   TrendMetric('vo2max', 'VO₂ max', TrendGroup.strain, LucideIcons.wind,
-      TrendFmt.integer,
-      higherBetter: true,
-      absent: 'Locus does not estimate VO₂ max. A wrist estimate is resting '
-          'heart rate with a different unit on it, so there is no honest '
-          'number to show.'),
+      TrendFmt.decimal1,
+      unit: 'mL/kg/min', higherBetter: true, line: true),
   TrendMetric('recovery', 'Recovery', TrendGroup.recovery,
       LucideIcons.batteryCharging, TrendFmt.percent,
       higherBetter: true, axisMax: 100),
@@ -307,6 +306,60 @@ class TrendLoader {
   Future<List<Map<String, Object?>>>? _figures;
   Future<List<Map<String, Object?>>>? _strength;
   Future<Map<String, double>>? _sri;
+  Future<Vo2Result>? _vo2;
+
+  /// VO₂ max, as far as the data goes (see `compute/vo2max_estimate.dart`).
+  /// Read once however many charts ask.
+  Future<Vo2Result> vo2max() => _vo2 ??= () async {
+        final r = repo;
+        final today = todayLabel();
+        if (r == null) return const Vo2Result(why: 'No data to read yet.');
+        try {
+          final p = Profile.fromMap(await r.getProfile());
+          final first = await firstDay() ?? today;
+          final t = DateTime.parse(today);
+          final since = DateTime(t.year, t.month, t.day - (kVo2RunWindow + 30))
+                  .millisecondsSinceEpoch ~/
+              1000;
+          final runs = <Vo2Run>[];
+          for (final s in await LocalDb.sessionVo2maxEstimates(since)) {
+            // The figure behind it is a walking and running equation, and the
+            // reading wants a real outing: a run of a quarter of an hour.
+            final type = (s['type'] as String?)?.toLowerCase();
+            final a = (s['start_ts'] as num?)?.toInt();
+            final b = (s['end_ts'] as num?)?.toInt();
+            final v = (s['vo2max_estimate'] as num?)?.toDouble();
+            if ((type != 'running' && type != 'trail running') ||
+                a == null ||
+                b == null ||
+                v == null ||
+                b - a < 15 * 60) {
+              continue;
+            }
+            runs.add((
+              day: dayLabelOf(DateTime.fromMillisecondsSinceEpoch(a * 1000)),
+              v: v
+            ));
+          }
+          return estimateVo2max(
+            today: today,
+            firstDay: first,
+            profile: (
+              age: p.ageYears,
+              sex: p.sex,
+              weightKg: p.weightKg,
+              heightCm: p.heightCm
+            ),
+            recovery: await _chart('recovery'),
+            moderate: await _zones(const [2, 3]),
+            vigorous: await _zones(const [4, 5]),
+            runs: runs,
+            lab: readVo2Lab(),
+          );
+        } catch (_) {
+          return const Vo2Result(why: 'The estimate could not be read.');
+        }
+      }();
 
   Future<Map<String, double>> _chart(String key) =>
       _series[key] ??= () async {
@@ -675,6 +728,8 @@ class TrendLoader {
         return _chart(m.id);
       case 'sleep_debt':
         return _chart('sleep_debt_min');
+      case 'vo2max':
+        return (await vo2max()).byDay;
       case 'zones_13':
         return _zones(const [1, 2, 3]);
       case 'zones_45':
@@ -1108,6 +1163,13 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       _zoomTo = from + span;
       _selected = null;
     });
+  }
+
+  /// A lab result was entered or cleared: read the estimate again from scratch.
+  void _vo2Changed() {
+    if (widget.loader == null) _loader = TrendLoader(repoOf(context));
+    _loader?._vo2 = null;
+    _load();
   }
 
   void _pick(TrendMetric m) {
@@ -1553,6 +1615,11 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                           : _mean([for (final b in lb) ?b.v]) ?? 0,
                   ],
                 ),
+              ],
+              // Where the VO₂ max figure came from, and a lab result to anchor it.
+              if (m.id == 'vo2max' && _loader != null) ...[
+                const SizedBox(height: S.x6),
+                _Vo2Panel(loader: _loader!, onLab: _vo2Changed),
               ],
               // What the figure is, in a few plain sentences.
               if (trendAbout(m.id) != null) ...[
@@ -2758,6 +2825,18 @@ String _aboutName(TrendMetric m) => switch (m.id) {
 String? trendAbout(String id) => _about[id];
 
 const _about = <String, String>{
+  'vo2max':
+      'VO₂ max is the most oxygen your body can use in hard, sustained effort, '
+          'in millilitres per kilo of body weight a minute. It is the size of '
+          'your aerobic engine, and one of the strongest single predictors of '
+          'how well you perform and how long you stay healthy.\n\n'
+          'Locus '
+          'estimates it in three steps, as sharp as your data allows: from your '
+          'profile and weekly heart-rate zones; from the pace and heart rate '
+          'of your outdoor runs; or anchored to a lab test you enter. It moves '
+          'weekly. A rising line means your fitness is building, a falling one '
+          'detraining or illness; the level is an estimate, the direction is '
+          'what to watch.',
   'strain':
       'Day strain scores how much cardiovascular load the day put on your body, '
           'from 0 to 21. It builds from the time your heart rate spends above its '
@@ -2894,5 +2973,162 @@ class _AboutCard extends StatelessWidget {
                 color: p.ink2, fontWeight: FontWeight.w500, height: 1.45)),
       ]),
     );
+  }
+}
+
+
+/// The lab result the person entered, or null.
+Vo2Lab? readVo2Lab() {
+  final raw = Prefs.getString(Prefs.vo2maxLab, '');
+  final i = raw.indexOf('|');
+  if (i < 0) return null;
+  final v = double.tryParse(raw.substring(i + 1));
+  final day = raw.substring(0, i);
+  if (v == null || DateTime.tryParse(day) == null) return null;
+  return (day: day, value: v);
+}
+
+void saveVo2Lab(String day, double value) =>
+    Prefs.setString(Prefs.vo2maxLab, '$day|$value');
+
+void clearVo2Lab() => Prefs.setString(Prefs.vo2maxLab, '');
+
+/// Under the VO₂ max chart: which of the three estimates the figure is, why
+/// there is none when there is none, and the way to anchor it to a lab test.
+class _Vo2Panel extends StatelessWidget {
+  final TrendLoader loader;
+  final VoidCallback onLab;
+  const _Vo2Panel({required this.loader, required this.onLab});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final lab = readVo2Lab();
+    return FutureBuilder<Vo2Result>(
+      future: loader.vo2max(),
+      builder: (c, snap) {
+        final r = snap.data;
+        if (r == null) return const SizedBox.shrink();
+        final (title, body) = switch (r.source) {
+          Vo2Source.lab => (
+              'Anchored to your lab test',
+              'Your result of ${lab?.value.toStringAsFixed(1)} sets the level. '
+                  'The trend follows what the strap sees: your activity, your '
+                  'runs and your profile.'
+            ),
+          Vo2Source.gps => (
+              'From your outdoor runs',
+              'The middle of your last few runs of 15 minutes or more: the '
+                  'pace you held and what it cost your heart. It updates '
+                  'weekly, and each run is good to roughly 10-15 %.'
+            ),
+          Vo2Source.passive => (
+              'Passive estimate',
+              'From your age, sex, height and weight and how much hard and '
+                  'moderate heart-rate time you log each week. It is good to '
+                  'about 5 mL/kg/min: follow the direction, not the decimal. '
+                  'A run outdoors, or a lab test, sharpens it.'
+            ),
+          null => (
+              'Not enough yet',
+              r.why ?? 'Nothing to estimate from yet.',
+            ),
+        };
+        return Container(
+          padding: const EdgeInsets.all(S.x5),
+          decoration: BoxDecoration(color: p.card, borderRadius: R.rLg),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title.toUpperCase(),
+                style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w800)),
+            const SizedBox(height: S.x2),
+            Text(body, style: F.cap.copyWith(color: p.ink2, height: 1.4)),
+            if (r.source != null && r.why != null) ...[
+              const SizedBox(height: S.x2),
+              Text(r.why!, style: F.cap.copyWith(color: p.ink3, height: 1.4)),
+            ],
+            const SizedBox(height: S.x4),
+            Wrap(spacing: S.x5, children: [
+              TextAction(
+                  lab == null ? 'Enter a lab result' : 'Change the lab result',
+                  () async {
+                final done = await _askLab(c, lab);
+                if (done) onLab();
+              }),
+              if (lab != null)
+                TextAction('Remove it', () {
+                  clearVo2Lab();
+                  onLab();
+                }),
+            ]),
+          ]),
+        );
+      },
+    );
+  }
+}
+
+/// Asks for a gas-exchange VO₂ max and the day it was taken. True when saved.
+Future<bool> _askLab(BuildContext c, Vo2Lab? current) async {
+  final r = await AppSheet.show<bool>(
+    c,
+    title: 'Lab VO₂ max',
+    child: _LabForm(current: current),
+  );
+  return r == true;
+}
+
+class _LabForm extends StatefulWidget {
+  final Vo2Lab? current;
+  const _LabForm({this.current});
+
+  @override
+  State<_LabForm> createState() => _LabFormState();
+}
+
+class _LabFormState extends State<_LabForm> {
+  late String _day = widget.current?.day ?? todayLabel();
+  late String _text = widget.current?.value.toStringAsFixed(1) ?? '';
+
+  double? get _value {
+    final v = double.tryParse(_text.replaceAll(',', '.'));
+    // A person's VO₂ max in mL/kg/min: nothing outside 10-90 is one.
+    return v != null && v >= 10 && v <= 90 ? v : null;
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Text(
+          'The result of a test with a gas-exchange mask, in mL/kg/min. It '
+          'becomes the anchor: the estimate keeps its trend and takes your '
+          'level.',
+          style: F.body.copyWith(color: p.ink2, height: 1.4)),
+      const SizedBox(height: S.x4),
+      AppField(
+        label: 'VO₂ max (mL/kg/min)',
+        initialValue: _text,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        onChanged: (v) => setState(() => _text = v),
+        autofocus: true,
+      ),
+      const SizedBox(height: S.x3),
+      TextAction('Taken on $_day', () async {
+        final d = await showDatePicker(
+          context: c,
+          initialDate: DateTime.parse(_day),
+          firstDate: DateTime(2000),
+          lastDate: DateTime.now(),
+        );
+        if (d != null) setState(() => _day = dayLabelOf(d));
+      }),
+      const SizedBox(height: S.x5),
+      BigButton('Save', onTap: _value == null
+          ? null
+          : () {
+              saveVo2Lab(_day, _value!);
+              Navigator.of(c).pop(true);
+            }),
+    ]);
   }
 }

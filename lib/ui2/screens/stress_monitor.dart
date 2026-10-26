@@ -11,6 +11,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../compute/sleep_stress.dart';
 import '../../compute/stress_monitor.dart';
 import '../../data/day_label.dart';
 import '../../data/local_repository.dart';
@@ -94,17 +95,53 @@ class StressSource {
   StressSource(this.repo);
 
   final _inputs = <String, Future<StressDayInput?>>{};
+  final _timelines = <String, Future<Map<String, dynamic>?>>{};
 
-  Future<StressDayInput?> _input(String day) => _inputs[day] ??= () async {
+  Future<Map<String, dynamic>?> _timeline(String day) =>
+      _timelines[day] ??= () async {
         try {
           final t = await repo.getDayTimeline(day);
           // A bundle served in place of the day asked for is not that day.
-          if (t['date'] != day) return null;
-          return StressDayInput.fromTimeline(day, t);
+          return t['date'] == day ? t : null;
         } catch (_) {
           return null;
         }
       }();
+
+  Future<StressDayInput?> _input(String day) => _inputs[day] ??= () async {
+        final t = await _timeline(day);
+        return t == null ? null : StressDayInput.fromTimeline(day, t);
+      }();
+
+  /// The night that ended on [day], or null.
+  Future<NightWindow?> _night(String day) async {
+    final w = ((await _timeline(day))?['sleep'] as List?)?.whereType<Map>().firstOrNull;
+    final on = w?['onset_ts'], off = w?['wake_ts'];
+    if (on is! num || off is! num || off <= on) return null;
+    return (onset: on.toInt(), wake: off.toInt());
+  }
+
+  /// High sleep stress for the night that ended on [day], against the nights
+  /// before it. Null when it cannot be said (see [sleepStress]).
+  Future<SleepStress?> sleepStressOf(String day) async {
+    try {
+      final back = [for (var i = 1; i <= 10; i++) shiftDay(day, -i)];
+      // Every day the nights touch: each wake day and the evening before it.
+      final all = {day, shiftDay(day, -1), for (final d in back) ...[d, shiftDay(d, -1)]};
+      final got = await Future.wait([for (final d in all) _input(d)]);
+      final days = {
+        for (final (i, d) in all.indexed) if (got[i] != null) d: got[i]!,
+      };
+      final night = await _night(day);
+      if (night == null) return null;
+      final prior = [
+        for (final w in await Future.wait([for (final d in back) _night(d)])) ?w,
+      ];
+      return sleepStress(night, prior, days);
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<StressMonitorData> load(String day) async {
     final fetched = await Future.wait([

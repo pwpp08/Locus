@@ -12628,6 +12628,21 @@ class LocalDb {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  /// Sessions that banked a VO₂ max estimate from their route since [sinceSec]:
+  /// type, window and the estimate. The caller keeps the runs (the equation
+  /// behind the figure is a walking and running one).
+  static Future<List<Map<String, Object?>>> sessionVo2maxEstimates(
+      int sinceSec) async {
+    final db = await instance;
+    return db.query(
+      'sessions',
+      columns: ['id', 'type', 'start_ts', 'end_ts', 'vo2max_estimate'],
+      where: 'vo2max_estimate IS NOT NULL AND start_ts >= ?',
+      whereArgs: [sinceSec],
+      orderBy: 'start_ts DESC',
+    );
+  }
+
   /// How many sessions of [type] are stored, ever: the milestone count on a
   /// workout's screen. Case-insensitive, like every other type lookup, since
   /// older rows carry mixed case.
