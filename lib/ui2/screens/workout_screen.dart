@@ -1585,6 +1585,32 @@ List<double> _decodeZoneMinutes(Object? raw) => [
         if (z is num) z.toDouble(),
     ];
 
+/// A session row as served by `getSessions` / `getWorkouts`, read into the
+/// summary's full result the way History opens one: what Share sends.
+Future<ActivityResult> sessionResultOf(AppState app, Map<String, dynamic> r) {
+  final a = activityByName(r['type'] as String?) ??
+      Activity(importedWorkoutTitle(r['type']), LucideIcons.activity, C.purple,
+          Track.duration, 5.0);
+  final ts = (r['start_ts'] as num?)?.toInt() ?? 0;
+  return _detailOf(
+      app,
+      _PastWorkout(
+        (r['id'] as String?) ?? '',
+        a,
+        DateTime.fromMillisecondsSinceEpoch(ts * 1000),
+        Motion.tick * 60 * ((r['duration_min'] as num?)?.toInt() ?? 0),
+        strain: (r['strain'] as num?)?.toDouble(),
+        calories: (r['calories'] as num?)?.round(),
+        avgHr: (r['avg_hr'] as num?)?.round(),
+        maxHr: (r['max_hr'] as num?)?.toInt(),
+        hrr60: (r['hrr60'] as num?)?.round(),
+        vo2max: (r['vo2max_estimate'] as num?)?.toDouble(),
+        steps: (r['steps'] as num?)?.toInt(),
+        zoneMinutes: _decodeZoneMinutes(r['zone_min']),
+        private: r['private'] == true,
+      ));
+}
+
 /// One past session, opened from history — built from what the stores hold
 /// rather than from the six columns the list row carries.
 Future<ActivityResult> _detailOf(AppState app, _PastWorkout w) async {

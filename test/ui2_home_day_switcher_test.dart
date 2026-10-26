@@ -109,7 +109,7 @@ void main() {
     expect(find.text('70'), findsOneWidget);
   });
 
-  testWidgets('on a past day the day breakdown opens THAT day', (t) async {
+  testWidgets('on a past day the heart rate view opens THAT day', (t) async {
     final app = AppState.forTesting();
     addTearDown(app.dispose);
     app.repo = _Repo();
@@ -139,11 +139,11 @@ void main() {
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
     await t.pump();
-    // My Day's expand control is the door into the day breakdown.
+    // My Day's expand control is the door into the day's heart rate.
     final row = find.bySemanticsLabel('Breakdown of your day');
     await t.tap(row);
     await _settle(t);
-    expect(t.widget<DayTimelineScreen>(find.byType(DayTimelineScreen)).day,
+    expect(t.widget<DayHeartScreen>(find.byType(DayHeartScreen)).day,
         _yesterday);
   });
 

@@ -432,5 +432,8 @@ const _notComponents = {
   'DetectedActivitiesScreen', 'WindowEditor', 'WindowPreview',
   // The activity list is a sheet's whole page; the start screen owns the live
   // heart rate and opens a session.
-  'ActivityChooser', 'StartActivityScreen', // Full review/editor routes.
+  'ActivityChooser', 'StartActivityScreen',
+  // A session's own screen and the day's heart rate: both read the band's
+  // store, and the second turns the phone sideways.
+  'WorkoutDetailScreen', 'DayHeartScreen', // Full review/editor routes.
 };

@@ -12628,6 +12628,17 @@ class LocalDb {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  /// How many sessions of [type] are stored, ever: the milestone count on a
+  /// workout's screen. Case-insensitive, like every other type lookup, since
+  /// older rows carry mixed case.
+  static Future<int> sessionCountOfType(String type) async {
+    final db = await instance;
+    final r = await db.rawQuery(
+        'SELECT COUNT(*) AS n FROM sessions WHERE LOWER(type) = LOWER(?)',
+        [type]);
+    return (r.first['n'] as num?)?.toInt() ?? 0;
+  }
+
   static Future<void> deleteSession(String id) async {
     final db = await instance;
     await db.delete('sessions', where: 'id = ?', whereArgs: [id]);

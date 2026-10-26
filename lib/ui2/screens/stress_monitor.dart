@@ -389,22 +389,34 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
     return LayoutBuilder(builder: (c, box) {
       final plotW = box.maxWidth - gutter - S.x2;
       double xAt(int minute) => gutter + (minute - from) / math.max(1, n - 1) * plotW;
-      return Stack(children: [
-        line,
-        // What each marked stretch was, over the middle of it: a moon for
-        // sleep, the activity's own icon for a workout.
+      // What each marked stretch was, over the middle of it: a moon for
+      // sleep, the activity's own icon for a workout. Marks that would sit on
+      // top of each other become one ring with how many there are; zooming
+      // in spreads them apart again.
+      final marks = [
         for (final (a, b, icon) in [
           for (final (a, b) in d.sleep) (a, b, LucideIcons.moon),
           for (final s in d.sessions)
             (s.from, s.to, activityByName(s.type)?.icon ?? LucideIcons.activity),
         ])
           if (b > from && a <= last)
-            Positioned(
-              left: ((xAt(math.max(a, from)) + xAt(math.min(b, last))) / 2 - I.md / 2)
-                  .clamp(gutter - I.md / 2, box.maxWidth - I.md),
-              top: 0,
-              child: Icon(icon, size: I.md, color: p.ink),
+            (
+              x: (xAt(math.max(a, from)) + xAt(math.min(b, last))) / 2,
+              icon: icon,
             ),
+      ];
+      return Stack(children: [
+        line,
+        for (final g in clusterMarks(marks, (m) => m.x, gap: I.md + S.x1))
+          Positioned(
+            left: (g.map((m) => m.x).reduce((a, b) => a + b) / g.length -
+                    I.md / 2)
+                .clamp(gutter - I.md / 2, box.maxWidth - I.md),
+            top: 0,
+            child: g.length == 1
+                ? Icon(g.first.icon, size: I.md, color: p.ink)
+                : MarkCount(g.length, color: p.ink),
+          ),
         Positioned(
           right: S.x3,
           bottom: S.x10,

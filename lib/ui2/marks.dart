@@ -351,3 +351,50 @@ class _ChevronPaint extends CustomPainter {
   @override
   bool shouldRepaint(_ChevronPaint old) => old.left != left || old.color != color;
 }
+
+/// Marks along a chart's time axis, grouped where they would overlap: walking
+/// left to right, a mark whose centre is within [gap] of the group before it
+/// joins that group. Each group is drawn once, at the mean of its centres, as
+/// the mark itself when it holds one and as a [MarkCount] when it holds more.
+/// Zooming the chart spreads the centres, so the groups come apart on their
+/// own and each mark shows again.
+List<List<T>> clusterMarks<T>(List<T> marks, double Function(T) x,
+    {double gap = S.x8}) {
+  final sorted = [...marks]..sort((a, b) => x(a).compareTo(x(b)));
+  final out = <List<T>>[];
+  for (final m in sorted) {
+    if (out.isNotEmpty) {
+      final g = out.last;
+      final mid = g.map(x).reduce((a, b) => a + b) / g.length;
+      if (x(m) - mid < gap) {
+        g.add(m);
+        continue;
+      }
+    }
+    out.add([m]);
+  }
+  return out;
+}
+
+/// How many marks a group stands for: the number in a ring, in place of
+/// icons that would sit on top of each other.
+class MarkCount extends StatelessWidget {
+  final int count;
+  final Color color;
+  final double size;
+  const MarkCount(this.count, {super.key, required this.color, this.size = I.md});
+
+  @override
+  Widget build(BuildContext c) => Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: color, width: 1.5),
+        ),
+        child: Text('$count',
+            style: F.num(F.cap).copyWith(
+                color: color, fontWeight: FontWeight.w700, height: 1)),
+      );
+}

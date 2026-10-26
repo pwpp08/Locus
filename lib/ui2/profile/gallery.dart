@@ -1630,6 +1630,8 @@ Map<String, Widget> _stateCases() => {
         SizedBox(width: S.x3),
         StatIcon(StatMark.steps, color: C.n400),
       ]),
+      // Two activities too close on a chart to draw apart.
+      'mark_count': const MarkCount(2, color: C.white),
       'strap_icon': const Row(mainAxisSize: MainAxisSize.min, children: [
         StrapIcon(color: C.white, badge: SyncArrowMark()),
         SizedBox(width: S.x4),

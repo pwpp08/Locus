@@ -77,9 +77,10 @@ import '../ui2.dart';
 import 'action_sheet.dart' show openActionSheet;
 import 'add_activity.dart' show openAddActivity;
 import 'start_activity.dart';
+import 'day_heart.dart';
+import 'workout_detail.dart';
 import 'recovery_calendar.dart' show openRecoveryCalendar;
 import 'detected_activities.dart';
-import 'day_timeline.dart' show DayTimelineScreen;
 import 'metric_detail.dart';
 import 'readiness_detail.dart';
 import 'sleep_detail.dart';
@@ -2209,9 +2210,22 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         day: d.dayId ?? _day ?? todayLabel(),
         night: _night,
         sessions: _sessions,
-        onExpand: () => go(c, DayTimelineScreen(day: _day)),
+        // The day's heart rate, sideways, with the night and each activity.
+        onExpand: () => go(
+            c,
+            DayHeartScreen(
+              day: d.dayId ?? _day ?? todayLabel(),
+              night: _night,
+              sessions: _sessions,
+              strain: d.strain.value?.toDouble(),
+            )),
         onSleep: () => go(c, SleepDetail(day: isToday ? null : _day)),
-        onSession: () => go(c, DayStrainDetail(day: isToday ? null : _day)),
+        onSession: (s) async {
+          final changed = await Navigator.of(c).push<bool>(themedRoute(
+              (_) => WorkoutDetailScreen(session: s),
+              name: 'WorkoutDetailScreen'));
+          if (changed == true && mounted) _load();
+        },
         onAdd: () async {
           if (await openAddActivity(c) == true) _load();
         },
@@ -3150,7 +3164,10 @@ class _MyDay extends StatelessWidget {
   final String day;
   final Map<String, dynamic> night;
   final List<Map<String, dynamic>> sessions;
-  final VoidCallback onExpand, onSleep, onSession, onAdd;
+  final VoidCallback onExpand, onSleep, onAdd;
+
+  /// One session's row: its own screen.
+  final void Function(Map<String, dynamic> session) onSession;
 
   /// START ACTIVITY beside ADD ACTIVITY: a live session, picked from the same
   /// list. Null leaves ADD ACTIVITY on its own (a past day).
@@ -3200,7 +3217,7 @@ class _MyDay extends StatelessWidget {
         start: s['start_ts'] as num?,
         end: s['end_ts'] as num?,
         day: day,
-        onTap: onSession,
+        onTap: () => onSession(s),
       ));
     }
     return Surface(
