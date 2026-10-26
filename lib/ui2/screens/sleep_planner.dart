@@ -62,9 +62,13 @@ class SleepPlan {
   /// other part. The pipeline clamps the sum to 6–11 h after adding, so this
   /// is the honest residual rather than the raw debt figure — the rows always
   /// add up to the need printed above them.
-  int? get debtMin => needMin == null || baselineMin == null
-      ? null
-      : needMin! - baselineMin! - (strainMin ?? 0) + (napMin ?? 0);
+  int? get debtMin {
+    if (needMin == null || baselineMin == null) return null;
+    final residual =
+        needMin! - baselineMin! - (strainMin ?? 0) + (napMin ?? 0);
+    // A surplus is no debt: 0 or a time, never below.
+    return residual < 0 ? 0 : residual;
+  }
 
   /// Average time awake in bed: the gap between time in bed and sleep.
   int? get awakeMin =>

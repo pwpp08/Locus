@@ -31,6 +31,8 @@ import '../screens/home_screen.dart'
     show monthShortName, repoOf, weekdayShortName;
 import '../screens/metric_detail.dart' show dayNavRow, detailScaffold;
 import '../screens/trend_view.dart';
+import '../../theme/theme_switcher.dart' show themedRoute;
+import '../screens/workout_detail.dart' show WorkoutDetailScreen;
 import '../ui2.dart';
 import 'catalogue.dart' show activityByName, zonesWhy;
 import 'zones.dart' show ZonesDetail;
@@ -841,7 +843,12 @@ class _ActivityCard extends StatelessWidget {
     final strain = (session['strain'] as num?)?.toDouble();
     final start = (session['start_ts'] as num).toInt();
     final end = (session['end_ts'] as num?)?.toInt();
-    return Container(
+    return Pressable(
+      onTap: () => Navigator.of(c).push(themedRoute(
+          (_) => WorkoutDetailScreen(session: session),
+          name: 'WorkoutDetailScreen')),
+      semanticLabel: '${act?.name ?? type}, open the activity',
+      child: Container(
       margin: const EdgeInsets.only(bottom: S.x3),
       padding: const EdgeInsets.all(S.x2),
       decoration: BoxDecoration(color: p.card, borderRadius: R.rLg),
@@ -879,7 +886,7 @@ class _ActivityCard extends StatelessWidget {
         const SizedBox(width: S.x2),
         Container(width: S.half * 1.5, height: S.x8, color: C.dialStrain),
       ]),
-    );
+    ));
   }
 }
 

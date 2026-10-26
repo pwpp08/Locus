@@ -74,7 +74,9 @@ import '../profile/profile.dart';
 import '../profile/wearable_numbers.dart'
     show WearableCells, kHomeWearableRows;
 import '../ui2.dart';
-import 'action_sheet.dart' show openActionSheet;
+import 'plus_menu.dart';
+import 'strength_trainer.dart';
+import 'journal_compose.dart';
 import 'add_activity.dart' show openAddActivity;
 import 'start_activity.dart';
 import 'day_heart.dart';
@@ -2204,7 +2206,25 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       // ── MY DAY ── today's activities and last night's sleep.
       _SectionHead(
         'My Day',
-        trailing: _PlusButton(onTap: () => openActionSheet(c)),
+        trailing: Builder(builder: (b) {
+          return PlusButton(onTap: () async {
+            final box = b.findRenderObject() as RenderBox?;
+            if (box == null) return;
+            final at = box.localToGlobal(Offset.zero) & box.size;
+            final pick = await showPlusMenu(c, at);
+            if (pick == null || !c.mounted) return;
+            switch (pick) {
+              case PlusChoice.start:
+                go(c, const StartActivityScreen());
+              case PlusChoice.add:
+                if (await openAddActivity(c) == true) _load();
+              case PlusChoice.strength:
+                go(c, const StrengthTrainerScreen());
+              case PlusChoice.journal:
+                go(c, const JournalCompose());
+            }
+          });
+        }),
       ),
       _MyDay(
         day: d.dayId ?? _day ?? todayLabel(),
@@ -3151,27 +3171,6 @@ class _SectionHead extends StatelessWidget {
         ),
         ?trailing,
       ]),
-    );
-  }
-}
-
-class _PlusButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _PlusButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    return Pressable(
-      onTap: onTap,
-      semanticLabel: 'Start an activity, log the journal or go live',
-      child: Container(
-        width: S.x10 + S.x1,
-        height: S.x10 + S.x1,
-        decoration: BoxDecoration(
-            color: p.ink, borderRadius: BorderRadius.circular(S.x2 + S.half)),
-        child: Icon(LucideIcons.plus, size: I.md, color: p.bg),
-      ),
     );
   }
 }

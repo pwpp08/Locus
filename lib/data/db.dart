@@ -53,6 +53,7 @@ import '../compute/vendor_sleep.dart' show VendorEpoch, VendorNight;
 import 'journal_fields.dart';
 import 'live_coverage_policy.dart';
 import 'step_calibration.dart';
+import 'strength_store.dart';
 import 'med_store.dart';
 import 'models.dart';
 import 'nutrition_store.dart';
@@ -274,6 +275,8 @@ class LocalDb {
     'lab_marker_def',
     'strength_set',
     'exercise_def',
+    'strength_workout',
+    'strength_record',
     'food_entry',
     'food_def',
     'med_def',
@@ -4986,6 +4989,9 @@ class LocalDb {
     await _createLabTables(db);
     await _createBreathingSessions(db);
     await _createStrengthTables(db);
+    // The strength trainer's workouts and hand-typed records. Additive and
+    // created on every open, so no schema version bump rides on them.
+    await StrengthStore.create(db);
     // Nutrition (food_entry + food_def) and medication (med_def + med_dose).
     // Both live in their own files with their models and rollup logic — the
     // DDL belongs next to the code that reads it, not two thousand lines away.
@@ -10027,6 +10033,8 @@ class LocalDb {
       'lab_marker_def',
       'strength_set',
       'exercise_def',
+      'strength_workout',
+      'strength_record',
       'food_entry',
       'food_def',
       'med_def',

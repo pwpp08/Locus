@@ -44,7 +44,9 @@ import '../../models/metric.dart';
 import '../../models/activity_suggestion.dart';
 import '../screens/detected_activities.dart';
 import '../activity/catalogue.dart';
+import '../activity/exercise_image.dart';
 import '../activity/live.dart';
+import '../screens/plus_menu.dart';
 import '../activity/picker.dart' show ActivityPicker, ActivityRow;
 import '../activity/poster.dart'
     show PosterCard, PosterFormat, PosterStatRow, kPosterMapH, kPosterMapW;
@@ -1666,6 +1668,12 @@ Map<String, Widget> _stateCases() => {
       ]),
       // Two activities too close on a chart to draw apart.
       'mark_count': const MarkCount(2, color: C.white),
+      'plus_button': const Row(mainAxisSize: MainAxisSize.min, children: [
+        PlusButton(onTap: null),
+        SizedBox(width: S.x4),
+        PlusButton(onTap: null, open: true),
+      ]),
+      'exercise_image': const ExerciseImage(def: null),
       'strap_icon': const Row(mainAxisSize: MainAxisSize.min, children: [
         StrapIcon(color: C.white, badge: SyncArrowMark()),
         SizedBox(width: S.x4),

@@ -21,6 +21,7 @@ import '../../l10n/app_localizations.dart';
 import '../theme.dart';
 
 part 'wger_exercises.g.dart';
+part 'free_exercises.g.dart';
 
 /// How a session is tracked — which decides which live screen it opens, and
 /// therefore which parameters the user is asked for.
@@ -397,6 +398,16 @@ class ExerciseDef {
   /// starts as bodyweight instead of inheriting the last lift's kilos.
   final bool bodyweight;
 
+  /// The Free Exercise DB photos bundled for this lift
+  /// (assets/exercises/ID_N.jpg) and how many of the two there are.
+  final String? imageId;
+  final int imageFrames;
+
+  /// The asset of [frame] (0 or 1), never past the last one there is.
+  String? imagePath(int frame) => imageId == null
+      ? null
+      : 'assets/exercises/${imageId}_${frame >= imageFrames ? imageFrames - 1 : frame}.jpg';
+
   const ExerciseDef(
     this.key,
     this.label,
@@ -411,6 +422,8 @@ class ExerciseDef {
     this.sourceUpdatedAt,
     this.sourceCredits = const [],
     this.bodyweight = false,
+    this.imageId,
+    this.imageFrames = 0,
   });
 
   bool get fromWger => sourceId != null;
@@ -679,13 +692,82 @@ const _edgeExerciseLibrary = <ExerciseDef>[
 const exerciseLibrary = <ExerciseDef>[
   ..._edgeExerciseLibrary,
   ..._wgerExerciseLibrary,
+  ..._freeExerciseLibrary,
 ];
 
 final coreExerciseCount = _edgeExerciseLibrary.length;
 final wgerExerciseCount = _wgerExerciseLibrary.length;
+final freeExerciseCount = _freeExerciseLibrary.length;
 
 final Map<String, ExerciseDef> _exercisesByKey = {
   for (final e in exerciseLibrary) e.key: e,
 };
 
 ExerciseDef? exerciseByKey(String key) => _exercisesByKey[key];
+
+String _norm(String s) => s
+    .toLowerCase()
+    .replaceAll(RegExp(r'[^a-z0-9 ]'), ' ')
+    .replaceAll(RegExp(r'\s+'), ' ')
+    .trim();
+
+/// "pull ups" and "Pull-Up" are one name: lower case, no punctuation, and a
+/// trailing s on a long word dropped.
+Set<String> _words(String s) => {
+      for (final w in _norm(s).split(' '))
+        if (w.isNotEmpty) w.length > 3 && w.endsWith('s') ? w.substring(0, w.length - 1) : w,
+    };
+
+List<(ExerciseDef, Set<String>)>? _wordIndex;
+final Map<String, ExerciseDef?> _photoOf = {};
+
+/// The exercise whose photos stand for [d]: itself when it has them, else the
+/// photographed lift whose name holds all of its words (and adds the fewest),
+/// so a hand-written "Bench press" shows a bench press.
+ExerciseDef? photoOf(ExerciseDef d) {
+  if (d.imageId != null) return d;
+  return _photoOf.putIfAbsent(d.key, () {
+    final qw = _words(d.label);
+    if (qw.isEmpty) return null;
+    ExerciseDef? best;
+    var extra = 1 << 20;
+    for (final e in exerciseLibrary) {
+      if (e.imageId == null) continue;
+      final w = _words(e.label);
+      if (!w.containsAll(qw)) continue;
+      final x = w.length - qw.length;
+      if (x <= 3 && x < extra) {
+        best = e;
+        extra = x;
+      }
+    }
+    return best;
+  });
+}
+
+/// The library exercise a free-text name most likely means: an exact label or
+/// alias first (the hand-written lifts win a tie), else the one sharing the
+/// most of its words, at least half of them. Null when nothing is close —
+/// a name the library does not know is reported, not forced onto a neighbour.
+ExerciseDef? findExercise(String name) {
+  final q = _norm(name);
+  if (q.isEmpty) return null;
+  for (final e in exerciseLibrary) {
+    if (_norm(e.label) == q || e.aliases.any((a) => _norm(a) == q)) return e;
+  }
+  final qw = _words(name);
+  if (qw.isEmpty) return null;
+  _wordIndex ??= [for (final e in exerciseLibrary) (e, _words(e.label))];
+  ExerciseDef? best;
+  var bestScore = 0.0;
+  for (final (e, w) in _wordIndex!) {
+    final shared = qw.intersection(w).length;
+    if (shared == 0) continue;
+    final score = shared / qw.union(w).length;
+    if (score > bestScore) {
+      best = e;
+      bestScore = score;
+    }
+  }
+  return bestScore >= .5 ? best : null;
+}

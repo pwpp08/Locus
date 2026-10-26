@@ -727,7 +727,11 @@ class TrendLoader {
             'resting_hr' || 'resp_rate' || 'efficiency':
         return _chart(m.id);
       case 'sleep_debt':
-        return _chart('sleep_debt_min');
+        // A surplus is no debt: never below nothing.
+        return {
+          for (final e in (await _chart('sleep_debt_min')).entries)
+            e.key: e.value < 0 ? 0.0 : e.value,
+        };
       case 'vo2max':
         return (await vo2max()).byDay;
       case 'zones_13':

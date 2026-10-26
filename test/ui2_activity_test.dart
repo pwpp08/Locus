@@ -247,7 +247,9 @@ void main() {
             e.sourceId: e.label},
           wgerWeightliftingSelection,
           reason: 'only explicitly reviewed lifting additions may ship');
-      expect(exerciseLibrary, hasLength(coreExerciseCount + wgerExerciseCount));
+      expect(exerciseLibrary,
+          hasLength(coreExerciseCount + wgerExerciseCount + freeExerciseCount),
+          reason: 'three sources: hand-written, wger, the Free Exercise DB');
       expect(exerciseLibrary.map((e) => e.key).toSet(),
           hasLength(exerciseLibrary.length),
           reason: 'a duplicate key would merge two exercises in history');

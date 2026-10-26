@@ -346,6 +346,9 @@ class ScrubColumns extends StatelessWidget {
   /// The width kept for the axis labels. Zero for a card with none.
   final double gutter;
 
+  /// A bar's own width, when it should not follow the slot's.
+  final double? barWidth;
+
   const ScrubColumns({
     super.key,
     required this.values,
@@ -366,6 +369,7 @@ class ScrubColumns extends StatelessWidget {
     this.highlight,
     this.height = 200,
     this.gutter = S.x10,
+    this.barWidth,
     this.label = 'Chart',
     this.describe,
   });
@@ -404,6 +408,7 @@ class ScrubColumns extends StatelessWidget {
           color: color,
           colorOf: colorOf,
           highlight: highlight,
+          barWidth: barWidth,
           at: at,
           inset: inset,
         ),
@@ -427,6 +432,7 @@ class _ColumnsPainter extends CustomPainter {
   final Color color;
   final Color Function(int i, double v)? colorOf;
   final int? highlight, at;
+  final double? barWidth;
   final EdgeInsets inset;
 
   _ColumnsPainter({
@@ -446,6 +452,7 @@ class _ColumnsPainter extends CustomPainter {
     required this.color,
     required this.colorOf,
     required this.highlight,
+    required this.barWidth,
     required this.at,
     required this.inset,
   });
@@ -467,7 +474,7 @@ class _ColumnsPainter extends CustomPainter {
     final slot = r.width / n;
     // A week's bars are wide, a month's narrow, and both sit centred in
     // their slot.
-    final bw = slot * (n <= 4 ? .62 : n <= 8 ? .38 : .56);
+    final bw = barWidth ?? slot * (n <= 4 ? .62 : n <= 8 ? .38 : .56);
 
     // Gridlines and their values, in the gutter.
     final grid = Paint()

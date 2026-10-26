@@ -1330,8 +1330,29 @@ class _LiveStrengthState extends State<LiveStrength> {
   /// leave the stepper where it is rather than guessing a load, but take the
   /// mode from this session's sets, else from the exercise itself, so a first
   /// push-up after bench does not log the bench load.
+  /// The set a built workout planned for [key] at position [i], if any.
+  ({int reps, double? kg})? _planned(String key, int i) {
+    final all = LiveDraft.current?.data['planned'];
+    final list = all is Map ? all[key] : null;
+    if (list is! List || list.isEmpty) return null;
+    final e = list[i < list.length ? i : list.length - 1];
+    if (e is! Map) return null;
+    final reps = (e['reps'] as num?)?.toInt();
+    if (reps == null) return null;
+    return (reps: reps, kg: (e['kg'] as num?)?.toDouble());
+  }
+
   void _seedFromHistory() {
     if (plan.isEmpty) return;
+    final planned = _planned(key, setsHere.length);
+    if (planned != null) {
+      setState(() {
+        bodyweight = planned.kg == null;
+        kg = planned.kg ?? kg;
+        reps = planned.reps;
+      });
+      return;
+    }
     final prev = widget.history[key]?.previous;
     if (prev == null) {
       final here = setsHere;
@@ -1364,6 +1385,15 @@ class _LiveStrengthState extends State<LiveStrength> {
     });
     restLeft.value = restTarget;
     _persist();
+    // The next planned set, when the workout was built ahead.
+    final next = _planned(key, setsHere.length);
+    if (next != null) {
+      setState(() {
+        bodyweight = next.kg == null;
+        kg = next.kg ?? kg;
+        reps = next.reps;
+      });
+    }
     _rest?.cancel();
     _rest = Timer.periodic(Motion.tick, (t) {
       if (!mounted) return;

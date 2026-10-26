@@ -8,6 +8,7 @@ import '../../l10n/app_localizations.dart';
 import '../grammar.dart';
 import '../theme.dart';
 import 'catalogue.dart';
+import 'exercise_image.dart';
 
 enum ExercisePickMode { choose, add, change }
 
@@ -228,8 +229,8 @@ class _ExercisePickerState extends State<_ExercisePicker> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: S.x2),
                 child: Text(
-                  l?.activityExercisePickerWgerCredit ??
-                      'Exercise catalogue from wger',
+                  '${l?.activityExercisePickerWgerCredit ?? 'Exercise catalogue from wger'}'
+                  ' · photos and more lifts from the Free Exercise DB (public domain)',
                   textAlign: TextAlign.center,
                   style: F.over.copyWith(color: p.ink3),
                 ),
@@ -292,6 +293,14 @@ class _ExercisePickerState extends State<_ExercisePicker> {
               padding: const EdgeInsets.symmetric(vertical: S.x3),
               child: Row(
                 children: [
+                  if (exercise.imageId != null) ...[
+                    ExerciseImage(
+                        def: exercise,
+                        width: S.x12 + S.x4,
+                        height: S.x10 + S.x1,
+                        radius: R.rSm),
+                    const SizedBox(width: S.x3),
+                  ],
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

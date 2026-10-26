@@ -715,6 +715,9 @@ flutter:
     - assets/images/
     - assets/images/2.0x/
     - assets/images/3.0x/
+    # The Free Exercise DB photos and steps (public domain), bundled so no
+    # exercise picture is ever fetched. tool/gen_free_exercises.py writes them.
+    - assets/exercises/
   # Both families are bundled, not fetched. google_fonts resolves a missing
   # family over HTTP to fonts.gstatic.com on first launch — before the user
   # has seen the consent screen, and contrary to PRIVACY.md. It also lets the

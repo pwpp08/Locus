@@ -363,7 +363,9 @@ class SleepData {
       night: night,
       timeline: timeline,
       need: envMetric(needEnv, needSec == null ? null : needSec / 60, unit: 'min'),
-      debt: envMetric(debtEnv, debtH == null ? null : debtH * 60, unit: 'min'),
+      debt: envMetric(
+          debtEnv, debtH == null ? null : (debtH < 0 ? 0 : debtH) * 60,
+          unit: 'min'),
       bedtime:
           envMetric(bedEnv, envValue(bedEnv)?['bedtime_min_of_day'] as num?),
       tstHistory: tst,
