@@ -583,7 +583,7 @@ BoxDecoration panelDecoration(BuildContext c,
 }
 
 /// The base card surface. Dark: the card, graded a little, no outline and no
-/// shadow. Light: the card plus one soft shadow (§5.1). A [color] given to it
+/// shadow. Light: the card plus one soft shadow. A [color] given to it
 /// is used flat.
 class Surface extends StatelessWidget {
   final Widget child;
@@ -1839,7 +1839,7 @@ class MetricRow extends StatelessWidget {
               .replaceAll(RegExp(r'\s+'), ' ')
               .trim(),
       child: Container(
-        // The 64 pt list row (§5.1): tall enough to read as a row in a
+        // The 64 pt list row: tall enough to read as a row in a
         // grouped list, and never shorter at any text size.
         constraints: const BoxConstraints(minHeight: S.x16),
         alignment: Alignment.centerLeft,
@@ -2309,7 +2309,7 @@ class SubTabs extends StatefulWidget {
   final List<String> items;
   final int index;
   final ValueChanged<int> onTap;
-  /// No longer drawn: the active pill is monochrome since Volt (§5.1), so
+  /// No longer drawn: the active pill is monochrome, so
   /// volt stays the action colour. Kept so the 13 call sites still compile.
   final Color color;
 
@@ -3092,7 +3092,7 @@ class _Gridlines extends CustomPainter {
     for (var i = 0; i < n; i++) {
       // Inset half a stroke so the first and last rules are drawn, not clipped.
       final y = (i / (n - 1) * s.height).clamp(.5, s.height - .5);
-      // Dashed 2 on / 4 off (§5.5): a gridline is a reference, not a rule.
+      // Dashed 2 on / 4 off: a gridline is a reference, not a rule.
       for (var x = 0.0; x < s.width; x += 6) {
         cv.drawLine(Offset(x, y), Offset(math.min(x + 2, s.width), y), paint);
       }
@@ -3231,11 +3231,11 @@ class NavBar extends StatelessWidget {
   }
 }
 
-// ══════════════════ VOLT COMPONENTS ══════════════════
+// ══════════════════ SIGNATURE COMPONENTS ══════════════════
 //
-// DESIGN_OVERHAUL.md §5.2. Each replaces a raw Material widget or an ad-hoc
-// pattern that screens were drawing for themselves, or is one of the Volt
-// signatures (Glass, ScallopBadge, AuroraTile, StepPath). Every one is in the
+// DESIGN.md §10. Each replaces a raw Material widget or an ad-hoc
+// pattern that screens were drawing for themselves, or is one of the signature
+// pieces (Glass, ScallopBadge, AuroraTile, StepPath). Every one is in the
 // gallery, so the 3.1× and 44 pt sweeps cover it.
 
 /// Which variant of a control. Not every control takes every tone:
@@ -3398,7 +3398,7 @@ class RoundIconButton extends StatelessWidget {
 }
 
 /// Frosted glass: a 24 px backdrop blur under the [P.glass] tint, with a
-/// white hairline. BUDGETED (§5.7): at most two on screen — the tab bar and
+/// white hairline. BUDGETED: at most two on screen — the tab bar and
 /// one overlay — and never inside a list item. Renders solid, with no
 /// filter, under high contrast or [Perf.lowGlass].
 class Glass extends StatelessWidget {
@@ -3433,7 +3433,7 @@ class Glass extends StatelessWidget {
   }
 }
 
-/// The on/off control. Volt track with a dark thumb when on, the plain track
+/// The on/off control. Volt-green track with a dark thumb when on, the plain track
 /// with a muted thumb when off. Built on Material's `Switch` so it keeps the
 /// switch's semantics role and keyboard handling.
 class AppSwitch extends StatelessWidget {

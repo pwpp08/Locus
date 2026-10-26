@@ -85,7 +85,7 @@ class SetRow extends StatelessWidget {
             width: 32,
             height: 32,
             alignment: Alignment.center,
-            // A circle, like every icon chip since Volt (§5.1).
+            // A circle, like every icon chip.
             decoration:
                 BoxDecoration(color: p.wash(accent), shape: BoxShape.circle),
             child: glyph != null
@@ -131,7 +131,7 @@ class SetRow extends StatelessWidget {
 }
 
 /// A titled card of [SetRow]s, hairline-separated. The hairlines start at
-/// the text, not the card edge (§6: grouped lists with inset hairlines).
+/// the text, not the card edge (grouped lists with inset hairlines).
 Widget settingsGroup(BuildContext c, String title, List<Widget> rows) {
   final p = P.of(c);
   return Section(
@@ -320,8 +320,8 @@ class ProfileAvatar extends StatelessWidget {
       // No AppState above us (goldens): the plain glyph.
     }
     final initial = (name ?? '').trim();
-    // Neutral chrome (§5.4): the same recessed circle as RoundIconButton, in
-    // ink. The tab's accent used to colour it; since Volt a domain hue lives
+    // Neutral chrome: the same recessed circle as RoundIconButton, in
+    // ink. The tab's accent used to colour it; a domain hue lives
     // in its hero, not its buttons. [accent] is still taken so the six
     // headers that pass it compile.
     return Pressable(

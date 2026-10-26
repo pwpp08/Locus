@@ -108,7 +108,7 @@ void main() {
     // developed on, 430 is the largest phone. If the row fitted on any of
     // them the honest fix would be to stop it scrolling, not to decorate it.
     //
-    // Re-measured in Volt (DESIGN_OVERHAUL D10): Outfit is narrower than the
+    // Re-measured after the redesign: Outfit is narrower than the
     // Manrope these numbers were first taken in, and the Health row now FITS
     // on the 430 pt phone at 1.0x. ScrollHint is absent there, which is the
     // honesty contract below doing its job; on every other width and scale
@@ -158,7 +158,7 @@ void main() {
 
     test('and only a sliver at 390 pt', () {
       // Under half the chip. In Manrope it was under 20 pt — only the left
-      // padding. Re-measured in Outfit (D10) it is about 25 pt: the padding
+      // padding. Re-measured in the current font it is about 25 pt: the padding
       // and the first letter or two, still not a word anyone can read, which
       // is why a fade alone was not enough.
       for (final labels in const [_wellness, _health]) {

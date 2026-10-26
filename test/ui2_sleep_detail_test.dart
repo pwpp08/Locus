@@ -198,8 +198,8 @@ void main() {
       await _pump(t,
           SleepData(day: '2026-05-20', night: n, tstHistory: _flat(20, 420)));
       // Two times: the Stages row and the Deep comparison, both the count.
-      // Before Volt a third sat beside the Deep lane; the card's 20 pt
-      // padding (§5.1) leaves the plot under its minimum share at 390 pt, so
+      // Before the redesign a third sat beside the Deep lane; the card's 20 pt
+      // padding leaves the plot under its minimum share at 390 pt, so
       // the hypnogram drops its totals column — by its own documented rule —
       // and the Stages table carries the figure.
       // A third sits beside the Deep lane whenever the plot has room for the

@@ -71,7 +71,7 @@ class _BootSplashState extends State<BootSplash> {
 class _Cover extends StatelessWidget {
   const _Cover();
 
-  // Char in both themes, like the onboarding it opens onto (§6, D4).
+  // Char in both themes, like the onboarding it opens onto.
   @override
   Widget build(BuildContext c) =>
       AlwaysChar(child: Builder(builder: _build));

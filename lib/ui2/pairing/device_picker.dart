@@ -334,7 +334,7 @@ class DevicePickerView extends StatelessWidget {
   });
 
   // Char in both themes: picking and connecting a device is the onboarding
-  // flow, wherever it was opened from (§6, D4).
+  // flow, wherever it was opened from.
   @override
   Widget build(BuildContext c) =>
       AlwaysChar(child: Builder(builder: _build));

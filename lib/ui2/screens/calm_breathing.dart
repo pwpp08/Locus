@@ -1032,7 +1032,7 @@ class BreathCircle extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // The sage field the ring breathes on (§6): painted once and
+          // The sage field the ring breathes on: painted once and
           // cached, never animated — only the ring moves. On it the ring is
           // ink, the one colour solved on aurora; a sage ring on a sage field
           // would vanish. At 60% of the solved peak: the ring lays a 14% ink

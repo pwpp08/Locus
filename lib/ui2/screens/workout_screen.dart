@@ -94,7 +94,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> with RevisionReload {
         final loc = AppLocalizations.of(c);
         final d = snap.data ?? const _WorkoutData.empty();
         // The hero card used to run edge to edge, so the list padded its
-        // children rather than itself. Since Volt the card is an aurora tile
+        // children rather than itself. The card is an aurora tile
         // in the gutter like everything else (see start_card.dart).
         final list = ListView(
           padding: EdgeInsets.fromLTRB(
@@ -205,7 +205,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> with RevisionReload {
               ];
               final today = DateTime.now().weekday - 1;
               final done = d.weekDays.contains(i);
-              // The Consistency dot row (§5.1): a trained day is a volt dot
+              // The Consistency dot row: a trained day is a volt dot
               // with a tick, any other day an empty one, and today is ringed
               // in ink so it is found without a hue. Not a streak.
               final fill = p.fill(C.volt);

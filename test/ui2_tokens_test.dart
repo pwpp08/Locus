@@ -26,7 +26,7 @@ const _tokenFile = 'lib/ui2/theme.dart';
 /// Where `Pressable` is defined — the one place a raw gesture is legal.
 const _gestureFile = 'lib/ui2/grammar.dart';
 
-/// Screens written before the Volt rules were enforced again. The rules for raw
+/// Screens written before these rules were enforced again. The rules for raw
 /// `Switch`, `showModalBottomSheet` and numeric `Icon` sizes were silently dead
 /// for a while (a word-boundary escape had been saved as a backspace character,
 /// so they matched nothing); these files predate the fix. They are listed here,
@@ -102,14 +102,14 @@ final _rules = <_Rule>[
   ),
   _Rule(
     'raw BackdropFilter',
-    // DESIGN_OVERHAUL §5.7: blur is budgeted — two on screen, never in a list
+    // DESIGN.md §6: blur is budgeted — two on screen, never in a list
     // item — and only `Glass` knows the budget and the solid fallback.
     RegExp(r'\bBackdropFilter\s*\('),
     'Use Glass. It carries the blur budget and renders solid under high '
         'contrast and Perf.lowGlass.',
     allow: {_gestureFile},
   ),
-  // ── the Volt leaks (DESIGN_OVERHAUL §2, closed in Phase 4) ──────────────
+  // ── the raw-widget leaks (closed) ──────────────
   // Each of these used to be written raw at 12–38 call sites, each styled
   // slightly differently. The component carries the one style.
   _Rule(

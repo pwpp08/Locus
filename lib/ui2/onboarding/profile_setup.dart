@@ -145,7 +145,7 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
     await widget.onSave(_fields());
   }
 
-  // Onboarding is Char in both themes (§6, D4).
+  // Onboarding is Char in both themes.
   @override
   Widget build(BuildContext c) =>
       AlwaysChar(child: Builder(builder: _build));

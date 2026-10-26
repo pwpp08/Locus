@@ -183,7 +183,7 @@ class _AppShellState extends State<AppShell> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // The minimised workout floats just above the bar as its
-                  // own glass pill. Two blurs on screen, the §5.7 budget.
+                  // own glass pill. Two blurs on screen, the glass budget in DESIGN.md.
                   if (widget.banner != null) ...[
                     Glass(radius: R.rPill, child: widget.banner!),
                     const SizedBox(height: S.x2),

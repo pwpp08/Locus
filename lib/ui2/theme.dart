@@ -36,7 +36,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 /// them fail AA on white. Run them through [P.on] (accent as text) or
 /// [P.fill] (accent as a filled surface under [P.inkOn]) first.
 class C {
-  // ── Volt brand ── (docs/design/DESIGN_OVERHAUL.md §4.2)
+  // ── Brand ── (DESIGN.md §2)
   //
   // One action colour. Volt means "act here / you are here / good"; it is
   // never TEXT on a light surface (1.37:1 on white) and never carries white
@@ -56,7 +56,7 @@ class C {
   static const char = Color(0xFF0F1014);
   static const cream = Color(0xFFF2F1EC);
 
-  // ── the data palette ── (§4.3) domain hues for charts, aurora, hero glow.
+  // ── the data palette ── domain hues for charts, aurora, hero glow.
   // Every one clears 4.5:1 as text on the dark card2 and as a fill under
   // dark ink; in light they pass through [P.on] like any accent.
   static const lavender = Color(0xFFA99BFF);
@@ -66,7 +66,7 @@ class C {
   static const amber = Color(0xFFFFB547);
   static const aqua = Color(0xFF5ED3C9);
 
-  /// The hypnogram's lavender ramp, palest to deepest (§5.5): awake, REM,
+  /// The hypnogram's lavender ramp, palest to deepest: awake, REM,
   /// light, deep. `lavender` is the light-sleep step; these are the other
   /// three. The painter solves each against the surface, so they are the HUE,
   /// not the lightness that is finally drawn.
@@ -74,7 +74,7 @@ class C {
   static const sleepRem = Color(0xFFC7BDFF);
   static const sleepDeep = Color(0xFF6F5CF0);
 
-  /// The bottom of the HR-zone ramp (§5.5: slate-blue → sky → volt → amber →
+  /// The bottom of the HR-zone ramp (slate-blue → sky → volt → amber →
   /// coral). The one hue here that is not a domain colour: zone 1 has to sit
   /// below [sky] without being grey, and nothing else needs it.
   static const blueSoft = Color(0xFF93A9C9);
@@ -135,14 +135,14 @@ class C {
   static const mapCeil = Color(0xFF44536D);
 
   // neutrals — warm greys between char and cream, matching the surfaces. Only
-  // the steps something still names; the rest went with the aliases (Phase 7).
+  // the steps something still names; the rest went with the aliases.
   static const n900 = char;
   static const n500 = Color(0xFF5F646D);
   static const n400 = Color(0xFF8B9099);
 
   static const white = Color(0xFFFFFFFF);
 
-  /// Each domain owns a hue. Since Volt (decision D1) it no longer colours the
+  /// Each domain owns a hue. It no longer colours the
   /// tab bar — the active tab is always volt — it lives in the screen's hero
   /// glow and aurora instead. Food and mind keep theirs as sections inside
   /// Activity and Health.
@@ -322,7 +322,7 @@ class P {
     return _cache[key] = at(hi);
   }
 
-  /// Elevation. Dark is flat — no shadow, a hairline does the work (§4.6).
+  /// Elevation. Dark has no shadow and no outline: depth is the tonal grading in DESIGN.md §2.2.
   /// Light gets one soft shadow: 0 / 8 / 24, ink at 6%, deepening per level.
   List<BoxShadow> el(int level) {
     if (level <= 0 || dark) return const [];
@@ -565,7 +565,7 @@ class S {
   /// Screen side padding, one value for every screen.
   static const gutter = 20.0;
 
-  /// The floating tab bar's height (§5.3).
+  /// The floating tab bar's height.
   static const navBar = 64.0;
 
   /// Bottom padding for a tab's scroll view so its last row clears the
@@ -577,7 +577,7 @@ class S {
 
 /// ── RADII ─────────────────────────────────────────────────────────────────
 ///
-/// WHOOP's tighter corners: every `Surface` card is [xl] (14), hero tiles and
+/// The corner scale (DESIGN.md §5): every `Surface` card is [xl] (14), hero tiles and
 /// sheet tops [xxl], inner blocks and buttons [md]/[sm]; chips, toggles and
 /// the floating nav stay a [pill].
 class R {
@@ -605,11 +605,11 @@ class I {
   static const hero = 48.0;
 }
 
-/// ── ART ── the bundled imagery slots (§5.6) ───────────────────────────────
+/// ── ART ── the bundled imagery slots ───────────────────────────────
 ///
 /// The ONLY way a screen names an image: no screen writes an asset path. Files
 /// are transparent PNGs/WebP under assets/images/ (with 2.0x / 3.0x variants
-/// Flutter picks by itself); see docs/design/IMAGE_PROMPTS.md. A slot whose
+/// Flutter picks by itself); see DESIGN.md §18. A slot whose
 /// file has not landed yet draws NOTHING — never a broken-image icon — so
 /// code can ship before art does.
 enum Art {
@@ -677,7 +677,7 @@ class Fx {
   static const stepPathStroke = 10.0;
 }
 
-/// ── PERFORMANCE ── escape hatches (§5.7) ─────────────────────────────────
+/// ── PERFORMANCE ── escape hatches ─────────────────────────────────
 class Perf {
   /// When true every `Glass` renders solid, with no BackdropFilter. Wired to
   /// nothing yet: it is the switch to throw if Android jank shows up.
@@ -782,9 +782,9 @@ class _Gated extends PageTransitionsBuilder {
 
 /// The Material theme. ui2 components never read it — they spend `P` and `F`
 /// directly — so this exists for the Material widgets screens still use
-/// (pickers, snackbars, dividers, progress, dialogs, sheets: docs/design/
-/// AUDIT.md §2). Each gets a sub-theme here instead of an edit at ~180 call
-/// sites (decision D8).
+/// (pickers, snackbars, dividers, progress, dialogs, sheets).
+/// Each gets a sub-theme here instead of an edit at ~180 call
+/// sites.
 ///
 /// `primary` is the colour Material spends on TEXT (dialog actions, the
 /// selected day in a picker's header), so it is volt only where volt is
@@ -889,7 +889,7 @@ ThemeData buildTheme(Brightness b) {
 }
 
 /// Char in both themes: the two surfaces allowed to stay dark when the app is
-/// light — onboarding and the live workout (DESIGN_OVERHAUL.md §6, D4).
+/// light — onboarding and the live workout (DESIGN.md §2).
 ///
 /// The ONE theme override in lib/ui2. `P.of` reads the ambient [Theme], so a
 /// subtree that must be Char needs one, and keeping it here means no screen

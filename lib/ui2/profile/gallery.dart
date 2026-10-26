@@ -155,7 +155,7 @@ Map<String, Widget> galleryCases() => {...componentCases(), ...extraCases()};
 /// The components. Listed separately from [extraCases], the primitives and
 /// painters, so the gallery screen can show them as their own scroll.
 Map<String, Widget> componentCases() => {
-      // ── Volt system (§6) — every token, in whichever theme is showing, ──
+      // ── token swatches — every token, in whichever theme is showing, ──
       // with the contrast each pairing actually measures. First, because
       // every component below is built out of these.
       ..._voltSystemCases(),
@@ -308,7 +308,7 @@ Map<String, Widget> componentCases() => {
         SizedBox(height: S.x3),
         BigButton('Not now', color: C.domMove, soft: true),
       ]),
-      // ── Volt (DESIGN_OVERHAUL §5.2) ──
+      // ── the signature components (DESIGN.md §10) ──
       // The four button forms and the icon-only circle, each with a real
       // label: the volt primary, the inverse pill, the coral destructive, and
       // the 56 pt round power button.
@@ -2938,7 +2938,7 @@ const EcgReading _ecgDemoReading = EcgReading(
   createdAt: 1787823784000,
 );
 
-/// The tokens themselves (DESIGN_OVERHAUL.md §6, "Volt system"): surfaces and
+/// The tokens themselves (DESIGN.md §2): surfaces and
 /// accents with their measured contrast, the type ramp, radii and icon sizes.
 /// Rendered in the gallery's current theme, so the theme switch shows both.
 Map<String, Widget> _voltSystemCases() => {

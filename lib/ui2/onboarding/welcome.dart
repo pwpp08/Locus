@@ -563,7 +563,7 @@ class WelcomeView extends StatelessWidget {
     this.outcome,
   });
 
-  // Onboarding is Char in both themes (§6, D4).
+  // Onboarding is Char in both themes.
   @override
   Widget build(BuildContext c) =>
       AlwaysChar(child: Builder(builder: _build));
@@ -640,7 +640,7 @@ class WelcomeView extends StatelessWidget {
 }
 
 /// The band's picture on an aurora field: the art is black, and black on the
-/// onboarding canvas does not read, so it sits on a soft volt glow (§5.6 —
+/// onboarding canvas does not read, so it sits on a soft volt glow (DESIGN.md §18 —
 /// "the app paints the background behind the art"). Decorative: no semantics.
 class BandStage extends StatelessWidget {
   final Art art;
@@ -657,7 +657,7 @@ class BandStage extends StatelessWidget {
 }
 
 /// Where the user is in setup: a glass pill naming the step, and the volt
-/// river (§5.2 [StepPath]) through all of them. The pill carries the meaning;
+/// river ([StepPath]) through all of them. The pill carries the meaning;
 /// the river is decoration and says nothing to a screen reader.
 class OnboardingStep extends StatelessWidget {
   /// 1-based: welcome, pick a band, about you.

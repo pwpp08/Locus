@@ -5,7 +5,7 @@
 // keep in step; this drives the system bars and the iOS widget's mode.
 //
 // First launch follows the OS: if the phone is in dark mode, Locus opens in
-// Char (Volt's dark) from the first screen onward. The choice is persisted and
+// Char (the dark theme) from the first screen onward. The choice is persisted and
 // editable later from Profile; UI updates live on change.
 
 import 'package:flutter/material.dart';

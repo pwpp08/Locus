@@ -1203,7 +1203,7 @@ class _MetricDetailState extends State<MetricDetail> {
 
     return Surface(
       child: Column(children: [
-        // The screen's hero numeral (§6), shrunk inside the line rather than
+        // The screen's hero numeral, shrunk inside the line rather than
         // truncated when an accessibility size makes it wider than the card:
         // a cut-off "7h 2…" is a different number.
         Align(
@@ -2068,7 +2068,7 @@ class DayNav extends StatelessWidget {
           ),
         );
 
-    // A pill with chevrons (§5.4), the same shape on every screen that steps
+    // A pill with chevrons, the same shape on every screen that steps
     // through days.
     return Container(
       decoration: BoxDecoration(color: p.card2, borderRadius: R.rPill),

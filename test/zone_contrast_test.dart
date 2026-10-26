@@ -1,7 +1,7 @@
 // Legibility guard for the HR-zone ramp.
 //
 // Two real bugs came out of the old (Ember) ramp, which this file used to
-// guard until the palette it lived in was deleted (DESIGN_OVERHAUL.md Phase 7):
+// guard until the palette it lived in was deleted (the legacy palette is gone):
 //
 //   1. In light mode the ramp handed back hues tuned for a white background
 //      and painted them on near-black.
@@ -43,7 +43,7 @@ double _contrast(Color a, Color b) {
 }
 
 void main() {
-  // ── the Volt ramp (DESIGN_OVERHAUL D7) ──────────────────────────────────
+  // ── the zone ramp ──────────────────────────────────
   //
   // Same 4.5:1 floor the ui2 contrast test uses for every mark.
   group('ZoneRows.cols (the ramp the app draws) is legible', () {

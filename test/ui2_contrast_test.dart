@@ -70,7 +70,7 @@ void main() {
   });
 
   group('P.fill() makes any accent safe under inkOn()', () {
-    // Volt's fill model (DESIGN_OVERHAUL §4.4): a fill stays pure pigment
+    // The fill model (DESIGN.md §2.5): a fill stays pure pigment
     // when dark ink clears it, and inkOn picks the ink. The old model darkened
     // every fill for WHITE text, which turns volt into olive.
     themes.forEach((name, p) {
@@ -105,10 +105,10 @@ void main() {
     });
   });
 
-  group('text on the Volt surfaces that are not cards', () {
+  group('text on the dark surfaces that are not cards', () {
     themes.forEach((name, p) {
       // AuroraTile: its text is measured against the BRIGHTEST point of the
-      // gradient, blended over the card (§5.2).
+      // gradient, blended over the card.
       for (final hue in C.all) {
         final hex = hue.toARGB32().toRadixString(16).padLeft(8, '0');
         test('$name · ink on aurora(#$hex) peak', () {

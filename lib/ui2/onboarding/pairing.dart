@@ -187,7 +187,7 @@ class PairingView extends StatelessWidget {
   });
 
   // Char in both themes: connecting a band is the onboarding flow, wherever
-  // it was opened from (§6, D4).
+  // it was opened from.
   @override
   Widget build(BuildContext c) =>
       AlwaysChar(child: Builder(builder: _build));

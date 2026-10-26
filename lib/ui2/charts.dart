@@ -485,7 +485,7 @@ class LineChart extends CustomPainter {
     }
 
     if (dots && head != null) {
-      // A still halo, not a pulse: nothing here loops (§5.5).
+      // A still halo, not a pulse: nothing here loops.
       cv.drawCircle(head, 9, Paint()..color = color.withValues(alpha: .18));
       cv.drawCircle(head, 4.5, Paint()..color = color);
       // The prototype knocked this out in hard white, which is a hole in a
@@ -970,7 +970,7 @@ class Hypnogram extends CustomPainter {
       cv.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(x0, y, max(x1 - x0 - .8, 2), h),
-          // 4 px ends (§5.5), but never more than half a short run is tall.
+          // 4 px ends, but never more than half a short run is tall.
           Radius.circular(min(4, h / 2)),
         ),
         Paint()..color = ink[st]!,
@@ -1014,7 +1014,7 @@ class ZoneRows extends StatelessWidget {
   const ZoneRows(this.minutes,
       {super.key, this.lowerBpm, this.title, this.footnote, this.compact = false});
 
-  /// Slate-blue → sky → volt → amber → coral (§5.5).
+  /// Slate-blue → sky → volt → amber → coral.
   static const pigment = [C.blueSoft, C.sky, C.volt, C.amber, C.coral];
 
   /// The bar colours as drawn, solved against the surface like every mark.

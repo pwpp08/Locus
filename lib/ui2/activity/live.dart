@@ -562,7 +562,7 @@ class LiveShellState extends State<LiveShell> {
   Widget build(BuildContext c) {
     final l = AppLocalizations.of(c);
     final a = widget.a;
-    // Char in both themes (§6): a workout is watched from arm's length, often
+    // Char in both themes: a workout is watched from arm's length, often
     // outdoors, and this is the one full-bleed dark screen light mode allows.
     // Everything below reads its palette inside the override.
     return AlwaysChar(child: Builder(builder: (c) => _shell(c, P.of(c), l, a)));
@@ -645,7 +645,7 @@ class LiveShellState extends State<LiveShell> {
               // so the affordance is not drawn.
               const SizedBox(width: S.x12 + S.x2),
               const SizedBox(width: S.x4),
-              // The screen's one volt control (§6): pause / resume.
+              // The screen's one volt control: pause / resume.
               Expanded(
                 child: Pressable(
                   semanticLabel: paused
@@ -829,7 +829,7 @@ class LiveHeart extends StatelessWidget {
       // accessibility one. Two lines is the honest answer; a clipped heart
       // rate on a screen the user is exercising in front of is not.
       //
-      // The heart rate is the screen's hero (§6), at n64 — scaled down inside
+      // The heart rate is the screen's hero, at n64 — scaled down inside
       // the line rather than clipped when an accessibility size makes it wider
       // than the phone.
       Wrap(

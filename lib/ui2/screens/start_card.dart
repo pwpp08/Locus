@@ -5,7 +5,7 @@
 // and a different noun, so they are the same code — a second copy is how the
 // two drift a corner radius apart and nobody notices for a month.
 //
-// Volt (DESIGN_OVERHAUL.md §6) made it an [AuroraTile] of the tab's hue: the
+// The redesign (DESIGN.md) made it an [AuroraTile] of the tab's hue: the
 // tab's colour lives in its hero, not in its chrome. Every word on it is page
 // ink, because ink is the one text colour solved on an aurora field, and the
 // play mark is the volt circle. It sits in the list's gutter like every other

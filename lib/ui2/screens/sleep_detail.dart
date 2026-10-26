@@ -893,7 +893,7 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
     final watched = (inBed == null || unobserved == null || unobserved <= 0)
         ? null
         : math.max(0, inBed - unobserved);
-    // The screen's hero (§6): the night's total, big, on a lavender field.
+    // The screen's hero: the night's total, big, on a lavender field.
     // Only the page ink is legible on aurora, so every word on it is ink;
     // the ratios that qualify it keep their hues on a plain card under it.
     final hero = AuroraTile(

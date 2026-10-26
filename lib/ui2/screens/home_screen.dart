@@ -845,7 +845,7 @@ class RingTrio extends StatelessWidget {
   /// worth pushing onto.
   final void Function(HomeRingKind)? onOpen;
 
-  /// D5's second candidate (DESIGN_OVERHAUL.md §6): a measured, settled
+  /// D5's second candidate (DESIGN.md §11): a measured, settled
   /// recovery in a [ScallopBadge] with strain and sleep as small rings beside
   /// it. Every other recovery state — provisional, calibrating, absent — has
   /// no badge (the badge has no absent variant), so it falls back to the trio.
@@ -1150,7 +1150,7 @@ class _Dial extends StatelessWidget {
   final _RingState r;
   final double stroke, icon;
 
-  /// The number inside the ring (§5.5) rather than the icon. Only a reading
+  /// The number inside the ring rather than the icon. Only a reading
   /// goes inside: calibration and absence are words, and words go under it.
   final bool numeral;
 
