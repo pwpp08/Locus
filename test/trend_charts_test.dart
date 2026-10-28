@@ -242,7 +242,7 @@ void main() {
             day: _today
           ),
         }));
-    expect(find.text('Reset zoom'), findsNothing);
+    expect(find.text('RESET ZOOM'), findsNothing);
     final c = t.getRect(find.byType(ScrubLine)).center;
     final a = await t.startGesture(c - const Offset(20, 0), pointer: 21);
     final b = await t.startGesture(c + const Offset(20, 0), pointer: 22);
@@ -251,11 +251,11 @@ void main() {
     await a.up();
     await b.up();
     await t.pump();
-    expect(find.text('Reset zoom'), findsOneWidget);
+    expect(find.text('RESET ZOOM'), findsOneWidget);
     // Zoomed in, the labels are by the hour.
-    await t.tap(find.text('Reset zoom'));
+    await t.tap(find.text('RESET ZOOM'));
     await t.pump();
-    expect(find.text('Reset zoom'), findsNothing);
+    expect(find.text('RESET ZOOM'), findsNothing);
   });
 
   testWidgets('picking another metric opens it at the top of the page',

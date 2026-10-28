@@ -186,7 +186,7 @@ void main() {
       await _pump(t, const PairSensorView(entryLabel: 'Bluetooth heart rate '
           'sensor'));
       expect(layoutFaults, isEmpty);
-      expect(find.text('Search for sensors'), findsOneWidget);
+      expect(find.text('SEARCH FOR SENSORS'), findsOneWidget);
       expect(find.text('Nothing found yet'), findsOneWidget);
       // Never a promise the honesty contract cannot keep.
       expect(find.textContaining('recovery'), findsNothing);
@@ -202,9 +202,9 @@ void main() {
       );
       expect(layoutFaults, isEmpty);
       // The plain button is gone — the choice has to be made knowingly.
-      expect(find.text('Search for sensors'), findsNothing);
+      expect(find.text('SEARCH FOR SENSORS'), findsNothing);
       expect(find.text('Your WHOOP is not paired yet.'), findsOneWidget);
-      expect(find.text('Search anyway'), findsOneWidget);
+      expect(find.text('SEARCH ANYWAY'), findsOneWidget);
     });
 
     // #538: iOS removes AccessorySetupKit pairings for every app when

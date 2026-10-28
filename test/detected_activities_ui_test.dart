@@ -106,7 +106,7 @@ void main() {
     expect(find.text('Could not load activities. Try again.'), findsOneWidget);
     expect(find.text('Nothing to review'), findsNothing);
     repo.fail = false;
-    await t.tap(find.text('Try again'));
+    await t.tap(find.text('TRY AGAIN'));
     await t.pumpAndSettle();
     expect(find.text('Possible nap'), findsOneWidget);
     expect(find.text('Possible workout'), findsOneWidget);
@@ -114,10 +114,10 @@ void main() {
 
   testWidgets('confirm and discard remove only the selected item', (t) async {
     final repo = await pump(t);
-    await t.tap(find.text('Confirm').first);
+    await t.tap(find.text('CONFIRM').first);
     await t.pumpAndSettle();
     expect(repo.items.single.id, 'workout');
-    await t.tap(find.text('Not a workout'));
+    await t.tap(find.text('NOT A WORKOUT'));
     await t.pumpAndSettle();
     expect(repo.items, isEmpty);
     expect(find.text('Nothing to review'), findsOneWidget);
@@ -125,9 +125,9 @@ void main() {
 
   testWidgets('cancelling a nap edit leaves it pending', (t) async {
     final repo = await pump(t);
-    await t.tap(find.text('Edit').first);
+    await t.tap(find.text('EDIT').first);
     await t.pumpAndSettle();
-    expect(find.text('Save and confirm'), findsOneWidget);
+    expect(find.text('SAVE AND CONFIRM'), findsOneWidget);
     Navigator.of(t.element(find.byType(WindowEditor))).pop();
     await t.pumpAndSettle();
     expect(repo.items, hasLength(2));
@@ -137,7 +137,7 @@ void main() {
     'unknown workout stays Other; stale edit shows new proposal before a second save',
     (t) async {
       final repo = await pump(t);
-      await t.tap(find.text('Change sport'));
+      await t.tap(find.text('CHANGE SPORT'));
       await t.pumpAndSettle();
       expect(find.text('Other'), findsOneWidget);
       repo.items[1] = proposal(
@@ -146,14 +146,14 @@ void main() {
         revision: 1,
         shift: 600,
       );
-      await t.tap(find.text('Save and confirm'));
+      await t.tap(find.text('SAVE AND CONFIRM'));
       await t.pumpAndSettle();
       expect(repo.items, hasLength(2));
       expect(
         find.text('The proposal changed. Review the new times.'),
         findsOneWidget,
       );
-      await t.tap(find.text('Save and confirm'));
+      await t.tap(find.text('SAVE AND CONFIRM'));
       await t.pumpAndSettle();
       expect(repo.items.single.id, 'nap');
       expect(repo.savedType, 'other');
@@ -164,7 +164,7 @@ void main() {
     t,
   ) async {
     final repo = await pump(t);
-    await t.tap(find.text('Change sport'));
+    await t.tap(find.text('CHANGE SPORT'));
     await t.pumpAndSettle();
     repo.items[1] = proposal(
       'workout',
@@ -173,13 +173,13 @@ void main() {
       shift: 600,
     );
     repo.fail = true;
-    await t.tap(find.text('Save and confirm'));
+    await t.tap(find.text('SAVE AND CONFIRM'));
     await t.pumpAndSettle();
     expect(repo.items, hasLength(2));
     repo.fail = false;
-    await t.tap(find.text('Save and confirm'));
+    await t.tap(find.text('SAVE AND CONFIRM'));
     await t.pumpAndSettle();
-    await t.tap(find.text('Save and confirm'));
+    await t.tap(find.text('SAVE AND CONFIRM'));
     await t.pumpAndSettle();
     expect(repo.items.single.id, 'nap');
   });

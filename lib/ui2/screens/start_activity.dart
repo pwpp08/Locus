@@ -811,7 +811,8 @@ class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
           decoration:
               const BoxDecoration(color: C.dialStrain, shape: BoxShape.circle),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            const Icon(Icons.favorite, size: I.lg, color: C.white),
+            CustomPaint(
+                size: const Size.square(I.lg), painter: _HeartPainter(C.white)),
             const SizedBox(height: S.x1),
             Text(hr == null ? '--' : '$hr',
                 style: F.n64.copyWith(color: C.white, fontWeight: FontWeight.w700)),
@@ -820,4 +821,32 @@ class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
       ),
     );
   }
+}
+
+/// A filled heart on a 24-unit grid, the same outline the stat icons draw,
+/// for the pulse disc (Lucide has no filled glyph).
+class _HeartPainter extends CustomPainter {
+  final Color color;
+  _HeartPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 24, size.height / 24);
+    canvas.drawPath(
+        Path()
+          ..moveTo(12, 20.6)
+          ..cubicTo(12, 20.6, 2.6, 15.4, 2.6, 8.9)
+          ..cubicTo(2.6, 5.9, 4.8, 3.9, 7.4, 3.9)
+          ..cubicTo(9.3, 3.9, 11, 4.9, 12, 6.6)
+          ..cubicTo(13, 4.9, 14.7, 3.9, 16.6, 3.9)
+          ..cubicTo(19.2, 3.9, 21.4, 5.9, 21.4, 8.9)
+          ..cubicTo(21.4, 15.4, 12, 20.6, 12, 20.6)
+          ..close(),
+        Paint()..color = color);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_HeartPainter old) => old.color != color;
 }

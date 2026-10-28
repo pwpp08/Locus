@@ -124,7 +124,23 @@ Contributor tiers are `[C.poor, p.ink3, C.optimal]` = poor / sufficient / optima
 
 **Sleep stacks:** deep/SWS `C.trendSws #FA96F9`, REM `C.trendRem #AC5AED`. Unfocused floating bars are `C.barGrey #63676A`.
 
-**Other:** sync arrow `C.orange` (= amber `#FFB547`); coach orb ring `#7E57C2 → #3FA7B5 → #7E57C2` (sweep); sleep-plan panel `C.mint #DFF8EF` with char ink; volt `#B1F002` is now spent only on the active tab pill, `AppSwitch` on-track and Material `primary` in dark.
+**Other:** sync arrow (amber `#FFB547`); coach orb ring `#7E57C2 → #3FA7B5 → #7E57C2` (sweep), also the edge of the strength trainer's AI card; sleep-plan panel `C.mint #DFF8EF` with char ink; cycle tracking `C.rose #FF7A9A`; food `C.amber #FFB547`; `C.lavender #A99BFF` only on the Total sleep hero's aurora, the hypnogram's light-sleep lane and the strength milestone ring. Volt `#B1F002` is spent only on the active tab pill, the `AppSwitch` on-track and Material `primary` in dark: never a button, a dot, a chip or a chart.
+
+**Legacy names.** Older code still names the pre-redesign accents. Each resolves in `theme.dart` to a redesign hue by what it was used for, so writing one is never off-palette, but new code names the redesign token directly:
+
+| Legacy name | Resolves to | Meaning |
+|---|---|---|
+| `C.green` | `C.optimal` | good |
+| `C.red`, `C.coral` | `C.recRed` | low, attention, destructive |
+| `C.blue`, `C.sky`, `C.purple`, `C.domMove`, `C.domHealth`, `C.domHome` | `C.dialStrain` | strain, activity, heart |
+| `C.indigo`, `C.domSleep` | `C.dialSleep` | sleep |
+| `C.teal`, `C.aqua`, `C.sage`, `C.domMind` | `C.stressLow` | calm, mind |
+| `C.orange` | `C.strainDown` | warning, worse |
+| `C.yellow` | `C.recYellow` | middle, pending |
+| `C.pink` | `C.rose` | cycle |
+| `C.domFood` | `C.amber` | food |
+
+Every activity in the catalogue is `C.dialStrain`; the HR-zone ramp everywhere (`ZoneRows`, zone cards, stacks) is `refZone1…5`.
 
 ### 2.5 Rules
 
@@ -147,11 +163,11 @@ Two bundled faces (SIL OFL, `assets/fonts`), the same on every platform:
 
 | Token | Size / line | Weight | Tracking | Use |
 |---|---|---|---|---|
-| `F.display` | 36/42 | 500 | −1.0 | `ScreenTitle` |
-| `F.t1` | 28/34 | 500 | −0.7 | Home section heads: "My Day", "My Dashboard" |
+| `F.display` | 36/42 | 500 | −1.0 | token sheet only; no screen uses it |
+| `F.t1` | 28/34 | 500 | −0.7 | Home section heads ("My Day", "My Dashboard"), `ScreenTitle` on Health and the other tab roots, onboarding headlines |
 | `F.t2` | 22/28 | 600 | −0.5 | sheet and dialog titles, Start Activity title, popup menu items (w400) |
-| `F.head` | 17/24 | 600 | −0.4 | `Section` titles, BigButton label, Trend View sentence (height 1.3), screen sub-heads at w700 |
-| `F.body` | 15/22 | 600 | −0.25 | body text, rows, `TextAction`, field text |
+| `F.head` | 17/24 | 600 | −0.4 | `Section` titles at w700, `Recommendation` headline (w700), Trend View sentence (height 1.3) |
+| `F.body` | 15/22 | 600 | −0.25 | body text, card headlines (w700), field text; the `BigButton` label at w800, uppercased, tracking 1.4 |
 | `F.cap` | 13/18 | 600 | −0.15 | captions, notes, units, info rows, delta-chip text (w700) |
 | `F.over` | 11/14 | 700 | +0.3 | tiny labels, uppercased by the caller: pager date, readout captions, x/y chart labels (via `F.num`) |
 | `F.caps` | 12/16 | 700 | +0.35 | **the card-title voice**: dial names, card titles, row titles, buttons, legends, segments. Always uppercased by the caller. |
@@ -224,12 +240,12 @@ Touch targets are never smaller than 44 even when the drawing is: the pager is d
 
 | Token | Radius | Used on |
 |---|---|---|
-| `R.sm` | 6 | chips (delta chip, `_VsPill`), legend swatches, typical-range band, highlight columns, value-label pills, sleep-plan panel, axis tags |
+| `R.sm` | 6 | chips (delta chip, `_VsPill`, `Pill`), legend swatches, typical-range band, highlight columns, value-label pills, sleep-plan panel, axis tags |
 | `R.md` | 8 | activity block, monitor square, plus button, fields, alarm button, detail link rows, popup menu, comparison legend strip |
-| `R.lg` | 12 | inner rows and cards: activity rows, day buttons, week cards, zone cards, Trend View metric pill and picker rows, selected range segment, snackbar |
-| `R.xl` | 14 | every `Surface` card, dialogs, Strain & Recovery card, key-stat cards, picker card, range segment track, dashed `StatusCard` outline |
+| `R.lg` | 12 | inner rows and cards: activity rows, day buttons, week cards, zone cards, Trend View metric pill and picker rows, the selected range segment and `SubTabs` item, selection chips, the `ActionCard` action, snackbar |
+| `R.xl` | 14 | every `Surface` card, dialogs, Strain & Recovery card, key-stat cards, picker card, the range segment and `SubTabs` track, dashed `StatusCard` outline |
 | `R.xxl` | 18 | sheet top corners, date and time pickers' dialog shells |
-| `R.pill` | 999 | tab bar, tab pill, `BigButton`, `Pill`, `SubTabs` pill, RESET chip, START pill, switches, grab handles |
+| `R.pill` | 999 | tab bar, tab pill, `BigButton`, RESET chip, START pill, switches, grab handles, onboarding step bar |
 
 Corners derived from the scale:
 - Day pager: `S.x2 + S.half` = **10**
@@ -243,7 +259,7 @@ Corners inside charts:
 - Floating bars: **2**
 - Zone bar: 30 % of its height
 
-Circles: dials, rings, the monitor stress square's contents, `IconChip` (32), `RoundIconButton` (48), the coach orb (40), the + tab button (40), the knob (64), the pulse disc, markers.
+Circles: dials, rings, the monitor stress square's contents, `IconChip` (32), an inverse or glass `RoundIconButton` (48), the coach orb (40), the + tab button (40), the knob (64), the pulse disc, markers.
 
 ---
 
@@ -270,6 +286,7 @@ Circles: dials, rings, the monitor stress square's contents, `IconChip` (32), `R
 | Stress gauge | sweep low (35 %→100 %) → medium → warm 55 % → high 55 % → 30 %, dimming at both ends |
 | Unfinished `Ring` (non-solid) | sweep hue 55 % → 100 % (calibrating or provisional states only) |
 | Coach orb | sweep `#7E57C2 → #3FA7B5 → #7E57C2` |
+| The one aurora (`AuroraTile`) | the Total sleep hero on the Sleep screen only: two soft radial fields of lavender, solved for `p.ink` (`p.aurora`), plus 4 % grain, radius 18. Every word on it is `p.ink`. **No other card is an aurora**; the scallop badge and the onboarding "river" are gone |
 
 Nothing animates a gradient.
 
@@ -406,24 +423,29 @@ The workout screen uses its own header: `BoldChevron` 20, the activity icon at I
   - A neutral `IconChip` (32 circle in `card2`, icon 16 in ink2), then the title in `F.body` w600.
   - The why in `F.cap` ink2, height 1.5.
   - The fix as a soft `BigButton` only when it can be pressed. Advice with nothing behind it stays plain text.
-- **`Observation`:** used on Home for the illness watch only.
+- **`Observation`:** used on Home for the illness watch only. A graded card, a stethoscope at I.md and `HEALTH OBSERVATION` in `F.caps` w800 in the orange, then the headline in `F.body` w700.
+- **The card components share one voice.** `SignalCard`, `TrendCard`, `ProgressCard`, `DeepDiveCard`, `GoalTrajectory` and `MetricRow` start with a bare icon (I.md ink3, never a chip) and an uppercased `F.caps` title, then the figure in a bold numeral (`F.n24`; `F.n34` for a trend card) with its unit on the baseline. Directions are `DeltaTriangle`s (10 in rows, 12 in cards), `optimal` when good and `poor` when not; "steady" is a short ink3 dash. A `TrendCard`'s sparkline is strain blue (sleep blue for sleep), like every line metric. `InsightCard` and `ActionCard` use a bare icon in the hue and a bold `F.body` headline; their actions are uppercased `F.caps` (with a chevron when they go somewhere), the `ActionCard` action on an ink 9 % block, radius 12. `InlineMetrics` labels are `F.over` w800 tracking 1.4 ink3 over `F.n24` ink figures. Progress bars are 8 tall pills, the hue on ink 12 %. `Consistency` dots are strain blue on ink 9 %.
+- **`ChartFrame`** (the frame of the older painters) speaks the scrub charts' language: title uppercased in `F.caps`, the unit in `F.num(F.cap)` ink3, solid 1 px `p.line` gridlines, tick and x labels in `F.num(F.over)` w600 ink3, legend keys as 10 px squares (radius 6) with uppercased `F.over` w700 ink2 names, a usual-range band at ink 7 %.
+- **`DayNav`** (metric screens) is drawn like Home's pager: a 32 tall track of ink 5 % over `bg`, radius 10, bold chevrons, the day uppercased in `F.over` w800 tracking 1.
+- **Onboarding** is Char in both themes. The step is uppercased `F.caps` ink3 (`STEP 2 OF 3`) over a bar of one 4 pt pill segment per step: done strain blue, current ink, the rest ink 12 %. The band art sits on a rich graded card. Headlines are `F.t1`; the primary is the ink pill.
 
 ### 10.6 Buttons and controls
 
 | Control | Spec |
 |---|---|
-| `BigButton` | minimum height 56 (`S.x12 + S.x2`), full width, pill, padding 20/12, label `F.head` (2 lines max), optional icon 20 + 8. Primary is `p.fill(color)` with `inkOn`. `soft` is `card2` + ink. `inverse` is the black or cream pill. `danger` is coral text on `card2`. `round` is a 56 circle. `busy` swaps the icon for a 16 spinner. |
+| `BigButton` | minimum height 56 (`S.x12 + S.x2`), full width, pill, padding 20/12, label **uppercased** in `F.body` w800 tracking 1.4 (2 lines max), optional icon I.md + 8. **Primary is the ink pill**: `p.ink` ground with `p.bg` type (white with dark type on the dark page). A `color` other than the legacy green makes it a hue fill under `inkOn` (the strain-blue pill). `soft` is ink 9 % with ink type. `inverse` is the `p.inverse` pill. `danger` is red type on ink 9 %. `round` is a 56 circle. `busy` swaps the icon for a 16 spinner. |
 | Home day buttons (ADD / START ACTIVITY) | height 52, ink 9 %, radius 12, icon I.md + 8 + `F.caps` tracking .6, `FittedBox` |
 | Alarm button | `card2`, radius 8, 16 vertical padding, pencil I.md + 12 + `F.caps` |
 | `PlusButton` | 44 square (`S.x10 + S.x1`), radius 8, ink fill with a `plus` at I.md in `bg` colour. Open state: ink 12 % with an `x` at I.lg in ink. |
 | RESET chip | height 32, horizontal padding 12, ink 12 %, pill, `zoomOut` I.sm + 4 + `RESET` in `F.over` w800 |
 | START pill (Start Activity) | `dialStrain`, pill, fills a 64 bar, `F.body` w800 tracking 1.6 white (50 % alpha while starting) |
-| `TextAction` | `F.body` w600 ink (coral for danger), optional trailing icon I.sm |
-| `RoundIconButton` | 48 circle, `card2` (or inverse, or glass), icon I.md, label required |
+| `TextAction` | the "CUSTOMIZE" voice: label uppercased in `F.caps` ink (red for danger), optional trailing icon I.md 8 after it |
+| `RoundIconButton` | a bare glyph at I.lg in a 48 target, no disc (like the reference close and back marks). `inverse` keeps a `p.inverse` disc and `glass` a frosted one, for a control over imagery. Label required |
 | `AppSwitch` | Material switch: on is a volt track with a char thumb, off is `track` with an ink3 thumb, no outline |
 | `AppField` | label `F.cap` ink2 above, a gap of 8, then a field filled `card2` with radius 8 and padding 16/12, no border. Focused: a 2 px ink ring (never volt). Error: a 2 px coral ring. `bare` drops the box. |
-| `SubTabs` | horizontal pills 44 tall (scaled with text), padding 16, gap 8. Active is an `inverse` fill with `onInverse` text (w600). Disabled is a `card2` fill with ink3 text. A scroll hint replaces the chevron. |
-| `Pill` | padding 12/4, `p.wash(hue)` with `p.on(hue)` text, `F.cap` w600 |
+| `SubTabs` | Trend View's range segments, scrolling: a track of char 50 % over `bg`, radius 14, padding 4, 44 + 8 tall (scaled with text); items padding 16, no gap. The chosen one is lifted out as a `card` fill, radius 12, label uppercased in `F.caps` ink; the rest ink3; a disabled one ink3 at 45 %. A scroll hint replaces the chevron. |
+| `Pill` | a chip: padding 8/4, radius 6, `p.wash(hue)` with `p.on(hue)` text, `F.cap` w700 |
+| Selection chips (sex, weekdays, step targets) | radius 12, uppercased `F.caps`. Selected: `p.ink` ground with `p.bg` type. Unselected: ink 9 % with ink2 type. No borders |
 
 ### 10.7 Overlays
 
@@ -898,7 +920,7 @@ Opened from ACTIVITIES ⤢. It **forces landscape** and restores the app's orien
   - Card titles are UPPERCASE `F.caps`.
   - Sentences are sentence case and plain ("Your average HRV this week is 58 ms.").
   - Empty states are short and factual ("Nothing recorded for this day yet.", "No strain recorded this period.").
-  - Buttons are verbs in caps (`ADD ACTIVITY`, `SET ALARM`, `START ACTIVITY`) or sentence-case `BigButton` labels ("Sync the band", "See what was missing").
+  - Buttons and text actions are written in sentence case in code ("Sync the band") and **drawn uppercased** (`SYNC THE BAND`), like `ADD ACTIVITY` and `SET ALARM`.
 - **No other brand's name** anywhere in the UI. The wordmark is LOCUS.
 
 ---
@@ -952,7 +974,8 @@ Every new public widget needs a case in `lib/ui2/profile/gallery.dart` (or an en
 **Known gaps** (fix them when you touch the area):
 - The hypnogram and `MetricDetail` charts still use their own scrubbing and guide lines rather than `ScrubArea`.
 - The Recovery and Sleep dial detail screens have not been redrawn against references yet. Strain detail is the model to follow.
-- `_PulseState` draws a Material `Icons.favorite` (filled) heart rather than a Lucide glyph.
+- The share posters (`activity/poster.dart`) keep their own art direction (sport-tinted gradients over a map or photo): they are exported images, not app chrome.
+- The hypnogram keeps its lavender lane ramp, and the drawn `Art` SVGs keep their baked-in hues.
 - Some screens write their own 24-hour `H:mm` clock (`_ActivityCard` on the strain page) instead of following the user's 12/24 h choice through `formatClockOf`.
 - Light theme: every token is defined and contrast-tested, but the reference matching was done in dark. Check new work in both themes.
 

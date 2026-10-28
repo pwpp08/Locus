@@ -253,7 +253,7 @@ void main() {
       ),
     ));
     await t.pumpAndSettle();
-    expect(find.text('Chest strap'), findsOneWidget);
+    expect(find.text('CHEST STRAP'), findsOneWidget);
     expect(find.textContaining('no accelerometer'), findsOneWidget);
     final subTabs = t.widget<SubTabs>(find.byType(SubTabs));
     // Index 0 is "All devices"; the strap sits at index 2 (band is 1).

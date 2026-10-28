@@ -161,7 +161,7 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('07:15'), findsOneWidget);
 
-    await t.tap(find.text('I ate breakfast'));
+    await t.tap(find.text('I ATE BREAKFAST'));
     await _settle(t);
     final e = (await t.runAsync(
         () => NutritionDb.entriesForDay(db, todayLabel())))!.single;
@@ -188,8 +188,8 @@ void main() {
     await t.tap(find.descendant(
         of: find.byType(LogFoodSheet), matching: find.text('Dinner')));
     await t.pump();
-    await t.ensureVisible(find.text('Save'));
-    await t.tap(find.text('Save'));
+    await t.ensureVisible(find.text('SAVE'));
+    await t.tap(find.text('SAVE'));
     await _settle(t);
 
     final rows = (await t.runAsync(
@@ -215,7 +215,7 @@ void main() {
     app.user = {'protein_target': 120};
     await _pump(t, const NutritionScreen(), app: app);
 
-    expect(find.text('Protein today'), findsOneWidget);
+    expect(find.text('PROTEIN TODAY'), findsOneWidget);
     expect(find.text('45 g'), findsOneWidget);
     expect(find.text('75 g to go'), findsOneWidget);
   });

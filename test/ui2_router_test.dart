@@ -241,7 +241,7 @@ void main() {
               phase: phase, onPair: () {}, onSkip: () => skipped = true),
         ));
         if (phase == PairPhase.paired) continue;
-        await tester.tap(find.text('Skip for now'));
+        await tester.tap(find.text('SKIP FOR NOW'));
         expect(skipped, isTrue, reason: '$phase has no escape');
       }
     });
@@ -305,13 +305,13 @@ void main() {
       ));
 
       // Nothing chosen: the one required field is missing.
-      await tester.tap(find.text('Continue'));
+      await tester.tap(find.text('CONTINUE'));
       await tester.pump();
       expect(saved, isNull);
 
-      await tester.tap(find.text('Female'));
+      await tester.tap(find.text('FEMALE'));
       await tester.pump();
-      await tester.tap(find.text('Continue'));
+      await tester.tap(find.text('CONTINUE'));
       await tester.pump();
 
       expect(saved, isNotNull);
@@ -330,11 +330,11 @@ void main() {
         theme: buildTheme(Brightness.light),
         home: ProfileSetupView(onSave: (f) async => saved = f),
       ));
-      await tester.tap(find.text('Male'));
+      await tester.tap(find.text('MALE'));
       await tester.enterText(find.byType(TextField).at(0), '34');
       await tester.enterText(find.byType(TextField).at(2), '78.4');
       await tester.pump();
-      await tester.tap(find.text('Continue'));
+      await tester.tap(find.text('CONTINUE'));
       await tester.pump();
 
       expect(saved!['sex'], 'm');
@@ -351,10 +351,10 @@ void main() {
         theme: buildTheme(Brightness.light),
         home: ProfileSetupView(onSave: (f) async => saved = f),
       ));
-      await tester.tap(find.text('Male'));
+      await tester.tap(find.text('MALE'));
       await tester.enterText(find.byType(TextField).at(2), '78 kg');
       await tester.pump();
-      await tester.tap(find.text('Continue'));
+      await tester.tap(find.text('CONTINUE'));
       await tester.pump();
 
       // Blank is unknown; "78 kg" is not blank, and writing the profile
@@ -463,7 +463,7 @@ void main() {
         home: MyDevicesView(sources: [band(connected: false)], status: s),
       ));
       expect(find.text(s.title), findsOneWidget);
-      expect(find.text(s.fix!), findsOneWidget);
+      expect(find.text(s.fix!.toUpperCase()), findsOneWidget);
     });
 
     testWidgets('an ordinary disconnect does not get a failure card',
@@ -506,7 +506,7 @@ void main() {
             theme: buildTheme(Brightness.light), home: const MyDevices()),
       ));
       expect(find.text('Your band'), findsOneWidget);
-      expect(find.text('Pair a band'), findsNothing);
+      expect(find.text('PAIR A BAND'), findsNothing);
 
       // Forget. `unpair()` itself is platform-bound (ASK, the engine, the
       // foreground service); what it leaves behind for this screen is this.
@@ -517,7 +517,7 @@ void main() {
       expect(find.text('Your band'), findsNothing);
       expect(find.text('This phone'), findsOneWidget,
           reason: 'the phone row is what used to swallow the empty state');
-      expect(find.text('Pair a band'), findsOneWidget);
+      expect(find.text('PAIR A BAND'), findsOneWidget);
     });
 
     testWidgets('and for someone who only ever had the phone', (tester) async {
@@ -537,7 +537,7 @@ void main() {
           onPair: () => pairs++,
         ),
       ));
-      await tester.tap(find.text('Pair a band'));
+      await tester.tap(find.text('PAIR A BAND'));
       expect(pairs, 1);
     });
 
@@ -578,7 +578,7 @@ void main() {
               isBand: true),
         ], onPair: () {}),
       ));
-      expect(find.text('Pair a band'), findsNothing);
+      expect(find.text('PAIR A BAND'), findsNothing);
     });
   });
 

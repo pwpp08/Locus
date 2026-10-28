@@ -123,7 +123,7 @@ void main() {
               head: {'recovery_state': 'provisional', 'recovery': 27.6},
               readiness: Metric(value: 27.6, confidence: .8)));
       await t.pumpAndSettle();
-      expect(find.text('28'), findsOneWidget);
+      expect(find.text('28%'), findsOneWidget);
       expect(find.text('Finishing up'), findsOneWidget);
     });
 

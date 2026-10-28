@@ -8,27 +8,27 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openstrap_edge/ui2/screens/start_card.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
 const _aa = 4.5;
 
 void main() {
+  // The one aurora left in the app: the Total sleep hero, lavender, with the
+  // words it carries (the sleep screen builds it the same way).
   final cases = <String, (Color, Widget)>{
-    'SignalCard(aurora)': (
-      C.domHealth,
-      const SignalCard(LucideIcons.heart, C.domHealth, 'Heart rate', '52',
-          unit: 'bpm', sub: 'Resting', aurora: true),
-    ),
-    'StartCard': (
-      C.domMove,
-      const StartCard(
-        label: 'START A SESSION',
-        count: 71,
-        noun: 'activities',
-        art: Art.bandHero,
-        accent: C.domMove,
-      ),
+    'Total sleep hero': (
+      C.lavender,
+      Builder(builder: (c) {
+        final p = P.of(c);
+        return AuroraTile(
+          hue: C.lavender,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Total sleep', style: F.cap.copyWith(color: p.ink)),
+            Text('9h 03m', style: F.n64.copyWith(color: p.ink)),
+            Text('23:18 → 09:34', style: F.body.copyWith(color: p.ink)),
+          ]),
+        );
+      }),
     ),
   };
 

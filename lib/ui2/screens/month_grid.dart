@@ -173,15 +173,15 @@ class MonthGrid extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: ink,
-              border: Border.all(color: p.line, width: .5),
-            ),
+            width: S.x2 + S.half,
+            height: S.x2 + S.half,
+            decoration: BoxDecoration(color: ink, borderRadius: R.rSm),
           ),
-          const SizedBox(width: S.x1),
-          Flexible(child: Text(label, style: F.over.copyWith(color: p.ink2))),
+          const SizedBox(width: S.x2),
+          Flexible(
+              child: Text(label.toUpperCase(),
+                  style: F.over.copyWith(
+                      color: p.ink2, fontWeight: FontWeight.w700))),
         ],
       );
 

@@ -120,14 +120,15 @@ void main() {
           .whereType<Bars>()
           .single;
       final p = P.of(t.element(find.byType(ReadinessDetail)));
-      expect(bars.colorOf!(20), p.on(C.red));
-      expect(bars.colorOf!(80), p.on(C.green));
-      expect(bars.colorOf!(30), p.on(C.orange));
+      // The recovery traffic light (67 / 34), the same as the dial's.
+      expect(bars.colorOf!(20), p.on(C.recRed));
+      expect(bars.colorOf!(80), p.on(C.recGreen));
+      expect(bars.colorOf!(50), p.on(C.recYellow));
       // Enough history: the Steady band is drawn, no abstain note.
       expect(find.byType(BandLayer), findsOneWidget);
-      // Steady is green too, so the green key names it; the band has a
-      // visible key of its own, not only a spoken one.
-      expect(find.text('Good to go / Steady'), findsOneWidget);
+      // The key is the dial's traffic light; the band has a visible key of
+      // its own, not only a spoken one.
+      expect(find.text('>66%'), findsOneWidget);
       expect(find.text('Usual range 37–61'), findsOneWidget);
 
       final strip = find.byWidgetPredicate(
@@ -176,7 +177,7 @@ void main() {
           }));
       expect(find.text('Below usual'), findsOneWidget);
       expect(find.text('· −6 ms from your usual 54 ms'), findsOneWidget);
-      await t.tap(find.text('30 days'));
+      await t.tap(find.text('30 DAYS'));
       await t.pumpAndSettle();
       expect(find.byType(BandLayer), findsOneWidget);
     });
@@ -185,7 +186,7 @@ void main() {
         'chart', (t) async {
       await pump(t, hrv());
       expect(find.text('Below usual'), findsNothing);
-      await t.tap(find.text('30 days'));
+      await t.tap(find.text('30 DAYS'));
       await t.pumpAndSettle();
       expect(find.byType(BandLayer), findsNothing);
     });
@@ -224,7 +225,7 @@ void main() {
     ));
     await t.pumpAndSettle();
     // The night's own numbers are on the card.
-    expect(find.textContaining('Heart rate 47–57'), findsOneWidget);
+    expect(find.textContaining('HEART RATE 47–57'), findsOneWidget);
     final stack = find.byWidgetPredicate(
         (w) => w is Scrubber && w.label == 'Through the night');
     expect(stack, findsOneWidget);

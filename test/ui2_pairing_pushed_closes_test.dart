@@ -55,7 +55,7 @@ void main() {
     }
     expect(find.byType(PairingScreen), findsOneWidget);
 
-    await t.tap(find.text('Find my band'));
+    await t.tap(find.text('FIND MY BAND'));
     for (var i = 0; i < 30; i++) {
       await t.pump(const Duration(milliseconds: 32));
     }

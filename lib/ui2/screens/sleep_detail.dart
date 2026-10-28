@@ -897,7 +897,7 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
     // Only the page ink is legible on aurora, so every word on it is ink;
     // the ratios that qualify it keep their hues on a plain card under it.
     final hero = AuroraTile(
-      hue: C.domSleep,
+      hue: C.lavender,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(

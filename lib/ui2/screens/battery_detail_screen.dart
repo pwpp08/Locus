@@ -84,19 +84,11 @@ class _BatteryDetailScreenState extends State<BatteryDetailScreen> {
 
     return Scaffold(
       backgroundColor: p.bg,
-      appBar: AppBar(
-        backgroundColor: p.bg,
-        elevation: 0,
-        title: Text('Strap Battery', style: F.t2.copyWith(color: p.ink)),
-        leading: IconButton(
-          icon: Icon(LucideIcons.arrowLeft, color: p.ink),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(S.x4),
           children: [
+            const NavBar('Strap Battery'),
             // Hero Status Card
             Container(
               padding: const EdgeInsets.all(S.x5),

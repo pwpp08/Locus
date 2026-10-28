@@ -411,7 +411,7 @@ void main() {
     await t.pump();
     await t.pump();
     expect(find.text('NOT ENOUGH YET'), findsOneWidget);
-    expect(find.text('Enter a lab result'), findsOneWidget);
+    expect(find.text('ENTER A LAB RESULT'), findsOneWidget);
     // It is a chart like any other now, not a refusal.
     expect(find.text('Not available'), findsNothing);
   });

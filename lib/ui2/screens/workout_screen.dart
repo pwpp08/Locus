@@ -205,10 +205,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> with RevisionReload {
               ];
               final today = DateTime.now().weekday - 1;
               final done = d.weekDays.contains(i);
-              // The Consistency dot row: a trained day is a volt dot
+              // The Consistency dot row: a trained day is a strain-blue dot
               // with a tick, any other day an empty one, and today is ringed
               // in ink so it is found without a hue. Not a streak.
-              final fill = p.fill(C.volt);
+              const fill = C.dialStrain;
               return Expanded(
                 child: Column(children: [
                   Text(days[i], style: F.over.copyWith(color: p.ink3)),
@@ -218,13 +218,13 @@ class _WorkoutScreenState extends State<WorkoutScreen> with RevisionReload {
                     height: S.x8,
                     decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: done ? fill : p.card2,
+                        color: done ? fill : p.ink.withValues(alpha: .09),
                         border: i == today && !done
                             ? Border.all(color: p.ink, width: 2)
                             : null),
                     child: done
-                        ? Icon(LucideIcons.check,
-                            size: I.sm, color: p.inkOn(fill))
+                        ? const Icon(LucideIcons.check,
+                            size: I.sm, color: C.white)
                         : null,
                   ),
                 ]),

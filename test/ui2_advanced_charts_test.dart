@@ -91,7 +91,7 @@ void main() {
           _app(CircadianDetail(data: d, advanced: true), scale: 3.1, b: b));
       await t.pumpAndSettle();
       expect(t.takeException(), isNull, reason: '$b overflowed');
-      expect(find.text('Sleep, night by night'), findsOneWidget);
+      expect(find.text('SLEEP, NIGHT BY NIGHT'), findsOneWidget);
     }
   });
 
@@ -104,10 +104,10 @@ void main() {
         actogram: [for (var i = 0; i < 7; i++) List<double>.filled(24, .5)]);
     await t.pumpWidget(_app(CircadianDetail(data: d)));
     await t.pumpAndSettle();
-    expect(find.text('Sleep, night by night'), findsNothing);
+    expect(find.text('SLEEP, NIGHT BY NIGHT'), findsNothing);
     await t.pumpWidget(_app(CircadianDetail(data: d, advanced: true)));
     await t.pumpAndSettle();
-    expect(find.text('Sleep, night by night'), findsOneWidget);
+    expect(find.text('SLEEP, NIGHT BY NIGHT'), findsOneWidget);
   });
 
   testWidgets('day strain draws the whole 0–21 scale its header names',

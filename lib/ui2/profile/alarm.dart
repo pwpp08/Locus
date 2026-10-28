@@ -321,13 +321,15 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Edit Alarm', style: F.n24.copyWith(color: p.ink)),
-                      IconButton(
-                        icon: const Icon(LucideIcons.trash2, color: C.red),
-                        onPressed: () async {
+                      Text('EDIT ALARM', style: F.caps.copyWith(color: p.ink)),
+                      Pressable(
+                        semanticLabel: 'Delete this alarm',
+                        onTap: () async {
                           Navigator.pop(ctx);
                           await mgr.deleteAlarm(alarm.id);
                         },
+                        child: Icon(LucideIcons.trash2,
+                            size: I.lg, color: p.on(C.red)),
                       ),
                     ],
                   ),
@@ -716,11 +718,11 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
       backgroundColor: p.bg,
       body: Container(
         decoration: BoxDecoration(
+          // The page gradient every tab draws (DESIGN.md §2.1).
           gradient: LinearGradient(
             begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            stops: const [0, .5],
-            colors: [Color.alphaBlend(p.ink.withValues(alpha: .13), p.bg), p.bg],
+            end: Alignment.center,
+            colors: [p.bgTop, p.bg],
           ),
         ),
         child: SafeArea(

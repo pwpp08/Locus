@@ -189,7 +189,7 @@ void main() {
     expect(find.text('82.5'), findsOneWidget);
     expect(find.text('kg'), findsOneWidget);
     expect(find.byType(ScrubLine), findsOneWidget);
-    expect(find.text('Change the record'), findsOneWidget);
+    expect(find.text('CHANGE THE RECORD'), findsOneWidget);
     expect(find.text('Remove the number I typed'), findsNothing);
   });
 

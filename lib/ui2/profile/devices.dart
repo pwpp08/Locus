@@ -384,9 +384,14 @@ class _SignalPriorityScreenState extends State<SignalPriorityScreen> {
                           },
                           children: [
                             for (final id in _order[sig] ?? const <String>[])
-                              ListTile(
+                              Container(
                                 key: ValueKey(id),
-                                title: Text(_labels[id] ?? id),
+                                height: S.x12,
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: S.x4),
+                                child: Text(_labels[id] ?? id,
+                                    style: F.body.copyWith(color: p.ink)),
                               ),
                           ],
                         ),

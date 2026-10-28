@@ -645,7 +645,7 @@ class LiveShellState extends State<LiveShell> {
               // so the affordance is not drawn.
               const SizedBox(width: S.x12 + S.x2),
               const SizedBox(width: S.x4),
-              // The screen's one volt control: pause / resume.
+              // The screen's one primary control, in the START pill's blue.
               Expanded(
                 child: Pressable(
                   semanticLabel: paused
@@ -658,12 +658,12 @@ class LiveShellState extends State<LiveShell> {
                   child: Container(
                     height: S.x12 + S.x2,
                     alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                        color: p.fill(C.volt), borderRadius: R.rPill),
+                    decoration: const BoxDecoration(
+                        color: C.dialStrain, borderRadius: R.rPill),
                     child: Icon(
                         paused ? LucideIcons.play : LucideIcons.pause,
                         size: I.lg,
-                        color: p.inkOn(p.fill(C.volt))),
+                        color: C.white),
                   ),
                 ),
               ),
@@ -1659,9 +1659,7 @@ class _LiveStrengthState extends State<LiveStrength> {
             height: filled ? 11 : 9,
             decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: filled ? p.on(C.purple) : null,
-                border:
-                    filled ? null : Border.all(color: p.line, width: 1.6)),
+                color: filled ? C.dialStrain : p.ink.withValues(alpha: .12)),
           );
         }),
       ),

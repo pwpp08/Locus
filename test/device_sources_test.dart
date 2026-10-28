@@ -95,7 +95,7 @@ void main() {
     ));
     await t.pumpAndSettle();
     // The card that offers to pair a BAND is still there, because one is not.
-    expect(find.text('Pair a band'), findsOneWidget);
+    expect(find.text('PAIR A BAND'), findsOneWidget);
     expect(find.text('Polar H10'), findsOneWidget);
   });
 }

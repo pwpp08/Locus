@@ -227,20 +227,30 @@ class _WatchCompareScreenState extends State<WatchCompareScreen> {
 
   Widget _dayBar(P p) {
     final isToday = dayLabelOf(_day) == todayLabel();
+    Widget arrow(bool left, VoidCallback? onTap) => Pressable(
+          onTap: onTap,
+          semanticLabel: left ? 'Previous day' : 'Next day',
+          child: SizedBox(
+            width: S.x8 + S.x1,
+            height: S.tap,
+            child: Center(
+              child: BoldChevron(
+                  left: left,
+                  height: S.x3,
+                  color: onTap == null ? p.ink.withValues(alpha: .22) : p.ink),
+            ),
+          ),
+        );
     return Row(children: [
-      IconButton(
-          onPressed: () => _shiftDay(-1),
-          icon: Icon(LucideIcons.chevronLeft, color: p.ink)),
+      arrow(true, () => _shiftDay(-1)),
       Expanded(
         child: Center(
-          child: Text(isToday ? 'Today' : dayLabelOf(_day),
-              style: F.t2.copyWith(color: p.ink)),
+          child: Text((isToday ? 'Today' : dayLabelOf(_day)).toUpperCase(),
+              style: F.over.copyWith(
+                  color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1)),
         ),
       ),
-      IconButton(
-          onPressed: isToday ? null : () => _shiftDay(1),
-          icon: Icon(LucideIcons.chevronRight,
-              color: isToday ? p.ink3 : p.ink)),
+      arrow(false, isToday ? null : () => _shiftDay(1)),
     ]);
   }
 

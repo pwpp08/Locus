@@ -59,7 +59,7 @@ void main() {
       await t.tap(add.first);
       await t.pumpAndSettle();
       await t.enterText(find.byType(TextField).last, 'Magnesium');
-      await t.tap(find.text('Start tracking it'));
+      await t.tap(find.text('START TRACKING IT'));
       await t.pumpAndSettle();
       expect(repo.saves, attempt, reason: 'attempt $attempt reached the repo');
       ScaffoldMessenger.of(t.element(find.byType(JournalCompose)))

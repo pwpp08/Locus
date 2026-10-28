@@ -61,9 +61,9 @@ void main() {
       expect(find.textContaining('7:31 PM'), findsOneWidget);
       expect(find.text('61 min'), findsOneWidget);
       // Every answer is reachable, including the one that matters most.
-      expect(find.text('Confirm'), findsOneWidget);
-      expect(find.text('Change sport'), findsOneWidget);
-      expect(find.text('Not a workout'), findsOneWidget);
+      expect(find.text('CONFIRM'), findsOneWidget);
+      expect(find.text('CHANGE SPORT'), findsOneWidget);
+      expect(find.text('NOT A WORKOUT'), findsOneWidget);
       // and it never prints a strain or a calorie figure it has not scored
       expect(find.textContaining('strain'), findsNothing);
     });
@@ -79,7 +79,7 @@ void main() {
         preloaded: [_sug(), _sug(id: 'b')],
         focusId: 'gone',
       ));
-      expect(find.text('Confirm'), findsNWidgets(2));
+      expect(find.text('CONFIRM'), findsNWidgets(2));
       expect(find.text('Nothing to review'), findsNothing);
       final cards = t.widgetList<ActivityProposalCard>(find.byType(ActivityProposalCard));
       expect(cards.any((c) => c.highlighted), isFalse);
@@ -94,7 +94,7 @@ void main() {
           focusId: 'b',
         ),
       );
-      expect(find.text('Confirm'), findsNWidgets(2));
+      expect(find.text('CONFIRM'), findsNWidgets(2));
       final cards = t.widgetList<ActivityProposalCard>(find.byType(ActivityProposalCard)).toList();
       expect(cards.singleWhere((c) => c.highlighted).suggestion.id, 'b');
     });
@@ -126,7 +126,7 @@ void main() {
       // on "now to now" opens invalid.
       expect(find.text('60 min'), findsOneWidget);
       expect(find.text('That window will not save'), findsNothing);
-      expect(find.text('Log it'), findsOneWidget);
+      expect(find.text('LOG IT'), findsOneWidget);
     });
 
     testWidgets('a window that overlaps one already logged is refused', (
@@ -185,7 +185,7 @@ void main() {
         ),
       );
       expect(find.text('FIX THE TIMES'), findsWidgets);
-      expect(find.text('Save the new times'), findsOneWidget);
+      expect(find.text('SAVE THE NEW TIMES'), findsOneWidget);
       // The row that would change the activity is absent: a retime is about
       // the window, and the type belongs to the row already.
       expect(find.text('Activity'), findsNothing);

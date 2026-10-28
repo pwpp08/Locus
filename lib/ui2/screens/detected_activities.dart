@@ -302,10 +302,9 @@ class ActivityProposalCard extends StatelessWidget {
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: S.x2),
       child: Text(
-        label,
-        style: F.body.copyWith(
-          color: P.of(c).on(accent),
-          fontWeight: FontWeight.w600,
+        label.toUpperCase(),
+        style: F.caps.copyWith(
+          color: accent == C.red ? P.of(c).on(C.red) : P.of(c).ink,
         ),
       ),
     ),

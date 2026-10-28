@@ -289,37 +289,45 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
         ] else
           Surface(
             child: Column(children: [
-              // The screen's one hero. A settled score is the cream badge
-              // with its band as a pill under it (the ramp's hue, and the
-              // word, so the hue is never alone). A provisional one keeps the
-              // grey ring: a badge reads as final, and this number may move.
-              if (d.provisional)
-                SizedBox(
-                  width: 150,
-                  height: 150,
-                  child: Stack(alignment: Alignment.center, children: [
-                    CustomPaint(
-                      size: const Size(150, 150),
-                      painter: Ring(d.readiness.normalized(100), p.ink3,
-                          p.track,
-                          stroke: 12, t: animate(c, 1)),
+              // The screen's one hero: the strain page's ring, its arc in the
+              // recovery traffic light. A provisional score keeps a grey arc
+              // and grey figure: this number may still move.
+              SizedBox(
+                width: S.x16 * 3,
+                height: S.x16 * 3,
+                child: Stack(alignment: Alignment.center, children: [
+                  CustomPaint(
+                    size: const Size.square(S.x16 * 3),
+                    painter: Ring(
+                        d.readiness.normalized(100),
+                        d.provisional ? p.ink3 : recoveryColor(v),
+                        p.track,
+                        stroke: S.x16 * 3 * .064,
+                        solid: true,
+                        flatStart: true,
+                        t: animate(c, 1)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(S.x6),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Text('${v.round()}%',
+                            style: F.n64.copyWith(
+                                color: d.provisional ? p.ink3 : p.ink)),
+                        const SizedBox(height: S.x1),
+                        Text(
+                            (l?.readinessDetailTitle ?? 'Recovery')
+                                .toUpperCase(),
+                            style: F.caps
+                                .copyWith(color: p.ink, letterSpacing: 2.2)),
+                      ]),
                     ),
-                    Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text('${v.round()}',
-                          style: F.n48.copyWith(color: p.ink3)),
-                      Text(band.label, style: F.cap.copyWith(color: p.ink3)),
-                    ]),
-                  ]),
-                )
-              else ...[
-                ScallopBadge(
-                  value: '${v.round()}',
-                  label: l?.readinessDetailTitle ?? 'Recovery',
-                  size: 184,
-                ),
-                const SizedBox(height: S.x3),
-                Pill(band.label, band.color),
-              ],
+                  ),
+                ]),
+              ),
+              const SizedBox(height: S.x3),
+              Pill(band.label, d.provisional ? p.ink3 : band.color),
               if (recoveryStateLine(d.head, l) case final note?) ...[
                 const SizedBox(height: S.x2),
                 Text(note, style: F.cap.copyWith(color: p.ink3)),
@@ -454,16 +462,12 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
           l?.readinessDetailToday ?? 'Today',
         ],
         series: win,
+        // The bars wear the dial's traffic light, so the key is its three
+        // bands, as on the recovery calendar.
         legend: [
-          // Steady is green on the ring too, so the green key names both:
-          // a 45 inside the band is not "Good to go".
-          (
-            '${l?.homeReadinessGoodToGo ?? 'Good to go'} / '
-                '${l?.homeReadinessSteady ?? 'Steady'}',
-            p.on(C.green)
-          ),
-          (l?.homeReadinessTakeItEasy ?? 'Take it easy', p.on(C.orange)),
-          (l?.homeReadinessRestToday ?? 'Rest today', p.on(C.red)),
+          ('>66%', p.on(C.recGreen)),
+          ('34% - 66%', p.on(C.recYellow)),
+          ('<34%', p.on(C.recRed)),
         ],
         footnote: band == null ? usualNeedsDaysText(l, scored.length) : null,
         child: win.length < 2

@@ -307,7 +307,7 @@ class _IconChoice extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: R.rMd,
           border: Border.all(
-              color: selected ? p.on(C.indigo) : p.line, width: selected ? 2 : 1),
+              color: selected ? p.ink : const Color(0x00000000), width: 2),
         ),
         child: ClipRRect(
           borderRadius: R.rSm,
@@ -1596,14 +1596,14 @@ class _EditProfileViewState extends State<EditProfileView> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: S.x4, vertical: S.x2),
                         decoration: BoxDecoration(
-                          color: _sex == key ? p.wash(C.green) : p.card,
-                          borderRadius: R.rPill,
-                          border: Border.all(
-                              color: _sex == key ? p.on(C.green) : p.line),
+                          color: _sex == key
+                              ? p.ink
+                              : p.ink.withValues(alpha: .09),
+                          borderRadius: R.rLg,
                         ),
-                        child: Text(label,
-                            style: F.cap.copyWith(
-                                color: _sex == key ? p.on(C.green) : p.ink2)),
+                        child: Text(label.toUpperCase(),
+                            style: F.caps.copyWith(
+                                color: _sex == key ? p.bg : p.ink2)),
                       ),
                     ),
                 ]),

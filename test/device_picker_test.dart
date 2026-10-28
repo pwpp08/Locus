@@ -118,7 +118,7 @@ void main() {
     testWidgets('held back shows the reason and a search-anyway fix', (t) async {
       await _pump(t, _view(heldBack: 'Searching would hide the WHOOP sheet.'));
       expect(find.text('Searching would hide the WHOOP sheet.'), findsOneWidget);
-      expect(find.text('Search anyway'), findsOneWidget);
+      expect(find.text('SEARCH ANYWAY'), findsOneWidget);
     });
 
     testWidgets('held back suppresses the nearby section entirely', (t) async {
@@ -164,9 +164,9 @@ void main() {
 
   testWidgets('skip is offered only when the caller gave a way out', (t) async {
     await _pump(t, _view());
-    expect(find.text('Skip for now'), findsNothing);
+    expect(find.text('SKIP FOR NOW'), findsNothing);
     await _pump(t, _view(onSkip: () {}));
-    expect(find.text('Skip for now'), findsOneWidget);
+    expect(find.text('SKIP FOR NOW'), findsOneWidget);
   });
 
   test('every category the picker lists has a pairing step behind it', () {

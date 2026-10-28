@@ -72,9 +72,9 @@ Future<void> _enter(WidgetTester tester, String label, String value) async {
 
 Future<void> _save(WidgetTester tester) async {
   tester.testTextInput.hide();
-  await tester.ensureVisible(find.text('Save'));
+  await tester.ensureVisible(find.text('SAVE'));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Save'));
+  await tester.tap(find.text('SAVE'));
   await tester.pumpAndSettle();
 }
 

@@ -1103,9 +1103,8 @@ class _CoachSetupState extends State<CoachSetup> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: S.x3),
                         decoration: BoxDecoration(
-                          color: p.card,
+                          color: p.card2,
                           borderRadius: R.rMd,
-                          border: Border.all(color: p.line),
                         ),
                         child: Semantics(
                           label: l?.coachApiFormatLabel ?? 'API',

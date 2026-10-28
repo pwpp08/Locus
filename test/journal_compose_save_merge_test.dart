@@ -65,7 +65,7 @@ void main() {
     repo.metrics['water_ml'] = const JournalMetricValue(750);
     repo.tags.add('moment 21:04');
 
-    await t.tap(find.text('Save').first);
+    await t.tap(find.text('SAVE').first);
     await t.pumpAndSettle();
 
     expect(repo.metrics['water_ml']?.value, 750);

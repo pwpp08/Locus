@@ -116,9 +116,9 @@ void main() {
         gridRow('readiness',
             pts([20, 80, ...List<double>.generate(20, (i) => 50)])),
       ]);
-      expect(find.text('Usual for you'), findsOneWidget);
-      expect(find.text('Better than usual'), findsOneWidget);
-      expect(find.text('Worse than usual'), findsOneWidget);
+      expect(find.text('USUAL FOR YOU'), findsOneWidget);
+      expect(find.text('BETTER THAN USUAL'), findsOneWidget);
+      expect(find.text('WORSE THAN USUAL'), findsOneWidget);
       expect(
           find.bySemanticsLabel(RegExp(r'1 below and 1 above your usual range')),
           findsOneWidget);

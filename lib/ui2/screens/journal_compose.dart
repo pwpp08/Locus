@@ -634,9 +634,8 @@ class OsTextField extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x2),
           decoration: BoxDecoration(
-            color: p.card,
+            color: p.card2,
             borderRadius: R.rMd,
-            border: Border.all(color: p.line),
           ),
           // The label is drawn as a sibling `Text`, which a screen reader reads
           // on the way past and then forgets. Focused, the field itself

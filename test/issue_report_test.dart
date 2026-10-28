@@ -181,15 +181,15 @@ void main() {
     expect(find.text(full), findsOneWidget);
     expect(sw(0).value, isFalse);
     expect(sw(1).value, isFalse);
-    expect(find.text('Create ticket'), findsOneWidget);
-    expect(find.text('Share locally'), findsOneWidget);
+    expect(find.text('CREATE TICKET'), findsOneWidget);
+    expect(find.text('SHARE LOCALLY'), findsOneWidget);
     for (final path in reportPaths()) {
       expect(find.text(path), findsOneWidget, reason: path);
     }
     expect(find.text('database.db.gz'), findsNothing);
 
     BigButton ticket() => tester.widget<BigButton>(
-        find.ancestor(of: find.text('Create ticket'), matching: find.byType(BigButton)));
+        find.ancestor(of: find.text('CREATE TICKET'), matching: find.byType(BigButton)));
     const noUpload =
         'The full database is too big to upload. Use Share locally and send the file to us.';
 

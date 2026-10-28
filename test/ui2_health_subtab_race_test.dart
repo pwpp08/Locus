@@ -103,7 +103,7 @@ void main() {
     // The user opens Vitals for the first time. Its read parks mid-flight.
     final parked = Completer<void>();
     repo.hold = parked;
-    await t.tap(find.text('Vitals'));
+    await t.tap(find.text('VITALS'));
     await _settle(t);
     expect(find.byType(CircularProgressIndicator), findsOneWidget,
         reason: 'the sub-tab should still be loading — nothing to race yet');

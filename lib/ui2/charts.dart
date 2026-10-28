@@ -1014,8 +1014,8 @@ class ZoneRows extends StatelessWidget {
   const ZoneRows(this.minutes,
       {super.key, this.lowerBpm, this.title, this.footnote, this.compact = false});
 
-  /// Slate-blue → sky → volt → amber → coral.
-  static const pigment = [C.blueSoft, C.sky, C.volt, C.amber, C.coral];
+  /// The five HR zones as every chart draws them (DESIGN.md §2.4).
+  static const pigment = [C.refZone1, C.refZone2, C.refZone3, C.refZone4, C.refZone5];
 
   /// The bar colours as drawn, solved against the surface like every mark.
   static List<Color> cols(P p) => [for (final c in pigment) p.on(c)];
@@ -1499,53 +1499,6 @@ class DayLanes extends CustomPainter {
 // None of them draws data: each is painted once, under a RepaintBoundary held
 // by its widget, and none animates on its own.
 
-/// The ScallopBadge outline: a disc whose edge is a smooth wave of
-/// [Fx.scallopLobes] bumps, filled [color].
-class ScallopPainter extends CustomPainter {
-  final Color color;
-
-  /// A 2 px edge, for a disc on a page the same colour as itself: cream on
-  /// the Cream theme is otherwise invisible. Null draws no edge.
-  final Color? edge;
-  ScallopPainter(this.color, {this.edge});
-
-  static Path outline(Size s) {
-    final c = Offset(s.width / 2, s.height / 2);
-    final r = min(s.width, s.height) / 2;
-    final path = Path();
-    const steps = 240;
-    for (var i = 0; i <= steps; i++) {
-      final a = 2 * pi * i / steps;
-      // 1 at a lobe's crest, 1 - depth in the valley between two.
-      final k = 1 - Fx.scallopDepth * (1 - cos(Fx.scallopLobes * a)) / 2;
-      final o = c + Offset(cos(a), sin(a)) * (r * k);
-      i == 0 ? path.moveTo(o.dx, o.dy) : path.lineTo(o.dx, o.dy);
-    }
-    return path..close();
-  }
-
-  @override
-  void paint(Canvas cv, Size s) {
-    // Inset by the stroke so the edge is not clipped by the box.
-    final path = outline(Size(s.width - 4, s.height - 4)).shift(const Offset(2, 2));
-    cv.drawPath(path, Paint()..color = color..isAntiAlias = true);
-    if (edge != null) {
-      cv.drawPath(
-          path,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2
-            ..strokeJoin = StrokeJoin.round
-            ..color = edge!
-            ..isAntiAlias = true);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant ScallopPainter o) =>
-      o.color != color || o.edge != edge;
-}
-
 /// The AuroraTile ground: [card] with two soft radial fields of [peak] —
 /// [P.aurora]'s brightest point, already blended over the card. Every pixel
 /// is a mix of the two, so nothing on the tile is brighter than the colour
@@ -1578,60 +1531,4 @@ class AuroraPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant AuroraPainter o) =>
       o.card != card || o.peak != peak;
-}
-
-/// The onboarding "river": one smooth path winding down through [count] step
-/// dots. Steps before [current] are done, [current] is ringed, the rest wait.
-class StepPathPainter extends CustomPainter {
-  final int count, current;
-  final Color river, done, waiting, ring;
-  StepPathPainter(this.count, this.current,
-      {required this.river,
-      required this.done,
-      required this.waiting,
-      required this.ring});
-
-  List<Offset> _dots(Size s) => [
-        for (var i = 0; i < count; i++)
-          Offset(
-            s.width * (i.isEven ? .28 : .72),
-            count == 1 ? s.height / 2 : s.height * (.08 + .84 * i / (count - 1)),
-          ),
-      ];
-
-  @override
-  void paint(Canvas cv, Size s) {
-    if (count <= 0) return;
-    final dots = _dots(s);
-    final path = Path()..moveTo(dots.first.dx, 0);
-    var prev = Offset(dots.first.dx, 0);
-    for (final d in [...dots, Offset(dots.last.dx, s.height)]) {
-      final midY = (prev.dy + d.dy) / 2;
-      path.cubicTo(prev.dx, midY, d.dx, midY, d.dx, d.dy);
-      prev = d;
-    }
-    cv.drawPath(
-      path,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = Fx.stepPathStroke
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..color = river,
-    );
-    for (var i = 0; i < dots.length; i++) {
-      if (i < current) {
-        cv.drawCircle(dots[i], 7, Paint()..color = done);
-      } else if (i == current) {
-        cv.drawCircle(dots[i], 11, Paint()..color = ring);
-        cv.drawCircle(dots[i], 6, Paint()..color = river);
-      } else {
-        cv.drawCircle(dots[i], 7, Paint()..color = waiting);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant StepPathPainter o) =>
-      o.count != count || o.current != current || o.river != river;
 }

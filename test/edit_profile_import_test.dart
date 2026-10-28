@@ -64,10 +64,10 @@ void main() {
           ),
         ));
 
-    expect(find.textContaining('Import from '), findsOneWidget);
+    expect(find.textContaining('IMPORT FROM '), findsOneWidget);
     expect(find.widgetWithText(TextField, '72.4'), findsOneWidget);
 
-    await t.tap(find.textContaining('Import from '));
+    await t.tap(find.textContaining('IMPORT FROM '));
     await t.pumpAndSettle();
 
     // What arrived is on screen, in the field it belongs to — not just in a
@@ -76,7 +76,7 @@ void main() {
     expect(find.widgetWithText(TextField, '35'), findsOneWidget);
     expect(find.text('Updated weight from the store.'), findsOneWidget);
     // Same control, second verb.
-    expect(find.textContaining('Refresh from '), findsOneWidget);
+    expect(find.textContaining('REFRESH FROM '), findsOneWidget);
   });
 
   testWidgets('a refusal keeps the first verb and changes nothing', (t) async {
@@ -87,13 +87,13 @@ void main() {
           onSave: (_) async {},
           onImport: () async => ('The store granted nothing.', true, null),
         ));
-    await t.tap(find.textContaining('Import from '));
+    await t.tap(find.textContaining('IMPORT FROM '));
     await t.pumpAndSettle();
 
     expect(find.text('The store granted nothing.'), findsOneWidget);
     expect(find.widgetWithText(TextField, '72.4'), findsOneWidget);
     // Nothing was read, so nothing is there to refresh.
-    expect(find.textContaining('Import from '), findsOneWidget);
-    expect(find.textContaining('Refresh from '), findsNothing);
+    expect(find.textContaining('IMPORT FROM '), findsOneWidget);
+    expect(find.textContaining('REFRESH FROM '), findsNothing);
   });
 }

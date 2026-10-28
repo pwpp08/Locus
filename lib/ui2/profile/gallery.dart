@@ -173,13 +173,6 @@ Map<String, Widget> componentCases() => {
       // screen which can say more — including the one absence nothing
       // explained, which says exactly that.
       'rings_absent': const RingTrio(d: _ringsAbsent),
-      // D5, the other Today hero: a settled recovery in the scallop badge
-      // with the other two as small rings beside it. A calibrating recovery
-      // has no badge (there is no absent badge), so it falls back to the
-      // trio — photographed to prove it.
-      'rings_badge': const RingTrio(d: _ringsMeasured, badge: true),
-      'rings_badge_calibrating':
-          const RingTrio(d: _ringsCalibrating, badge: true),
       // The ONE card, both faces: the map as the background, and a photograph
       // as the background with the route dissolved into its corner.
       'share_card': _shareCard(photo: false),
@@ -397,61 +390,29 @@ Map<String, Widget> componentCases() => {
         secondary: 'Keep it',
         onChoice: (_) {},
       )),
-      // Glass over the thing it is for — imagery — so the blur has something
-      // to frost. The stand-in is an aurora field, the busiest ground the app
-      // paints itself.
-      'glass': Builder(builder: (c) => AuroraTile(
-            hue: C.domHealth,
-            child: Glass(
-              radius: R.rPill,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: S.x5, vertical: S.x3),
-                child: Text('Step 2 · Connected',
-                    style: F.body.copyWith(color: P.of(c).ink)),
-              ),
+      // Glass, as the tab bar draws it.
+      'glass': Builder(builder: (c) => Glass(
+            radius: R.rPill,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: S.x5, vertical: S.x3),
+              child: Text('Home · Health · More',
+                  style: F.body.copyWith(color: P.of(c).ink)),
             ),
           )),
-      // The hero badge, with and without its caret — only ever for a value
-      // that exists. There is no absent case: an absent readiness is a
-      // StatusCard, which this gallery already shows.
-      'scallop_badge': const Center(
-        child: ScallopBadge(
-            value: '72',
-            label: 'Readiness',
-            delta: '+6 vs your usual',
-            up: true),
-      ),
-      'scallop_badge_plain': const Center(
-        child: ScallopBadge(value: '7h 28m', label: 'Time asleep', size: 160),
-      ),
-      // "At a glance": three domain hues, each with a real reading and unit.
-      'aurora_tiles': Builder(builder: (c) {
-        final p = P.of(c);
-        Widget tile(Color hue, String label, String value, String unit) =>
-            AuroraTile(
-              hue: hue,
-              semanticLabel: '$label, $value $unit',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Ink only: the muted inks are not solved on aurora.
-                  Text(label, style: F.cap.copyWith(color: p.ink)),
-                  const SizedBox(height: S.x6),
-                  Numeral(value, unit: unit, unitColor: p.ink),
-                ],
-              ),
-            );
-        return Column(children: [
-          tile(C.domHealth, 'Resting heart rate', '52', 'bpm'),
-          const SizedBox(height: S.x3),
-          tile(C.domHome, 'Steps', '11,284', ''),
-          const SizedBox(height: S.x3),
-          tile(C.domFood, 'Active energy', '1,174', 'kcal'),
-        ]);
-      }),
-      'step_path': const StepPath(4, 2, height: 220),
-      // The drawn art set, every slot, on the aurora they are shown on.
+      // The one aurora: the Total sleep hero's ground.
+      'aurora_tile': Builder(builder: (c) => AuroraTile(
+            hue: C.lavender,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Total sleep', style: F.cap.copyWith(color: P.of(c).ink)),
+                const SizedBox(height: S.x2),
+                Text('9h 03m', style: F.n64.copyWith(color: P.of(c).ink)),
+              ],
+            ),
+          )),
+      // The drawn art set, every slot, each on a card.
       // An empty state that is an invitation draws its picture above the copy.
       'status_card_art': const StatusCard(
         'Nothing logged today',
@@ -474,19 +435,17 @@ Map<String, Widget> componentCases() => {
           ])
             SizedBox(
               width: S.x16 + S.x12,
-              child: AuroraTile(
-                hue: C.domHome,
-                intensity: .5,
+              child: Surface(
                 child: Center(child: a.image(height: S.x12 + S.x8)),
               ),
             ),
         ]);
       }),
-      // The onboarding header: the step in words on a glass pill, the river
-      // under it. Char, as every onboarding screen is.
+      // The onboarding header: the step in capitals over a segmented bar.
+      // Char, as every onboarding screen is.
       'onboarding_step': const AlwaysChar(child: OnboardingStep(2)),
-      // The band's picture on its aurora field (draws only the field until the
-      // art file is bundled).
+      // The band's picture on its card (draws only the card until the art
+      // file is bundled).
       'band_stage': const AlwaysChar(child: BandStage(Art.bandHero, height: 160)),
       // The one theme override: a card inside it is Char whatever the app is.
       'always_char': AlwaysChar(
@@ -1057,8 +1016,8 @@ Map<String, Widget> extraCases() => {
         builder: (c) => Pressable(
           onTap: () {},
           semanticLabel: 'Open the full night',
-          child: Text('Open the full night',
-              style: F.body.copyWith(color: P.of(c).on(C.green))),
+          child: Text('OPEN THE FULL NIGHT',
+              style: F.caps.copyWith(color: P.of(c).ink)),
         ),
       ),
       'screen_title': const ScreenTitle('Sleep and recovery',

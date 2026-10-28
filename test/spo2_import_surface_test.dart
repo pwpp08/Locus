@@ -145,8 +145,8 @@ void main() {
     }
 
     await pump({'resp_rate': 3});
-    expect(find.textContaining('Blood oxygen'), findsNothing);
+    expect(find.textContaining('BLOOD OXYGEN'), findsNothing);
     await pump({'resp_rate': 3, 'spo2': 2});
-    expect(find.textContaining('Blood oxygen'), findsOneWidget);
+    expect(find.textContaining('BLOOD OXYGEN'), findsOneWidget);
   });
 }

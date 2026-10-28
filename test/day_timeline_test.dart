@@ -385,21 +385,21 @@ void _graphTests() {
 
     testWidgets('a day with no curve draws no axis', (t) async {
       await t.pumpWidget(frame(const TimelineData(day: _gDay)));
-      expect(find.text('Heart rate'), findsNothing);
+      expect(find.text('HEART RATE'), findsNothing);
       expect(find.text('Nothing was recorded on this day'), findsOneWidget);
     });
 
     testWidgets('a day with a curve draws one axis, labelled once', (t) async {
       await t.pumpWidget(frame(full()));
-      expect(find.text('Heart rate'), findsOneWidget);
+      expect(find.text('HEART RATE'), findsOneWidget);
       expect(find.text('bpm'), findsOneWidget);
       expect(find.text('Midnight'), findsNWidgets(2));
       expect(find.text('Noon'), findsOneWidget);
       // Every lane with something in it is named, and none that is empty.
-      expect(find.text('Asleep'), findsOneWidget);
-      expect(find.text('Workout'), findsOneWidget);
-      expect(find.text('Moving'), findsOneWidget);
-      expect(find.text('Not recorded'), findsOneWidget);
+      expect(find.text('ASLEEP'), findsOneWidget);
+      expect(find.text('WORKOUT'), findsOneWidget);
+      expect(find.text('MOVING'), findsOneWidget);
+      expect(find.text('NOT RECORDED'), findsOneWidget);
     });
 
     testWidgets('nothing overflows at 3.1x', (t) async {

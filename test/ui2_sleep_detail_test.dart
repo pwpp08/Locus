@@ -12,6 +12,7 @@ import 'package:openstrap_edge/l10n/app_localizations.dart';
 import 'package:openstrap_edge/theme/theme_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:openstrap_edge/models/metric.dart';
+import 'package:openstrap_edge/ui2/profile/devices.dart' show DeviceFilter;
 import 'package:openstrap_edge/ui2/screens/screens.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
@@ -78,7 +79,7 @@ void main() {
       ),
     );
     expect(find.text('No sleep recorded'), findsOneWidget);
-    expect(find.text('Set one manually'), findsOneWidget);
+    expect(find.text('SET ONE MANUALLY'), findsOneWidget);
     expect(find.textContaining('%'), findsNothing);
   });
 
@@ -270,7 +271,7 @@ void main() {
     // Too little history to compare against. The section stays, carrying the
     // COUNT — absent-but-expected says when it arrives — but it must not claim
     // a comparison it cannot make.
-    expect(find.textContaining('3 of 7 nights so far'), findsOneWidget);
+    expect(find.textContaining('3 OF 7 NIGHTS SO FAR'), findsOneWidget);
     expect(find.textContaining('Typical for you'), findsNothing);
     // The extremes need history; the nocturnal detection carries its own
     // baseline, so the section is present for that alone.
@@ -399,8 +400,8 @@ void main() {
     expect(find.textContaining('30–45 minutes'), findsNothing);
     await t.tap(find.byIcon(LucideIcons.pencil));
     await t.pumpAndSettle();
-    expect(find.text('Change the times'), findsOneWidget);
-    expect(find.text('Not sleep'), findsOneWidget);
+    expect(find.text('CHANGE THE TIMES'), findsOneWidget);
+    expect(find.text('NOT SLEEP'), findsOneWidget);
     expect(find.textContaining('30–45 minutes'), findsOneWidget);
     // Never a single minute: the stager sees a wrist.
     expect(find.textContaining('37 minutes'), findsNothing);
@@ -531,36 +532,36 @@ void main() {
           ],
         ),
       );
-      expect(find.text('Locus'), findsOneWidget);
-      expect(find.text('Mi Band'), findsOneWidget);
-      expect(find.text('Colmi ring'), findsOneWidget);
+      expect(_sw('LOCUS'), findsOneWidget);
+      expect(_sw('MI BAND'), findsOneWidget);
+      expect(_sw('COLMI RING'), findsOneWidget);
       expect(find.textContaining('Staged by'), findsNothing,
           reason: 'ours is the default view');
 
-      await t.tap(find.text('Mi Band'));
+      await t.tap(_sw('MI BAND'));
       await t.pumpAndSettle();
       expect(find.text('Staged by Mi Band'), findsOneWidget);
       expect(find.textContaining('Deep 1h'), findsOneWidget);
       expect(find.textContaining('does not report REM'), findsOneWidget);
 
       // The pill row scrolls sideways; bring the last pill into view first.
-      await t.ensureVisible(find.text('Colmi ring'));
+      await t.ensureVisible(_sw('COLMI RING'));
       await t.pumpAndSettle();
-      await t.tap(find.text('Colmi ring'));
+      await t.tap(_sw('COLMI RING'));
       await t.pumpAndSettle();
       expect(find.text('Staged by Colmi ring'), findsOneWidget);
       expect(find.textContaining('does not report'), findsNothing);
 
-      await t.ensureVisible(find.text('Locus'));
+      await t.ensureVisible(_sw('LOCUS'));
       await t.pumpAndSettle();
-      await t.tap(find.text('Locus'));
+      await t.tap(_sw('LOCUS'));
       await t.pumpAndSettle();
       expect(find.textContaining('Staged by'), findsNothing);
     });
 
     testWidgets('no device night means no switcher', (t) async {
       await _pump(t, SleepData(day: '2026-05-20', night: _night()));
-      expect(find.text('Locus'), findsNothing);
+      expect(_sw('LOCUS'), findsNothing);
     });
   });
 
@@ -585,7 +586,7 @@ void main() {
       (t) async {
     await _pump(t, const SleepData(day: '2026-05-20'));
     expect(find.text('No sleep recorded'), findsOneWidget);
-    final b = find.text('Set one manually');
+    final b = find.text('SET ONE MANUALLY');
     expect(b, findsOneWidget);
     await t.tap(b);
     await t.pumpAndSettle();
@@ -593,7 +594,7 @@ void main() {
     expect(find.byType(WindowEditor), findsOneWidget);
     expect(find.text('START'), findsOneWidget);
     expect(find.text('END'), findsOneWidget);
-    expect(find.text('Save sleep'), findsOneWidget);
+    expect(find.text('SAVE SLEEP'), findsOneWidget);
   });
 
   testWidgets('a night marked not sleep is set by hand the same way',
@@ -602,6 +603,10 @@ void main() {
         day: '2026-05-20', night: {'sleep_source': 'rejected'}));
     expect(find.text('No sleep recorded'), findsOneWidget);
     expect(find.text('Marked as not sleep'), findsNothing);
-    expect(find.text('Set one manually'), findsOneWidget);
+    expect(find.text('SET ONE MANUALLY'), findsOneWidget);
   });
 }
+
+/// A pill of the device switcher, by the label it draws (uppercased).
+Finder _sw(String label) => find.descendant(
+    of: find.byType(DeviceFilter), matching: find.text(label));

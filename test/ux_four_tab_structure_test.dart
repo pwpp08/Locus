@@ -72,11 +72,11 @@ void main() {
     expect(toggle, findsOneWidget);
     expect(t.widget<AppSwitch>(toggle).value, isFalse);
 
-    await t.tap(find.text('Female'));
+    await t.tap(find.text('FEMALE'));
     await t.pump();
     expect(t.widget<AppSwitch>(toggle).value, isTrue);
 
-    await t.tap(find.text('Continue'));
+    await t.tap(find.text('CONTINUE'));
     await t.pump();
     expect(saved, isTrue);
   });

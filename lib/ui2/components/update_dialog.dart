@@ -40,7 +40,6 @@ class UpdateDialog extends StatelessWidget {
       decoration: BoxDecoration(
         color: p.card,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(R.xxl)),
-        border: Border.all(color: p.line, width: 0.5),
       ),
       padding: const EdgeInsets.fromLTRB(S.x4, S.x3, S.x4, S.x6),
       child: SafeArea(
@@ -137,9 +136,8 @@ class UpdateDialog extends StatelessWidget {
                 constraints: const BoxConstraints(maxHeight: 180),
                 padding: const EdgeInsets.all(S.x3),
                 decoration: BoxDecoration(
-                  color: p.wash(p.ink3).withValues(alpha: 0.05),
+                  color: p.card2,
                   borderRadius: R.rMd,
-                  border: Border.all(color: p.line.withValues(alpha: 0.5)),
                 ),
                 child: SingleChildScrollView(
                   child: Text(

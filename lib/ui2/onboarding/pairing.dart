@@ -220,7 +220,7 @@ class PairingView extends StatelessWidget {
               },
             const SizedBox(height: S.x5),
             Text(_title(c, phase, blocker),
-                style: F.display.copyWith(color: p.ink)),
+                style: F.t1.copyWith(color: p.ink)),
             const SizedBox(height: S.x3),
             Text(_body(c, phase, blocker), style: F.body.copyWith(color: p.ink2)),
             if (blocked?.fix != null) ...[

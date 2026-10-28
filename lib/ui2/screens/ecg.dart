@@ -160,13 +160,11 @@ class _EcgHomeScreenState extends State<EcgHomeScreen> {
     final canTake = app.engine.isConnected && app.engine.isMaverick;
     return Scaffold(
       backgroundColor: p.bg,
-      appBar: AppBar(
-        backgroundColor: p.bg,
-        title: Text(l?.ecgHeartScreener ?? 'Heart Screener'),
-      ),
-      body: ListView(
+      body: SafeArea(
+        child: ListView(
         padding: pad,
         children: [
+          NavBar(l?.ecgHeartScreener ?? 'Heart Screener'),
           ActionCard(
             l?.ecgTakeEcg ?? 'Take ECG',
             canTake
@@ -206,6 +204,7 @@ class _EcgHomeScreenState extends State<EcgHomeScreen> {
               ),
             ),
         ],
+      ),
       ),
     );
   }
@@ -842,10 +841,11 @@ class _EcgDetailScreenState extends State<EcgDetailScreen> {
     );
     return Scaffold(
       backgroundColor: p.bg,
-      appBar: AppBar(backgroundColor: p.bg, title: Text(l?.ecgTitle ?? 'ECG')),
-      body: ListView(
+      body: SafeArea(
+        child: ListView(
         padding: pad,
         children: [
+          NavBar(l?.ecgTitle ?? 'ECG'),
           Surface(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1011,6 +1011,7 @@ class _EcgDetailScreenState extends State<EcgDetailScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

@@ -43,9 +43,9 @@ class C {
   // ink (1.37:1). [P.fill] keeps it pure and [P.inkOn] puts dark ink on it.
   static const volt = Color(0xFFB1F002);
 
-  /// Signal, not brand: low, attention, destructive. Dark ink on it, never
-  /// white (2.9:1).
-  static const coral = Color(0xFFFB6B53);
+  /// Signal, not brand: low, attention, destructive. Now the recovery red, so
+  /// "low" reads the same everywhere.
+  static const coral = recRed;
 
   /// Secondary dark chips and inactive controls on cream.
   static const slate = Color(0xFF3A444B);
@@ -59,12 +59,20 @@ class C {
   // ── the data palette ── domain hues for charts, aurora, hero glow.
   // Every one clears 4.5:1 as text on the dark card2 and as a fill under
   // dark ink; in light they pass through [P.on] like any accent.
+  /// The Total sleep hero's aurora (the one aurora left in the app) and the
+  /// hypnogram's light-sleep step. Nothing else is lavender.
   static const lavender = Color(0xFFA99BFF);
-  static const sky = Color(0xFF6EC3FF);
+
+  /// Cycle tracking's own hue.
   static const rose = Color(0xFFFF7A9A);
-  static const sage = Color(0xFF9FD4B4);
+
+  /// Food, and the sync arrow.
   static const amber = Color(0xFFFFB547);
-  static const aqua = Color(0xFF5ED3C9);
+
+  // Former Volt domain hues, now the redesign's.
+  static const sky = dialStrain;
+  static const sage = stressLow;
+  static const aqua = stressLow;
 
   /// The hypnogram's lavender ramp, palest to deepest: awake, REM,
   /// light, deep. `lavender` is the light-sleep step; these are the other
@@ -79,20 +87,21 @@ class C {
   /// below [sky] without being grey, and nothing else needs it.
   static const blueSoft = Color(0xFF93A9C9);
 
-  // ── the old accents, kept as aliases ──
+  // ── the old accent names, kept as aliases ──
   //
-  // Hundreds of call sites name these, so they stay — but each now resolves
-  // to a Volt hue, so no off-palette colour survives. Nearest hue wins; where
-  // two old accents land on one new one (blue/sky, purple/indigo,
-  // orange/yellow) the old pair never had to be told apart.
-  static const green = volt;
-  static const red = coral;
-  static const blue = sky;
-  static const purple = lavender;
-  static const indigo = lavender;
-  static const teal = aqua;
-  static const orange = amber;
-  static const yellow = amber;
+  // Hundreds of call sites name these, so they stay, but each resolves to a
+  // hue of the redesign palette (DESIGN.md §2.4) by what it was used FOR:
+  // "good" is the optimal green, "low / destructive" the recovery red, the
+  // blues are strain and activity, indigo is sleep, calm is the stress-low
+  // blue, a warning is the "worse" orange. No off-palette colour survives.
+  static const green = optimal;
+  static const red = recRed;
+  static const blue = dialStrain;
+  static const purple = dialStrain;
+  static const indigo = dialSleep;
+  static const teal = stressLow;
+  static const orange = strainDown;
+  static const yellow = recYellow;
   static const pink = rose;
 
   /// The route ramp, and only the route ramp.
@@ -142,16 +151,16 @@ class C {
 
   static const white = Color(0xFFFFFFFF);
 
-  /// Each domain owns a hue. It no longer colours the
-  /// tab bar — the active tab is always volt — it lives in the screen's hero
-  /// glow and aurora instead. Food and mind keep theirs as sections inside
-  /// Activity and Health.
-  static const domHome = volt;
-  static const domSleep = lavender;
-  static const domHealth = rose;
+  /// What each domain's accent resolves to. The active tab is always volt;
+  /// these are the redesign hues (DESIGN.md §2.4): today, activity and heart
+  /// are the strain blue, sleep the sleep blue, mind the calm stress-low
+  /// blue, food amber.
+  static const domHome = dialStrain;
+  static const domSleep = dialSleep;
+  static const domHealth = dialStrain;
   static const domFood = amber;
-  static const domMove = sky;
-  static const domMind = sage;
+  static const domMove = dialStrain;
+  static const domMind = stressLow;
 
   // ── the three dials ── the Home screen's score hues, one per dial. Sleep is
   // a steel blue, strain a saturated blue, and recovery is the traffic light
@@ -659,7 +668,7 @@ enum Art {
   }
 }
 
-/// ── EFFECTS ── the numbers behind Glass, AuroraTile and ScallopBadge ──────
+/// ── EFFECTS ── the numbers behind Glass and the one AuroraTile ─────────────
 class Fx {
   /// Glass blur radius (both axes), under a [P.glass] tint.
   static const glassBlur = 24.0;
@@ -668,13 +677,6 @@ class Fx {
   static const grainOpacity = .04;
   static const grainAsset = 'assets/images/grain.png';
 
-  /// The ScallopBadge outline: [scallopLobes] bumps, each [scallopDepth] of
-  /// the radius deep.
-  static const scallopLobes = 12;
-  static const scallopDepth = .06;
-
-  /// The onboarding StepPath stroke.
-  static const stepPathStroke = 10.0;
 }
 
 /// ── PERFORMANCE ── escape hatches ─────────────────────────────────

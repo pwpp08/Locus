@@ -2059,21 +2059,34 @@ class DayNav extends StatelessWidget {
     final older = i < 0 ? days.first : (i + 1 < days.length ? days[i + 1] : null);
     final newer = i > 0 ? days[i - 1] : null;
 
-    Widget arrow(IconData icon, String label, String? to) => Opacity(
-          opacity: to == null ? .35 : 1,
-          child: Pressable(
-            onTap: to == null ? null : () => onDay(to),
-            semanticLabel: label,
-            child: Icon(icon, size: I.md, color: p.ink),
+    Widget arrow(IconData icon, String label, String? to) => Pressable(
+          onTap: to == null ? null : () => onDay(to),
+          semanticLabel: label,
+          child: SizedBox(
+            width: S.x8 + S.x1,
+            height: S.tap,
+            child: Center(
+              child: BoldChevron(
+                  left: icon == LucideIcons.chevronLeft,
+                  height: S.x3,
+                  color: to == null ? p.ink.withValues(alpha: .22) : p.ink),
+            ),
           ),
         );
 
-    // A pill with chevrons, the same shape on every screen that steps
-    // through days.
-    return Container(
-      decoration: BoxDecoration(color: p.card2, borderRadius: R.rPill),
-      padding: const EdgeInsets.symmetric(horizontal: S.x1),
-      child: Row(children: [
+    // Home's pager look (DESIGN.md §10.3): a faint track drawn 32 tall and
+    // touched over 44, bold chevrons, the day in tracked capitals.
+    return SizedBox(
+      height: S.tap,
+      child: Stack(alignment: Alignment.center, children: [
+      Container(
+        height: S.x8,
+        decoration: BoxDecoration(
+          color: Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
+          borderRadius: BorderRadius.circular(S.x2 + S.half),
+        ),
+      ),
+      Row(children: [
         arrow(LucideIcons.chevronLeft, l?.metricDetailPreviousDay ?? 'Previous day',
             older),
         Expanded(
@@ -2086,15 +2099,17 @@ class DayNav extends StatelessWidget {
                   l?.metricDetailChooseDayShowing(dayNavLabel(day, l)) ??
                   'Choose a day. Showing ${dayNavLabel(day, l)}',
               child: Text(
-                dayNavLabel(day, l),
+                dayNavLabel(day, l).toUpperCase(),
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-              style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w600),
+                style: F.over.copyWith(
+                    color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1),
               ),
             ),
           ),
         arrow(LucideIcons.chevronRight, l?.metricDetailNextDay ?? 'Next day', newer),
+      ]),
       ]),
     );
   }

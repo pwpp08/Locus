@@ -194,7 +194,7 @@ void main() {
       // the analytics refusal is about, and neutral phrasing does not fix it.
       expect(find.text('alcohol'), findsNothing);
       expect(find.text('caffeine'), findsNothing);
-      expect(find.text('Tell it what happened'), findsOneWidget);
+      expect(find.text('TELL IT WHAT HAPPENED'), findsOneWidget);
     });
 
     testWidgets('states what it knows instead of asking it', (t) async {
@@ -213,7 +213,7 @@ void main() {
     testWidgets('declining ends the question for good', (t) async {
       await pump(t, const RoughNightCard(night: night, ask: 'never'));
       expect(find.text('alcohol'), findsNothing);
-      expect(find.text('Tell it what happened'), findsNothing);
+      expect(find.text('TELL IT WHAT HAPPENED'), findsNothing);
     });
 
     // The gallery sweeps cover this too, once every case in it compiles. This

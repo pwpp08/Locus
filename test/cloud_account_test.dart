@@ -90,7 +90,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Google'), findsNothing);
-      expect(find.text('Sign In with Email'), findsOneWidget);
+      expect(find.text('SIGN IN WITH EMAIL'), findsOneWidget);
     });
   });
 }

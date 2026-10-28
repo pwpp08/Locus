@@ -122,124 +122,124 @@ String catalogueName(AppLocalizations? l, String name) =>
 
 const activityLibrary = <ActGroup>[
   ActGroup('Cardio', LucideIcons.heartPulse, [
-    Activity('Running', LucideIcons.footprints, C.green, Track.distance, 9.8,
+    Activity('Running', LucideIcons.footprints, C.dialStrain, Track.distance, 9.8,
         gps: true, gait: true),
     Activity(
-        'Trail running', LucideIcons.mountain, C.green, Track.distance, 10.5,
+        'Trail running', LucideIcons.mountain, C.dialStrain, Track.distance, 10.5,
         gps: true, gait: true),
-    Activity('Walking', LucideIcons.footprints, C.teal, Track.distance, 3.5,
+    Activity('Walking', LucideIcons.footprints, C.dialStrain, Track.distance, 3.5,
         gps: true, gait: true),
-    Activity('Hiking', LucideIcons.mountainSnow, C.green, Track.distance, 6.0,
+    Activity('Hiking', LucideIcons.mountainSnow, C.dialStrain, Track.distance, 6.0,
         gps: true, gait: true),
-    Activity('Cycling', LucideIcons.bike, C.blue, Track.distance, 8.0,
+    Activity('Cycling', LucideIcons.bike, C.dialStrain, Track.distance, 8.0,
         gps: true),
-    Activity('Indoor bike', LucideIcons.bike, C.blue, Track.duration, 7.0),
-    Activity('Rowing', LucideIcons.sailboat, C.teal, Track.distance, 7.0),
-    Activity('Swimming', LucideIcons.waves, C.blue, Track.distance, 8.3),
-    Activity('Elliptical', LucideIcons.activity, C.purple, Track.duration, 5.0),
+    Activity('Indoor bike', LucideIcons.bike, C.dialStrain, Track.duration, 7.0),
+    Activity('Rowing', LucideIcons.sailboat, C.dialStrain, Track.distance, 7.0),
+    Activity('Swimming', LucideIcons.waves, C.dialStrain, Track.distance, 8.3),
+    Activity('Elliptical', LucideIcons.activity, C.dialStrain, Track.duration, 5.0),
     Activity(
-        'Stair climber', LucideIcons.trendingUp, C.orange, Track.duration, 9.0),
+        'Stair climber', LucideIcons.trendingUp, C.dialStrain, Track.duration, 9.0),
     // Tracked by duration, not distance: a treadmill belt reports nothing to
     // this app and a wrist cannot measure indoor distance, so the session is
     // its heart rate and its clock.
-    Activity('Treadmill', LucideIcons.footprints, C.green, Track.duration, 8.3, gait: true),
-    Activity('Jump rope', LucideIcons.circleDashed, C.red, Track.interval, 12.3),
+    Activity('Treadmill', LucideIcons.footprints, C.dialStrain, Track.duration, 8.3, gait: true),
+    Activity('Jump rope', LucideIcons.circleDashed, C.dialStrain, Track.interval, 12.3),
   ]),
   ActGroup('Strength', LucideIcons.dumbbell, [
-    Activity('Weight training', LucideIcons.dumbbell, C.purple, Track.sets, 6.0),
-    Activity('Powerlifting', LucideIcons.dumbbell, C.purple, Track.sets, 6.0),
+    Activity('Weight training', LucideIcons.dumbbell, C.dialStrain, Track.sets, 6.0),
+    Activity('Powerlifting', LucideIcons.dumbbell, C.dialStrain, Track.sets, 6.0),
     Activity(
-        'Bodyweight', LucideIcons.personStanding, C.purple, Track.sets, 4.5),
+        'Bodyweight', LucideIcons.personStanding, C.dialStrain, Track.sets, 4.5),
     Activity(
-        'Calisthenics', LucideIcons.personStanding, C.purple, Track.sets, 5.0),
-    Activity('Kettlebell', LucideIcons.dumbbell, C.orange, Track.interval, 8.0),
-    Activity('CrossFit', LucideIcons.flame, C.red, Track.interval, 9.0),
-    Activity('HIIT', LucideIcons.zap, C.red, Track.interval, 10.0),
+        'Calisthenics', LucideIcons.personStanding, C.dialStrain, Track.sets, 5.0),
+    Activity('Kettlebell', LucideIcons.dumbbell, C.dialStrain, Track.interval, 8.0),
+    Activity('CrossFit', LucideIcons.flame, C.dialStrain, Track.interval, 9.0),
+    Activity('HIIT', LucideIcons.zap, C.dialStrain, Track.interval, 10.0),
     Activity(
-        'Circuit training', LucideIcons.repeat2, C.orange, Track.interval, 7.5),
-    Activity('Functional', LucideIcons.boxes, C.purple, Track.sets, 5.5),
+        'Circuit training', LucideIcons.repeat2, C.dialStrain, Track.interval, 7.5),
+    Activity('Functional', LucideIcons.boxes, C.dialStrain, Track.sets, 5.5),
   ]),
   ActGroup('Sports', LucideIcons.trophy, [
-    Activity('Football', LucideIcons.volleyball, C.green, Track.duration, 8.0),
-    Activity('Basketball', LucideIcons.volleyball, C.orange, Track.duration, 8.0),
-    Activity('Cricket', LucideIcons.target, C.green, Track.duration, 5.0),
-    Activity('Tennis', LucideIcons.volleyball, C.yellow, Track.duration, 7.3),
-    Activity('Badminton', LucideIcons.volleyball, C.teal, Track.duration, 5.5),
+    Activity('Football', LucideIcons.volleyball, C.dialStrain, Track.duration, 8.0),
+    Activity('Basketball', LucideIcons.volleyball, C.dialStrain, Track.duration, 8.0),
+    Activity('Cricket', LucideIcons.target, C.dialStrain, Track.duration, 5.0),
+    Activity('Tennis', LucideIcons.volleyball, C.dialStrain, Track.duration, 7.3),
+    Activity('Badminton', LucideIcons.volleyball, C.dialStrain, Track.duration, 5.5),
     Activity(
-        'Table tennis', LucideIcons.volleyball, C.blue, Track.duration, 4.0),
-    Activity('Squash', LucideIcons.volleyball, C.red, Track.duration, 12.0),
+        'Table tennis', LucideIcons.volleyball, C.dialStrain, Track.duration, 4.0),
+    Activity('Squash', LucideIcons.volleyball, C.dialStrain, Track.duration, 12.0),
     // No MET: the compendium has no padel row. Tennis doubles and paddleball
     // are different games, and borrowing either would be a stand-in. The
     // post-session estimate still works from heart rate.
-    Activity('Padel', LucideIcons.volleyball, C.yellow, Track.duration, null),
-    Activity('Volleyball', LucideIcons.volleyball, C.orange, Track.duration, 6.0),
-    Activity('Hockey', LucideIcons.target, C.blue, Track.duration, 8.0),
-    Activity('Baseball', LucideIcons.target, C.red, Track.duration, 5.0),
-    Activity('Rugby', LucideIcons.volleyball, C.green, Track.duration, 8.3),
-    Activity('Golf', LucideIcons.flag, C.green, Track.duration, 4.8, gps: true),
+    Activity('Padel', LucideIcons.volleyball, C.dialStrain, Track.duration, null),
+    Activity('Volleyball', LucideIcons.volleyball, C.dialStrain, Track.duration, 6.0),
+    Activity('Hockey', LucideIcons.target, C.dialStrain, Track.duration, 8.0),
+    Activity('Baseball', LucideIcons.target, C.dialStrain, Track.duration, 5.0),
+    Activity('Rugby', LucideIcons.volleyball, C.dialStrain, Track.duration, 8.3),
+    Activity('Golf', LucideIcons.flag, C.dialStrain, Track.duration, 4.8, gps: true),
     // Compendium 15092, "bowling, indoor, bowling alley". This row IS the
     // alley — that assumption is the choice being made here, not a fact about
     // what users do — because the alternative is two near-identical rows. The
     // bare 15090 "bowling" is 3.0, and neither number is the measured one.
-    Activity('Bowling', LucideIcons.circleDot, C.indigo, Track.duration, 3.8),
-    Activity('Boxing', LucideIcons.hand, C.red, Track.interval, 12.8),
-    Activity('Martial arts', LucideIcons.hand, C.red, Track.duration, 10.3),
-    Activity('Wrestling', LucideIcons.users, C.orange, Track.duration, 6.0),
-    Activity('Climbing', LucideIcons.mountain, C.orange, Track.duration, 8.0),
+    Activity('Bowling', LucideIcons.circleDot, C.dialStrain, Track.duration, 3.8),
+    Activity('Boxing', LucideIcons.hand, C.dialStrain, Track.interval, 12.8),
+    Activity('Martial arts', LucideIcons.hand, C.dialStrain, Track.duration, 10.3),
+    Activity('Wrestling', LucideIcons.users, C.dialStrain, Track.duration, 6.0),
+    Activity('Climbing', LucideIcons.mountain, C.dialStrain, Track.duration, 8.0),
   ]),
   ActGroup('Athletics', LucideIcons.medal, [
-    Activity('Sprinting', LucideIcons.zap, C.red, Track.interval, 23.0),
-    Activity('Track intervals', LucideIcons.timer, C.red, Track.interval, 11.8),
+    Activity('Sprinting', LucideIcons.zap, C.dialStrain, Track.interval, 23.0),
+    Activity('Track intervals', LucideIcons.timer, C.dialStrain, Track.interval, 11.8),
     Activity(
-        'Cross country', LucideIcons.mountain, C.green, Track.distance, 9.0,
+        'Cross country', LucideIcons.mountain, C.dialStrain, Track.distance, 9.0,
         gps: true, gait: true),
-    Activity('Hurdles', LucideIcons.zap, C.orange, Track.interval, 10.0),
-    Activity('Long jump', LucideIcons.moveUpRight, C.orange, Track.duration, 6.0),
-    Activity('Shot put', LucideIcons.circle, C.purple, Track.duration, 4.0),
-    Activity('Javelin', LucideIcons.moveUpRight, C.purple, Track.duration, 4.0),
-    Activity('Pole vault', LucideIcons.moveUp, C.orange, Track.duration, 6.0),
+    Activity('Hurdles', LucideIcons.zap, C.dialStrain, Track.interval, 10.0),
+    Activity('Long jump', LucideIcons.moveUpRight, C.dialStrain, Track.duration, 6.0),
+    Activity('Shot put', LucideIcons.circle, C.dialStrain, Track.duration, 4.0),
+    Activity('Javelin', LucideIcons.moveUpRight, C.dialStrain, Track.duration, 4.0),
+    Activity('Pole vault', LucideIcons.moveUp, C.dialStrain, Track.duration, 6.0),
   ]),
   ActGroup('Outdoor', LucideIcons.trees, [
-    Activity('Mountain biking', LucideIcons.bike, C.green, Track.distance, 8.5,
+    Activity('Mountain biking', LucideIcons.bike, C.dialStrain, Track.distance, 8.5,
         gps: true),
-    Activity('Kayaking', LucideIcons.sailboat, C.blue, Track.distance, 5.0,
+    Activity('Kayaking', LucideIcons.sailboat, C.dialStrain, Track.distance, 5.0,
         gps: true),
-    Activity('Surfing', LucideIcons.waves, C.blue, Track.duration, 5.0),
-    Activity('Paddleboard', LucideIcons.sailboat, C.teal, Track.distance, 6.0,
+    Activity('Surfing', LucideIcons.waves, C.dialStrain, Track.duration, 5.0),
+    Activity('Paddleboard', LucideIcons.sailboat, C.dialStrain, Track.distance, 6.0,
         gps: true),
-    Activity('Skiing', LucideIcons.snowflake, C.blue, Track.distance, 7.0,
+    Activity('Skiing', LucideIcons.snowflake, C.dialStrain, Track.distance, 7.0,
         gps: true),
     Activity(
-        'Snowboarding', LucideIcons.snowflake, C.indigo, Track.distance, 5.3,
+        'Snowboarding', LucideIcons.snowflake, C.dialStrain, Track.distance, 5.3,
         gps: true),
-    Activity('Skating', LucideIcons.circleDashed, C.purple, Track.distance, 7.0,
+    Activity('Skating', LucideIcons.circleDashed, C.dialStrain, Track.distance, 7.0,
         gps: true),
     // Compendium 15580, "skateboarding, general, moderate effort". Timed, not
     // a route: a park session goes nowhere, and cruising is the longboard rows.
     Activity(
-        'Skateboarding', LucideIcons.circleDashed, C.orange, Track.duration, 5.0),
-    Activity('Horse riding', LucideIcons.rabbit, C.orange, Track.duration, 5.5),
+        'Skateboarding', LucideIcons.circleDashed, C.dialStrain, Track.duration, 5.0),
+    Activity('Horse riding', LucideIcons.rabbit, C.dialStrain, Track.duration, 5.5),
   ]),
   ActGroup('Mind & body', LucideIcons.leaf, [
-    Activity('Yoga', LucideIcons.personStanding, C.teal, Track.stillness, 3.0),
-    Activity('Pilates', LucideIcons.personStanding, C.teal, Track.stillness, 3.8),
+    Activity('Yoga', LucideIcons.personStanding, C.dialStrain, Track.stillness, 3.0),
+    Activity('Pilates', LucideIcons.personStanding, C.dialStrain, Track.stillness, 3.8),
     Activity(
-        'Stretching', LucideIcons.personStanding, C.green, Track.stillness, 2.3),
+        'Stretching', LucideIcons.personStanding, C.dialStrain, Track.stillness, 2.3),
     Activity(
-        'Mobility', LucideIcons.personStanding, C.green, Track.stillness, 3.0),
-    Activity('Tai chi', LucideIcons.wind, C.teal, Track.stillness, 3.0),
-    Activity('Breathwork', LucideIcons.wind, C.teal, Track.stillness, 1.5),
-    Activity('Meditation', LucideIcons.brain, C.purple, Track.stillness, 1.3),
+        'Mobility', LucideIcons.personStanding, C.dialStrain, Track.stillness, 3.0),
+    Activity('Tai chi', LucideIcons.wind, C.dialStrain, Track.stillness, 3.0),
+    Activity('Breathwork', LucideIcons.wind, C.dialStrain, Track.stillness, 1.5),
+    Activity('Meditation', LucideIcons.brain, C.dialStrain, Track.stillness, 1.3),
   ]),
   ActGroup('Everyday', LucideIcons.house, [
     Activity('Housework', LucideIcons.house, C.n500, Track.duration, 3.3),
-    Activity('Gardening', LucideIcons.sprout, C.green, Track.duration, 3.8),
-    Activity('Dog walking', LucideIcons.dog, C.teal, Track.distance, 3.0,
+    Activity('Gardening', LucideIcons.sprout, C.dialStrain, Track.duration, 3.8),
+    Activity('Dog walking', LucideIcons.dog, C.dialStrain, Track.distance, 3.0,
         gps: true, gait: true),
-    Activity('Childcare', LucideIcons.baby, C.pink, Track.duration, 3.0),
-    Activity('DIY', LucideIcons.hammer, C.orange, Track.duration, 4.5),
+    Activity('Childcare', LucideIcons.baby, C.dialStrain, Track.duration, 3.0),
+    Activity('DIY', LucideIcons.hammer, C.dialStrain, Track.duration, 4.5),
     Activity('Shopping', LucideIcons.shoppingBag, C.n500, Track.duration, 2.3),
-    Activity('Stairs', LucideIcons.trendingUp, C.orange, Track.duration, 8.0),
+    Activity('Stairs', LucideIcons.trendingUp, C.dialStrain, Track.duration, 8.0),
   ]),
   ActGroup('Other', LucideIcons.ellipsis, [
     // The catch-all: nothing in the catalogue matched, or hunting for the
@@ -248,17 +248,17 @@ const activityLibrary = <ActGroup>[
     // near miss, and it prices a gym session, which is not what this row
     // means. Tracked by duration because the clock and the heart-rate trace
     // are everything the app knows about a workout nobody named.
-    Activity('General workout', LucideIcons.activity, C.purple,
+    Activity('General workout', LucideIcons.activity, C.dialStrain,
         Track.duration, null),
-    Activity('Dancing', LucideIcons.music, C.pink, Track.duration, 7.8),
+    Activity('Dancing', LucideIcons.music, C.dialStrain, Track.duration, 7.8),
     // A normal entry with a real MET and a privacy default, exactly as Apple
     // Health carries it. Coyness here would be its own kind of judgement.
-    Activity('Intimacy', LucideIcons.heart, C.pink, Track.duration, 5.8,
+    Activity('Intimacy', LucideIcons.heart, C.dialStrain, Track.duration, 5.8,
         private: true),
     Activity(
-        'Physiotherapy', LucideIcons.stethoscope, C.blue, Track.duration, 3.0),
-    Activity('Sauna', LucideIcons.thermometer, C.orange, Track.stillness, 1.5),
-    Activity('Cold plunge', LucideIcons.snowflake, C.blue, Track.stillness, 2.0),
+        'Physiotherapy', LucideIcons.stethoscope, C.dialStrain, Track.duration, 3.0),
+    Activity('Sauna', LucideIcons.thermometer, C.dialStrain, Track.stillness, 1.5),
+    Activity('Cold plunge', LucideIcons.snowflake, C.dialStrain, Track.stillness, 2.0),
     // There is no 'Custom activity' row. It carried a MET of 4.0, which is not
     // in the compendium and could not be — the whole point of a custom entry
     // is that the app does not know what it is — and every session made with
@@ -334,14 +334,14 @@ String zonesWhy(String? source, num? maxHr, [AppLocalizations? l]) => maxHr == n
 
 /// The row that means most people never open the catalogue.
 const quickStart = <Activity>[
-  Activity('Running', LucideIcons.footprints, C.green, Track.distance, 9.8,
+  Activity('Running', LucideIcons.footprints, C.dialStrain, Track.distance, 9.8,
       gps: true, gait: true),
-  Activity('Weight training', LucideIcons.dumbbell, C.purple, Track.sets, 6.0),
-  Activity('Cycling', LucideIcons.bike, C.blue, Track.distance, 8.0, gps: true),
-  Activity('Walking', LucideIcons.footprints, C.teal, Track.distance, 3.5,
+  Activity('Weight training', LucideIcons.dumbbell, C.dialStrain, Track.sets, 6.0),
+  Activity('Cycling', LucideIcons.bike, C.dialStrain, Track.distance, 8.0, gps: true),
+  Activity('Walking', LucideIcons.footprints, C.dialStrain, Track.distance, 3.5,
       gps: true, gait: true),
-  Activity('Football', LucideIcons.volleyball, C.green, Track.duration, 8.0),
-  Activity('Yoga', LucideIcons.personStanding, C.teal, Track.stillness, 3.0),
+  Activity('Football', LucideIcons.volleyball, C.dialStrain, Track.duration, 8.0),
+  Activity('Yoga', LucideIcons.personStanding, C.dialStrain, Track.stillness, 3.0),
 ];
 
 final List<Activity> allActivities = [

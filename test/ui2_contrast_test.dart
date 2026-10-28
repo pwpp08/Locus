@@ -137,9 +137,6 @@ void main() {
       });
     });
 
-    test('ScallopBadge: char ink on the cream disc, in both themes', () {
-      expect(P.contrast(C.char, C.cream), greaterThanOrEqualTo(_aa));
-    });
   });
 
   group('P.on() is also safe on the TINTED surface it lands on', () {

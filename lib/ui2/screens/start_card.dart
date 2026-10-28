@@ -5,10 +5,8 @@
 // and a different noun, so they are the same code — a second copy is how the
 // two drift a corner radius apart and nobody notices for a month.
 //
-// The redesign (DESIGN.md) made it an [AuroraTile] of the tab's hue: the
-// tab's colour lives in its hero, not in its chrome. Every word on it is page
-// ink, because ink is the one text colour solved on an aurora field, and the
-// play mark is the volt circle. It sits in the list's gutter like every other
+// A graded card like every other (DESIGN.md §10.5): a caps title, the count,
+// and the strain-blue play mark of the START pill. It sits in the list's gutter like every other
 // card — a rounded tile run into the screen edge reads as a card that failed
 // to fit — so the full-bleed special case its parents used to carry is gone.
 //
@@ -82,9 +80,7 @@ class StartCard extends StatelessWidget {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
     final subText = sub ?? (l?.startCardDefaultSub ?? 'Pick one and go');
-    final go = p.fill(C.volt);
-    return AuroraTile(
-      hue: accent,
+    return Surface(
       onTap: onTap,
       semanticLabel: label.toLowerCase(),
       child: Row(
@@ -92,15 +88,15 @@ class StartCard extends StatelessWidget {
         children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(label, style: F.over.copyWith(color: p.ink)),
-              const SizedBox(height: S.x8),
+              Text(label.toUpperCase(), style: F.caps.copyWith(color: p.ink)),
+              const SizedBox(height: S.x6),
               Text('$count $noun',
                   style: F.t2.copyWith(color: p.ink),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis),
               const SizedBox(height: S.x1),
               Text(subText,
-                  style: F.cap.copyWith(color: p.ink),
+                  style: F.cap.copyWith(color: p.ink3),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis),
               const SizedBox(height: S.x4),
@@ -108,8 +104,9 @@ class StartCard extends StatelessWidget {
               Container(
                 width: S.x12 + S.x2,
                 height: S.x12 + S.x2,
-                decoration: BoxDecoration(color: go, shape: BoxShape.circle),
-                child: Icon(LucideIcons.play, size: I.md, color: p.inkOn(go)),
+                decoration: const BoxDecoration(
+                    color: C.dialStrain, shape: BoxShape.circle),
+                child: const Icon(LucideIcons.play, size: I.md, color: C.white),
               ),
             ]),
           ),

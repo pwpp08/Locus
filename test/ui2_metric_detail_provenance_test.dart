@@ -27,7 +27,7 @@ Future<SemanticsHandle> _pump(
   await t.pumpAndSettle();
   // The scrubber only exists on a multi-day trend, not on the single-value
   // "Today" screen — switch to the week view, same as the wear-strip tests.
-  await t.tap(find.text('7 days'));
+  await t.tap(find.text('7 DAYS'));
   await t.pumpAndSettle();
   // Place a finger on the scrubber (Semantics.value is 'Nothing selected'
   // until then) — the exact slot does not matter here since every test
@@ -157,9 +157,9 @@ void main() {
       home: Scaffold(body: MetricDetail('resting_hr', data: d)),
     ));
     await t.pumpAndSettle();
-    await t.tap(find.text('7 days'));
+    await t.tap(find.text('7 DAYS'));
     await t.pumpAndSettle();
-    await t.tap(find.text('Ring'));
+    await t.tap(find.text('RING'));
     await t.pumpAndSettle();
     expect(find.textContaining('was involved'), findsNothing);
   });

@@ -224,14 +224,23 @@ class _StepCalibrationScreenState extends State<StepCalibrationScreen> {
                                 final selected = _targetSteps == steps;
                                 return Padding(
                                   padding: const EdgeInsets.only(right: S.x2),
-                                  child: FilterChip(
-                                    label: Text('$steps steps'),
-                                    selected: selected,
-                                    onSelected: (val) {
-                                      if (val) setState(() => _targetSteps = steps);
-                                    },
-                                    selectedColor: p.wash(C.orange),
-                                    checkmarkColor: C.orange,
+                                  child: Pressable(
+                                    semanticLabel: '$steps steps',
+                                    onTap: () =>
+                                        setState(() => _targetSteps = steps),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: S.x3, vertical: S.x2),
+                                      decoration: BoxDecoration(
+                                        color: selected
+                                            ? p.card
+                                            : p.ink.withValues(alpha: .09),
+                                        borderRadius: R.rLg,
+                                      ),
+                                      child: Text('$steps STEPS',
+                                          style: F.caps.copyWith(
+                                              color: selected ? p.ink : p.ink3)),
+                                    ),
                                   ),
                                 );
                               }).toList(),

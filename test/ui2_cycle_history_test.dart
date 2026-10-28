@@ -192,8 +192,8 @@ void _screen() {
         ),
       );
       await t.pumpAndSettle();
-      expect(find.text('Across your cycles'), findsOneWidget);
-      await t.tap(find.text('Open'));
+      expect(find.text('ACROSS YOUR CYCLES'), findsOneWidget);
+      await t.tap(find.text('OPEN'));
       await t.pumpAndSettle();
 
       // All three land, and WH-08 asks before it draws anything.

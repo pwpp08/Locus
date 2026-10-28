@@ -776,15 +776,15 @@ String prettyDay(String? dayId, [AppLocalizations? l]) {
     return (label: l?.homeReadinessNotScored ?? 'Not scored', color: C.n400, tier: -1);
   }
   if (v >= kReadinessGoodFrom) {
-    return (label: l?.homeReadinessGoodToGo ?? 'Good to go', color: C.volt, tier: 3);
+    return (label: l?.homeReadinessGoodToGo ?? 'Good to go', color: recoveryColor(v), tier: 3);
   }
   if (v >= kReadinessEasyBelow) {
-    return (label: l?.homeReadinessSteady ?? 'Steady', color: C.volt, tier: 2);
+    return (label: l?.homeReadinessSteady ?? 'Steady', color: recoveryColor(v), tier: 2);
   }
   if (v >= kReadinessRestBelow) {
-    return (label: l?.homeReadinessTakeItEasy ?? 'Take it easy', color: C.amber, tier: 1);
+    return (label: l?.homeReadinessTakeItEasy ?? 'Take it easy', color: recoveryColor(v), tier: 1);
   }
-  return (label: l?.homeReadinessRestToday ?? 'Rest today', color: C.coral, tier: 0);
+  return (label: l?.homeReadinessRestToday ?? 'Rest today', color: recoveryColor(v), tier: 0);
 }
 
 /// Glass-box driver keys are the pipeline's own short names.
@@ -845,13 +845,7 @@ class RingTrio extends StatelessWidget {
   /// worth pushing onto.
   final void Function(HomeRingKind)? onOpen;
 
-  /// D5's second candidate (DESIGN.md §11): a measured, settled
-  /// recovery in a [ScallopBadge] with strain and sleep as small rings beside
-  /// it. Every other recovery state — provisional, calibrating, absent — has
-  /// no badge (the badge has no absent variant), so it falls back to the trio.
-  final bool badge;
-
-  const RingTrio({super.key, required this.d, this.onOpen, this.badge = false});
+  const RingTrio({super.key, required this.d, this.onOpen});
 
   /// Whether ANY of the three has something to draw. When none do, the screen
   /// owes the user one written absence, not three empty circles.
@@ -873,32 +867,9 @@ class RingTrio extends StatelessWidget {
     // ([overnightMetric]), so a ring with no night behind it is a gap row with
     // the reason in it — same place every other absence on this screen goes.
 
-    final hero = badge && rings.first.measured && !rings.first.provisional
-        ? rings.first
-        : null;
-
     return Surface(
-      elevation: 2,
       child: Column(children: [
-        if (hero != null) ...[
-          if (bigText(c)) ...[
-            Center(child: _Badge(hero, onTap: _open(hero.kind))),
-            for (final r in rings.skip(1)) ...[
-              const SizedBox(height: S.x2),
-              _RingRow(r, onTap: _open(r.kind)),
-            ],
-          ] else
-            Row(children: [
-              Expanded(child: _Badge(hero, onTap: _open(hero.kind))),
-              const SizedBox(width: S.x3),
-              Expanded(
-                child: Column(children: [
-                  for (final r in rings.skip(1))
-                    _RingRow(r, onTap: _open(r.kind)),
-                ]),
-              ),
-            ]),
-        ] else if (bigText(c))
+        if (bigText(c))
           // Past ~1.3× a 100 pt column cannot hold the word "Recovery" on one
           // line and there is nowhere for it to wrap to. The ring keeps its
           // size and the type gets the width instead.
@@ -1218,30 +1189,6 @@ class _RingColumn extends StatelessWidget {
           const SizedBox(height: S.x3),
           _RingText(r, align: TextAlign.center, numeralInside: true),
         ]),
-      );
-}
-
-/// Recovery as the screen's one [ScallopBadge]: a settled reading only (see
-/// [RingTrio.badge]). The band word rides as the badge's delta line, so the
-/// verdict is never carried by colour alone.
-class _Badge extends StatelessWidget {
-  final _RingState r;
-  final VoidCallback? onTap;
-
-  const _Badge(this.r, {this.onTap});
-
-  @override
-  Widget build(BuildContext c) => Pressable(
-        onTap: onTap,
-        semanticLabel: r.spoken,
-        child: ExcludeSemantics(
-          child: ScallopBadge(
-            value: r.value,
-            label: r.label,
-            delta: presentationText(AppLocalizations.of(c), r.sub),
-            size: 168,
-          ),
-        ),
       );
 }
 

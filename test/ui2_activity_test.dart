@@ -899,7 +899,7 @@ void main() {
       await show(const DayStrainData(wornMin: 1274, coveragePct: 89));
       expect(find.textContaining('scored night'), findsNothing,
           reason: 'the night WAS scored — a cause nobody gave this screen');
-      expect(find.textContaining('Wear the band through the day'), findsNothing,
+      expect(find.textContaining('WEAR THE BAND THROUGH THE DAY'), findsNothing,
           reason: 'an action that cannot change the outcome is worse than none');
       expect(find.textContaining('Nothing recorded says why'), findsOneWidget);
 
@@ -915,7 +915,7 @@ void main() {
       // A day the band genuinely never saw is the ONE state where "wear the
       // band" is an instruction rather than an insult, so it survives there.
       await show(const DayStrainData());
-      expect(find.textContaining('Wear the band through the day'),
+      expect(find.textContaining('WEAR THE BAND THROUGH THE DAY'),
           findsOneWidget);
 
       // MEASURED on whoop-4, 6 of 17 days: `backfillStrainScale` rescales the
@@ -956,7 +956,7 @@ void main() {
 
       // Age genuinely missing — now the button is a real promise.
       await show(const ZonesData());
-      expect(find.textContaining('Add your age in Profile'), findsOneWidget);
+      expect(find.textContaining('ADD YOUR AGE IN PROFILE'), findsOneWidget);
 
       // The ceiling card had the same defect: it blamed a missing hard session
       // on all three real databases, where the ceiling had actually refused for
@@ -1168,7 +1168,7 @@ void main() {
           1.0));
       await tester.pumpAndSettle();
 
-      expect(find.text('Heart rate'), findsOneWidget);
+      expect(find.text('HEART RATE'), findsOneWidget);
       expect(find.text('bpm'), findsWidgets);
       expect(find.textContaining('above 80%'), findsOneWidget);
       expect(find.textContaining('COURT'), findsNothing);
@@ -1252,7 +1252,7 @@ void main() {
           1.0));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Log set'));
+      await tester.tap(find.text('LOG SET'));
       await tester.pump();
       await tester.tap(find.bySemanticsLabel('Finish session'));
       await tester.pumpAndSettle();
@@ -1323,11 +1323,11 @@ void main() {
       // Four poses in, then back two to hold one again. The record used to be
       // `sublist(0, pose + 1)` off the LIVE index, so this reported two.
       for (var i = 0; i < 3; i++) {
-        await tester.tap(find.text('Next pose'));
+        await tester.tap(find.text('NEXT POSE'));
         await tester.pump();
       }
       for (var i = 0; i < 2; i++) {
-        await tester.tap(find.text('Previous'));
+        await tester.tap(find.text('PREVIOUS'));
         await tester.pump();
       }
       await tester.tap(find.bySemanticsLabel('Finish session'));
@@ -1384,7 +1384,7 @@ void main() {
       await tester.pumpWidget(
           _frame(ActivitySummary(r, weightKg: 72.4), Brightness.light, 1.0));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Splits'));
+      await tester.tap(find.text('SPLITS'));
       await tester.pumpAndSettle();
 
       expect(find.text('2:24'), findsNothing,
@@ -1411,7 +1411,7 @@ void main() {
       await tester.pumpWidget(
           _frame(liveFor(a, weightKg: 72.4), Brightness.light, 1.0));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Log set'));
+      await tester.tap(find.text('LOG SET'));
       await tester.pump();
       expect(find.text('40 kg × 8'), findsWidgets);
 
@@ -1448,7 +1448,7 @@ void main() {
       expect(find.text('Choose exercise'), findsWidgets);
       expect(find.text('Bench press'), findsNothing,
           reason: 'a real session must not invent a first lift');
-      await tester.tap(find.widgetWithText(BigButton, 'Choose exercise'));
+      await tester.tap(find.widgetWithText(BigButton, 'CHOOSE EXERCISE'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Incline DB press'));
       await tester.pumpAndSettle();
@@ -1472,7 +1472,7 @@ void main() {
 
       // Once a set exists, changing exercises switches/adds instead of
       // relabelling what the user already logged.
-      await tester.tap(find.text('Log set'));
+      await tester.tap(find.text('LOG SET'));
       await tester.pump();
       await tester.tap(find.text('Back squat'));
       await tester.pumpAndSettle();
@@ -1497,7 +1497,7 @@ void main() {
       await tester.pumpWidget(
           _frame(liveFor(a, weightKg: 72.4), Brightness.light, 3.1));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(BigButton, 'Choose exercise'));
+      await tester.tap(find.widgetWithText(BigButton, 'CHOOSE EXERCISE'));
       await tester.pumpAndSettle();
 
       expect(find.text('Cardio'), findsNothing);
@@ -1528,7 +1528,7 @@ void main() {
       await tester.pumpWidget(
           _frame(liveFor(a, weightKg: 72.4), Brightness.light, 1.0));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(BigButton, 'Choose exercise'));
+      await tester.tap(find.widgetWithText(BigButton, 'CHOOSE EXERCISE'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Abs'));
       await tester.pumpAndSettle();
@@ -1649,7 +1649,7 @@ void main() {
 
       await tester.tap(find.byIcon(LucideIcons.plus).first); // work + 5
       await tester.pump();
-      await tester.tap(find.text('Start'));
+      await tester.tap(find.text('START'));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('50 S WORK'), findsOneWidget);
@@ -1697,7 +1697,7 @@ void main() {
 
       // The old screen drew no pill, no map and no sentence.
       expect(find.text('No route: location not allowed'), findsOneWidget);
-      await tester.tap(find.text('Open Settings'));
+      await tester.tap(find.text('OPEN SETTINGS'));
       await tester.pump();
       expect(fixed, 1);
       expect(tester.takeException(), isNull);
@@ -1768,7 +1768,7 @@ void main() {
           Brightness.light,
           1.0));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Log set'));
+      await tester.tap(find.text('LOG SET'));
       await tester.pump();
       expect(find.text('01:30'), findsOneWidget);
 
@@ -1803,7 +1803,7 @@ void main() {
           Brightness.light,
           1.0));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Log set'));
+      await tester.tap(find.text('LOG SET'));
       await tester.pump();
       expect(sets.single.loadKg, 40, reason: 'bench keeps its stepper load');
 
@@ -1811,7 +1811,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Push-up'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Log set'));
+      await tester.tap(find.text('LOG SET'));
       await tester.pump();
       expect(sets.last.exerciseKey, 'push_up');
       expect(sets.last.loadKg, isNull,
@@ -1839,12 +1839,12 @@ void main() {
 
       // The summary used to be identical to a successful one.
       expect(find.text('This session is not saved yet'), findsOneWidget);
-      await tester.tap(find.text('Try again'));
+      await tester.tap(find.text('TRY AGAIN'));
       await tester.pumpAndSettle();
       expect(find.text('This session is not saved yet'), findsOneWidget,
           reason: 'a retry that threw has not saved anything either');
 
-      await tester.tap(find.text('Try again'));
+      await tester.tap(find.text('TRY AGAIN'));
       await tester.pumpAndSettle();
       expect(find.text('This session is not saved yet'), findsNothing);
       expect(tester.takeException(), isNull);
@@ -2024,7 +2024,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Default entry is 40 kg × 8 = 320 kg of volume for one set.
-      await tester.tap(find.text('Log set'));
+      await tester.tap(find.text('LOG SET'));
       await tester.pump();
 
       expect(find.text('320'), findsOneWidget); // volume
@@ -2063,7 +2063,7 @@ void main() {
       await tester.pump();
       expect(find.text('93'), findsOneWidget);
 
-      await tester.tap(find.text('Log set'));
+      await tester.tap(find.text('LOG SET'));
       await tester.pump();
       expect(find.text('93 lb × 8'), findsWidgets);
       // Volume = (40 kg + one 5 lb step, in kg) × 8 reps, shown in lb.

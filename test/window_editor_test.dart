@@ -70,7 +70,7 @@ void main() {
     final chart = t.getRect(find.byType(WindowChart));
     await t.tapAt(Offset(chart.left + chart.width * .9, chart.center.dy));
     await t.pumpAndSettle();
-    await t.tap(find.text('Save sleep'));
+    await t.tap(find.text('SAVE SLEEP'));
     await t.pumpAndSettle();
     expect(got, isNotNull);
     expect(got!.$1, start);

@@ -163,7 +163,7 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
             const OnboardingStep(3),
             const SizedBox(height: S.x5),
             Text(l?.profileSetupTitle ?? 'About you',
-                style: F.display.copyWith(color: p.ink)),
+                style: F.t1.copyWith(color: p.ink)),
             const SizedBox(height: S.x3),
             Text(
               l?.profileSetupBody ??
@@ -248,7 +248,7 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
             ),
             const SizedBox(height: S.x5),
             BigButton(l?.actionContinue ?? 'Continue',
-                color: C.green, onTap: _sex == null ? null : _continue),
+                onTap: _sex == null ? null : _continue),
             if (_sex == null) ...[
               const SizedBox(height: S.x2),
               Text(l?.profileSetupPickOneToContinue ??
@@ -279,15 +279,12 @@ class _Choice extends StatelessWidget {
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: S.x2, vertical: S.x2),
         decoration: BoxDecoration(
-          color: on ? p.wash(C.green) : p.card,
-          borderRadius: R.rMd,
-          border: Border.all(color: on ? p.on(C.green) : p.line),
+          color: on ? p.ink : p.ink.withValues(alpha: .09),
+          borderRadius: R.rLg,
         ),
-        child: Text(label,
+        child: Text(label.toUpperCase(),
             textAlign: TextAlign.center,
-            style: F.cap.copyWith(
-                color: on ? p.on(C.green) : p.ink2,
-                fontWeight: on ? FontWeight.w600 : FontWeight.w500)),
+            style: F.caps.copyWith(color: on ? p.bg : p.ink2)),
       ),
     );
   }

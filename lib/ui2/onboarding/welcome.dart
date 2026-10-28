@@ -583,7 +583,7 @@ class WelcomeView extends StatelessWidget {
             BandStage(Art.bandHero, height: 200),
             const SizedBox(height: S.x5),
             Text(l?.welcomeHeadline ?? 'Your band, decoded here',
-                style: F.display.copyWith(color: p.ink)),
+                style: F.t1.copyWith(color: p.ink)),
             const SizedBox(height: S.x3),
             Text(
               l?.welcomeSubhead ??
@@ -596,7 +596,6 @@ class WelcomeView extends StatelessWidget {
             const SizedBox(height: S.x8),
             BigButton(l?.welcomeSetUpMyBand ?? 'Set up my band',
                 icon: LucideIcons.bluetooth,
-                color: C.green,
                 onTap: busy ? null : onNew),
             const SizedBox(height: S.x3),
             // One primary path. Importing first is a real choice but a rarer
@@ -639,9 +638,8 @@ class WelcomeView extends StatelessWidget {
   }
 }
 
-/// The band's picture on an aurora field: the art is black, and black on the
-/// onboarding canvas does not read, so it sits on a soft volt glow (DESIGN.md §18 —
-/// "the app paints the background behind the art"). Decorative: no semantics.
+/// The band's picture on a graded card (DESIGN.md §18: the app paints the
+/// ground behind the art). Decorative: no semantics.
 class BandStage extends StatelessWidget {
   final Art art;
   final double height;
@@ -649,16 +647,15 @@ class BandStage extends StatelessWidget {
   const BandStage(this.art, {super.key, required this.height});
 
   @override
-  Widget build(BuildContext c) => AuroraTile(
-        hue: C.domHome,
-        intensity: .55,
+  Widget build(BuildContext c) => Surface(
+        tone: PanelTone.rich,
         child: Center(child: art.image(height: height)),
       );
 }
 
-/// Where the user is in setup: a glass pill naming the step, and the volt
-/// river ([StepPath]) through all of them. The pill carries the meaning;
-/// the river is decoration and says nothing to a screen reader.
+/// Where the user is in setup: the step in tracked capitals, and a bar of one
+/// segment per step (done in the strain blue, the current one in ink, the rest
+/// faint). The words carry the meaning; the bar says nothing to a screen reader.
 class OnboardingStep extends StatelessWidget {
   /// 1-based: welcome, pick a band, about you.
   final int step;
@@ -671,17 +668,31 @@ class OnboardingStep extends StatelessWidget {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Glass(
-        radius: R.rPill,
-        child: Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x2),
-          child: Text(l?.onboardingStepOf(step, total) ?? 'Step $step of $total',
-              style: F.cap.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
-        ),
-      ),
+      Text(
+          (l?.onboardingStepOf(step, total) ?? 'Step $step of $total')
+              .toUpperCase(),
+          style: F.caps.copyWith(color: p.ink3, letterSpacing: 1.4)),
       const SizedBox(height: S.x3),
-      StepPath(total, step - 1, height: S.x16 + S.x8),
+      ExcludeSemantics(
+        child: Row(children: [
+          for (var i = 1; i <= total; i++) ...[
+            if (i > 1) const SizedBox(width: S.x1),
+            Expanded(
+              child: Container(
+                height: S.x1,
+                decoration: BoxDecoration(
+                  color: i < step
+                      ? C.dialStrain
+                      : i == step
+                          ? p.ink
+                          : p.ink.withValues(alpha: .12),
+                  borderRadius: R.rPill,
+                ),
+              ),
+            ),
+          ],
+        ]),
+      ),
     ]);
   }
 }

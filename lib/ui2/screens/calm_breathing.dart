@@ -1032,19 +1032,14 @@ class BreathCircle extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // The sage field the ring breathes on: painted once and
-          // cached, never animated — only the ring moves. On it the ring is
-          // ink, the one colour solved on aurora; a sage ring on a sage field
-          // would vanish. At 60% of the solved peak: the ring lays a 14% ink
-          // disc under the label, and on the full peak that measures 3.5:1 in
-          // dark (5.5:1 at 60%).
-          ClipOval(
-            child: RepaintBoundary(
-              child: CustomPaint(
-                size: const Size(240, 240),
-                painter: AuroraPainter(p.card,
-                    Color.lerp(p.card, p.aurora(C.domMind), .6)!),
-              ),
+          // The disc the ring breathes on: a faint wash of the calm blue
+          // over the card. Only the ring moves.
+          Container(
+            width: 240,
+            height: 240,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Color.alphaBlend(C.stressLow.withValues(alpha: .14), p.card),
             ),
           ),
           CustomPaint(

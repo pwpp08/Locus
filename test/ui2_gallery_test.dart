@@ -140,12 +140,12 @@ void main() {
       return scope.data.brightness;
     }
 
-    await tester.tap(find.text('Light'));
+    await tester.tap(find.text('LIGHT'));
     await tester.pump();
     expect(shownAfterTapping('Light'), Brightness.light,
         reason: 'the Light tab is rendering the dark palette.');
 
-    await tester.tap(find.text('Dark'));
+    await tester.tap(find.text('DARK'));
     await tester.pump();
     expect(shownAfterTapping('Dark'), Brightness.dark,
         reason: 'the Dark tab is rendering the light palette.');

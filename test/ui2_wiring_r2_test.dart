@@ -678,7 +678,7 @@ void main() {
                       confidence: .9,
                       tier: MetricTier.high))));
       expect(find.text('Recovery is not scored today'), findsOneWidget);
-      expect(find.text('See what was missing'), findsOneWidget);
+      expect(find.text('SEE WHAT WAS MISSING'), findsOneWidget);
     });
 
     testWidgets('the detail names each input and QUOTES the pipeline',
@@ -700,7 +700,7 @@ void main() {
       expect(find.textContaining('Not measured · 6 of 14 nights'),
           findsOneWidget);
       // The banner says it once, off the note. 14 − 6 = 8.
-      expect(find.textContaining('Need 8 more nights'), findsOneWidget);
+      expect(find.textContaining('NEED 8 MORE NIGHTS'), findsOneWidget);
       expect(find.textContaining('before readiness can score'), findsNothing);
     });
 
@@ -733,7 +733,7 @@ void main() {
             'note': 'need_baseline:have=6,need=14',
           })));
       expect(find.textContaining('before readiness can score'), findsNothing);
-      expect(find.textContaining('Need 8 more nights'), findsOneWidget);
+      expect(find.textContaining('NEED 8 MORE NIGHTS'), findsOneWidget);
     });
 
     testWidgets('a held-over night still shows the reason once', (t) async {
@@ -771,9 +771,9 @@ void main() {
             wear: [for (var i = 11; i >= 0; i--) (t: _noon(i), v: 480.0)],
           ));
       // The screen opens on Today; the denominator is a long-range thing.
-      await t.tap(find.text('30 days'));
+      await t.tap(find.text('30 DAYS'));
       await t.pumpAndSettle();
-      expect(find.text('Worn'), findsOneWidget);
+      expect(find.text('WORN'), findsOneWidget);
       expect(find.textContaining('12 of these 30 days have a wear record'),
           findsOneWidget);
     });
@@ -787,9 +787,9 @@ void main() {
             series: [for (var i = 11; i >= 0; i--) (t: _noon(i), v: 54.0)],
             wear: [for (var i = 11; i >= 0; i--) (t: _noon(i), v: 480.0)],
           ));
-      await t.tap(find.text('7 days'));
+      await t.tap(find.text('7 DAYS'));
       await t.pumpAndSettle();
-      expect(find.text('Worn'), findsNothing);
+      expect(find.text('WORN'), findsNothing);
     });
   });
 
@@ -829,7 +829,7 @@ void main() {
             daysAvailable: 400,
             series: [for (var i = 200; i >= 0; i--) (t: _noon(i), v: 54.0)],
           ));
-      await t.tap(find.text('30 days'));
+      await t.tap(find.text('30 DAYS'));
       await t.pumpAndSettle();
       expect(find.textContaining('Daily average'), findsOneWidget);
     });
@@ -891,7 +891,7 @@ void main() {
 
     testWidgets('it is gone on a wider range', (t) async {
       await pump(t);
-      await t.tap(find.text('30 days'));
+      await t.tap(find.text('30 DAYS'));
       await t.pumpAndSettle();
       expect(find.text('Breakdown'), findsNothing);
     });
@@ -1007,7 +1007,7 @@ void main() {
             ])),
       ));
       await t.pumpAndSettle();
-      expect(find.text('Irregular-rhythm screen'), findsOneWidget);
+      expect(find.text('IRREGULAR-RHYTHM SCREEN'), findsOneWidget);
       expect(find.textContaining('Ran on 10 days, raised its flag on 1'),
           findsOneWidget);
       // The permanent line. Not a tooltip, and not optional.
@@ -1212,7 +1212,7 @@ void main() {
               cosinorV: {'acrophase_hours': 15.2}),
           advanced: false);
       expect(find.text('Day-to-day stability'), findsNothing);
-      await t.tap(find.text('Show'));
+      await t.tap(find.text('SHOW'));
       await t.pumpAndSettle();
       expect(find.text('Day-to-day stability'), findsOneWidget);
     });
@@ -1369,7 +1369,7 @@ void main() {
       expect(find.text('Schedule consistency'), findsOneWidget);
       expect(find.text('Nights least alike'), findsNothing);
 
-      await t.tap(find.text('Which nights'));
+      await t.tap(find.text('WHICH NIGHTS'));
       await t.pumpAndSettle();
       expect(find.text('12 Aug → 13 Aug'), findsOneWidget);
       expect(find.text('18 / 100'), findsOneWidget);
@@ -1389,7 +1389,7 @@ void main() {
                 Metric(value: 62, confidence: .8, tier: MetricTier.high)),
       );
       expect(find.text('Schedule consistency'), findsOneWidget);
-      expect(find.text('Which nights'), findsNothing);
+      expect(find.text('WHICH NIGHTS'), findsNothing);
     });
 
     testWidgets('the rows survive 3.1x text', (t) async {
@@ -1404,7 +1404,7 @@ void main() {
         ),
         scale: 3.1,
       );
-      await t.tap(find.text('Which nights'));
+      await t.tap(find.text('WHICH NIGHTS'));
       await t.pumpAndSettle();
       expect(find.text('12 Aug → 13 Aug'), findsOneWidget);
     });

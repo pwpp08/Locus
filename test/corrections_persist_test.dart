@@ -142,15 +142,15 @@ void main() {
 
     testWidgets('workout: not a workout, change sport', (t) async {
       await pump(t, ActivityKind.workout, const Locale('en'));
-      expect(find.text('Not a workout'), findsOneWidget);
-      expect(find.text('Change sport'), findsOneWidget);
+      expect(find.text('NOT A WORKOUT'), findsOneWidget);
+      expect(find.text('CHANGE SPORT'), findsOneWidget);
       expect(find.text('Discard'), findsNothing);
     });
 
     testWidgets('nap: not a nap, edit', (t) async {
       await pump(t, ActivityKind.nap, const Locale('en'));
-      expect(find.text('Not a nap'), findsOneWidget);
-      expect(find.text('Edit'), findsOneWidget);
+      expect(find.text('NOT A NAP'), findsOneWidget);
+      expect(find.text('EDIT'), findsOneWidget);
     });
 
   });

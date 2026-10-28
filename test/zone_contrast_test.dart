@@ -62,8 +62,9 @@ void main() {
       }
     }
 
-    test('the ramp is slate-blue, sky, volt, amber, coral', () {
-      expect(ZoneRows.pigment, [C.blueSoft, C.sky, C.volt, C.amber, C.coral]);
+    test('the ramp is the five reference zone hues', () {
+      expect(ZoneRows.pigment,
+          [C.refZone1, C.refZone2, C.refZone3, C.refZone4, C.refZone5]);
     });
 
     test('neighbouring zones are different colours, not just lighter', () {

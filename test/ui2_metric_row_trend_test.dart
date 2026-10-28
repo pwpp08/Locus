@@ -81,7 +81,7 @@ void main() {
 
     testWidgets('the glyph carries the direction, the hue carries the verdict',
         (t) async {
-      final p = await pump(t, const [
+      await pump(t, const [
         // Up, and up is good here.
         MetricRow(LucideIcons.activity, C.green, 'HRV', '64',
             unit: 'ms', series: rising, rising: Rising.good),
@@ -95,10 +95,11 @@ void main() {
       final marks = t.widgetList<DeltaTriangle>(find.byType(DeltaTriangle)).toList();
       final up = [for (final m in marks) if (m.up) m];
       expect(up.length, 2, reason: 'both rose, so both point up');
-      expect(up[0].color, p.on(C.green));
-      expect(up[1].color, p.on(C.orange));
+      // The verdict hues of DESIGN.md §2.4: optimal for good, poor for not.
+      expect(up[0].color, C.optimal);
+      expect(up[1].color, C.poor);
       final down = marks.singleWhere((m) => !m.up);
-      expect(down.color, p.on(C.green));
+      expect(down.color, C.optimal);
     });
 
     testWidgets('a metric with no settled better direction gets no hue',
@@ -117,7 +118,8 @@ void main() {
         MetricRow(LucideIcons.activity, C.green, 'HRV', '50',
             unit: 'ms', series: steady, rising: Rising.good),
       ]);
-      expect(t.widgetList<Icon>(find.byIcon(LucideIcons.arrowRight)).single.color,
+      // Steady is a short ink3 dash, not an arrow.
+      expect(t.widgetList<Icon>(find.byIcon(LucideIcons.minus)).single.color,
           p.ink3);
     });
 
@@ -127,7 +129,7 @@ void main() {
             unit: 'br/min', series: [50, 51, 50], rising: Rising.bad),
       ]);
       expect(find.byType(DeltaTriangle), findsNothing);
-      expect(find.byIcon(LucideIcons.arrowRight), findsNothing);
+      expect(find.byIcon(LucideIcons.minus), findsNothing);
       // The absence carries its reason where an empty box cannot: a horizontal
       // arrow here would claim a measured "no change".
       expect(

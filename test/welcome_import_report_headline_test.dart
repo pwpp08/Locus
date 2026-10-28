@@ -57,7 +57,7 @@ void main() {
         findsOneWidget);
     expect(find.textContaining('2 days of saved sensor history'),
         findsOneWidget);
-    expect(find.text('Update the app'), findsOneWidget);
+    expect(find.text('UPDATE THE APP'), findsOneWidget);
   });
 
   testWidgets('a re-import that lands nothing still reports the archive '
@@ -70,7 +70,7 @@ void main() {
     expect(find.textContaining('Nothing was imported'), findsOneWidget);
     expect(find.textContaining('1 day of saved sensor history'),
         findsOneWidget);
-    expect(find.text('Update the app'), findsOneWidget);
+    expect(find.text('UPDATE THE APP'), findsOneWidget);
     // Nothing else landed, so nothing may claim it did.
     expect(find.textContaining('Everything else'), findsNothing);
   });

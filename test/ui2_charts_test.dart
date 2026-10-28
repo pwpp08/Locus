@@ -707,7 +707,7 @@ void main() {
       )));
 
       expect(find.text('bpm'), findsOneWidget);
-      expect(find.text('Resting heart rate'), findsOneWidget);
+      expect(find.text('RESTING HEART RATE'), findsOneWidget);
       for (final t in const ['80', '60', '40']) {
         expect(find.text(t), findsOneWidget, reason: 'tick $t missing');
       }
@@ -755,7 +755,8 @@ void main() {
             painter: Hypnogram(const [SleepStage.deep], const P(false))),
       )));
       for (final s in SleepStage.values) {
-        expect(find.text(s.label()), findsOneWidget);
+        // Legend names are drawn uppercased.
+        expect(find.text(s.label().toUpperCase()), findsOneWidget);
       }
     });
 

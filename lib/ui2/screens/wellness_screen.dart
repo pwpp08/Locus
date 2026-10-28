@@ -834,21 +834,14 @@ Future<MedSchedule?> pickMedSchedule(
                         ),
                         decoration: BoxDecoration(
                           color: picked.contains(d)
-                              ? p.wash(C.domMind)
-                              : p.card2,
-                          borderRadius: R.rPill,
-                          border: Border.all(
-                            color: picked.contains(d)
-                                ? p.on(C.domMind)
-                                : p.line,
-                          ),
+                              ? p.ink
+                              : p.ink.withValues(alpha: .09),
+                          borderRadius: R.rLg,
                         ),
                         child: Text(
-                          weekdayShortName(d, l),
-                          style: F.cap.copyWith(
-                            color: picked.contains(d)
-                                ? p.on(C.domMind)
-                                : p.ink2,
+                          weekdayShortName(d, l).toUpperCase(),
+                          style: F.caps.copyWith(
+                            color: picked.contains(d) ? p.bg : p.ink2,
                           ),
                         ),
                       ),
@@ -978,8 +971,7 @@ class _Check extends StatelessWidget {
       height: 28,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: on ? p.fill(C.green) : p.card2,
-        border: on ? null : Border.all(color: p.line, width: 1.6),
+        color: on ? p.fill(C.green) : p.ink.withValues(alpha: .09),
       ),
       child: on
           ? Icon(LucideIcons.check,
