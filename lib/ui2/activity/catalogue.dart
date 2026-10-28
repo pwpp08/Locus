@@ -467,6 +467,9 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     ['chest', 'triceps', 'shoulders'],
     category: 'Chest',
     equipment: ['Barbell', 'Bench'],
+    aliases: ['flat bench', 'flat bench press', 'barbell bench press'],
+    imageId: 'Barbell_Bench_Press_-_Medium_Grip',
+    imageFrames: 2,
     localizedLabels: {
       'de': 'Bankdrücken',
       'es': 'Press de banca',
@@ -479,8 +482,10 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     ['chest', 'shoulders', 'triceps'],
     category: 'Chest',
     equipment: ['Dumbbell', 'Incline bench'],
-    aliases: ['incline dumbbell press'],
+    aliases: ['incline dumbbell press', 'incline db bench press'],
     step: 2,
+    imageId: 'Incline_Dumbbell_Press',
+    imageFrames: 2,
     localizedLabels: {
       'de': 'Schrägbankdrücken mit Kurzhanteln',
       'es': 'Press inclinado con mancuernas',
@@ -493,6 +498,9 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     ['chest', 'shoulders'],
     category: 'Chest',
     equipment: ['Cable machine'],
+    aliases: ['cable flye', 'cable crossover', 'chest fly'],
+    imageId: 'Incline_Cable_Flye',
+    imageFrames: 2,
     localizedLabels: {
       'de': 'Fliegende am Kabelzug',
       'es': 'Aperturas en polea',
@@ -505,7 +513,9 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     ['chest', 'triceps', 'shoulders'],
     category: 'Chest',
     equipment: ['none (bodyweight exercise)'],
-    aliases: ['push up', 'push-ups', 'press-up'],
+    aliases: ['push up', 'push-ups', 'press-up', 'pushups'],
+    imageId: 'Pushups',
+    imageFrames: 2,
     localizedLabels: {'de': 'Liegestütz', 'es': 'Flexión', 'fr': 'Pompe'},
     bodyweight: true,
   ),
@@ -515,7 +525,9 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     ['shoulders', 'triceps', 'core'],
     category: 'Shoulders',
     equipment: ['Barbell'],
-    aliases: ['OHP'],
+    aliases: ['OHP', 'military press', 'standing military press', 'barbell shoulder press'],
+    imageId: 'Standing_Military_Press',
+    imageFrames: 2,
     localizedLabels: {
       'de': 'Schulterdrücken',
       'es': 'Press militar',
@@ -528,6 +540,9 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     ['triceps'],
     category: 'Arms',
     equipment: ['Cable machine'],
+    aliases: ['tricep pushdown', 'cable pushdown', 'rope pushdown'],
+    imageId: 'Triceps_Pushdown',
+    imageFrames: 2,
     localizedLabels: {
       'de': 'Trizepsdrücken am Kabel',
       'es': 'Extensión de tríceps en polea',
@@ -539,7 +554,9 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     'Overhead extension',
     ['triceps'],
     category: 'Arms',
-    aliases: ['overhead triceps extension'],
+    aliases: ['overhead triceps extension', 'dumbbell overhead extension'],
+    imageId: 'Standing_Dumbbell_Triceps_Extension',
+    imageFrames: 2,
     localizedLabels: {
       'de': 'Trizepsstrecken über Kopf',
       'es': 'Extensión de tríceps sobre la cabeza',
@@ -552,6 +569,9 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     ['back', 'biceps', 'core'],
     category: 'Back',
     equipment: ['Barbell'],
+    aliases: ['bent over row', 'bent over barbell row'],
+    imageId: 'Bent_Over_Barbell_Row',
+    imageFrames: 2,
     localizedLabels: {
       'de': 'Langhantelrudern',
       'es': 'Remo con barra',
@@ -564,6 +584,9 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     ['back', 'biceps'],
     category: 'Back',
     equipment: ['Cable machine'],
+    aliases: ['lat pull down', 'pulldown', 'wide-grip lat pulldown'],
+    imageId: 'Wide-Grip_Lat_Pulldown',
+    imageFrames: 2,
     localizedLabels: {
       'de': 'Latziehen',
       'es': 'Jalón al pecho',
@@ -576,7 +599,9 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     ['back', 'biceps', 'core'],
     category: 'Back',
     equipment: ['Pull-up bar'],
-    aliases: ['pull up', 'pull-ups'],
+    aliases: ['pull up', 'pull-ups', 'pullup', 'pullups', 'chin-up', 'chin up'],
+    imageId: 'Pullups',
+    imageFrames: 2,
     localizedLabels: {'de': 'Klimmzug', 'es': 'Dominada', 'fr': 'Traction'},
     bodyweight: true,
   ),
@@ -586,6 +611,9 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     ['biceps'],
     category: 'Arms',
     equipment: ['Barbell'],
+    aliases: ['bicep curl', 'biceps curl'],
+    imageId: 'Barbell_Curl',
+    imageFrames: 2,
     localizedLabels: {
       'de': 'Langhantelcurl',
       'es': 'Curl con barra',
@@ -598,6 +626,9 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     ['legs', 'glutes', 'core'],
     category: 'Legs',
     equipment: ['Barbell'],
+    aliases: ['squat', 'squats', 'barbell squat', 'barbell back squat', 'barbell full squat'],
+    imageId: 'Barbell_Full_Squat',
+    imageFrames: 2,
     localizedLabels: {
       'de': 'Kniebeuge',
       'es': 'Sentadilla trasera',
@@ -610,6 +641,9 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     ['legs', 'glutes', 'core'],
     category: 'Legs',
     equipment: ['Barbell'],
+    aliases: ['barbell front squat'],
+    imageId: 'Front_Barbell_Squat',
+    imageFrames: 2,
     localizedLabels: {
       'de': 'Frontkniebeuge',
       'es': 'Sentadilla frontal',
@@ -622,6 +656,9 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     ['back', 'legs', 'glutes', 'core'],
     category: 'Back',
     equipment: ['Barbell'],
+    aliases: ['barbell deadlift', 'conventional deadlift'],
+    imageId: 'Barbell_Deadlift',
+    imageFrames: 2,
     localizedLabels: {
       'de': 'Kreuzheben',
       'es': 'Peso muerto',
@@ -634,7 +671,9 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     ['glutes', 'legs', 'back'],
     category: 'Legs',
     equipment: ['Barbell'],
-    aliases: ['RDL'],
+    aliases: ['RDL', 'rdl', 'barbell romanian deadlift'],
+    imageId: 'Romanian_Deadlift',
+    imageFrames: 2,
     localizedLabels: {
       'de': 'Rumänisches Kreuzheben',
       'es': 'Peso muerto rumano',
@@ -646,6 +685,9 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     'Hip thrust',
     ['glutes', 'legs'],
     category: 'Legs',
+    aliases: ['barbell hip thrust', 'glute bridge'],
+    imageId: 'Barbell_Hip_Thrust',
+    imageFrames: 2,
     localizedLabels: {
       'de': 'Hip Thrust',
       'es': 'Empuje de cadera',
@@ -657,6 +699,9 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     'Leg press',
     ['legs', 'glutes'],
     category: 'Legs',
+    aliases: ['seated leg press'],
+    imageId: 'Leg_Press',
+    imageFrames: 2,
     localizedLabels: {
       'de': 'Beinpresse',
       'es': 'Prensa de piernas',
@@ -669,7 +714,10 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     ['core'],
     category: 'Abs',
     equipment: ['none (bodyweight exercise)'],
+    aliases: ['front plank'],
     step: 0,
+    imageId: 'Plank',
+    imageFrames: 2,
     localizedLabels: {'de': 'Unterarmstütz', 'es': 'Plancha', 'fr': 'Gainage'},
     bodyweight: true,
   ),
@@ -679,7 +727,10 @@ const _edgeExerciseLibrary = <ExerciseDef>[
     ['core'],
     category: 'Abs',
     equipment: ['Pull-up bar'],
+    aliases: ['leg raise', 'hanging knee raise'],
     step: 0,
+    imageId: 'Hanging_Leg_Raise',
+    imageFrames: 2,
     localizedLabels: {
       'de': 'Hängendes Beinheben',
       'es': 'Elevación de piernas colgado',
@@ -723,10 +774,26 @@ final Map<String, ExerciseDef?> _photoOf = {};
 
 /// The exercise whose photos stand for [d]: itself when it has them, else the
 /// photographed lift whose name holds all of its words (and adds the fewest),
-/// so a hand-written "Bench press" shows a bench press.
+/// or matches via synonyms and aliases, so a hand-written "Back squat" or "Bench press"
+/// always shows the correct visual.
 ExerciseDef? photoOf(ExerciseDef d) {
   if (d.imageId != null) return d;
   return _photoOf.putIfAbsent(d.key, () {
+    // 1. Synonym lookup on label, key, or aliases
+    final qLabel = _norm(d.label);
+    final syn = _kExerciseSynonyms[qLabel] ??
+        _kExerciseSynonyms[_norm(d.key.replaceAll('_', ' '))] ??
+        (d.aliases.isNotEmpty ? _kExerciseSynonyms[_norm(d.aliases.first)] : null);
+    if (syn != null) {
+      for (final e in exerciseLibrary) {
+        if (e.imageId == null) continue;
+        if (_norm(e.label) == syn || e.aliases.any((a) => _norm(a) == syn)) {
+          return e;
+        }
+      }
+    }
+
+    // 2. Exact word containment
     final qw = _words(d.label);
     if (qw.isEmpty) return null;
     ExerciseDef? best;
@@ -739,6 +806,30 @@ ExerciseDef? photoOf(ExerciseDef d) {
       if (x <= 3 && x < extra) {
         best = e;
         extra = x;
+      }
+    }
+    if (best != null) return best;
+
+    // 3. Aliases word containment
+    for (final a in d.aliases) {
+      final aw = _words(a);
+      if (aw.isEmpty) continue;
+      for (final e in exerciseLibrary) {
+        if (e.imageId == null) continue;
+        final w = _words(e.label);
+        if (w.containsAll(aw)) return e;
+      }
+    }
+
+    // 4. Overlap fallback: match closest exercise sharing root words
+    var maxOverlap = 0;
+    for (final e in exerciseLibrary) {
+      if (e.imageId == null) continue;
+      final w = _words(e.label);
+      final overlap = qw.intersection(w).length;
+      if (overlap > maxOverlap && overlap >= 1) {
+        maxOverlap = overlap;
+        best = e;
       }
     }
     return best;

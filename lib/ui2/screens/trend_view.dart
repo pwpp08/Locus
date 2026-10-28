@@ -1477,7 +1477,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
           for (var k = layerBars.length - 1; k >= 0; k--)
             (
               value: trendFormat(m, layerBars[k][i].v),
-              unit: 'hr',
+              unit: m.unit ?? '',
               name: names[k],
               color: colours[k],
               chip: null
@@ -1544,9 +1544,9 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                       _back == 0 ? null : () => _stepBack(-1)),
                 ]),
               ),
-              const SizedBox(height: S.x4),
+              const SizedBox(height: S.x3),
               Text(_sentence(m, avg, prev, band, dayValue, layerBars, l),
-                  style: F.head.copyWith(color: p.ink, height: 1.3)),
+                  style: F.body.copyWith(color: p.ink, height: 1.25)),
               if (band != null)
                 _legend(p, [(label: 'TYPICAL RANGE', color: p.ink.withValues(alpha: .12))]),
               if (isDay && m.id == 'hrv' && _sleep != null)
@@ -1559,7 +1559,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                 ]),
               if (!isDay && m.id == 'consistency' && _range != TrendRange.sixMonths)
                 Padding(
-                  padding: const EdgeInsets.only(top: S.x5),
+                  padding: const EdgeInsets.only(top: S.x4),
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -1573,7 +1573,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                     ]),
                   ),
                 ),
-              const SizedBox(height: S.x6),
+              const SizedBox(height: S.x4),
               if (isDay)
                 intraLoading
                     ? const SizedBox(
@@ -2389,10 +2389,10 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
             '${rel(avg, prev)} your previous 7-day total of ${trendFormat(m, prev)}.';
       }
       if (m.group == TrendGroup.sleep) {
-        return 'Your average ${m.title.toLowerCase()} ($shown) this week was '
+        return 'Your average ${_short(m)} ($shown) this week was '
             '${rel(avg, prev)} your previous 7-day average of ${trendFormat(m, prev)}.';
       }
-      return 'During this 7-day period, your average ${m.title} ($shown) was '
+      return 'During this 7-day period, your average ${_short(m)} ($shown) was '
           '${rel(avg, prev)} your average at the time (${trendFormat(m, prev)}).';
     }
     if (m.weekly) {
@@ -2407,7 +2407,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       return 'During this 6-month period, your average ${_short(m)} has been '
           '$shown. Keep wearing your band to see how this changes over time.';
     }
-    return 'Your average ${m.title} this $word is $shown. Keep wearing your '
+    return 'Your average ${_short(m)} this $word is $shown. Keep wearing your '
         'band to see how this changes over time.';
   }
 }
