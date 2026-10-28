@@ -1707,7 +1707,7 @@ class _LiveStrengthState extends State<LiveStrength> {
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(LucideIcons.plus, size: I.sm, color: p.ink),
                 const SizedBox(width: S.x1),
-                Text(l?.activityLiveAddExerciseTitle ?? 'Add',
+                Text(l?.activityLiveAddExerciseTitle ?? 'Add exercise',
                     style: F.cap.copyWith(
                         color: p.ink, fontWeight: FontWeight.w600)),
               ]),

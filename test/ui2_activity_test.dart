@@ -240,7 +240,7 @@ void main() {
 
     test('the offline strength catalogue keeps old keys and wger provenance',
         () {
-      expect(coreExerciseCount, 19);
+      expect(coreExerciseCount, 100);
       expect(wgerExerciseCount, wgerWeightliftingSelection.length);
       expect(
           {for (final e in exerciseLibrary.where((e) => e.fromWger))
