@@ -16,7 +16,7 @@
 const double kShakeJoltG = 0.45;
 
 /// How many separate jolts make a shake.
-const int kShakeJolts = 2;
+const int kShakeJolts = 3;
 
 /// The window those jolts must fall inside (ms).
 const int kShakeWindowMs = 2000;

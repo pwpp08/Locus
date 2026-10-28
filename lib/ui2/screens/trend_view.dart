@@ -1707,40 +1707,53 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                     color: color,
                   ),
                   const SizedBox(width: S.x1),
-                  Text(
-                    label.toUpperCase(),
-                    style: F.caps.copyWith(color: p.ink3, letterSpacing: .5),
+                  Expanded(
+                    child: Text(
+                      label.toUpperCase(),
+                      style: F.caps.copyWith(color: p.ink3, letterSpacing: .5),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: S.x2),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    formattedVal,
-                    style: F.n24.copyWith(
-                      color: p.ink,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (unitStr.isNotEmpty) ...[
-                    const SizedBox(width: S.half),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
                     Text(
-                      unitStr.trim(),
-                      style: F.cap.copyWith(
-                        color: p.ink3,
-                        fontWeight: FontWeight.w600,
+                      formattedVal,
+                      style: F.n24.copyWith(
+                        color: p.ink,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
+                    if (unitStr.isNotEmpty) ...[
+                      const SizedBox(width: S.half),
+                      Text(
+                        unitStr.trim(),
+                        style: F.cap.copyWith(
+                          color: p.ink3,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
               const SizedBox(height: S.x1),
-              Text(
-                dateStr,
-                style: F.num(F.cap).copyWith(color: p.ink3),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  dateStr,
+                  style: F.num(F.cap).copyWith(color: p.ink3),
+                  maxLines: 1,
+                ),
               ),
             ],
           ),

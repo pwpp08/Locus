@@ -127,11 +127,9 @@ void main() {
             zoneMin: const [30, 20, 10, 5, 1],
             zoneLowerBpm: const [95, 114, 133, 152, 171]))));
     await t.pumpAndSettle();
-    final frame = t
-        .widgetList<ChartFrame>(find.byType(ChartFrame))
-        .firstWhere((f) => f.unit == '0–21');
-    expect(frame.yAxis!.min, 0);
-    expect(frame.yAxis!.max, 21);
+    final scrub = t.widget<ScrubLine>(find.byType(ScrubLine));
+    expect(scrub.lo, 0);
+    expect(scrub.hi, 21);
     // The zone split is five named rows with their edges, not a strip.
     expect(find.textContaining('Zone 5'), findsOneWidget);
     expect(find.textContaining('171+ bpm'), findsOneWidget);

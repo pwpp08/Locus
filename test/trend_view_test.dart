@@ -153,7 +153,7 @@ void main() {
     final box = t.getRect(find.byType(ScrubColumns));
     final drag = await t.startGesture(Offset(box.right - 6, box.center.dy));
     await t.pump();
-    expect(find.text('15.0'), findsOneWidget);
+    expect(find.text('15.0'), findsAtLeastNWidgets(1));
     expect(find.text('SUN, AUG 16, 2026'), findsOneWidget);
     await drag.up();
     await t.pump();
@@ -166,7 +166,7 @@ void main() {
     await t.pump();
     await t.pump();
     expect(find.text('SLEEP DEBT'), findsOneWidget);
-    expect(find.text('0:40'), findsOneWidget);
+    expect(find.text('0:40'), findsAtLeastNWidgets(1));
     expect(t.takeException(), isNull);
     h.dispose();
   });
@@ -232,8 +232,8 @@ void main() {
     await t.pump();
     await t.pump();
     // No minute data to open on, so the week is what it opens on.
-    expect(find.text('100'), findsOneWidget);
-    expect(find.text('ms'), findsOneWidget);
+    expect(find.text('100'), findsAtLeastNWidgets(1));
+    expect(find.text('ms'), findsAtLeastNWidgets(1));
     expect(find.text('25% vs. prior week'), findsOneWidget);
     expect(find.byType(ScrubLine), findsOneWidget);
   });

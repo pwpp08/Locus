@@ -5040,7 +5040,6 @@ class AppState extends ChangeNotifier {
     device.alarmEpoch = null;
     _alarm.disable();
     _alarmGraceTimer?.cancel();
-    unawaited(DeviceActions.perform('dismiss_phone_alarm'));
     unawaited(() async {
       try {
         final prefs = await SharedPreferences.getInstance();

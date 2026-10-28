@@ -1619,7 +1619,7 @@ class _FunStatCard extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     return Surface(
-      pad: const EdgeInsets.all(S.x4),
+      pad: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1632,39 +1632,55 @@ class _FunStatCard extends StatelessWidget {
                   color: p.track,
                   borderRadius: R.rSm,
                 ),
-                child: Icon(icon, size: I.md, color: p.ink),
+                child: Icon(icon, size: I.sm, color: p.ink),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: S.x2, vertical: S.half),
-                decoration: BoxDecoration(
-                  color: p.track,
-                  borderRadius: R.rSm,
-                ),
-                child: Text(
-                  badge,
-                  style: F.over.copyWith(
-                    color: p.ink3,
-                    letterSpacing: 0.5,
+              const SizedBox(width: S.x1),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: S.x2, vertical: S.half),
+                  decoration: BoxDecoration(
+                    color: p.track,
+                    borderRadius: R.rSm,
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      badge,
+                      style: F.over.copyWith(
+                        color: p.ink3,
+                        letterSpacing: 0.5,
+                      ),
+                      maxLines: 1,
+                    ),
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: S.x3),
-          Text(
-            headline,
-            style: F.n17.copyWith(
-              color: p.ink,
-              fontWeight: FontWeight.bold,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              headline,
+              style: F.n17.copyWith(
+                color: p.ink,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const SizedBox(height: S.half),
-          Text(
-            title.toUpperCase(),
-            style: F.caps.copyWith(
-              color: p.ink3,
-              letterSpacing: 0.5,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              title.toUpperCase(),
+              style: F.caps.copyWith(
+                color: p.ink3,
+                letterSpacing: 0.5,
+              ),
+              maxLines: 1,
             ),
           ),
         ],

@@ -1565,20 +1565,33 @@ class _MetricDetailState extends State<MetricDetail> {
               Row(children: [
                 Icon(icon, size: I.sm, color: iconColor),
                 const SizedBox(width: S.x1),
-                Text(
-                  label.toUpperCase(),
-                  style: F.caps.copyWith(color: p.ink3, letterSpacing: .5),
+                Expanded(
+                  child: Text(
+                    label.toUpperCase(),
+                    style: F.caps.copyWith(color: p.ink3, letterSpacing: .5),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ]),
               const SizedBox(height: S.x1),
-              Text(
-                valStr,
-                style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  valStr,
+                  style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700),
+                ),
               ),
               const SizedBox(height: S.half),
-              Text(
-                dateStr,
-                style: F.cap.copyWith(color: p.ink3),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  dateStr,
+                  style: F.cap.copyWith(color: p.ink3),
+                  maxLines: 1,
+                ),
               ),
             ],
           ),
