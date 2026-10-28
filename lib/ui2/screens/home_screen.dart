@@ -18,7 +18,7 @@ import '../../compute/onehz_pipeline.dart'
     show readinessInputShortfallNote, readinessUnstableBaselineNote;
 import '../../data/day_label.dart'
     show dayLabelOf, localDayStartSec, todayLabel;
-import '../../data/db.dart' show DbRebuild;
+import '../../data/db.dart' show DbRebuild, LocalDb;
 import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/metric.dart';
@@ -52,6 +52,7 @@ import 'home/home_rings.dart';
 import 'home/home_tonights_sleep.dart';
 import 'journal_compose.dart';
 import 'metric_detail.dart' show MetricDetail;
+import 'naps.dart' show NapsScreen;
 import 'plus_menu.dart';
 import 'readiness_detail.dart';
 import 'recovery_calendar.dart' show openRecoveryCalendar;
@@ -370,6 +371,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
 
   Map<String, dynamic> _night = const {};
   List<Map<String, dynamic>> _sessions = const [];
+  List<Map<String, dynamic>> _naps = const [];
   StressMonitorData? _stress;
   HealthGlance? _health;
   StressSource? _stressSource;
@@ -387,6 +389,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     final day = d.dayId ?? _day ?? todayLabel();
     var night = const <String, dynamic>{};
     var sessions = const <Map<String, dynamic>>[];
+    var naps = const <Map<String, dynamic>>[];
     try {
       night = await repo.getDaySleepV2(day);
     } catch (_) {}
@@ -403,6 +406,30 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             .compareTo((b['start_ts'] as num?) ?? 0));
       }
     } catch (_) {}
+    try {
+      final nd = await repo.getDayNaps(day);
+      final raw = (nd['naps'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+      final manualEdits = await LocalDb.napEdits(day);
+      final merged = <Map<String, dynamic>>[...raw];
+      for (final e in manualEdits) {
+        if (e['source'] == 'manual') {
+          final start = e['start_ts'] as int?;
+          final end = e['end_ts'] as int?;
+          if (start != null &&
+              end != null &&
+              !merged.any((m) => m['start'] == start && m['end'] == end)) {
+            merged.add({
+              'start': start,
+              'end': end,
+              'duration_min': ((end - start) / 60).round(),
+              'source': 'manual',
+            });
+          }
+        }
+      }
+      naps = merged..sort((a, b) =>
+          ((a['start'] as num?) ?? 0).compareTo((b['start'] as num?) ?? 0));
+    } catch (_) {}
     final loader = TrendLoader(repo);
     final daily = <String, Map<String, double>>{};
     for (final k in {..._tiles, 'strain', 'recovery'}) {
@@ -413,6 +440,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     if (!mounted) return;
     _night = night;
     _sessions = sessions;
+    _naps = naps;
     _daily = daily;
     _firstDay = first;
     _loadStress(repo, day);
@@ -645,15 +673,18 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         day: d.dayId ?? _day ?? todayLabel(),
         night: _night,
         sessions: _sessions,
+        naps: _naps,
         onExpand: () => go(
             c,
             DayHeartScreen(
               day: d.dayId ?? _day ?? todayLabel(),
               night: _night,
               sessions: _sessions,
+              naps: _naps,
               strain: d.strain.value?.toDouble(),
             )),
         onSleep: () => go(c, SleepDetail(day: isToday ? null : _day)),
+        onNap: (nap) => go(c, NapsScreen(day: isToday ? null : _day)),
         onSession: (s) async {
           final changed = await Navigator.of(c).push<bool>(themedRoute(
               (_) => WorkoutDetailScreen(session: s),

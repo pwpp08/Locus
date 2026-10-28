@@ -1514,7 +1514,97 @@ class _MetricDetailState extends State<MetricDetail> {
               ),
             );
           }),
+        _allTimeRecords(c, spec, all),
       ]),
+    );
+  }
+
+  Widget _allTimeRecords(
+    BuildContext c,
+    MetricSpec spec,
+    List<ChartPoint> all,
+  ) {
+    if (all.length < 2) return const SizedBox.shrink();
+    final key = spec.chartKey;
+    if (key == 'wear' || key == 'skin_temp' || key.contains('zone')) {
+      return const SizedBox.shrink();
+    }
+
+    ChartPoint? maxPt;
+    ChartPoint? minPt;
+    for (final pt in all) {
+      if (maxPt == null || pt.v > maxPt.v) maxPt = pt;
+      if (minPt == null || pt.v < minPt.v) minPt = pt;
+    }
+    if (maxPt == null || minPt == null) return const SizedBox.shrink();
+
+    final p = P.of(c);
+    final ub = unitBeside(spec.unit);
+    final u = ub.isEmpty ? '' : ' ${uiText(c, ub)}';
+
+    Widget recordCell({
+      required String label,
+      required ChartPoint pt,
+      required IconData icon,
+      required Color iconColor,
+    }) {
+      final dateStr = axisDay(pt.t);
+      final valStr = '${_fmt(spec, pt.v)}$u';
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x3),
+          decoration: BoxDecoration(
+            color: p.wash(p.ink).withValues(alpha: .04),
+            borderRadius: R.rMd,
+            border: Border.all(color: p.line.withValues(alpha: .3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(children: [
+                Icon(icon, size: I.sm, color: iconColor),
+                const SizedBox(width: S.x1),
+                Text(
+                  label.toUpperCase(),
+                  style: F.caps.copyWith(color: p.ink3, letterSpacing: .5),
+                ),
+              ]),
+              const SizedBox(height: S.x1),
+              Text(
+                valStr,
+                style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: S.half),
+              Text(
+                dateStr,
+                style: F.cap.copyWith(color: p.ink3),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: S.x4),
+      child: Row(
+        children: [
+          recordCell(
+            label: 'All-Time High',
+            pt: maxPt,
+            icon: LucideIcons.arrowUpRight,
+            iconColor: C.green,
+          ),
+          const SizedBox(width: S.x3),
+          recordCell(
+            label: 'All-Time Low',
+            pt: minPt,
+            icon: LucideIcons.arrowDownRight,
+            iconColor: C.dialStrain,
+          ),
+        ],
+      ),
     );
   }
 

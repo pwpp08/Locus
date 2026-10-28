@@ -18,6 +18,15 @@ import 'package:flutter/services.dart';
 
 class DeviceActions {
   static const _ch = MethodChannel('openstrap/device_actions');
+  static VoidCallback? onPhoneShakeDismiss;
+
+  static void ensureInitialized() {
+    _ch.setMethodCallHandler((call) async {
+      if (call.method == 'onPhoneShakeDismiss') {
+        onPhoneShakeDismiss?.call();
+      }
+    });
+  }
 
   /// The set of action ids this OS+device can actually perform. The settings UI
   /// uses this to hide unsupported actions (e.g. system volume on iOS). Returns an

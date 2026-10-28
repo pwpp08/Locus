@@ -63,6 +63,8 @@ class _AiNotesState extends State<_AiNotes> {
   bool _busy = false;
   String? _error;
   BuiltWorkout? _built;
+  String _builtName = 'AI Workout';
+  List<PlannedExercise> _matched = [];
   List<String> _missed = const [];
 
   @override
@@ -105,19 +107,18 @@ class _AiNotesState extends State<_AiNotes> {
       }
       setState(() {
         _busy = false;
+        _builtName = r.name;
+        _matched = matched;
         _built = (name: r.name, exercises: matched);
         _missed = missed;
       });
-      if (missed.isEmpty && matched.isNotEmpty) {
-        Navigator.of(context).pop(_built);
-      }
     } on Object catch (e) {
       if (!mounted) return;
       setState(() {
         _busy = false;
         _error = e is CoachException
-            ? e.message
-            : 'Could not reach your AI. Check its setup and try again.';
+          ? e.message
+          : 'Could not reach your AI. Check its setup and try again.';
       });
     }
   }
@@ -158,18 +159,123 @@ class _AiNotesState extends State<_AiNotes> {
               BigButton(_busy ? 'Building…' : 'Build workout',
                   onTap: _busy ? null : _build),
             ] else ...[
-              Text(
-                  built.exercises.isEmpty
-                      ? 'None of those lifts matched the library.'
-                      : '${built.exercises.length} lift${built.exercises.length == 1 ? '' : 's'} matched.',
-                  style: F.body.copyWith(color: p.ink2, height: 1.4)),
-              const SizedBox(height: S.x2),
-              Text('Left out, not in the library: ${_missed.join(', ')}.',
-                  style: F.body.copyWith(color: p.on(C.orange), height: 1.4)),
+              Row(children: [
+                Expanded(
+                  child: Text(
+                    _matched.isEmpty
+                        ? 'No lifts matched yet.'
+                        : '${_matched.length} exercise${_matched.length == 1 ? '' : 's'} in workout',
+                    style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Pressable(
+                  onTap: () {
+                    setState(() {
+                      _built = null;
+                      _matched = [];
+                      _missed = const [];
+                    });
+                  },
+                  child: Text('Edit Prompt',
+                      style: F.cap.copyWith(
+                          color: C.dialStrain, fontWeight: FontWeight.w700)),
+                ),
+              ]),
+              const SizedBox(height: S.x3),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(c).height * 0.42),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _matched.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: S.x2),
+                  itemBuilder: (c, i) {
+                    final pe = _matched[i];
+                    final def = exerciseByKey(pe.key);
+                    final reps = pe.sets.isNotEmpty ? pe.sets.first.reps : 0;
+                    final kg = pe.sets.isNotEmpty ? pe.sets.first.kg : null;
+                    final weightStr = kg != null ? ' @ ${kg}kg' : '';
+                    return Container(
+                      padding: const EdgeInsets.all(S.x2),
+                      decoration: BoxDecoration(
+                        color: p.card2,
+                        borderRadius: R.rLg,
+                        border: Border.all(color: p.line.withValues(alpha: .3)),
+                      ),
+                      child: Row(children: [
+                        ExerciseImage(
+                          def: def,
+                          width: S.x12,
+                          height: S.x10,
+                          radius: R.rMd,
+                        ),
+                        const SizedBox(width: S.x3),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(def?.label ?? pe.key,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: F.body.copyWith(
+                                      color: p.ink,
+                                      fontWeight: FontWeight.w600)),
+                              Text(
+                                '${pe.sets.length} sets × $reps reps$weightStr',
+                                style: F.cap.copyWith(color: p.ink3),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Pressable(
+                          onTap: () async {
+                            final picked = await showExercisePicker(context,
+                                mode: ExercisePickMode.change);
+                            if (picked != null && mounted) {
+                              setState(() {
+                                _matched[i] = PlannedExercise(picked, pe.sets);
+                              });
+                            }
+                          },
+                          semanticLabel: 'Change exercise',
+                          child: Padding(
+                            padding: const EdgeInsets.all(S.x2),
+                            child: Icon(LucideIcons.repeat,
+                                size: I.sm, color: p.ink3),
+                          ),
+                        ),
+                        Pressable(
+                          onTap: () {
+                            setState(() {
+                              _matched.removeAt(i);
+                            });
+                          },
+                          semanticLabel: 'Delete exercise',
+                          child: Padding(
+                            padding: const EdgeInsets.all(S.x2),
+                            child: Icon(LucideIcons.trash2,
+                                size: I.sm, color: C.dialStrain),
+                          ),
+                        ),
+                      ]),
+                    );
+                  },
+                ),
+              ),
+              if (_missed.isNotEmpty) ...[
+                const SizedBox(height: S.x2),
+                Text(
+                  'Unmatched: ${_missed.join(', ')}',
+                  style: F.cap.copyWith(color: C.orange),
+                ),
+              ],
               const SizedBox(height: S.x4),
-              if (built.exercises.isNotEmpty)
-                BigButton('Use these',
-                    onTap: () => Navigator.of(c).pop(built)),
+              if (_matched.isNotEmpty)
+                BigButton('Add to workout',
+                    onTap: () => Navigator.of(c).pop((
+                          name: _builtName,
+                          exercises: List<PlannedExercise>.from(_matched)
+                        ))),
             ],
           ]),
     );
@@ -181,7 +287,7 @@ class _AiNotesState extends State<_AiNotes> {
 /// The mutable twin of a [PlannedExercise] while it is being edited.
 class _Ex {
   final int id;
-  final String key;
+  String key;
   final List<_Set> sets;
   _Ex(this.id, this.key, this.sets);
 }
@@ -397,6 +503,15 @@ class _StrengthWorkoutScreenState extends State<StrengthWorkoutScreen> {
                         });
                         _save();
                       },
+                      onReplace: () async {
+                        final picked = await showExercisePicker(context,
+                            mode: ExercisePickMode.change,
+                            selectedKeys: {for (final e in _ex) e.key});
+                        if (picked != null && mounted) {
+                          setState(() => _ex[i].key = picked);
+                          _save();
+                        }
+                      },
                     ),
                   ),
               ],
@@ -442,6 +557,7 @@ class _ExerciseCard extends StatelessWidget {
   final _Ex ex;
   final bool open;
   final VoidCallback onToggle, onInfo, onChanged, onAddSet, onRemove;
+  final VoidCallback? onReplace;
   final void Function(_Set) onRemoveSet;
 
   const _ExerciseCard({
@@ -453,6 +569,7 @@ class _ExerciseCard extends StatelessWidget {
     required this.onChanged,
     required this.onAddSet,
     required this.onRemove,
+    this.onReplace,
     required this.onRemoveSet,
   });
 
@@ -627,6 +744,25 @@ class _ExerciseCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
+                if (onReplace != null) ...[
+                  Pressable(
+                    onTap: onReplace,
+                    semanticLabel: 'Change exercise',
+                    child: SizedBox(
+                      height: S.tap,
+                      child: Row(children: [
+                        Icon(LucideIcons.repeat, size: I.sm, color: p.ink3),
+                        const SizedBox(width: S.x1),
+                        Text('CHANGE',
+                            style: F.cap.copyWith(
+                                color: p.ink2,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.2)),
+                      ]),
+                    ),
+                  ),
+                  const SizedBox(width: S.x3),
+                ],
                 Pressable(
                   onTap: onRemove,
                   semanticLabel: 'Remove exercise',

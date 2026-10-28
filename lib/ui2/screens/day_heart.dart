@@ -27,6 +27,7 @@ class DayHeartScreen extends StatefulWidget {
   /// (`getSessions`), as My Day already holds them.
   final Map<String, dynamic> night;
   final List<Map<String, dynamic>> sessions;
+  final List<Map<String, dynamic>> naps;
 
   /// The day's strain, for the figure over the last reading.
   final double? strain;
@@ -42,6 +43,7 @@ class DayHeartScreen extends StatefulWidget {
     required this.day,
     this.night = const {},
     this.sessions = const [],
+    this.naps = const [],
     this.strain,
     this.hr,
     this.now,
@@ -112,6 +114,22 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
                 LucideIcons.activity,
             value: (s['strain'] as num?)?.toStringAsFixed(1) ?? '--',
             sleep: false,
+          ),
+      for (final nap in widget.naps)
+        if ((nap['start'] ?? nap['start_ts']) is num &&
+            (nap['end'] ?? nap['end_ts']) is num)
+          (
+            from: ((nap['start'] ?? nap['start_ts']) as num).toInt(),
+            to: ((nap['end'] ?? nap['end_ts']) as num).toInt(),
+            icon: LucideIcons.sun,
+            value: () {
+              final start = ((nap['start'] ?? nap['start_ts']) as num).toInt();
+              final end = ((nap['end'] ?? nap['end_ts']) as num).toInt();
+              final mins = (nap['duration_min'] as num?)?.toInt() ??
+                  ((end - start) ~/ 60);
+              return '${mins ~/ 60}:${(mins % 60).toString().padLeft(2, '0')}';
+            }(),
+            sleep: true,
           ),
     ];
     // From falling asleep (or midnight) to now (or the end of a past day).

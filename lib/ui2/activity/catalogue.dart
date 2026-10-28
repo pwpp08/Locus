@@ -745,29 +745,155 @@ ExerciseDef? photoOf(ExerciseDef d) {
   });
 }
 
-/// The library exercise a free-text name most likely means: an exact label or
-/// alias first (the hand-written lifts win a tie), else the one sharing the
-/// most of its words, at least half of them. Null when nothing is close —
-/// a name the library does not know is reported, not forced onto a neighbour.
+const Map<String, String> _kExerciseSynonyms = {
+  'squat': 'barbell full squat',
+  'squats': 'barbell full squat',
+  'back squat': 'barbell full squat',
+  'front squat': 'front barbell squat',
+  'bench': 'barbell bench press - medium grip',
+  'bench press': 'barbell bench press - medium grip',
+  'flat bench': 'barbell bench press - medium grip',
+  'incline bench': 'barbell incline bench press - medium grip',
+  'incline bench press': 'barbell incline bench press - medium grip',
+  'decline bench': 'decline barbell bench press',
+  'decline bench press': 'decline barbell bench press',
+  'deadlift': 'barbell deadlift',
+  'deadlifts': 'barbell deadlift',
+  'conventional deadlift': 'barbell deadlift',
+  'rdl': 'romanian deadlift',
+  'romanian deadlift': 'romanian deadlift',
+  'sumo deadlift': 'sumo deadlift',
+  'overhead press': 'standing military press',
+  'ohp': 'standing military press',
+  'military press': 'standing military press',
+  'shoulder press': 'dumbbell shoulder press',
+  'seated dumbbell press': 'seated dumbbell press',
+  'pull up': 'pullups',
+  'pull ups': 'pullups',
+  'pullup': 'pullups',
+  'pullups': 'pullups',
+  'chin up': 'chin-up',
+  'chin ups': 'chin-up',
+  'chinup': 'chin-up',
+  'lat pulldown': 'wide-grip lat pulldown',
+  'lat pull down': 'wide-grip lat pulldown',
+  'pulldown': 'wide-grip lat pulldown',
+  'bicep curl': 'dumbbell bicep curl',
+  'bicep curls': 'dumbbell bicep curl',
+  'biceps curl': 'dumbbell bicep curl',
+  'curl': 'dumbbell bicep curl',
+  'curls': 'dumbbell bicep curl',
+  'barbell curl': 'barbell curl',
+  'hammer curl': 'hammer curls',
+  'hammer curls': 'hammer curls',
+  'preacher curl': 'preacher curl',
+  'cable pushdown': 'cable pushdown',
+  'tricep pushdown': 'cable pushdown',
+  'tricep pushdowns': 'cable pushdown',
+  'pushdown': 'cable pushdown',
+  'pushdowns': 'cable pushdown',
+  'dip': 'dips - chest version',
+  'dips': 'dips - chest version',
+  'chest dip': 'dips - chest version',
+  'chest dips': 'dips - chest version',
+  'tricep extension': 'triceps pushdown',
+  'triceps extension': 'triceps pushdown',
+  'skull crusher': 'ez-bar skullcrusher',
+  'skull crushers': 'ez-bar skullcrusher',
+  'skullcrusher': 'ez-bar skullcrusher',
+  'skullcrushers': 'ez-bar skullcrusher',
+  'lateral raise': 'side lateral raise',
+  'lateral raises': 'side lateral raise',
+  'lat raise': 'side lateral raise',
+  'lat raises': 'side lateral raise',
+  'side raise': 'side lateral raise',
+  'side raises': 'side lateral raise',
+  'face pull': 'face pull',
+  'face pulls': 'face pull',
+  'cable face pull': 'face pull',
+  'leg press': 'leg press',
+  'leg extension': 'leg extensions',
+  'leg extensions': 'leg extensions',
+  'leg curl': 'seated leg curl',
+  'leg curls': 'seated leg curl',
+  'hamstring curl': 'seated leg curl',
+  'hamstring curls': 'seated leg curl',
+  'calf raise': 'standing calf raises',
+  'calf raises': 'standing calf raises',
+  'seated cable row': 'seated cable rows',
+  'cable row': 'seated cable rows',
+  'cable rows': 'seated cable rows',
+  'barbell row': 'bent over two-arm long bar row',
+  'bent over row': 'bent over two-arm long bar row',
+  'dumbbell row': 'one-arm dumbbell row',
+  'db row': 'one-arm dumbbell row',
+  'push up': 'pushups',
+  'push ups': 'pushups',
+  'pushup': 'pushups',
+  'pushups': 'pushups',
+  'lunge': 'dumbbell lunges',
+  'lunges': 'dumbbell lunges',
+  'bulgarian split squat': 'split squats',
+  'split squat': 'split squats',
+  'split squats': 'split squats',
+  'hip thrust': 'barbell hip thrust',
+  'hip thrusts': 'barbell hip thrust',
+  'ab wheel': 'ab roller',
+  'ab rollout': 'ab roller',
+  'crunch': 'crunches',
+  'crunches': 'crunches',
+  'plank': 'plank',
+};
+
+/// The library exercise a free-text name most likely means: a synonym or alias
+/// match first, then full query word containment, then best lexical overlap.
 ExerciseDef? findExercise(String name) {
   final q = _norm(name);
   if (q.isEmpty) return null;
+
+  // 1. Synonym lookup
+  final syn = _kExerciseSynonyms[q];
+  if (syn != null) {
+    for (final e in exerciseLibrary) {
+      if (_norm(e.label) == syn || e.aliases.any((a) => _norm(a) == syn)) {
+        return e;
+      }
+    }
+  }
+
+  // 2. Exact label or alias match
   for (final e in exerciseLibrary) {
     if (_norm(e.label) == q || e.aliases.any((a) => _norm(a) == q)) return e;
   }
+
   final qw = _words(name);
   if (qw.isEmpty) return null;
   _wordIndex ??= [for (final e in exerciseLibrary) (e, _words(e.label))];
+
   ExerciseDef? best;
   var bestScore = 0.0;
+
   for (final (e, w) in _wordIndex!) {
     final shared = qw.intersection(w).length;
     if (shared == 0) continue;
+
+    // Full query word containment bonus: if all words in query appear in the exercise
+    if (shared == qw.length) {
+      final containmentScore = 0.85 + (0.15 * shared / w.length);
+      if (containmentScore > bestScore) {
+        best = e;
+        bestScore = containmentScore;
+        continue;
+      }
+    }
+
+    // Jaccard similarity
     final score = shared / qw.union(w).length;
     if (score > bestScore) {
       best = e;
       bestScore = score;
     }
   }
-  return bestScore >= .5 ? best : null;
+
+  return bestScore >= .35 ? best : null;
 }

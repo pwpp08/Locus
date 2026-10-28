@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../compute/sleep_performance.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../l10n/presentation_text.dart';
 import '../../charts.dart' show DashedRing, Ring;
@@ -34,7 +35,13 @@ const kDialOrder = [
         final slept = d.sleepMin.value;
         final need = d.sleepNeedMin.value;
         if (slept != null && need != null && need > 0) {
-          final perf = (slept / need * 100).clamp(0, 100);
+          final perf = computeAdjustedSleepPerformance(
+            tstMin: slept.toDouble(),
+            needMin: need.toDouble(),
+            efficiencyPct: d.sleepEfficiency.value?.toDouble(),
+            remMin: d.remMin.value?.toDouble(),
+            deepMin: d.deepMin.value?.toDouble(),
+          );
           value = '${perf.round()}';
           suffix = '%';
           frac = perf / 100;

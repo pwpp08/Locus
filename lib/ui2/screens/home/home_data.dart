@@ -352,6 +352,7 @@ class HomeData {
   final Metric readiness;
   final List<Map<String, dynamic>> drivers;
   final Metric sleepMin, rhr, steps, calories, caloriesTotal;
+  final Metric sleepEfficiency, remMin, deepMin;
   final Metric strain;
   final int stepGoal;
   final Metric sleepNeedMin;
@@ -373,6 +374,9 @@ class HomeData {
     this.readiness = Metric.empty,
     this.drivers = const [],
     this.sleepMin = Metric.empty,
+    this.sleepEfficiency = Metric.empty,
+    this.remMin = Metric.empty,
+    this.deepMin = Metric.empty,
     this.rhr = Metric.empty,
     this.steps = Metric.empty,
     this.calories = Metric.empty,
@@ -399,6 +403,9 @@ class HomeData {
         readiness: readiness,
         drivers: drivers,
         sleepMin: sleepMin,
+        sleepEfficiency: sleepEfficiency,
+        remMin: remMin,
+        deepMin: deepMin,
         rhr: rhr,
         steps: steps,
         calories: calories,
@@ -440,6 +447,9 @@ class HomeData {
       calories: metricOf(strain['calories']),
       caloriesTotal: metricOf(strain['calories_total']),
       sleepMin: metricOf(sleep['duration_min']),
+      sleepEfficiency: metricOf(sleep['efficiency']),
+      remMin: metricOf(sleep['rem_min']),
+      deepMin: metricOf(sleep['deep_min']),
       stepGoal: (profile['step_goal'] as num?)?.toInt() ?? kDefaultStepGoal,
     );
   }
@@ -496,6 +506,9 @@ class HomeData {
       sleepMin: today['sleep_provisional'] is Map
           ? metricOf((today['sleep_provisional'] as Map)['duration_min'])
           : overnightMetric(today, s('duration_min'), l),
+      sleepEfficiency: overnightMetric(today, s('efficiency'), l),
+      remMin: overnightMetric(today, s('rem_min'), l),
+      deepMin: overnightMetric(today, s('deep_min'), l),
       rhr: overnightMetric(today, d('resting_hr'), l),
       steps: metricOf(d('steps')),
       calories: metricOf(d('calories')),

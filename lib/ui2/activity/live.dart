@@ -1473,6 +1473,21 @@ class _LiveStrengthState extends State<LiveStrength> {
     _seedFromHistory();
   }
 
+  void skipExercise() {
+    _rest?.cancel();
+    restLeft.value = 0;
+    if (setsHere.isEmpty && plan.length > 1) {
+      setState(() {
+        plan.removeAt(index);
+        if (index >= plan.length) index = plan.length - 1;
+      });
+      _persistPlan();
+      _seedFromHistory();
+    } else if (index < plan.length - 1) {
+      goExercise(index + 1);
+    }
+  }
+
   List<String> get _recentKeys {
     final entries = widget.history.entries.toList()
       ..sort((a, b) {
@@ -1636,15 +1651,69 @@ class _LiveStrengthState extends State<LiveStrength> {
               size: I.md, color: index == plan.length - 1 ? p.line : p.ink3),
         ),
       ]),
-      Pressable(
-        onTap: addExercise,
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(LucideIcons.plus, size: I.sm, color: p.on(C.purple)),
-          const SizedBox(width: S.x1),
-          Text(l?.activityLiveAddExerciseTitle ?? 'Add exercise',
-              style: F.cap.copyWith(
-                  color: p.on(C.purple), fontWeight: FontWeight.w600)),
-        ]),
+      const SizedBox(height: S.x2),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Pressable(
+            onTap: changeExercise,
+            semanticLabel: 'Swap exercise',
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x1),
+              decoration: BoxDecoration(
+                color: p.wash(p.ink).withValues(alpha: .06),
+                borderRadius: R.rPill,
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(LucideIcons.repeat, size: I.sm, color: p.ink2),
+                const SizedBox(width: S.x1),
+                Text('Swap',
+                    style: F.cap.copyWith(
+                        color: p.ink2, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          ),
+          const SizedBox(width: S.x2),
+          if (plan.length > 1) ...[
+            Pressable(
+              onTap: skipExercise,
+              semanticLabel: 'Skip exercise',
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x1),
+                decoration: BoxDecoration(
+                  color: p.wash(p.ink).withValues(alpha: .06),
+                  borderRadius: R.rPill,
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(LucideIcons.skipForward, size: I.sm, color: p.ink2),
+                  const SizedBox(width: S.x1),
+                  Text('Skip',
+                      style: F.cap.copyWith(
+                          color: p.ink2, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ),
+            const SizedBox(width: S.x2),
+          ],
+          Pressable(
+            onTap: addExercise,
+            semanticLabel: 'Add exercise',
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x1),
+              decoration: BoxDecoration(
+                color: p.wash(p.ink).withValues(alpha: .06),
+                borderRadius: R.rPill,
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(LucideIcons.plus, size: I.sm, color: p.on(C.purple)),
+                const SizedBox(width: S.x1),
+                Text(l?.activityLiveAddExerciseTitle ?? 'Add',
+                    style: F.cap.copyWith(
+                        color: p.on(C.purple), fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          ),
+        ],
       ),
       const SizedBox(height: S.x4),
 

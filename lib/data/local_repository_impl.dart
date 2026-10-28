@@ -756,6 +756,8 @@ class LocalRepositoryImpl extends LocalRepository {
     final acct = _sub(b, 'sleep.accounting.value');
     final tst = (acct?['tst_sec'] as num?);
     final eff = (acct?['efficiency_pct'] as num?);
+    final remSec = (acct?['rem_sec'] as num?);
+    final deepSec = (acct?['deep_sec'] as num?);
     if (tst == null) return const {};
     return {
       'duration_min': _scalarMetric(
@@ -773,6 +775,10 @@ class LocalRepositoryImpl extends LocalRepository {
       if (needMin != null)
         'need_min': _scalarMetric(needMin, 'ESTIMATE', unit: 'min'),
       'efficiency': _scalarMetric(eff, 'ESTIMATE', unit: '%'),
+      if (remSec != null)
+        'rem_min': _scalarMetric((remSec / 60).round(), 'ESTIMATE', unit: 'min'),
+      if (deepSec != null)
+        'deep_min': _scalarMetric((deepSec / 60).round(), 'ESTIMATE', unit: 'min'),
     };
   }
 

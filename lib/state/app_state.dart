@@ -70,6 +70,7 @@ import '../data/auto_backup.dart' as backup
 import 'alarm_schedule.dart';
 import 'alarm_manager.dart';
 import 'alarm_shake.dart';
+import '../platform/device_actions.dart';
 import '../data/step_calibration.dart' show Wearing;
 import 'derive_coordinator.dart';
 import 'gesture_controller.dart';
@@ -2708,6 +2709,14 @@ class AppState extends ChangeNotifier {
     await _seedAlarmScheduleFromLegacyIfNeeded();
     await alarmManager.init(legacySchedule: _schedule);
     alarmManager.addListener(_onAlarmManagerChanged);
+    DeviceActions.ensureInitialized();
+    DeviceActions.onPhoneShakeDismiss = () {
+      _log('[alarm] phone shaken - dismissing alarm and stopping haptics');
+      _endAlarmShakeWatch();
+      unawaited(engine.stopHaptics().catchError((Object e) {
+        _log('[alarm] stop-haptics failed: $e');
+      }));
+    };
     // Band-gesture mapping: load the saved action + query native capabilities so the
     // settings UI knows what this platform supports. Best-effort, non-blocking.
     unawaited(gestureSettings.bootstrap());
@@ -4458,6 +4467,7 @@ class AppState extends ChangeNotifier {
     _shakeDetector.reset();
     _shakeWatching = true;
     _liveStreamController.setAlarmShakeWindow(true);
+    unawaited(DeviceActions.perform('start_phone_shake_watch'));
     _log('[alarm] shake watch open until $until');
   }
 
@@ -4467,6 +4477,7 @@ class AppState extends ChangeNotifier {
     if (!_shakeWatching) return;
     _shakeWatching = false;
     _liveStreamController.setAlarmShakeWindow(false);
+    unawaited(DeviceActions.perform('stop_phone_shake_watch'));
     _log('[alarm] shake watch closed');
   }
 
@@ -4491,6 +4502,7 @@ class AppState extends ChangeNotifier {
     unawaited(engine.stopHaptics().catchError((Object e) {
       _log('[alarm] stop-haptics failed: $e');
     }));
+    unawaited(DeviceActions.perform('dismiss_phone_alarm'));
   }
 
   Future<void> _armNextAlarmOccurrence({int? firedEpoch, bool force = false}) async {
@@ -5028,6 +5040,7 @@ class AppState extends ChangeNotifier {
     device.alarmEpoch = null;
     _alarm.disable();
     _alarmGraceTimer?.cancel();
+    unawaited(DeviceActions.perform('dismiss_phone_alarm'));
     unawaited(() async {
       try {
         final prefs = await SharedPreferences.getInstance();

@@ -17,14 +17,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../gps/route_types.dart';
+import '../../models/alarm_item.dart';
 import '../../state/app_state.dart';
 import '../../state/clock_format.dart';
 import '../../state/prefs.dart';
 import '../activity/catalogue.dart';
 import '../activity/live.dart';
+import '../profile/alarm.dart' show AlarmScreen;
 import '../ui2.dart';
 import 'add_activity.dart' show chooseActivity, saveRestWindow;
-import 'home_screen.dart' show repoOf;
+import 'home_screen.dart' show go, repoOf;
 import 'window_editor.dart' show WindowKind, windowProblem;
 import 'workout_screen.dart' show activityHost, loadSetHistory;
 
@@ -396,6 +398,13 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
                 child: _sheet(c, p, sheetFull),
               ),
             ),
+          if (rest != null)
+            Positioned(
+              left: S.gutter,
+              right: S.gutter,
+              bottom: barH + S.x2,
+              child: _restAlarmCard(c, p, rest),
+            ),
           // ── the start ──
           Positioned(
             left: 0,
@@ -472,6 +481,151 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
   static String _clock(Duration d) {
     String two(int v) => v.toString().padLeft(2, '0');
     return '${d.inHours}:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
+  }
+
+  Widget _restAlarmCard(BuildContext c, P p, WindowKind rest) {
+    final app = context.watch<AppState?>();
+    if (app == null) return const SizedBox.shrink();
+
+    final now = DateTime.now();
+    final plan = app.alarmManager.computeNextArmedPlan(now);
+    final isSleep = rest == WindowKind.sleep;
+
+    // For nap, an alarm is relevant if it's within the next 4 hours
+    final isNapAlarmUpcoming =
+        !isSleep && plan != null && plan.time.difference(now).inHours < 4;
+    final hasAlarm = isSleep ? plan != null : isNapAlarmUpcoming;
+
+    final alarmTime = plan?.time;
+
+    return Container(
+      padding: const EdgeInsets.all(S.x3),
+      decoration: BoxDecoration(
+        color: p.card.withValues(alpha: .95),
+        borderRadius: R.rXl,
+        border: Border.all(color: p.line.withValues(alpha: .4)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            Icon(
+              hasAlarm ? LucideIcons.alarmClockCheck : LucideIcons.bellOff,
+              size: I.md,
+              color: hasAlarm ? C.optimal : p.ink3,
+            ),
+            const SizedBox(width: S.x2),
+            Expanded(
+              child: Text(
+                hasAlarm
+                    ? (isSleep
+                        ? 'Alarm set for ${formatClock(alarmTime!.hour, alarmTime.minute)}'
+                        : 'Nap alarm: ${formatClock(alarmTime!.hour, alarmTime.minute)} (${alarmTime.difference(now).inMinutes}m)')
+                    : (isSleep
+                        ? 'No alarm set for tomorrow'
+                        : 'No alarm set for this nap'),
+                style: F.body.copyWith(
+                  color: p.ink,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Pressable(
+              onTap: () async {
+                if (hasAlarm) {
+                  go(c, const AlarmScreen());
+                } else {
+                  final initial = isSleep
+                      ? const TimeOfDay(hour: 7, minute: 0)
+                      : TimeOfDay.fromDateTime(
+                          now.add(const Duration(minutes: 30)));
+                  final picked =
+                      await showTimePicker(context: c, initialTime: initial);
+                  if (picked != null) {
+                    var target = DateTime(
+                        now.year, now.month, now.day, picked.hour, picked.minute);
+                    if (target.isBefore(now)) {
+                      target = target.add(const Duration(days: 1));
+                    }
+                    await app.alarmManager.addAlarm(AlarmItem(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      hour: picked.hour,
+                      minute: picked.minute,
+                      label: isSleep ? 'Wake up' : 'Nap alarm',
+                      enabled: true,
+                      days: const {},
+                    ));
+                    if (mounted) setState(() {});
+                  }
+                }
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: S.x2, vertical: S.x1),
+                decoration: BoxDecoration(
+                  color: p.wash(p.ink).withValues(alpha: .08),
+                  borderRadius: R.rPill,
+                ),
+                child: Text(
+                  hasAlarm ? 'CHANGE' : 'SET ALARM',
+                  style: F.caps.copyWith(
+                    color: hasAlarm ? p.ink2 : C.dialStrain,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ]),
+          if (!isSleep && !hasAlarm) ...[
+            const SizedBox(height: S.x2),
+            Row(
+              children: [
+                Text(
+                  'QUICK NAP:',
+                  style: F.caps.copyWith(color: p.ink3),
+                ),
+                const SizedBox(width: S.x2),
+                for (final mins in [20, 30, 45, 60]) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(right: S.x1),
+                    child: Pressable(
+                      onTap: () async {
+                        final target = now.add(Duration(minutes: mins));
+                        await app.alarmManager.addAlarm(AlarmItem(
+                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          hour: target.hour,
+                          minute: target.minute,
+                          label: 'Nap $mins min',
+                          enabled: true,
+                          days: const {},
+                        ));
+                        if (mounted) setState(() {});
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: S.x2, vertical: S.half),
+                        decoration: BoxDecoration(
+                          color: C.dialSleep.withValues(alpha: .2),
+                          borderRadius: R.rPill,
+                          border: Border.all(
+                              color: C.dialSleep.withValues(alpha: .4)),
+                        ),
+                        child: Text(
+                          '${mins}m',
+                          style: F.cap.copyWith(
+                              color: p.ink, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   // ── the strain target ────────────────────────────────────────────────────

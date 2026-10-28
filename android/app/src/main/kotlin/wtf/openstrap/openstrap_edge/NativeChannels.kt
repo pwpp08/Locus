@@ -3,11 +3,16 @@ package wtf.openstrap.openstrap_edge
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.ActivityManager
+import android.app.NotificationManager
 import android.bluetooth.BluetoothManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ActivityNotFoundException
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.media.AudioManager
@@ -21,6 +26,7 @@ import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.AlarmClock
 import android.provider.Settings
 import android.view.KeyEvent
 import android.view.WindowManager
@@ -61,6 +67,10 @@ object NativeChannels {
     private var activeRingtone: Ringtone? = null
     private val ringHandler = Handler(Looper.getMainLooper())
     private var ringStopRunnable: Runnable? = null
+    private var deviceActionsChannel: MethodChannel? = null
+    private var sensorManager: SensorManager? = null
+    private var phoneShakeListener: SensorEventListener? = null
+    private val lastPhoneJolts = ArrayList<Long>()
 
     fun register(engine: FlutterEngine, context: Context) {
         val app = context.applicationContext
@@ -183,14 +193,15 @@ object NativeChannels {
 
         // Band-gesture actions. All no-risk OS APIs: media-key dispatch (works for any
         // player, no permission), system media volume, ringtone + vibrate, torch.
-        MethodChannel(engine.dartExecutor.binaryMessenger, DEVICE_ACTIONS_CHANNEL)
-            .setMethodCallHandler { call, result ->
+        val actionsChannel = MethodChannel(engine.dartExecutor.binaryMessenger, DEVICE_ACTIONS_CHANNEL)
+        deviceActionsChannel = actionsChannel
+        actionsChannel.setMethodCallHandler { call, result ->
                 when (call.method) {
                     "capabilities" -> result.success(
                         listOf(
                             "media_play_pause", "media_next", "media_prev",
                             "volume_up", "volume_down", "ring_phone", "torch",
-                            "broadcast_to_tasker"
+                            "dismiss_phone_alarm", "broadcast_to_tasker"
                         )
                     )
                     "perform" -> result.success(perform(app, call.argument<String>("action") ?: ""))
@@ -370,6 +381,18 @@ object NativeChannels {
                 "volume_down" -> adjustVolume(ctx, AudioManager.ADJUST_LOWER)
                 "ring_phone" -> ringPhone(ctx)
                 "torch" -> toggleTorch(ctx)
+                "dismiss_phone_alarm" -> {
+                    dismissAlarm(ctx)
+                    return true
+                }
+                "start_phone_shake_watch" -> {
+                    startPhoneShakeWatch(ctx)
+                    return true
+                }
+                "stop_phone_shake_watch" -> {
+                    stopPhoneShakeWatch()
+                    return true
+                }
                 "broadcast_to_tasker" -> sendTaskerBroadcast(ctx)
                 else -> return false
             }
@@ -565,6 +588,64 @@ object NativeChannels {
         ringStopRunnable = null
         activeRingtone?.let { if (it.isPlaying) it.stop() }
         activeRingtone = null
+    }
+
+    private fun dismissAlarm(ctx: Context) {
+        stopRing()
+        try {
+            val intent = Intent(AlarmClock.ACTION_DISMISS_ALARM).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            ctx.startActivity(intent)
+        } catch (_: Exception) {}
+        try {
+            val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            nm?.cancelAll()
+        } catch (_: Exception) {}
+    }
+
+    private fun startPhoneShakeWatch(ctx: Context) {
+        if (phoneShakeListener != null) return
+        val sm = ctx.getSystemService(Context.SENSOR_SERVICE) as? SensorManager ?: return
+        val sensor = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) ?: return
+        sensorManager = sm
+        lastPhoneJolts.clear()
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent?) {
+                if (event == null) return
+                val x = event.values[0]
+                val y = event.values[1]
+                val z = event.values[2]
+                val g = Math.sqrt((x * x + y * y + z * z).toDouble()) / 9.80665
+                val dev = Math.abs(g - 1.0)
+                val now = System.currentTimeMillis()
+                if (dev > 0.45) {
+                    if (lastPhoneJolts.isEmpty() || now - lastPhoneJolts.last() >= 80) {
+                        lastPhoneJolts.add(now)
+                    }
+                }
+                lastPhoneJolts.removeAll { now - it > 2000 }
+                if (lastPhoneJolts.size >= 2) {
+                    lastPhoneJolts.clear()
+                    stopPhoneShakeWatch()
+                    dismissAlarm(ctx)
+                    Handler(Looper.getMainLooper()).post {
+                        deviceActionsChannel?.invokeMethod("onPhoneShakeDismiss", null)
+                    }
+                }
+            }
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+        phoneShakeListener = listener
+        sm.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_GAME)
+    }
+
+    private fun stopPhoneShakeWatch() {
+        phoneShakeListener?.let {
+            sensorManager?.unregisterListener(it)
+        }
+        phoneShakeListener = null
+        lastPhoneJolts.clear()
     }
 
     // Torch via CameraManager.setTorchMode — no CAMERA permission required (API 23+).

@@ -25,6 +25,7 @@ import 'package:provider/provider.dart';
 import '../../compute/vendor_sleep.dart' show vendorStagesReported;
 import 'dart:async' show unawaited;
 
+import '../../compute/sleep_performance.dart';
 import '../../compute/sleep_stress.dart';
 import '../../data/day_label.dart';
 import '../../data/db.dart' show LocalDb;
@@ -723,16 +724,28 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
   Widget _performance(BuildContext c, P p, SleepData d, Map<String, dynamic> n) {
     final tst = (n['duration_min'] as num?)?.toDouble();
     final need = d.need.value?.toDouble();
+    final eff = (n['efficiency'] as num?)?.toDouble();
+    final rem = (n['rem_min'] as num?)?.toDouble();
+    final deep = (n['deep_min'] as num?)?.toDouble();
     final perf = tst == null || need == null || need <= 0
         ? null
+        : computeAdjustedSleepPerformance(
+            tstMin: tst,
+            needMin: need,
+            efficiencyPct: eff,
+            remMin: rem,
+            deepMin: deep,
+          );
+    final rawDurationPerf = tst == null || need == null || need <= 0
+        ? null
         : (tst / need * 100).clamp(0, 100).toDouble();
-    final eff = (n['efficiency'] as num?)?.toDouble();
     // Each row: its figure and its tier, 0 poor … 2 optimal. Sleep stress is
     // the share of the night spent in the high stress zone, so LESS is better;
     // it is a dash, never a 0, until a few earlier nights give it a baseline.
     final stress = _sleepStressDay == d.day ? _sleepStress?.pct : null;
     final rows = <(IconData, String, double?, int?)>[
-      (LucideIcons.clock3, 'Hours vs. needed', perf, perf == null ? null : _tierOf(perf)),
+      (LucideIcons.clock3, 'Hours vs. needed', rawDurationPerf,
+          rawDurationPerf == null ? null : _tierOf(rawDurationPerf)),
       (LucideIcons.repeat, 'Sleep consistency', d.consistency,
           d.consistency == null ? null : _tierOf(d.consistency!)),
       (LucideIcons.bedDouble, 'Sleep efficiency', eff == null ? null : eff * 100,

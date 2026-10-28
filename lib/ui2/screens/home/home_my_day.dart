@@ -36,8 +36,10 @@ class HomeMyDay extends StatelessWidget {
   final String day;
   final Map<String, dynamic> night;
   final List<Map<String, dynamic>> sessions;
+  final List<Map<String, dynamic>> naps;
   final VoidCallback onExpand, onSleep, onAdd;
   final void Function(Map<String, dynamic> session) onSession;
+  final void Function(Map<String, dynamic> nap)? onNap;
   final VoidCallback? onStart;
 
   const HomeMyDay({
@@ -45,9 +47,11 @@ class HomeMyDay extends StatelessWidget {
     required this.day,
     required this.night,
     required this.sessions,
+    this.naps = const [],
     required this.onExpand,
     required this.onSleep,
     required this.onSession,
+    this.onNap,
     required this.onAdd,
     this.onStart,
   });
@@ -56,37 +60,68 @@ class HomeMyDay extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
-    final rows = <Widget>[];
+    final items = <({num start, Widget widget})>[];
     final tst = night['duration_min'] as num?;
     if (tst != null) {
-      rows.add(HomeActivityRow(
-        color: C.blockSleep,
-        icon: LucideIcons.moon,
-        value: hMinutes(tst),
-        name: l?.homeRingSleep ?? 'Sleep',
-        start: night['onset_ts'] as num?,
-        end: night['wake_ts'] as num?,
-        day: day,
-        onTap: onSleep,
+      final start = (night['onset_ts'] as num?) ?? 0;
+      items.add((
+        start: start,
+        widget: HomeActivityRow(
+          color: C.blockSleep,
+          icon: LucideIcons.moon,
+          value: hMinutes(tst),
+          name: l?.homeRingSleep ?? 'Sleep',
+          start: night['onset_ts'] as num?,
+          end: night['wake_ts'] as num?,
+          day: day,
+          onTap: onSleep,
+        ),
       ));
     }
     for (final s in sessions) {
       final a = activityByName(s['type']?.toString());
       final strain = s['strain'] as num?;
       final mins = s['duration_min'] as num?;
-      rows.add(HomeActivityRow(
-        color: C.blockSession,
-        icon: a?.icon ?? LucideIcons.dumbbell,
-        value: strain != null
-            ? strain.toStringAsFixed(1)
-            : (mins == null ? '--' : hMinutes(mins)),
-        name: a?.name ?? (s['title']?.toString() ?? 'Activity'),
-        start: s['start_ts'] as num?,
-        end: s['end_ts'] as num?,
-        day: day,
-        onTap: () => onSession(s),
+      final start = (s['start_ts'] as num?) ?? 0;
+      items.add((
+        start: start,
+        widget: HomeActivityRow(
+          color: C.blockSession,
+          icon: a?.icon ?? LucideIcons.dumbbell,
+          value: strain != null
+              ? strain.toStringAsFixed(1)
+              : (mins == null ? '--' : hMinutes(mins)),
+          name: a?.name ?? (s['title']?.toString() ?? 'Activity'),
+          start: s['start_ts'] as num?,
+          end: s['end_ts'] as num?,
+          day: day,
+          onTap: () => onSession(s),
+        ),
       ));
     }
+    for (final nap in naps) {
+      final start = (nap['start'] ?? nap['start_ts']) as num?;
+      final end = (nap['end'] ?? nap['end_ts']) as num?;
+      final mins = (nap['duration_min'] as num?) ??
+          (start != null && end != null ? ((end - start) / 60).round() : null);
+      if (mins != null && mins > 0) {
+        items.add((
+          start: start ?? 0,
+          widget: HomeActivityRow(
+            color: C.dialSleep,
+            icon: LucideIcons.sun,
+            value: hMinutes(mins),
+            name: 'Nap',
+            start: start,
+            end: end,
+            day: day,
+            onTap: () => onNap != null ? onNap!(nap) : onSleep(),
+          ),
+        ));
+      }
+    }
+    items.sort((a, b) => a.start.compareTo(b.start));
+    final rows = [for (final it in items) it.widget];
     return Surface(
       pad: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x4),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
