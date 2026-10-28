@@ -75,7 +75,8 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
   /// The view, in epoch seconds; the whole day when not zoomed.
   late int _v0, _v1;
   int _pinchSpan = 0, _pinchFrom = 0;
-  double? _dragAt;
+  int? _scrubTime;
+  double? _scrubHr;
 
   DateTime get _now => widget.now ?? DateTime.now();
 
@@ -159,11 +160,11 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
   }
 
   void _pinch(PinchPhase phase, double scale, double focal, double pan) {
+    setState(() => _scrubTime = null);
     switch (phase) {
       case PinchPhase.start:
         _pinchSpan = _v1 - _v0;
         _pinchFrom = _v0;
-        _dragAt = null;
       case PinchPhase.update:
         final span = (_pinchSpan / math.max(scale, .01)).round();
         final at = _pinchFrom + (focal * _pinchSpan).round();
@@ -173,13 +174,23 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
     }
   }
 
-  /// One finger moves a zoomed day along.
-  void _drag(double f) {
-    final last = _dragAt;
-    _dragAt = f;
-    if (last == null || _v1 - _v0 >= _t1 - _t0) return;
+  /// One finger scrubs through minute-by-minute heart rate.
+  void _onScrub(double f) {
     final span = _v1 - _v0;
-    _setView(_v0 - ((f - last) * span).round(), span);
+    final t = _v0 + (f * span).round();
+    HrPoint? closest;
+    var minDiff = 1 << 30;
+    for (final pt in _hr) {
+      final diff = (pt.t - t).abs();
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = pt;
+      }
+    }
+    setState(() {
+      _scrubTime = t;
+      _scrubHr = (closest != null && minDiff <= 90) ? closest.v : null;
+    });
   }
 
   /// The magnifier: into the last four hours (or the busiest stretch), and
@@ -241,8 +252,10 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
               bottom: 0,
               child: Scrubber(
                 value: null,
-                onChanged: _drag,
-                onLift: () => _dragAt = null,
+                onChanged: _onScrub,
+                onLift: () => setState(() {
+                  _scrubTime = null;
+                }),
                 onPinch: _pinch,
                 label: 'Heart rate through the day',
                 describe: (f) {
@@ -269,6 +282,60 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
                 ),
               ),
             ),
+            if (_scrubTime != null)
+              Builder(builder: (c) {
+                final sx = xOf(_scrubTime!);
+                if (sx < left || sx > right) return const SizedBox.shrink();
+                final dt = DateTime.fromMillisecondsSinceEpoch(_scrubTime! * 1000);
+                final timeStr = formatClock(dt.hour, dt.minute);
+                final hrStr = _scrubHr != null ? '${_scrubHr!.round()} BPM' : '-- BPM';
+                return Stack(children: [
+                  Positioned(
+                    left: sx - 0.75,
+                    top: headH,
+                    bottom: 0,
+                    child: IgnorePointer(
+                      child: Container(
+                        width: 1.5,
+                        color: C.white.withValues(alpha: .75),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: (sx - 55).clamp(left, right - 110),
+                    top: headH + S.x2,
+                    child: IgnorePointer(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: S.x3, vertical: S.x1),
+                        decoration: BoxDecoration(
+                          color: C.char.withValues(alpha: .92),
+                          borderRadius: R.rMd,
+                          border: Border.all(color: C.white.withValues(alpha: .2)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: .5),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(timeStr,
+                                style: F.caps.copyWith(
+                                    color: p.ink3, fontWeight: FontWeight.w700)),
+                            const SizedBox(width: S.x2),
+                            Text(hrStr,
+                                style: F.num(F.cap).copyWith(
+                                    color: C.white, fontWeight: FontWeight.w700)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ]);
+              }),
             // Each mark's icon and figure, or how many share the spot.
             for (final g in groups)
               Builder(builder: (c) {

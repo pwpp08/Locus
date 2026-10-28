@@ -36,6 +36,7 @@ import '../../theme/theme_controller.dart';
 import '../ui2.dart';
 import 'alarm.dart';
 import '../screens/coach.dart';
+import '../screens/heart_rate_settings.dart';
 import '../screens/step_calibration_screen.dart';
 import '../screens/watch_compare_screen.dart';
 import '../../updater/update_service.dart';
@@ -643,6 +644,10 @@ class MoreSettingsView extends StatelessWidget {
                       'Compare with another watch',
                       sub: 'Galaxy Watch and others, via Health Connect',
                       onTap: () => goto(c, const WatchCompareScreen())),
+                  SetRow(LucideIcons.heart, C.red,
+                      'Heart rate settings',
+                      sub: 'Personalized zones, resting HR and max HR',
+                      onTap: () => goto(c, const HeartRateSettingsScreen())),
                   // Off by default — an existing user did not ask their band
                   // to start buzzing mid-workout. The target-zone row below
                   // only appears once this is on; a target for an alert

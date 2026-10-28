@@ -868,13 +868,13 @@ class DashboardRows extends StatelessWidget {
     }
     return Column(children: [
       for (var i = 0; i < shown.length; i++) ...[
-        if (i > 0) const SizedBox(height: S.x3),
+        if (i > 0) const SizedBox(height: S.x2),
         shown[i],
       ],
     ]);
   }
 
-  static const _triangle = S.x2 + S.half;
+  static const _triangle = S.x2;
 
   Widget _row(BuildContext c, P p, TrendMetric m) {
     final h = trendHeadline(m, daily[m.id] ?? const {},
@@ -885,7 +885,7 @@ class DashboardRows extends StatelessWidget {
       onTap: () => onOpen(m.id),
       semanticLabel: '$title. ${trendFormat(m, h.value)}'
           '${h.against == null ? '' : ', against ${trendFormat(m, h.against)}'}',
-      pad: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x4),
+      pad: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x2 + S.half),
       child: Row(children: [
         Icon(m.icon, size: I.md, color: p.ink3),
         const SizedBox(width: S.x3),
@@ -899,7 +899,7 @@ class DashboardRows extends StatelessWidget {
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Row(mainAxisSize: MainAxisSize.min, children: [
             Text(m.absent != null ? '--' : trendFormat(m, h.value),
-                style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+                style: F.n24.copyWith(fontSize: 20, color: p.ink, fontWeight: FontWeight.w700)),
             // A number with no arrow beside it ends at the middle of where the
             // arrows sit, so the figures of every card line up on one edge.
             if (dir != null) ...[
@@ -1590,6 +1590,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                   ),
                 ]),
               ],
+              _allTimeRecordsCard(c, m, _daily, l),
               if (m.id == 'strain' && !isDay && _daily != null) ...[
                 const SizedBox(height: S.x8),
                 _StrainBreakdown(bars: bars),
@@ -1634,6 +1635,139 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
             ],
           ],
         ]),
+      ),
+    );
+  }
+
+  Widget _allTimeRecordsCard(
+    BuildContext c,
+    TrendMetric m,
+    Map<String, double>? daily,
+    AppLocalizations? l,
+  ) {
+    if (daily == null || daily.length < 2) return const SizedBox.shrink();
+    if (m.id.contains('zone') ||
+        m.kind == TrendKind.stacked ||
+        m.kind == TrendKind.floating ||
+        m.id == 'consistency') {
+      return const SizedBox.shrink();
+    }
+    MapEntry<String, double>? maxEntry;
+    MapEntry<String, double>? minEntry;
+    for (final e in daily.entries) {
+      if (e.value.isNaN || e.value.isInfinite) continue;
+      if (maxEntry == null || e.value > maxEntry.value) maxEntry = e;
+      if (minEntry == null || e.value < minEntry.value) minEntry = e;
+    }
+    if (maxEntry == null || minEntry == null) return const SizedBox.shrink();
+
+    final p = P.of(c);
+    final unitStr = (m.unit == null || m.unit!.isEmpty) ? '' : ' ${m.unit}';
+
+    Widget cell({
+      required String label,
+      required MapEntry<String, double> entry,
+      required bool isHigh,
+    }) {
+      final formattedVal = trendFormat(m, entry.value);
+      final dateStr = _shortDate(entry.key, l);
+      final color = isHigh ? C.trendRem : C.dialStrain;
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x3),
+          decoration: BoxDecoration(
+            color: Color.alphaBlend(p.ink.withValues(alpha: .04), p.card),
+            borderRadius: R.rMd,
+            border: Border.all(color: p.ink.withValues(alpha: .06)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    isHigh ? LucideIcons.arrowUpRight : LucideIcons.arrowDownRight,
+                    size: I.sm,
+                    color: color,
+                  ),
+                  const SizedBox(width: S.x1),
+                  Text(
+                    label.toUpperCase(),
+                    style: F.caps.copyWith(color: p.ink3, letterSpacing: .5),
+                  ),
+                ],
+              ),
+              const SizedBox(height: S.x2),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    formattedVal,
+                    style: F.n24.copyWith(
+                      color: p.ink,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (unitStr.isNotEmpty) ...[
+                    const SizedBox(width: S.half),
+                    Text(
+                      unitStr.trim(),
+                      style: F.cap.copyWith(
+                        color: p.ink3,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: S.x1),
+              Text(
+                dateStr,
+                style: F.num(F.cap).copyWith(color: p.ink3),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: S.x6),
+      child: Container(
+        padding: const EdgeInsets.all(S.x4),
+        decoration: BoxDecoration(
+          color: p.card,
+          borderRadius: R.rXl,
+          border: Border.all(color: p.ink.withValues(alpha: .08)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(LucideIcons.trophy, size: I.sm, color: p.ink3),
+                const SizedBox(width: S.x2),
+                Text(
+                  'ALL-TIME RECORDS',
+                  style: F.caps.copyWith(
+                    color: p.ink,
+                    letterSpacing: .8,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: S.x3),
+            Row(
+              children: [
+                cell(label: 'All-Time High', entry: maxEntry, isHigh: true),
+                const SizedBox(width: S.x3),
+                cell(label: 'All-Time Low', entry: minEntry, isHigh: false),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

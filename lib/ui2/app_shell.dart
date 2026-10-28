@@ -221,22 +221,28 @@ class _TabBar extends StatelessWidget {
     Widget tab(ShellDomain d) => Expanded(
           child: _Tab(domain: d, on: d == current, onTap: () => onTap(d)),
         );
-    // A frosted pill floating over the tabs, with a hairline edge. The
-    // selected tab is a volt pill inside it; the two buttons sit between the
-    // tabs as icon-only slots.
+    // A frosted pill floating over the tabs, with a hairline edge.
+    // The selected tab has a soft bottom-up glow highlight; the buttons sit
+    // between the tabs as icon-only slots.
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: R.rPill,
-        border: Border.all(color: p.line),
+        border: Border.all(color: Colors.white.withValues(alpha: .12), width: 1.0),
+        color: const Color(0xF0181B24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .5),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Glass(
         radius: R.rPill,
-        // A minimum, not a height: the labels cap their own scale below, but
-        // the bar should still be free to grow rather than ever clip.
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: S.navBar),
           child: Padding(
-            padding: const EdgeInsets.all(S.x1),
+            padding: const EdgeInsets.symmetric(horizontal: S.x2, vertical: S.x1),
             child: Row(
               children: [
                 tab(ShellDomain.today),
@@ -304,9 +310,8 @@ class AiOrb extends StatelessWidget {
   }
 }
 
-/// One destination: icon over label. The active one is a volt pill holding
-/// dark ink; the rest are bare ink3. The label is on EVERY tab, active or not
-/// — for screen readers, and because an icon alone is a guess at 3× text.
+/// One destination: icon over label. The active one has a subtle upward-fading
+/// white spotlight glow and white icon/text; inactive tabs use muted grey.
 class _Tab extends StatelessWidget {
   final ShellDomain domain;
   final bool on;
@@ -316,10 +321,8 @@ class _Tab extends StatelessWidget {
 
   @override
   Widget build(BuildContext c) {
-    final p = P.of(c);
-    final fill = p.fill(C.volt);
-    final ink = on ? p.inkOn(fill) : p.ink3;
     final label = domain.title(c);
+    final tabColor = on ? C.white : const Color(0xFF8E95A5);
     return Semantics(
       selected: on,
       child: Pressable(
@@ -331,17 +334,25 @@ class _Tab extends StatelessWidget {
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(
               horizontal: S.x1, vertical: S.x2),
-          decoration: BoxDecoration(
-            color: on ? fill : const Color(0x00000000),
-            borderRadius: R.rPill,
-          ),
+          decoration: on
+              ? BoxDecoration(
+                  borderRadius: R.rPill,
+                  gradient: RadialGradient(
+                    center: const Alignment(0, 1.3),
+                    radius: 1.15,
+                    colors: [
+                      Colors.white.withValues(alpha: .24),
+                      Colors.white.withValues(alpha: .06),
+                      Colors.transparent,
+                    ],
+                  ),
+                )
+              : null,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(domain.icon, size: I.lg, color: ink),
+              Icon(domain.icon, size: I.lg, color: tabColor),
               const SizedBox(height: S.half),
-              // Five slots cannot hold a 3.1x label, so the bar's text stops
-              // growing at 1.3x — the way the platform's own bars do.
               MediaQuery.withClampedTextScaling(
                 maxScaleFactor: 1.3,
                 child: FittedBox(
@@ -350,8 +361,8 @@ class _Tab extends StatelessWidget {
                     label,
                     textAlign: TextAlign.center,
                     style: F.over.copyWith(
-                      color: ink,
-                      fontWeight: on ? FontWeight.w700 : FontWeight.w600,
+                      color: tabColor,
+                      fontWeight: on ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
                 ),

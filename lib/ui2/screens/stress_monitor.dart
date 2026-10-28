@@ -228,6 +228,8 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
   StressMonitorData? _data;
   String? _loaded;
   bool _zoom = false;
+  int? _zoomOffset;
+  int _pinchStartFrom = 0;
 
   /// The minute under a finger, or null at rest.
   int? _at;
@@ -349,29 +351,47 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
     ]);
   }
 
+  void _pinch(PinchPhase phase, double scale, double focal, double pan, int last) {
+    if (!_zoom) return;
+    final maxFrom = math.max(0, last - 180);
+    switch (phase) {
+      case PinchPhase.start:
+        _pinchStartFrom = _zoomOffset ?? maxFrom;
+      case PinchPhase.update:
+        final shifted = (_pinchStartFrom - (pan * 180).round()).clamp(0, maxFrom);
+        setState(() {
+          _zoomOffset = shifted;
+        });
+      case PinchPhase.end:
+        break;
+    }
+  }
+
   // ── the chart ────────────────────────────────────────────────────────────
   Widget _chart(P p, StressMonitorData d, int last) {
-    final from = _zoom ? math.max(0, last - 180) : 0;
-    final n = last - from + 1;
-    final values = d.scores.sublist(from, last + 1);
+    final maxFrom = math.max(0, last - 180);
+    final from = _zoom ? (_zoomOffset ?? maxFrom).clamp(0, maxFrom) : 0;
+    final to = _zoom ? math.min(last, from + 180) : last;
+    final n = to - from + 1;
+    final values = d.scores.sublist(from, to + 1);
     final labelMinutes = <int>{
       if (!_zoom) ...[0, 360, 720, 1080].where((m) => last - m > 100),
-      if (_zoom) ...[for (var m = (from ~/ 60 + 1) * 60; m < last - 20; m += 60) m],
+      if (_zoom) ...[for (var m = (from ~/ 60 + 1) * 60; m < to - 20; m += 60) m],
     };
     final xLabels = [
       for (var i = 0; i < n; i++)
         i == n - 1
-            ? _clock(last)
-            : labelMinutes.contains(from + i)
-                ? _clock(from + i)
-                : '',
+            ? _clock(to)
+            : i == 0
+                ? _clock(from)
+                : labelMinutes.contains(from + i)
+                    ? _clock(from + i)
+                    : '',
     ];
     const gutter = S.x10;
     final line = ScrubLine(
       values: values,
       xLabels: xLabels,
-      // A little under zero, so a calm minute sits just off the floor of the
-      // chart rather than on it.
       lo: -.08,
       hi: 3,
       ticks: const [0, 1, 2, 3],
@@ -382,18 +402,19 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
       markers: false,
       slots: false,
       gap: 12,
-      highlight: n - 1,
+      highlight: to == last ? n - 1 : null,
       height: S.x16 * 3 + S.x10,
       gutter: gutter,
       label: 'Stress through the day',
+      onPinch: _zoom ? (phase, scale, focal, pan) => _pinch(phase, scale, focal, pan, last) : null,
       describe: (i) => '${_clock(from + i)}: '
           '${values[i] == null ? 'no reading' : values[i]!.toStringAsFixed(1)}',
       onScrub: (i) => setState(() => _at = i == null ? null : from + i),
       paintUnder: (canvas, plot, xOf, yOf) {
         // Sleep: a soft block with a bar along its top.
         for (final (a, b) in d.sleep) {
-          final x1 = xOf(math.max(a, from) - from), x2 = xOf(math.min(b, last) - from);
-          if (b <= from || a > last || x2 <= x1) continue;
+          final x1 = xOf(math.max(a, from) - from), x2 = xOf(math.min(b, to) - from);
+          if (b <= from || a > to || x2 <= x1) continue;
           canvas.drawRect(Rect.fromLTRB(x1, plot.top, x2, plot.bottom),
               Paint()..color = p.ink.withValues(alpha: .05));
           canvas.drawLine(Offset(x1, plot.top), Offset(x2, plot.top),
@@ -401,8 +422,8 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
         }
         // Workouts: a faint span, marked above in blue.
         for (final s in d.sessions) {
-          if (s.to < from || s.from > last) continue;
-          final x1 = xOf(math.max(s.from, from) - from), x2 = xOf(math.min(s.to, last) - from);
+          if (s.to < from || s.from > to) continue;
+          final x1 = xOf(math.max(s.from, from) - from), x2 = xOf(math.min(s.to, to) - from);
           canvas.drawRect(Rect.fromLTRB(x1, plot.top, math.max(x2, x1 + 2), plot.bottom),
               Paint()..color = C.dialStrain.withValues(alpha: .10));
           canvas.drawLine(Offset(x1, plot.top - 3), Offset(math.max(x2, x1 + 2), plot.top - 3),
@@ -410,15 +431,16 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
         }
       },
       paintOver: (canvas, plot, xOf, yOf) {
-        // Where the day is now: a dashed line down to a dot on the reading.
-        final x = xOf(n - 1);
+        // Where the day is now: a dashed line down to a dot on the reading if visible.
+        if (last < from || last > to) return;
+        final x = xOf(last - from);
         final dash = Paint()
           ..color = p.ink
           ..strokeWidth = 1.5;
         for (var y = plot.top; y < plot.bottom; y += S.x2) {
           canvas.drawLine(Offset(x, y), Offset(x, math.min(y + S.x1, plot.bottom)), dash);
         }
-        final v = values[n - 1];
+        final v = values[last - from];
         if (v != null) canvas.drawCircle(Offset(x, yOf(v)), S.x1, Paint()..color = p.ink);
       },
     );
@@ -426,19 +448,15 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
     return LayoutBuilder(builder: (c, box) {
       final plotW = box.maxWidth - gutter - S.x2;
       double xAt(int minute) => gutter + (minute - from) / math.max(1, n - 1) * plotW;
-      // What each marked stretch was, over the middle of it: a moon for
-      // sleep, the activity's own icon for a workout. Marks that would sit on
-      // top of each other become one ring with how many there are; zooming
-      // in spreads them apart again.
       final marks = [
         for (final (a, b, icon) in [
           for (final (a, b) in d.sleep) (a, b, LucideIcons.moon),
           for (final s in d.sessions)
             (s.from, s.to, activityByName(s.type)?.icon ?? LucideIcons.activity),
         ])
-          if (b > from && a <= last)
+          if (b > from && a <= to)
             (
-              x: (xAt(math.max(a, from)) + xAt(math.min(b, last))) / 2,
+              x: (xAt(math.max(a, from)) + xAt(math.min(b, to))) / 2,
               icon: icon,
             ),
       ];
@@ -460,6 +478,7 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
           child: Pressable(
             onTap: () => setState(() {
               _zoom = !_zoom;
+              _zoomOffset = null;
               _at = null;
             }),
             semanticLabel: _zoom ? 'Show the whole day' : 'Zoom to the last three hours',

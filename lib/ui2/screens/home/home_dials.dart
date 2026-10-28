@@ -33,8 +33,8 @@ const kDialOrder = [
     switch (r.kind) {
       case HomeRingKind.sleep:
         final slept = d.sleepMin.value;
-        final need = d.sleepNeedMin.value;
-        if (slept != null && need != null && need > 0) {
+        final need = d.sleepNeedMin.value ?? 480.0;
+        if (slept != null && need > 0) {
           final perf = computeAdjustedSleepPerformance(
             tstMin: slept.toDouble(),
             needMin: need.toDouble(),

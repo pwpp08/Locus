@@ -150,15 +150,15 @@ class HomeMyDay extends StatelessWidget {
           )
         else
           for (var i = 0; i < rows.length; i++) ...[
-            if (i > 0) const SizedBox(height: S.x3),
+            if (i > 0) const SizedBox(height: S.x2),
             rows[i],
           ],
-        const SizedBox(height: S.x6),
+        const SizedBox(height: S.x4),
         Row(children: [
           Expanded(
               child: homeDayButton(p, LucideIcons.plus, 'ADD ACTIVITY', onAdd)),
           if (onStart != null) ...[
-            const SizedBox(width: S.x3),
+            const SizedBox(width: S.x2),
             Expanded(
                 child: homeDayButton(
                     p, LucideIcons.timer, 'START ACTIVITY', onStart!)),
@@ -174,17 +174,17 @@ Widget homeDayButton(P p, IconData icon, String label, VoidCallback onTap) =>
       onTap: onTap,
       semanticLabel: label[0] + label.substring(1).toLowerCase(),
       child: Container(
-        height: S.x12 + S.x1,
+        height: 40.0,
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: S.x2),
         decoration: BoxDecoration(
           color: p.ink.withValues(alpha: .09),
-          borderRadius: R.rLg,
+          borderRadius: R.rMd,
         ),
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: I.md, color: p.ink),
+            Icon(icon, size: I.sm, color: p.ink),
             const SizedBox(width: S.x2),
             Text(label, style: F.caps.copyWith(color: p.ink, letterSpacing: .6)),
           ]),
@@ -227,25 +227,26 @@ class HomeActivityRow extends StatelessWidget {
       onTap: onTap,
       semanticLabel: '$name, $value, ${_when(c, start)} to ${_when(c, end)}',
       child: Container(
-        padding: const EdgeInsets.fromLTRB(S.x2, S.x2, S.x4, S.x2),
+        padding: const EdgeInsets.fromLTRB(S.x2, S.x1 + S.half, S.x3, S.x1 + S.half),
         decoration: BoxDecoration(
           color: Color.alphaBlend(p.ink.withValues(alpha: .08), p.card),
-          borderRadius: R.rLg,
+          borderRadius: R.rMd,
         ),
         child: Row(children: [
           Container(
-            constraints: const BoxConstraints(minWidth: S.x16 + S.x12),
-            height: S.x12,
-            padding: const EdgeInsets.symmetric(horizontal: S.x4),
-            decoration: BoxDecoration(color: color, borderRadius: R.rMd),
+            constraints: const BoxConstraints(minWidth: 82.0),
+            height: 38.0,
+            padding: const EdgeInsets.symmetric(horizontal: S.x3),
+            decoration: BoxDecoration(color: color, borderRadius: R.rSm),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(icon, size: I.lg, color: C.white),
-              const SizedBox(width: S.x3),
+              Icon(icon, size: I.sm, color: C.white),
+              const SizedBox(width: S.x2),
               Text(value,
-                  style: F.n24.copyWith(color: C.white, fontWeight: FontWeight.w700)),
+                  style: F.num(F.head).copyWith(
+                      color: C.white, fontWeight: FontWeight.w700, fontSize: 16)),
             ]),
           ),
-          const SizedBox(width: S.x5),
+          const SizedBox(width: S.x4),
           Expanded(
             child: Text(name.toUpperCase(),
                 maxLines: 2,
@@ -255,15 +256,15 @@ class HomeActivityRow extends StatelessWidget {
           const SizedBox(width: S.x2),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text(_when(c, start),
-                style: F.num(F.cap).copyWith(color: p.ink3, fontWeight: FontWeight.w700)),
-            const SizedBox(height: S.x2),
+                style: F.num(F.cap).copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
+            const SizedBox(height: S.half),
             Text(_when(c, end),
-                style: F.num(F.cap).copyWith(color: p.ink3, fontWeight: FontWeight.w700)),
+                style: F.num(F.cap).copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
           ]),
-          const SizedBox(width: S.x3),
+          const SizedBox(width: S.x2 + S.half),
           SizedBox(
             width: S.x2,
-            height: S.x10,
+            height: S.x8,
             child: CustomPaint(painter: HomeSpanPainter(color)),
           ),
         ]),

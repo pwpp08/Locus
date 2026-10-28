@@ -432,6 +432,9 @@ class HomeData {
     final overview = await repo.getDayOverview(date);
     final strain = await repo.getDayStrain(date);
     final sleep = await repo.getDaySleepV2(date);
+    final needMin = (sleep['need_min'] as num?)?.toDouble() ??
+        (profile['sleep_need_min'] as num?)?.toDouble() ??
+        480.0;
     final readiness = metricOf(overview['readiness']);
     final absentDiag = readiness.value != null
         ? null
@@ -447,6 +450,7 @@ class HomeData {
       calories: metricOf(strain['calories']),
       caloriesTotal: metricOf(strain['calories_total']),
       sleepMin: metricOf(sleep['duration_min']),
+      sleepNeedMin: Metric.parse({'value': needMin, 'unit': 'min'}),
       sleepEfficiency: metricOf(sleep['efficiency']),
       remMin: metricOf(sleep['rem_min']),
       deepMin: metricOf(sleep['deep_min']),

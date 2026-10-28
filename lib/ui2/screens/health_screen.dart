@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../../l10n/display_text.dart';
 // HEALTH — observation-oriented. "What is happening, what is changing, is
 // anything unusual?"
@@ -92,6 +94,8 @@ class HealthData {
   /// trend cards draw for resting HR and HRV. Null when it could not be read.
   final Map<String, dynamic>? baselines;
 
+  final int workoutCount;
+
   const HealthData({
     this.today = const {},
     this.insights = const {},
@@ -106,6 +110,7 @@ class HealthData {
     this.napDay = '',
     this.findings = const [],
     this.baselines,
+    this.workoutCount = 0,
   });
 
   /// The stored points for [key].
@@ -153,9 +158,16 @@ class HealthData {
       'sleep',
       'stress',
       'resp_rate',
+      'steps',
+      'calories',
     ]) {
       charts[k] = pointsOf(await repo.getChart(k));
     }
+
+    int workoutCount = 0;
+    try {
+      workoutCount = await LocalDb.finishedSessionCount();
+    } catch (_) {}
 
     final coach = cd['sleep_coach'];
     final needEnv = coach is Map ? coach['need'] : null;
@@ -234,6 +246,7 @@ class HealthData {
       baselines: heart['baselines'] is Map
           ? (heart['baselines'] as Map).cast<String, dynamic>()
           : null,
+      workoutCount: workoutCount,
     );
   }
 }
@@ -980,6 +993,11 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
             () => go(c, const WellnessScreen())),
       ),
 
+      Section(
+        'Milestones & Fun Stats',
+        _FunStats(d: d),
+      ),
+
       // THERE IS NO "BODY COMPOSITION" SECTION, AND THE NEXT PERSON SHOULD NOT
       // BUILD ONE. It used to print the onboarding weight scalar, and the ask
       // that replaced it was "is their weight normal for the intake and the
@@ -1478,6 +1496,223 @@ class _MonitorTile extends StatelessWidget {
         const SizedBox(height: S.x1),
         Text(sub, style: F.cap.copyWith(color: p.ink3)),
       ]),
+    );
+  }
+}
+
+class _FunStats extends StatelessWidget {
+  final HealthData d;
+  const _FunStats({required this.d});
+
+  static String _fmt(num n) {
+    final s = n.round().toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return buf.toString();
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    var totalCalories =
+        d.points('calories').fold<double>(0, (sum, pt) => sum + pt.v);
+    final todayCal = d.daily('calories').value;
+    if (todayCal != null && todayCal > 0 && totalCalories == 0) {
+      totalCalories = todayCal.toDouble();
+    }
+
+    var totalSteps =
+        d.points('steps').fold<double>(0, (sum, pt) => sum + pt.v);
+    final todaySteps = d.daily('steps').value;
+    if (todaySteps != null && todaySteps > 0 && totalSteps == 0) {
+      totalSteps = todaySteps.toDouble();
+    }
+
+    var totalSleepMin =
+        d.points('sleep').fold<double>(0, (sum, pt) => sum + pt.v);
+    final todaySleep = d.sleepMin.value;
+    if (todaySleep != null && todaySleep > 0 && totalSleepMin == 0) {
+      totalSleepMin = todaySleep.toDouble();
+    }
+
+    final totalKm = totalSteps * 0.000762;
+    final marathons = totalKm / 42.195;
+    final earthPct = (totalKm / 40075.0) * 100.0;
+
+    final pizzaSlices = (totalCalories / 285).round();
+    final totalSleepHours = totalSleepMin / 60.0;
+    final sleepDays = totalSleepHours / 24.0;
+    final remDreamHours = totalSleepHours * 0.22;
+
+    final daysCount = math.max(1, d.daysWithData);
+    final avgRhr = d.daily('resting_hr').value ?? 65.0;
+    final estBeats = daysCount * 24 * 60 * avgRhr;
+    final bloodKiloLiters = estBeats * 0.07 / 1000.0;
+
+    final cards = <Widget>[
+      _FunStatCard(
+        icon: LucideIcons.flame,
+        accent: const Color(0xFFFF6B4A),
+        headline: totalCalories > 0 ? '${_fmt(totalCalories)} kcal' : '0 kcal',
+        title: 'Energy Burned',
+        badge: 'LIFETIME',
+        funFact: totalCalories > 0
+            ? '🍕 ~$pizzaSlices pizza slices burned! That’s enough power to run a lightbulb for ${(totalCalories * 1.162 / 60).round()} hrs.'
+            : 'Put on your strap to start logging lifetime metabolic energy!',
+      ),
+      _FunStatCard(
+        icon: LucideIcons.footprints,
+        accent: const Color(0xFF00E676),
+        headline: totalSteps > 0 ? '${_fmt(totalSteps)} steps' : '0 steps',
+        title: 'Distance Walked',
+        badge: '${totalKm.toStringAsFixed(1)} KM',
+        funFact: totalSteps > 0
+            ? '🏃 ~${marathons.toStringAsFixed(1)} marathons covered (${earthPct < 0.01 ? '<0.01' : earthPct.toStringAsFixed(2)}% of Earth\'s circumference).'
+            : 'Start walking today to log your first expedition milestones!',
+      ),
+      _FunStatCard(
+        icon: LucideIcons.moon,
+        accent: C.domSleep,
+        headline: '${totalSleepHours.toStringAsFixed(0)}h slept',
+        title: 'Sleep Journey',
+        badge: '${sleepDays.toStringAsFixed(1)} DAYS',
+        funFact: totalSleepHours > 0
+            ? '🌙 ~${remDreamHours.toStringAsFixed(0)}h spent journeying through REM dream state, restoring mind & memory.'
+            : 'Wear your device tonight to unlock sleep milestones.',
+      ),
+      _FunStatCard(
+        icon: LucideIcons.heartPulse,
+        accent: const Color(0xFFFF3B30),
+        headline: '~${(estBeats / 1000000).toStringAsFixed(1)}M beats',
+        title: 'Cardiac Power',
+        badge: 'ENGINE',
+        funFact:
+            '❤️ Circulating ~${bloodKiloLiters.toStringAsFixed(0)} kiloliters of oxygenated blood through your body non-stop.',
+      ),
+      _FunStatCard(
+        icon: LucideIcons.trophy,
+        accent: C.blue,
+        headline: '${d.workoutCount} workouts',
+        title: 'Workouts Crushed',
+        badge: 'GRIND',
+        funFact: d.workoutCount > 0
+            ? '🔥 Every training session moves the baseline and elevates physical resilience.'
+            : 'Record your first exercise session to start your streak!',
+      ),
+      _FunStatCard(
+        icon: LucideIcons.calendarDays,
+        accent: const Color(0xFFA78BFA),
+        headline: '$daysCount days',
+        title: 'Consistency',
+        badge: 'JOURNEY',
+        funFact:
+            '📈 Consistent tracking transforms raw sensor data into meaningful long-term health insights.',
+      ),
+    ];
+
+    return Column(children: [
+      for (var i = 0; i < cards.length; i += 2) ...[
+        if (i > 0) const SizedBox(height: S.x3),
+        IntrinsicHeight(
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Expanded(child: cards[i]),
+            const SizedBox(width: S.x3),
+            Expanded(
+              child:
+                  i + 1 < cards.length ? cards[i + 1] : const SizedBox.shrink(),
+            ),
+          ]),
+        ),
+      ],
+    ]);
+  }
+}
+
+class _FunStatCard extends StatelessWidget {
+  final IconData icon;
+  final Color accent;
+  final String headline;
+  final String title;
+  final String badge;
+  final String funFact;
+
+  const _FunStatCard({
+    required this.icon,
+    required this.accent,
+    required this.headline,
+    required this.title,
+    required this.badge,
+    required this.funFact,
+  });
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    return Surface(
+      pad: const EdgeInsets.all(S.x4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(S.x2),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(R.sm),
+                ),
+                child: Icon(icon, size: I.md, color: accent),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: S.x2, vertical: S.half),
+                decoration: BoxDecoration(
+                  color: p.track,
+                  borderRadius: R.rSm,
+                ),
+                child: Text(
+                  badge,
+                  style: F.caps.copyWith(
+                    color: p.ink3,
+                    fontSize: 9,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: S.x3),
+          Text(
+            headline,
+            style: F.num(F.head).copyWith(
+              color: p.ink,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(height: S.half),
+          Text(
+            title.toUpperCase(),
+            style: F.caps.copyWith(
+              color: p.ink3,
+              fontSize: 10,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: S.x2),
+          Text(
+            funFact,
+            style: F.body.copyWith(
+              color: p.ink2,
+              fontSize: 11,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

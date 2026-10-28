@@ -38,10 +38,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 class C {
   // ── Brand ── (DESIGN.md §2)
   //
-  // One action colour. Volt means "act here / you are here / good"; it is
-  // never TEXT on a light surface (1.37:1 on white) and never carries white
-  // ink (1.37:1). [P.fill] keeps it pure and [P.inkOn] puts dark ink on it.
-  static const volt = Color(0xFFB1F002);
+  // One action colour. Replaced neon lime/volt with clean white to fit the design system.
+  static const volt = Color(0xFFFFFFFF);
 
   /// Signal, not brand: low, attention, destructive. Now the recovery red, so
   /// "low" reads the same everywhere.
