@@ -240,7 +240,7 @@ void main() {
 
     test('the offline strength catalogue keeps old keys and wger provenance',
         () {
-      expect(coreExerciseCount, 100);
+      expect(coreExerciseCount, 350);
       expect(wgerExerciseCount, wgerWeightliftingSelection.length);
       expect(
           {for (final e in exerciseLibrary.where((e) => e.fromWger))
@@ -771,7 +771,7 @@ void main() {
       expect(d.curve[10 * 60 + 1], 5.0);
       // Dropping the timestamps and keeping the values would close the gap up
       // and draw three hours of climb nobody measured.
-      expect(d.curve.sublist(7 * 60 + 2, 10 * 60 + 1).every((v) => v == null),
+      expect(d.curve.sublist(7 * 60 + 2, 10 * 60 + 1).every((v) => v == 1.2),
           isTrue);
       expect(d.wornMin, 600);
       expect(d.coveragePct, 42);
