@@ -770,7 +770,7 @@ class _AiCard extends StatelessWidget {
                         letterSpacing: 1.6)),
               ),
               const SizedBox(width: S.x3),
-              const Icon(LucideIcons.arrowRight, size: I.md, color: C.dialStrain),
+              const Icon(LucideIcons.arrowRight, size: I.md, color: C.white),
             ]),
           ]),
         ),

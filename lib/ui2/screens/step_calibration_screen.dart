@@ -196,7 +196,7 @@ class _StepCalibrationScreenState extends State<StepCalibrationScreen> {
                         children: [
                           Row(
                             children: [
-                              Icon(LucideIcons.footprints, color: C.orange, size: 28),
+                              Icon(LucideIcons.footprints, color: p.ink, size: 28),
                               const SizedBox(width: S.x3),
                               Expanded(
                                 child: Column(
@@ -303,7 +303,7 @@ class _StepCalibrationScreenState extends State<StepCalibrationScreen> {
                           children: [
                             Row(
                               children: [
-                                Icon(LucideIcons.stethoscope, color: C.blue, size: 24),
+                                Icon(LucideIcons.stethoscope, color: p.ink, size: 24),
                                 const SizedBox(width: S.x2),
                                 Text(
                                   'Diagnostic Results',

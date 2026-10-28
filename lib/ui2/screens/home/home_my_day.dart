@@ -242,8 +242,8 @@ class HomeActivityRow extends StatelessWidget {
               Icon(icon, size: I.sm, color: C.white),
               const SizedBox(width: S.x2),
               Text(value,
-                  style: F.num(F.head).copyWith(
-                      color: C.white, fontWeight: FontWeight.w700, fontSize: 16)),
+                  style: F.n17.copyWith(
+                      color: C.white, fontWeight: FontWeight.w700)),
             ]),
           ),
           const SizedBox(width: S.x4),

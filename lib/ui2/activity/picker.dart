@@ -282,7 +282,7 @@ class ActivityRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: S.x3),
         child: Row(
           children: [
-            Icon(a.icon, size: I.md, color: p.on(a.color)),
+            Icon(a.icon, size: I.md, color: p.ink2),
             const SizedBox(width: S.x3),
             Expanded(
               child: Row(
@@ -345,8 +345,8 @@ class _Quick extends StatelessWidget {
             width: 38,
             height: 38,
             decoration:
-                BoxDecoration(color: p.wash(a.color), borderRadius: R.rMd),
-            child: Icon(a.icon, size: I.md, color: p.on(a.color)),
+                BoxDecoration(color: p.track, borderRadius: R.rMd),
+            child: Icon(a.icon, size: I.md, color: p.ink),
           ),
             const SizedBox(height: S.x2),
             Padding(

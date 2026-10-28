@@ -1030,8 +1030,8 @@ class _HistoryRow extends StatelessWidget {
             width: 40,
             height: 40,
             decoration:
-                BoxDecoration(color: p.wash(a.color), borderRadius: R.rMd),
-            child: Icon(a.icon, size: I.md, color: p.on(a.color)),
+                BoxDecoration(color: p.track, borderRadius: R.rMd),
+            child: Icon(a.icon, size: I.md, color: p.ink),
           ),
               const SizedBox(width: S.x3),
               Expanded(
@@ -1123,11 +1123,11 @@ class _HistoryRow extends StatelessWidget {
             semanticLabel: loc?.workoutFixTimesOnSessionLabel ??
                 'Fix the times on this session',
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(LucideIcons.clock, size: I.sm, color: p.on(C.blue)),
+              Icon(LucideIcons.clock, size: I.sm, color: p.ink),
               const SizedBox(width: S.x2),
               Text(loc?.workoutFixTimes ?? 'Fix the times',
                   style: F.cap.copyWith(
-                      color: p.on(C.blue), fontWeight: FontWeight.w600)),
+                      color: p.ink, fontWeight: FontWeight.w600)),
             ]),
           ),
         ],

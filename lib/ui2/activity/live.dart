@@ -845,7 +845,7 @@ class LiveHeart extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Icon(LucideIcons.heart, size: I.lg, color: p.on(C.coral)),
+                  Icon(LucideIcons.heart, size: I.lg, color: p.ink),
                   const SizedBox(width: S.x2),
                   Text('${feed.hr}', style: F.n64.copyWith(color: p.ink)),
                   const SizedBox(width: S.x1),
@@ -1705,11 +1705,11 @@ class _LiveStrengthState extends State<LiveStrength> {
                 borderRadius: R.rPill,
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(LucideIcons.plus, size: I.sm, color: p.on(C.purple)),
+                Icon(LucideIcons.plus, size: I.sm, color: p.ink),
                 const SizedBox(width: S.x1),
                 Text(l?.activityLiveAddExerciseTitle ?? 'Add',
                     style: F.cap.copyWith(
-                        color: p.on(C.purple), fontWeight: FontWeight.w600)),
+                        color: p.ink, fontWeight: FontWeight.w600)),
               ]),
             ),
           ),
@@ -1957,12 +1957,12 @@ class _LiveStrengthState extends State<LiveStrength> {
         child: Column(children: [
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             if (gold) ...[
-              Icon(LucideIcons.trophy, size: I.sm, color: p.on(C.yellow)),
+              Icon(LucideIcons.trophy, size: I.sm, color: p.ink),
               const SizedBox(width: S.x1),
             ],
             Text(label.toUpperCase(),
                 style: F.over
-                    .copyWith(color: gold ? p.on(C.yellow) : p.ink3)),
+                    .copyWith(color: gold ? p.ink : p.ink3)),
           ]),
           const SizedBox(height: S.x2),
           Text(

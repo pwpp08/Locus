@@ -141,8 +141,8 @@ class _ActivitySetupState extends State<ActivitySetup> {
                       width: 84,
                       height: 84,
                       decoration: BoxDecoration(
-                          color: p.wash(a.color), shape: BoxShape.circle),
-                      child: Icon(a.icon, size: I.xl, color: p.on(a.color)),
+                          color: p.track, shape: BoxShape.circle),
+                      child: Icon(a.icon, size: I.xl, color: p.ink),
                     ),
                         const SizedBox(height: S.x4),
                         Text(

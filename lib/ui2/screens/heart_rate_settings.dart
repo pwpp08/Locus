@@ -1,12 +1,11 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../compute/hr_max.dart' show kManualMaxHrMax, kManualMaxHrMin;
 import '../../state/app_state.dart';
 import '../../state/prefs.dart';
-import '../grammar.dart' show AppSwitch, Pressable;
+import '../grammar.dart' show AppDialog, AppField, AppSwitch, Pressable;
 import '../theme.dart' show C, F, I, P, R, S;
 import '../ui2.dart' show LucideIcons;
 
@@ -329,13 +328,13 @@ class _HeartRateSettingsScreenState extends State<HeartRateSettingsScreen> {
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.black,
+                            color: C.char,
                           ),
                         )
                       : Text(
                           'SAVE HR ZONES',
                           style: F.caps.copyWith(
-                            color: Colors.black,
+                            color: C.char,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1.0,
                           ),
@@ -374,21 +373,14 @@ class _AnchorField extends StatelessWidget {
               style: F.caps.copyWith(color: p.ink3, letterSpacing: .6),
             ),
             const SizedBox(width: S.x1),
-            GestureDetector(
-              onTap: () => showDialog<void>(
-                context: c,
-                builder: (_) => AlertDialog(
-                  backgroundColor: p.card,
-                  title: Text(label, style: F.head.copyWith(color: p.ink)),
-                  content: Text(infoDialog, style: F.body.copyWith(color: p.ink2)),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(c).pop(),
-                      child: Text('OK', style: TextStyle(color: p.ink)),
-                    ),
-                  ],
-                ),
+            Pressable(
+              onTap: () => AppDialog.show(
+                c,
+                title: label,
+                body: infoDialog,
+                primary: 'OK',
               ),
+              semanticLabel: 'Info about $label',
               child: Icon(LucideIcons.info, size: I.sm, color: p.ink3),
             ),
           ],
@@ -405,17 +397,11 @@ class _AnchorField extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: TextField(
+                child: AppField(
                   controller: controller,
                   keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  style: F.n24.copyWith(
-                      fontSize: 20, color: p.ink, fontWeight: FontWeight.w700),
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                  ),
+                  bare: true,
+                  textStyle: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700),
                 ),
               ),
               Text(
@@ -512,19 +498,14 @@ class _BpmInput extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: TextField(
+            child: AppField(
               controller: controller,
               enabled: enabled,
               keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              style: F.body.copyWith(
+              bare: true,
+              textStyle: F.body.copyWith(
                 color: enabled ? p.ink : p.ink2,
                 fontWeight: FontWeight.w600,
-              ),
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
               ),
             ),
           ),

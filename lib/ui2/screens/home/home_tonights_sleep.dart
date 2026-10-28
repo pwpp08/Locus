@@ -32,17 +32,17 @@ class HomeTonightsSleep extends StatelessWidget {
     Widget half(IconData icon, String time, Widget under) =>
         Column(children: [
           Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: I.lg, color: p.ink2),
+            Icon(icon, size: I.md, color: p.ink2),
             const SizedBox(width: S.x2),
             Text(time,
                 style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
           ]),
-          const SizedBox(height: S.x1),
+          const SizedBox(height: S.half),
           under,
         ]);
 
     return Surface(
-      pad: const EdgeInsets.all(S.x4),
+      pad: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x3),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Pressable(
           onTap: () => Navigator.of(c).push(
@@ -51,29 +51,25 @@ class HomeTonightsSleep extends StatelessWidget {
           child: Row(children: [
             Expanded(
                 child: Text('TONIGHT’S SLEEP',
-                    style: F.caps.copyWith(color: p.ink))),
-            SizedBox(
-              width: S.tap,
-              height: S.tap,
-              child: Icon(LucideIcons.chevronRight, size: I.md, color: p.ink2),
-            ),
+                    style: F.caps.copyWith(color: p.ink, letterSpacing: .5))),
+            Icon(LucideIcons.chevronRight, size: I.sm, color: p.ink3),
           ]),
         ),
         const SizedBox(height: S.x2),
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
           Expanded(
             child: half(
               LucideIcons.sunset,
               bedtimeMin == null ? '--' : clock(bedtimeMin),
-              Text('RECOMMENDED\nBEDTIME',
+              Text('RECOMMENDED BEDTIME',
                   textAlign: TextAlign.center,
                   style: F.over.copyWith(
-                      color: p.ink2, fontWeight: FontWeight.w700)),
+                      color: p.ink3, letterSpacing: .4)),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(top: S.x4),
-            child: Text('- - - -', style: F.cap.copyWith(color: p.ink3)),
+            padding: const EdgeInsets.symmetric(horizontal: S.x2),
+            child: Text('· · ·', style: F.cap.copyWith(color: p.ink3)),
           ),
           Expanded(
             child: half(
@@ -81,33 +77,34 @@ class HomeTonightsSleep extends StatelessWidget {
               at == null ? '--' : formatClockOf(at),
               Row(mainAxisSize: MainAxisSize.min, children: [
                 Container(
-                  width: S.x2,
-                  height: S.x2,
+                  width: S.x1 + S.half,
+                  height: S.x1 + S.half,
                   decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
                 ),
                 const SizedBox(width: S.x1),
                 Flexible(
                   child: Text(status,
                       style: F.over.copyWith(
-                          color: dot == p.ink3 ? p.ink2 : dot,
-                          fontWeight: FontWeight.w700)),
+                          color: dot == p.ink3 ? p.ink3 : dot,
+                          letterSpacing: .4)),
                 ),
               ]),
             ),
           ),
         ]),
-        const SizedBox(height: S.x4),
+        const SizedBox(height: S.x3),
         Pressable(
           onTap: openAlarm,
           semanticLabel: at == null ? 'Set alarm' : 'Edit alarm',
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: S.x4),
-            decoration: BoxDecoration(color: p.card2, borderRadius: R.rMd),
+            height: 36.0,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: p.card2, borderRadius: R.rSm),
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(LucideIcons.pencil, size: I.md, color: p.ink),
-              const SizedBox(width: S.x3),
+              Icon(LucideIcons.pencil, size: I.sm, color: p.ink),
+              const SizedBox(width: S.x2),
               Text(at == null ? 'SET ALARM' : 'EDIT ALARM',
-                  style: F.caps.copyWith(color: p.ink)),
+                  style: F.caps.copyWith(color: p.ink, letterSpacing: .6)),
             ]),
           ),
         ),

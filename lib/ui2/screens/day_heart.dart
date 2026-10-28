@@ -314,7 +314,7 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
                           border: Border.all(color: C.white.withValues(alpha: .2)),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: .5),
+                              color: C.char.withValues(alpha: .5),
                               blurRadius: 8,
                             ),
                           ],

@@ -899,7 +899,7 @@ class DashboardRows extends StatelessWidget {
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Row(mainAxisSize: MainAxisSize.min, children: [
             Text(m.absent != null ? '--' : trendFormat(m, h.value),
-                style: F.n24.copyWith(fontSize: 20, color: p.ink, fontWeight: FontWeight.w700)),
+                style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
             // A number with no arrow beside it ends at the middle of where the
             // arrows sit, so the figures of every card line up on one edge.
             if (dir != null) ...[

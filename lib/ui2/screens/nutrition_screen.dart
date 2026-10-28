@@ -624,7 +624,7 @@ class _NutritionScreenState extends State<NutritionScreen> with RevisionReload {
             children: [
               Row(
                 children: [
-                  Icon(LucideIcons.cpu, size: I.sm, color: p.on(C.purple)),
+                  Icon(LucideIcons.cpu, size: I.sm, color: p.ink2),
                   const SizedBox(width: S.x2),
                   Expanded(
                     child: Text(
@@ -986,7 +986,7 @@ class _WaterRow extends StatelessWidget {
     final p = P.of(c);
     return Surface(
       child: Row(children: [
-        Icon(LucideIcons.glassWater, size: I.md, color: p.on(C.blue)),
+        Icon(LucideIcons.glassWater, size: I.md, color: p.ink),
         const SizedBox(width: S.x3),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

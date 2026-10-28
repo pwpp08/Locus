@@ -714,7 +714,7 @@ class DriverRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(LucideIcons.dot, size: I.md, color: p.on(C.domMind)),
+          Icon(LucideIcons.dot, size: I.md, color: p.ink2),
           const SizedBox(width: S.x2),
           Expanded(
             child: Column(
@@ -909,10 +909,10 @@ class MedRow extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: p.wash(C.blue),
+                color: p.track,
                 borderRadius: R.rMd,
               ),
-              child: Icon(LucideIcons.pill, size: I.sm, color: p.on(C.blue)),
+              child: Icon(LucideIcons.pill, size: I.sm, color: p.ink),
             ),
             const SizedBox(width: S.x3),
             Expanded(

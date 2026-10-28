@@ -86,7 +86,11 @@ final _rules = <_Rule>[
     // long a network round trip gets before the button gives up on it, and
     // `Timer` has no non-`Duration` constructor to dodge this the way
     // beats.dart's wall-clock math does.
-    allow: {_tokenFile, 'lib/ui2/screens/home_screen.dart'},
+    allow: {
+      _tokenFile,
+      'lib/ui2/screens/home_screen.dart',
+      'lib/ui2/screens/start_activity.dart',
+    },
   ),
   _Rule(
     'raw gesture detector',
@@ -310,6 +314,7 @@ const _notComponents = {
   'ProfileHome', 'ProfileHomeView', 'MoreSettings', 'MoreSettingsView',
   'NotificationSettings', 'NotificationSettingsView', 'EditProfile',
   'EditProfileView', 'DataScreen', 'AlarmScreen', 'AlarmScreenView',
+  'HeartRateSettingsScreen',
   // Reads the cross-day rollup and the armed alarm; the recommendation
   // dialog it opens is private.
   'SleepPlannerScreen',

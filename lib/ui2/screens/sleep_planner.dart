@@ -341,53 +341,52 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
             semanticLabel: '$label $value',
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: S.x4),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: S.x3, vertical: S.x4),
               decoration: BoxDecoration(
-                color: Color.alphaBlend(p.ink.withValues(alpha: .12), p.bg),
+                color: Color.alphaBlend(C.slate.withValues(alpha: .35), p.bg),
                 borderRadius: R.rMd,
                 border: Border.all(
-                    color: C.char.withValues(alpha: .9), width: S.half),
+                    color: p.ink.withValues(alpha: .08), width: S.half),
               ),
-              child: Column(children: [
-                Text(label,
-                    textAlign: TextAlign.center,
-                    style: F.caps.copyWith(
-                        color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
-                const SizedBox(height: S.x2),
-                Text(value,
-                    style: F.num(F.head).copyWith(
-                        color: p.ink, fontWeight: FontWeight.w800, letterSpacing: .8)),
-              ]),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(label,
+                      textAlign: TextAlign.center,
+                      style: F.caps.copyWith(
+                          color: p.ink3,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2)),
+                  const SizedBox(height: S.x2),
+                  Text(value,
+                      style: F.head.copyWith(
+                          color: p.ink,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: .5)),
+                ],
+              ),
             ),
           ),
         );
 
-    final h = MediaQuery.sizeOf(c).height;
     return Scaffold(
       backgroundColor: p.bg,
       body: Stack(children: [
-        // Two grounds: a lit one over the top of the page, and under it the
-        // night, nearly black down to the dock.
+        // Full screen deep slate-to-obsidian gradient matching Whoop
         Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-                color: Color.alphaBlend(C.char.withValues(alpha: .55), p.bg)),
-          ),
-        ),
-        Positioned(
-          left: 0,
-          right: 0,
-          top: 0,
-          height: h * .39,
           child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color.alphaBlend(p.ink.withValues(alpha: .17), p.bg),
-                  Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
+                  Color.alphaBlend(C.slate.withValues(alpha: .45), p.bg),
+                  Color.alphaBlend(C.char.withValues(alpha: .6), p.bg),
+                  p.bg,
                 ],
+                stops: const [0.0, 0.45, 1.0],
               ),
             ),
           ),
@@ -408,7 +407,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                       width: S.tap,
                       height: S.tap,
                       child: Center(
-                          child: BoldChevron(left: true, height: S.x5, color: p.ink)),
+                          child: BoldChevron(left: true, height: S.x4 + S.half, color: p.ink)),
                     ),
                   ),
                   Expanded(
@@ -424,16 +423,17 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                           onTap: () => showSleepRecommendation(c, plan),
                           semanticLabel: 'How the plan is made',
                           child: Container(
-                            width: S.x6,
-                            height: S.x6,
+                            width: S.x5 + S.half,
+                            height: S.x5 + S.half,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(color: p.ink3, width: S.half),
+                              border: Border.all(
+                                  color: p.ink.withValues(alpha: .35), width: S.half),
                             ),
                             child: Center(
                               child: Text('?',
                                   style: F.cap.copyWith(
-                                      color: p.ink3, fontWeight: FontWeight.w800, height: 1)),
+                                      color: p.ink2, fontWeight: FontWeight.w700, height: 1)),
                             ),
                           ),
                         ),
@@ -445,54 +445,66 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                     semanticLabel: 'My schedule',
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Container(
-                        width: S.x8 + S.x1,
-                        height: S.x8 + S.x1,
+                        width: S.x8,
+                        height: S.x8,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: p.ink, width: S.half),
+                          border: Border.all(
+                              color: p.ink.withValues(alpha: .3), width: S.half),
                         ),
-                        child: Icon(LucideIcons.calendarClock,
-                            size: I.sm, color: p.ink),
+                        child: Center(
+                          child: Icon(LucideIcons.calendarClock,
+                              size: I.sm, color: p.ink),
+                        ),
                       ),
                       const SizedBox(height: S.half),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: S.x2, vertical: S.half),
+                            horizontal: S.x2, vertical: S.half / 2),
                         decoration: BoxDecoration(
                           color: p.ink.withValues(alpha: .12),
                           borderRadius: R.rSm,
                         ),
                         child: Text(scheduleOn ? 'ON' : 'OFF',
                             style: F.over.copyWith(
-                                color: p.ink3, fontWeight: FontWeight.w800)),
+                                color: p.ink3,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8)),
                       ),
                     ]),
                   ),
                 ]),
+                const SizedBox(height: S.x2),
                 Center(
                   child: Container(
                     width: S.x8 + S.x1,
                     height: S.x8 + S.x1,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: p.ink, width: S.half),
+                      border: Border.all(
+                          color: p.ink.withValues(alpha: .3), width: S.half),
                     ),
-                    child: Icon(LucideIcons.moon, size: I.sm, color: p.ink),
+                    child: Center(
+                      child: CustomPaint(
+                        size: const Size(S.x4, S.x4),
+                        painter: _WhoopEmblemPainter(p.ink),
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: S.x3),
+                const SizedBox(height: S.x4),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: S.x4),
+                  padding: const EdgeInsets.symmetric(horizontal: S.x6),
                   child: Text(headline,
                       textAlign: TextAlign.center,
                       style: F.head.copyWith(
-                          color: p.ink, fontWeight: FontWeight.w500, height: 1.25)),
+                          color: p.ink, fontWeight: FontWeight.w500, height: 1.3)),
                 ),
                 const SizedBox(height: S.x5),
                 Center(
                   child: Text('TOMORROW I WANT TO',
                       style: F.over.copyWith(
-                          color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+                          color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
                 ),
                 const SizedBox(height: S.x2),
                 Center(
@@ -500,12 +512,13 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                     onTap: _pickGoal,
                     semanticLabel: 'Planner goal',
                     child: Container(
-                      width: S.x16 * 3 + S.x8 + S.x4,
-                      padding: const EdgeInsets.symmetric(vertical: S.x4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: S.x8, vertical: S.x3 + S.half),
                       decoration: BoxDecoration(
-                        color: Color.alphaBlend(C.char.withValues(alpha: .4), p.bg),
+                        color: Color.alphaBlend(C.char.withValues(alpha: .5), p.bg),
                         borderRadius: R.rPill,
-                        border: Border.all(color: p.ink, width: S.half),
+                        border: Border.all(
+                            color: p.ink.withValues(alpha: .9), width: S.half),
                       ),
                       child: Text(
                           goal == 'consistent' ? 'STAY CONSISTENT' : 'REACH MY SLEEP NEED',
@@ -535,42 +548,46 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
             // The alarm dock.
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(S.x3, S.x3, S.x3, S.x3),
+              padding: EdgeInsets.fromLTRB(
+                  S.x4, S.x4, S.x4, S.x5 + MediaQuery.paddingOf(c).bottom),
               decoration: BoxDecoration(
-                color: Color.alphaBlend(p.ink.withValues(alpha: .09), p.bg),
+                color: Color.alphaBlend(C.slate.withValues(alpha: .45), p.bg),
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(R.xxl)),
+                border: Border(
+                  top: BorderSide(
+                    color: p.ink.withValues(alpha: .08),
+                    width: S.half,
+                  ),
+                ),
               ),
               child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                 Row(children: [
-                  const SizedBox(width: S.x2),
-                  StrapIcon(color: p.ink3, height: S.x6),
+                  StrapIcon(color: p.ink, height: S.x5),
+                  const SizedBox(width: S.x3),
                   Expanded(
-                    child: Center(
-                      child: Text('ALARM',
-                          style: F.body.copyWith(
-                              color: p.ink,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.6)),
-                    ),
+                    child: Text('ALARM',
+                        style: F.body.copyWith(
+                            color: p.ink,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.6)),
                   ),
                   AppSwitch(
                     planAlarm != null,
                     (v) => _toggleAlarm(v, wake),
                     semanticLabel: 'Alarm',
                   ),
-                  const SizedBox(width: S.x2),
                 ]),
-                const SizedBox(height: S.x3),
+                const SizedBox(height: S.x4),
                 Row(children: [
                   dockButton('ALARM SET TO', armedAt == null ? 'OFF' : clock(armedAt),
                       () => planAlarm != null && wake != null
                           ? _setAlarm(wake)
                           : _toggleAlarm(true, wake)),
-                  const SizedBox(width: S.x5),
+                  const SizedBox(width: S.x3),
                   dockButton('WAKE TIME SET TO', wake == null ? '--' : clock(wake),
                       () => _pickWake(wake)),
                 ]),
@@ -581,6 +598,36 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
       ]),
     );
   }
+}
+
+class _WhoopEmblemPainter extends CustomPainter {
+  final Color color;
+  const _WhoopEmblemPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final w = size.width, h = size.height;
+    // Whoop's double angle mark
+    final p1 = Path()
+      ..moveTo(w * 0.20, h * 0.28)
+      ..lineTo(w * 0.44, h * 0.72)
+      ..lineTo(w * 0.62, h * 0.36);
+    final p2 = Path()
+      ..moveTo(w * 0.38, h * 0.28)
+      ..lineTo(w * 0.58, h * 0.66)
+      ..lineTo(w * 0.80, h * 0.28);
+    canvas.drawPath(p1, p);
+    canvas.drawPath(p2, p);
+  }
+
+  @override
+  bool shouldRepaint(_WhoopEmblemPainter old) => old.color != color;
 }
 
 /// "Set an alarm too, or just the wake time?"

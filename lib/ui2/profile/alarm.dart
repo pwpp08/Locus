@@ -2,7 +2,6 @@
 // system alarm sync, and instant strap confirmation.
 
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
@@ -625,10 +624,11 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
           '${formatClock(alarm.hour, alarm.minute)}, ${alarm.repeatSummary()}, ${alarm.mode.title}',
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(S.x5, S.x5, S.x5, S.x4),
+        padding: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x3),
         decoration: BoxDecoration(
-          color: Color.alphaBlend(p.ink.withValues(alpha: .2), p.bg),
-          borderRadius: BorderRadius.circular(S.x5),
+          color: p.card,
+          borderRadius: R.rLg,
+          border: Border.all(color: p.ink.withValues(alpha: .08)),
         ),
         child: Opacity(
           opacity: dim,
@@ -645,21 +645,19 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                   ),
                 Text(names[i],
                     style: F.over.copyWith(
-                        color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: .9)),
+                        color: p.ink3, letterSpacing: .6)),
               ],
             ]),
-            const SizedBox(height: S.x3),
+            const SizedBox(height: S.x2),
             Row(children: [
               Expanded(
                 child: Text(formatClock(alarm.hour, alarm.minute),
-                    style: F.n34.copyWith(
-                        color: p.ink, fontWeight: FontWeight.w700, letterSpacing: .4)),
+                    style: F.n24.copyWith(
+                        color: p.ink, fontWeight: FontWeight.w700)),
               ),
-              Transform.rotate(
-                  angle: math.pi / 2,
-                  child: BoldChevron(left: false, height: S.x4, color: p.ink)),
+              Icon(LucideIcons.chevronRight, size: I.md, color: p.ink3),
             ]),
-            const SizedBox(height: S.x3),
+            const SizedBox(height: S.x2),
             Align(
               alignment: Alignment.centerLeft,
               child: Pressable(
@@ -667,17 +665,17 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                 semanticLabel: 'Alarm mode ${alarm.mode.title}',
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: S.x3, vertical: S.x2 + S.half),
+                      horizontal: S.x2 + S.half, vertical: S.x1),
                   decoration: BoxDecoration(
-                    color: p.ink.withValues(alpha: .1),
+                    color: p.ink.withValues(alpha: .07),
                     borderRadius: R.rSm,
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(LucideIcons.vibrate, size: I.md, color: p.ink),
-                    const SizedBox(width: S.x2),
+                    Icon(LucideIcons.vibrate, size: I.sm, color: p.ink2),
+                    const SizedBox(width: S.x1 + S.half),
                     Text(alarm.mode.title,
-                        style: F.caps.copyWith(
-                            color: p.ink, fontWeight: FontWeight.w800, letterSpacing: .9)),
+                        style: F.over.copyWith(
+                            color: p.ink2, letterSpacing: .5)),
                   ]),
                 ),
               ),

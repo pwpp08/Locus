@@ -3,8 +3,6 @@
 // Four doors: start an activity, add one, the strength trainer, the journal.
 // It records nothing itself; it hands back which door was taken.
 
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../ui2.dart';
@@ -71,8 +69,8 @@ class PlusMenu extends StatelessWidget {
   ];
 
   /// One row's height, and the panel's padding above and below the rows.
-  static const _row = S.x16 + S.half;
-  static const _pad = S.x3 + S.half;
+  static const _row = 46.0;
+  static const _pad = S.x2;
 
   @override
   Widget build(BuildContext c) {
@@ -80,14 +78,17 @@ class PlusMenu extends StatelessWidget {
     final size = MediaQuery.sizeOf(c);
     final inset = MediaQuery.paddingOf(c);
     final h = _rows.length * _row + 2 * _pad;
-    const w = S.x16 * 4 - S.x1;
-    // Its bottom edge on the button's middle, its right a little in from the
-    // button's: the panel opens upward. Too near the top of the screen, it
-    // opens downward instead.
-    var top = anchor.center.dy - h;
-    if (top < inset.top + S.x2) top = anchor.bottom + S.x2;
-    top = math.min(top, size.height - inset.bottom - h - S.x2);
-    final right = size.width - anchor.right + S.x6 + S.x1;
+    const w = 216.0;
+
+    // Open upward, cleanly positioned above the plus button with a clear gap
+    // so it never overlaps the button when it turns into an X.
+    var top = anchor.top - h - S.x2;
+    if (top < inset.top + S.x2) {
+      top = anchor.bottom + S.x2;
+    }
+    top = top.clamp(inset.top + S.x2, size.height - inset.bottom - h - S.x2);
+    final right = (size.width - anchor.right).clamp(S.x2, size.width - w - S.x2);
+
     return Material(
       type: MaterialType.transparency,
       child: Stack(children: [
@@ -98,21 +99,13 @@ class PlusMenu extends StatelessWidget {
           height: h,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              borderRadius:
-                  const BorderRadius.all(Radius.circular(R.xxl + S.x3 + S.x1)),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color.alphaBlend(p.ink.withValues(alpha: .11), p.card),
-                  Color.alphaBlend(p.ink.withValues(alpha: .06), p.card),
-                ],
-              ),
-              border: Border.all(color: p.ink.withValues(alpha: .08)),
+              borderRadius: BorderRadius.circular(R.lg),
+              color: Color.alphaBlend(p.ink.withValues(alpha: .10), p.card),
+              border: Border.all(color: p.ink.withValues(alpha: .12)),
               boxShadow: [
                 BoxShadow(
-                    color: C.char.withValues(alpha: .5),
-                    blurRadius: S.x8,
+                    color: C.char.withValues(alpha: .45),
+                    blurRadius: S.x6,
                     offset: const Offset(0, S.x2)),
               ],
             ),
@@ -125,23 +118,22 @@ class PlusMenu extends StatelessWidget {
                     semanticLabel: label,
                     child: SizedBox(
                       height: _row,
-                      child: Row(children: [
-                        const SizedBox(width: S.x6 + S.x1),
-                        SizedBox(
-                          width: S.x6,
-                          child: Icon(icon, size: I.lg, color: p.ink2),
-                        ),
-                        const SizedBox(width: S.x4),
-                        Expanded(
-                          child: Text(label.toUpperCase(),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: F.cap.copyWith(
-                                  color: p.ink,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.4)),
-                        ),
-                      ]),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: S.x4),
+                        child: Row(children: [
+                          Icon(icon, size: I.md, color: p.ink2),
+                          const SizedBox(width: S.x3),
+                          Expanded(
+                            child: Text(label.toUpperCase(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: F.caps.copyWith(
+                                    color: p.ink,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: .6)),
+                          ),
+                        ]),
+                      ),
                     ),
                   ),
               ]),

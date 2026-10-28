@@ -1554,7 +1554,6 @@ class _FunStats extends StatelessWidget {
     final cards = <Widget>[
       _FunStatCard(
         icon: LucideIcons.flame,
-        accent: const Color(0xFFFF6B4A),
         headline: totalCalories > 0 ? '${_fmt(totalCalories)} kcal' : '0 kcal',
         title: 'Energy Burned',
         badge: 'LIFETIME',
@@ -1564,7 +1563,6 @@ class _FunStats extends StatelessWidget {
       ),
       _FunStatCard(
         icon: LucideIcons.footprints,
-        accent: const Color(0xFF00E676),
         headline: totalSteps > 0 ? '${_fmt(totalSteps)} steps' : '0 steps',
         title: 'Distance Walked',
         badge: '${totalKm.toStringAsFixed(1)} KM',
@@ -1574,7 +1572,6 @@ class _FunStats extends StatelessWidget {
       ),
       _FunStatCard(
         icon: LucideIcons.moon,
-        accent: C.domSleep,
         headline: '${totalSleepHours.toStringAsFixed(0)}h slept',
         title: 'Sleep Journey',
         badge: '${sleepDays.toStringAsFixed(1)} DAYS',
@@ -1584,7 +1581,6 @@ class _FunStats extends StatelessWidget {
       ),
       _FunStatCard(
         icon: LucideIcons.heartPulse,
-        accent: const Color(0xFFFF3B30),
         headline: '~${(estBeats / 1000000).toStringAsFixed(1)}M beats',
         title: 'Cardiac Power',
         badge: 'ENGINE',
@@ -1593,7 +1589,6 @@ class _FunStats extends StatelessWidget {
       ),
       _FunStatCard(
         icon: LucideIcons.trophy,
-        accent: C.blue,
         headline: '${d.workoutCount} workouts',
         title: 'Workouts Crushed',
         badge: 'GRIND',
@@ -1603,7 +1598,6 @@ class _FunStats extends StatelessWidget {
       ),
       _FunStatCard(
         icon: LucideIcons.calendarDays,
-        accent: const Color(0xFFA78BFA),
         headline: '$daysCount days',
         title: 'Consistency',
         badge: 'JOURNEY',
@@ -1632,7 +1626,6 @@ class _FunStats extends StatelessWidget {
 
 class _FunStatCard extends StatelessWidget {
   final IconData icon;
-  final Color accent;
   final String headline;
   final String title;
   final String badge;
@@ -1640,7 +1633,6 @@ class _FunStatCard extends StatelessWidget {
 
   const _FunStatCard({
     required this.icon,
-    required this.accent,
     required this.headline,
     required this.title,
     required this.badge,
@@ -1661,10 +1653,10 @@ class _FunStatCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(S.x2),
                 decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(R.sm),
+                  color: p.track,
+                  borderRadius: R.rSm,
                 ),
-                child: Icon(icon, size: I.md, color: accent),
+                child: Icon(icon, size: I.md, color: p.ink),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -1675,9 +1667,8 @@ class _FunStatCard extends StatelessWidget {
                 ),
                 child: Text(
                   badge,
-                  style: F.caps.copyWith(
+                  style: F.over.copyWith(
                     color: p.ink3,
-                    fontSize: 9,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -1687,10 +1678,9 @@ class _FunStatCard extends StatelessWidget {
           const SizedBox(height: S.x3),
           Text(
             headline,
-            style: F.num(F.head).copyWith(
+            style: F.n17.copyWith(
               color: p.ink,
               fontWeight: FontWeight.bold,
-              fontSize: 18,
             ),
           ),
           const SizedBox(height: S.half),
@@ -1698,16 +1688,14 @@ class _FunStatCard extends StatelessWidget {
             title.toUpperCase(),
             style: F.caps.copyWith(
               color: p.ink3,
-              fontSize: 10,
               letterSpacing: 0.5,
             ),
           ),
           const SizedBox(height: S.x2),
           Text(
             funFact,
-            style: F.body.copyWith(
+            style: F.cap.copyWith(
               color: p.ink2,
-              fontSize: 11,
               height: 1.35,
             ),
           ),

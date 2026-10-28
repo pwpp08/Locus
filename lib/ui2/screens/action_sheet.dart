@@ -94,7 +94,7 @@ class _ActionRow extends StatelessWidget {
             width: S.x12,
             height: S.x12,
             decoration: BoxDecoration(color: p.card2, borderRadius: R.rMd),
-            child: Icon(icon, size: I.lg, color: p.on(color)),
+            child: Icon(icon, size: I.lg, color: p.ink),
           ),
           const SizedBox(width: S.x4),
           Expanded(

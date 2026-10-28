@@ -227,11 +227,11 @@ class _TabBar extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: R.rPill,
-        border: Border.all(color: Colors.white.withValues(alpha: .12), width: 1.0),
-        color: const Color(0xF0181B24),
+        border: Border.all(color: C.white.withValues(alpha: .12), width: 1.0),
+        color: Color.alphaBlend(C.slate.withValues(alpha: .5), C.char),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: .5),
+            color: C.char.withValues(alpha: .5),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -322,7 +322,8 @@ class _Tab extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final label = domain.title(c);
-    final tabColor = on ? C.white : const Color(0xFF8E95A5);
+    final p = P.of(c);
+    final tabColor = on ? C.white : p.ink3;
     return Semantics(
       selected: on,
       child: Pressable(
@@ -341,8 +342,8 @@ class _Tab extends StatelessWidget {
                     center: const Alignment(0, 1.3),
                     radius: 1.15,
                     colors: [
-                      Colors.white.withValues(alpha: .24),
-                      Colors.white.withValues(alpha: .06),
+                      C.white.withValues(alpha: .24),
+                      C.white.withValues(alpha: .06),
                       Colors.transparent,
                     ],
                   ),

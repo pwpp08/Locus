@@ -288,7 +288,7 @@ class _BatteryDetailScreenState extends State<BatteryDetailScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(LucideIcons.lightbulb, size: 18, color: C.orange),
+                      Icon(LucideIcons.lightbulb, size: 18, color: p.ink),
                       const SizedBox(width: S.x2),
                       Text(
                         'Battery Intelligence',
