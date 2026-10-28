@@ -34,9 +34,13 @@ import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/metric.dart' show whyFromNote;
 import '../../state/app_state.dart';
+import '../../theme/theme_switcher.dart' show themedRoute;
 import '../ui2.dart';
 import 'home_screen.dart' show clockOfTs, hm, repoOf;
 import 'metric_detail.dart' show dayNavRow, detailScaffold, pickDay;
+import 'nap_detail.dart' show NapDetailScreen;
+
+export 'nap_detail.dart' show NapDetailScreen, NapDetailData;
 
 class NapsData {
   const NapsData({
@@ -378,30 +382,39 @@ class _NapsScreenState extends State<NapsScreen> {
         ),
         const SizedBox(width: S.x3),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(
-              '${clockOfTs(nap['start'] as num)} – '
-              '${clockOfTs(nap['end'] as num)}',
-              style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: S.x1),
-            Text(
-              // A logged nap has no measured asleep/in-bed split, so it says
-              // what it is instead of borrowing the detector's language.
-              // `hm(null)` is the empty string, and a row whose only caption
-              // is ' · detected' is the silent nothing this app does not do.
-              mins == null
-                  ? (mine
-                      ? (l?.napsYouLoggedThis ?? 'You logged this')
-                      : (l?.napsDetected ?? 'Detected'))
-                  : (mine
-                      ? (l?.napsLoggedWithMins(hm(mins)) ??
-                          '${hm(mins)} · you logged this')
-                      : (l?.napsDetectedWithMins(hm(mins)) ??
-                          '${hm(mins)} asleep · detected')),
-              style: F.cap.copyWith(color: p.ink3),
-            ),
-          ]),
+          child: Pressable(
+            onTap: () async {
+              final changed = await Navigator.of(c).push<bool>(themedRoute(
+                  (_) => NapDetailScreen(nap: nap, day: day),
+                  name: 'NapDetailScreen'));
+              if (changed == true && mounted) _load();
+            },
+            semanticLabel: 'View nap details',
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                '${clockOfTs(nap['start'] as num)} – '
+                '${clockOfTs(nap['end'] as num)}',
+                style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: S.x1),
+              Text(
+                // A logged nap has no measured asleep/in-bed split, so it says
+                // what it is instead of borrowing the detector's language.
+                // `hm(null)` is the empty string, and a row whose only caption
+                // is ' · detected' is the silent nothing this app does not do.
+                mins == null
+                    ? (mine
+                        ? (l?.napsYouLoggedThis ?? 'You logged this')
+                        : (l?.napsDetected ?? 'Detected'))
+                    : (mine
+                        ? (l?.napsLoggedWithMins(hm(mins)) ??
+                            '${hm(mins)} · you logged this')
+                        : (l?.napsDetectedWithMins(hm(mins)) ??
+                            '${hm(mins)} asleep · detected')),
+                style: F.cap.copyWith(color: p.ink3),
+              ),
+            ]),
+          ),
         ),
         const SizedBox(width: S.x2),
         Pressable(

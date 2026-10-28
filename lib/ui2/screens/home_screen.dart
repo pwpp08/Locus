@@ -52,7 +52,7 @@ import 'home/home_rings.dart';
 import 'home/home_tonights_sleep.dart';
 import 'journal_compose.dart';
 import 'metric_detail.dart' show MetricDetail;
-import 'naps.dart' show NapsScreen;
+import 'nap_detail.dart' show NapDetailScreen;
 import 'plus_menu.dart';
 import 'readiness_detail.dart';
 import 'recovery_calendar.dart' show openRecoveryCalendar;
@@ -684,7 +684,12 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
               strain: d.strain.value?.toDouble(),
             )),
         onSleep: () => go(c, SleepDetail(day: isToday ? null : _day)),
-        onNap: (nap) => go(c, NapsScreen(day: isToday ? null : _day)),
+        onNap: (nap) async {
+          final changed = await Navigator.of(c).push<bool>(themedRoute(
+              (_) => NapDetailScreen(nap: nap, day: isToday ? null : _day),
+              name: 'NapDetailScreen'));
+          if (changed == true && mounted) _load();
+        },
         onSession: (s) async {
           final changed = await Navigator.of(c).push<bool>(themedRoute(
               (_) => WorkoutDetailScreen(session: s),

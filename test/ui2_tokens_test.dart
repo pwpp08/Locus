@@ -446,5 +446,5 @@ const _notComponents = {
   'ActivityChooser', 'StartActivityScreen',
   // A session's own screen and the day's heart rate: both read the band's
   // store, and the second turns the phone sideways.
-  'WorkoutDetailScreen', 'DayHeartScreen', // Full review/editor routes.
+  'WorkoutDetailScreen', 'NapDetailScreen', 'DayHeartScreen', // Full review/editor routes.
 };
