@@ -145,19 +145,17 @@ Widget settingsGroup(BuildContext c, String title, List<Widget> rows) {
             padding: const EdgeInsets.fromLTRB(S.x1, 0, S.x1, S.x2),
             child: Text(
               title.toUpperCase(),
-              style: F.caps.copyWith(color: p.ink3),
+              style: F.caps.copyWith(color: p.ink3, letterSpacing: 0.5),
             ),
           ),
-        Surface(
-          pad: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x1),
-          child: Column(children: [
-            for (var i = 0; i < rows.length; i++) ...[
-              rows[i],
-              if (i < rows.length - 1)
-                Divider(color: p.line, height: 1, indent: S.x8 + S.x3),
-            ],
-          ]),
-        ),
+        for (var i = 0; i < rows.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: S.x2),
+            child: Surface(
+              pad: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x1),
+              child: rows[i],
+            ),
+          ),
       ],
     ),
   );
