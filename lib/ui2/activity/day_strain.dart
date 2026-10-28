@@ -117,9 +117,31 @@ class DayStrainData {
       day = DateTime(first.year, first.month, first.day);
       final dayStart = day.millisecondsSinceEpoch ~/ 1000;
       final out = List<double?>.filled(1440, null);
+
+      final ptMap = <int, double>{};
       for (final p in pts) {
         final i = (p.$1 - dayStart) ~/ 60;
-        if (i >= 0 && i < 1440) out[i] = p.$2;
+        if (i >= 0 && i < 1440) {
+          ptMap[i] = math.max(ptMap[i] ?? 0.0, p.$2);
+        }
+      }
+
+      final now = DateTime.now();
+      final isToday =
+          day.year == now.year && day.month == now.month && day.day == now.day;
+      final currentMinute =
+          isToday ? (now.hour * 60 + now.minute).clamp(0, 1439) : 1439;
+      final lastRecordedMinute =
+          ptMap.isNotEmpty ? ptMap.keys.reduce(math.max) : 0;
+      final endMinute = math.min(
+          1439, math.max(lastRecordedMinute, isToday ? currentMinute : 1439));
+
+      double current = 0.0;
+      for (var i = 0; i <= endMinute; i++) {
+        if (ptMap.containsKey(i)) {
+          current = math.max(current, ptMap[i]!);
+        }
+        out[i] = current;
       }
       grid = out;
     }
@@ -1035,9 +1057,17 @@ class _CurveCardState extends State<_CurveCard> {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    const axis = AxisSpec(min: 0, max: 21, ticks: 4, format: axisInt);
     final at = _at;
-    final v = at == null ? null : widget.curve[at];
+    final v = at == null || at >= widget.curve.length ? null : widget.curve[at];
+    final xs = List<String>.generate(widget.curve.length, (m) {
+      if (m == 0) return '00:00';
+      if (m == 360) return '06:00';
+      if (m == 720) return '12:00';
+      if (m == 1080) return '18:00';
+      if (m == widget.curve.length - 1) return '24:00';
+      return '';
+    });
+
     return Surface(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         ScrubReadout(
@@ -1048,30 +1078,25 @@ class _CurveCardState extends State<_CurveCard> {
           big: false,
         ),
         const SizedBox(height: S.x3),
-        ChartFrame(
-          title: '',
-          unit: '0–21',
-          height: 170,
-          yAxis: axis,
-          xLabels: const ['00:00', '12:00', '24:00'],
-          series: widget.curve,
-          footnote: widget.footnote,
-          child: ScrubArea(
-            count: widget.curve.length,
-            slots: false,
-            height: 170,
-            onScrub: (i) => setState(() => _at = i),
-            dotAt: (i) {
-              final y = widget.curve[i];
-              return y == null ? null : (y / 21).clamp(0.0, 1.0);
-            },
-            builder: (c, _) => CustomPaint(
-              size: Size.infinite,
-              painter: LineChart(widget.curve, p.on(C.purple),
-                  axis: axis, t: animate(c, 1)),
-            ),
-          ),
+        ScrubLine(
+          values: widget.curve,
+          xLabels: xs,
+          lo: 0,
+          hi: 21,
+          ticks: const [0, 7, 14, 21],
+          tickText: (t) => t.toInt().toString(),
+          color: C.dialStrain,
+          markers: false,
+          slots: false,
+          smooth: true,
+          fill: true,
+          height: 180,
+          onScrub: (i) => setState(() => _at = i),
         ),
+        if (widget.footnote.isNotEmpty) ...[
+          const SizedBox(height: S.x2),
+          Text(widget.footnote, style: F.over.copyWith(color: p.ink3)),
+        ],
       ]),
     );
   }

@@ -412,7 +412,7 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
             bottom: 0,
             height: barH,
             child: ColoredBox(
-              color: C.char,
+              color: p.card,
               child: Padding(
                 padding: EdgeInsets.fromLTRB(S.x5, S.x3, S.x5, S.x3 + inset.bottom),
                 child: Column(children: [
@@ -733,7 +733,7 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
     final d = math.max(S.x16 * 2, math.min(w * .69, h * .6));
     final goal = _on ? _goal : null;
     final frac = (goal ?? 0) / kStrainScale;
-    const knob = S.x12 + S.x4;
+    const knob = (S.x12 + S.x4) * 0.65;
     final big = d > S.x16 * 4;
     // The ring's stroke and the knob's track on it.
     final stroke = d * .0625;
@@ -770,8 +770,10 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
                         spreadRadius: S.x1),
                   ],
                 ),
-                child: Icon(goal == null ? LucideIcons.rotateCw : LucideIcons.activity,
-                    size: I.lg, color: p.bg),
+                child: Icon(
+                    goal == null ? LucideIcons.rotateCw : LucideIcons.activity,
+                    size: I.md,
+                    color: p.bg),
               ),
             ),
             Column(mainAxisSize: MainAxisSize.min, children: [

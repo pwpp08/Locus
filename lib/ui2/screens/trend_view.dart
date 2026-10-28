@@ -204,9 +204,10 @@ const kTrendCatalogue = <TrendMetric>[
       LucideIcons.repeat, TrendFmt.percent,
       higherBetter: true, axisMax: 100, kind: TrendKind.floating),
   TrendMetric('restorative_pct', 'Restorative sleep (%)', TrendGroup.sleep,
-      LucideIcons.sparkles, TrendFmt.percent, higherBetter: true),
+      LucideIcons.moonStar, TrendFmt.percent,
+      higherBetter: true, kind: TrendKind.stacked),
   TrendMetric('restorative_hours', 'Restorative sleep (hours)',
-      TrendGroup.sleep, LucideIcons.sparkles, TrendFmt.hmm,
+      TrendGroup.sleep, LucideIcons.moonStar, TrendFmt.hmm,
       unit: 'hr', higherBetter: true, kind: TrendKind.stacked),
   TrendMetric('efficiency', 'Sleep efficiency', TrendGroup.sleep,
       LucideIcons.gauge, TrendFmt.percent, higherBetter: true, axisMax: 100),
@@ -704,6 +705,19 @@ class TrendLoader {
         return [
           {for (final d in both) d: rem[d]!},
           {for (final d in both) d: deep[d]!},
+        ];
+      case 'restorative_pct':
+        final deep = await _chart('deep_min');
+        final rem = await _chart('rem_min');
+        final tst = await _chart('tst_min');
+        final all = [
+          for (final d in tst.keys)
+            if (deep.containsKey(d) && rem.containsKey(d) && (tst[d] ?? 0) > 0)
+              d
+        ];
+        return [
+          {for (final d in all) d: (rem[d]! / tst[d]!) * 100.0},
+          {for (final d in all) d: (deep[d]! / tst[d]!) * 100.0},
         ];
       case 'hvn_hours':
         return [await _chart('sleep_need_min'), await _chart('tst_min')];
@@ -1537,7 +1551,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                 _legend(p, [(label: 'TYPICAL RANGE', color: p.ink.withValues(alpha: .12))]),
               if (isDay && m.id == 'hrv' && _sleep != null)
                 _legend(p, [(label: 'SLEEP', color: C.dialSleep.withValues(alpha: .4))]),
-              if (!isDay && m.id == 'restorative_hours')
+              if (!isDay &&
+                  (m.id == 'restorative_hours' || m.id == 'restorative_pct'))
                 _legend(p, const [
                   (label: 'SWS (DEEP)', color: C.trendSws),
                   (label: 'REM', color: C.trendRem),
@@ -1598,7 +1613,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
               if (!isDay &&
                   layerBars != null &&
                   m.kind == TrendKind.stacked &&
-                  m.id != 'restorative_hours') ...[
+                  m.id != 'restorative_hours' &&
+                  m.id != 'restorative_pct') ...[
                 const SizedBox(height: S.x4),
                 Row(children: [
                   Icon(LucideIcons.info, size: I.sm, color: p.ink3),

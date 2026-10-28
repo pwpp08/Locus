@@ -868,7 +868,14 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
                   offset: Offset(0, -(1 - bar) * S.x2),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: p.bgTop,
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          p.bgTop,
+                          Color.alphaBlend(p.bg.withValues(alpha: .5), p.bgTop),
+                        ],
+                      ),
                       border: Border(bottom: BorderSide(color: p.line)),
                     ),
                   ),

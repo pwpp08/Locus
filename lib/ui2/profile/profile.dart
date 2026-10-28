@@ -74,7 +74,6 @@ class SetRow extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    final accent = danger ? C.red : color;
     return Pressable(
       onTap: onTap,
       semanticLabel: sub.isEmpty ? title : '$title. $sub',
@@ -86,11 +85,13 @@ class SetRow extends StatelessWidget {
             height: 32,
             alignment: Alignment.center,
             // A circle, like every icon chip.
-            decoration:
-                BoxDecoration(color: p.wash(accent), shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: danger ? p.wash(C.red) : p.card2,
+              shape: BoxShape.circle,
+            ),
             child: glyph != null
-                ? glyph!(p.on(accent))
-                : Icon(icon, size: I.sm, color: p.on(accent)),
+                ? glyph!(danger ? p.on(C.red) : p.ink)
+                : Icon(icon, size: I.sm, color: danger ? p.on(C.red) : p.ink),
           ),
           const SizedBox(width: S.x3),
           Expanded(
@@ -134,17 +135,30 @@ class SetRow extends StatelessWidget {
 /// the text, not the card edge (grouped lists with inset hairlines).
 Widget settingsGroup(BuildContext c, String title, List<Widget> rows) {
   final p = P.of(c);
-  return Section(
-    title,
-    Surface(
-      pad: const EdgeInsets.symmetric(horizontal: S.x4),
-      child: Column(children: [
-        for (var i = 0; i < rows.length; i++) ...[
-          rows[i],
-          if (i < rows.length - 1)
-            Divider(color: p.line, height: 1, indent: S.x8 + S.x3),
-        ],
-      ]),
+  return Padding(
+    padding: const EdgeInsets.only(top: S.x4),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (title.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(S.x1, 0, S.x1, S.x2),
+            child: Text(
+              title.toUpperCase(),
+              style: F.caps.copyWith(color: p.ink3),
+            ),
+          ),
+        Surface(
+          pad: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x1),
+          child: Column(children: [
+            for (var i = 0; i < rows.length; i++) ...[
+              rows[i],
+              if (i < rows.length - 1)
+                Divider(color: p.line, height: 1, indent: S.x8 + S.x3),
+            ],
+          ]),
+        ),
+      ],
     ),
   );
 }
@@ -465,12 +479,6 @@ class ProfileHomeView extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(
                   S.x4, 0, S.x4, tab ? S.navClear(c) : S.x10),
               children: [
-                if (tab)
-                  Padding(
-                    padding: const EdgeInsets.only(top: S.x4),
-                    child: Text((l?.tabMore ?? 'More').toUpperCase(),
-                        style: F.caps.copyWith(color: p.ink)),
-                  ),
                 const SizedBox(height: S.x4),
                 ProfilePhotoHeader(name: s?.name),
                 const SizedBox(height: S.x2),

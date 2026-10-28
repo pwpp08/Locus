@@ -221,12 +221,12 @@ class _TabBar extends StatelessWidget {
     Widget tab(ShellDomain d) => Expanded(
           child: _Tab(domain: d, on: d == current, onTap: () => onTap(d)),
         );
-    // A frosted pill floating over the tabs, with a hairline edge.
-    // The selected tab has a soft bottom-up glow highlight; the buttons sit
-    // between the tabs as icon-only slots.
+    // A frosted rounded rectangle floating over the tabs, with a hairline edge.
+    // The selected tab has a soft bottom-up glow highlight from the bottom edge;
+    // the buttons sit between the tabs as icon-only slots.
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: R.rPill,
+        borderRadius: R.rXxl,
         border: Border.all(color: C.white.withValues(alpha: .12), width: 1.0),
         color: Color.alphaBlend(C.slate.withValues(alpha: .5), C.char),
         boxShadow: [
@@ -238,7 +238,7 @@ class _TabBar extends StatelessWidget {
         ],
       ),
       child: Glass(
-        radius: R.rPill,
+        radius: R.rXxl,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: S.navBar),
           child: Padding(
@@ -329,43 +329,57 @@ class _Tab extends StatelessWidget {
       child: Pressable(
         onTap: onTap,
         semanticLabel: label,
-        child: AnimatedContainer(
-          duration: motion(c, Motion.base),
-          curve: Ease.standard,
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(
-              horizontal: S.x1, vertical: S.x2),
-          decoration: on
-              ? BoxDecoration(
-                  borderRadius: R.rPill,
-                  gradient: RadialGradient(
-                    center: const Alignment(0, 1.3),
-                    radius: 1.15,
-                    colors: [
-                      C.white.withValues(alpha: .24),
-                      C.white.withValues(alpha: .06),
-                      Colors.transparent,
-                    ],
-                  ),
-                )
-              : null,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+        child: SizedBox(
+          height: S.navBar - S.x2,
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              Icon(domain.icon, size: I.lg, color: tabColor),
-              const SizedBox(height: S.half),
-              MediaQuery.withClampedTextScaling(
-                maxScaleFactor: 1.3,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: F.over.copyWith(
-                      color: tabColor,
-                      fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+              if (on)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: -S.x1,
+                  height: S.x8 + S.x2,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          center: const Alignment(0, 1.0),
+                          radius: 0.95,
+                          colors: [
+                            C.white.withValues(alpha: .30),
+                            C.white.withValues(alpha: .12),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.45, 1.0],
+                        ),
+                      ),
                     ),
                   ),
+                ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: S.x1, vertical: S.x1),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(domain.icon, size: I.lg, color: tabColor),
+                    const SizedBox(height: S.half),
+                    MediaQuery.withClampedTextScaling(
+                      maxScaleFactor: 1.3,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          label,
+                          textAlign: TextAlign.center,
+                          style: F.over.copyWith(
+                            color: tabColor,
+                            fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

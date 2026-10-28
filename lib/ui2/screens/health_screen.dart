@@ -994,7 +994,7 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
       ),
 
       Section(
-        'Milestones & Fun Stats',
+        'Milestones',
         _FunStats(d: d),
       ),
 
@@ -1538,18 +1538,12 @@ class _FunStats extends StatelessWidget {
     }
 
     final totalKm = totalSteps * 0.000762;
-    final marathons = totalKm / 42.195;
-    final earthPct = (totalKm / 40075.0) * 100.0;
-
-    final pizzaSlices = (totalCalories / 285).round();
     final totalSleepHours = totalSleepMin / 60.0;
     final sleepDays = totalSleepHours / 24.0;
-    final remDreamHours = totalSleepHours * 0.22;
 
     final daysCount = math.max(1, d.daysWithData);
     final avgRhr = d.daily('resting_hr').value ?? 65.0;
     final estBeats = daysCount * 24 * 60 * avgRhr;
-    final bloodKiloLiters = estBeats * 0.07 / 1000.0;
 
     final cards = <Widget>[
       _FunStatCard(
@@ -1557,52 +1551,36 @@ class _FunStats extends StatelessWidget {
         headline: totalCalories > 0 ? '${_fmt(totalCalories)} kcal' : '0 kcal',
         title: 'Energy Burned',
         badge: 'LIFETIME',
-        funFact: totalCalories > 0
-            ? '🍕 ~$pizzaSlices pizza slices burned! That’s enough power to run a lightbulb for ${(totalCalories * 1.162 / 60).round()} hrs.'
-            : 'Put on your strap to start logging lifetime metabolic energy!',
       ),
       _FunStatCard(
         icon: LucideIcons.footprints,
         headline: totalSteps > 0 ? '${_fmt(totalSteps)} steps' : '0 steps',
         title: 'Distance Walked',
         badge: '${totalKm.toStringAsFixed(1)} KM',
-        funFact: totalSteps > 0
-            ? '🏃 ~${marathons.toStringAsFixed(1)} marathons covered (${earthPct < 0.01 ? '<0.01' : earthPct.toStringAsFixed(2)}% of Earth\'s circumference).'
-            : 'Start walking today to log your first expedition milestones!',
       ),
       _FunStatCard(
         icon: LucideIcons.moon,
-        headline: '${totalSleepHours.toStringAsFixed(0)}h slept',
+        headline: '${totalSleepHours.toStringAsFixed(0)} hours slept',
         title: 'Sleep Journey',
         badge: '${sleepDays.toStringAsFixed(1)} DAYS',
-        funFact: totalSleepHours > 0
-            ? '🌙 ~${remDreamHours.toStringAsFixed(0)}h spent journeying through REM dream state, restoring mind & memory.'
-            : 'Wear your device tonight to unlock sleep milestones.',
       ),
       _FunStatCard(
         icon: LucideIcons.heartPulse,
         headline: '~${(estBeats / 1000000).toStringAsFixed(1)}M beats',
         title: 'Cardiac Power',
         badge: 'ENGINE',
-        funFact:
-            '❤️ Circulating ~${bloodKiloLiters.toStringAsFixed(0)} kiloliters of oxygenated blood through your body non-stop.',
       ),
       _FunStatCard(
         icon: LucideIcons.trophy,
         headline: '${d.workoutCount} workouts',
         title: 'Workouts Crushed',
         badge: 'GRIND',
-        funFact: d.workoutCount > 0
-            ? '🔥 Every training session moves the baseline and elevates physical resilience.'
-            : 'Record your first exercise session to start your streak!',
       ),
       _FunStatCard(
         icon: LucideIcons.calendarDays,
         headline: '$daysCount days',
         title: 'Consistency',
         badge: 'JOURNEY',
-        funFact:
-            '📈 Consistent tracking transforms raw sensor data into meaningful long-term health insights.',
       ),
     ];
 
@@ -1629,14 +1607,12 @@ class _FunStatCard extends StatelessWidget {
   final String headline;
   final String title;
   final String badge;
-  final String funFact;
 
   const _FunStatCard({
     required this.icon,
     required this.headline,
     required this.title,
     required this.badge,
-    required this.funFact,
   });
 
   @override
@@ -1689,14 +1665,6 @@ class _FunStatCard extends StatelessWidget {
             style: F.caps.copyWith(
               color: p.ink3,
               letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: S.x2),
-          Text(
-            funFact,
-            style: F.cap.copyWith(
-              color: p.ink2,
-              height: 1.35,
             ),
           ),
         ],

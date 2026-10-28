@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../compute/onehz_pipeline.dart'
     show readinessInputShortfallNote, readinessUnstableBaselineNote;
+import '../../../compute/sleep_performance.dart'
+    show computeAdjustedSleepPerformance;
 import '../../../l10n/app_localizations.dart';
 import '../../../l10n/presentation_text.dart';
 import '../../../models/metric.dart';
@@ -119,18 +121,24 @@ RingState ringOf(HomeRingKind k, HomeData d, AppLocalizations? l) {
               value: v.toStringAsFixed(1), sub: l?.homeStrainOf21 ?? 'of 21', frac: v / 21);
     case HomeRingKind.sleep:
       final v = d.sleepMin.value;
-      final need = d.sleepNeedMin.value;
-      return v == null
-          ? _gap(k, l?.homeRingSleep ?? 'Sleep', LucideIcons.moon, C.domSleep,
-              d.sleepMin, l?.homeRingNoSleep ?? 'No sleep', l,
-              fallbackWhy: l?.homeSleepGapFallback ??
-                  'No night long enough to score was recorded.')
-          : RingState(k, l?.homeRingSleep ?? 'Sleep', LucideIcons.moon, C.domSleep,
-              value: hm(v),
-              sub: need == null
-                  ? (l?.homeSleepNoTarget ?? 'No target yet')
-                  : (l?.homeOfSpan(hm(need)) ?? 'of ${hm(need)}'),
-              frac: need == null || need <= 0 ? null : v / need);
+      final need = d.sleepNeedMin.value ?? 480.0;
+      if (v == null) {
+        return _gap(k, l?.homeRingSleep ?? 'Sleep', LucideIcons.moon, C.domSleep,
+            d.sleepMin, l?.homeRingNoSleep ?? 'No sleep', l,
+            fallbackWhy: l?.homeSleepGapFallback ??
+                'No night long enough to score was recorded.');
+      }
+      final perf = computeAdjustedSleepPerformance(
+        tstMin: v.toDouble(),
+        needMin: need.toDouble(),
+        efficiencyPct: d.sleepEfficiency.value?.toDouble(),
+        remMin: d.remMin.value?.toDouble(),
+        deepMin: d.deepMin.value?.toDouble(),
+      );
+      return RingState(k, l?.homeRingSleep ?? 'Sleep', LucideIcons.moon, C.domSleep,
+          value: '${perf.round()}%',
+          sub: hm(v),
+          frac: perf / 100);
   }
 }
 
