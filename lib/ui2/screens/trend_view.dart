@@ -25,6 +25,7 @@ import '../../compute/profile.dart' show Profile;
 import '../../compute/vo2max_estimate.dart';
 import '../../state/prefs.dart';
 import '../activity/catalogue.dart' show Track, activityByName;
+import '../components/metric_comparison_card.dart';
 import '../ui2.dart';
 import 'home_screen.dart'
     show
@@ -136,84 +137,233 @@ class TrendMetric {
 
 /// Every metric, in the order the picker lists them.
 const kTrendCatalogue = <TrendMetric>[
-  TrendMetric('strain', 'Day strain', TrendGroup.strain, LucideIcons.dumbbell,
-      TrendFmt.decimal1,
-      axisMax: 21, intraday: TrendIntraday.line, cumulative: true),
-  TrendMetric('steps', 'Steps (beta)', TrendGroup.strain,
-      LucideIcons.footprints, TrendFmt.grouped,
-      higherBetter: true, intraday: TrendIntraday.hourly),
-  TrendMetric('zones_13', 'Heart rate zones 1-3', TrendGroup.strain,
-      LucideIcons.heartPulse, TrendFmt.hmm,
-      unit: 'hr',
-      higherBetter: true,
-      weekly: true,
-      kind: TrendKind.stacked),
-  TrendMetric('zones_45', 'Heart rate zones 4-5', TrendGroup.strain,
-      LucideIcons.heart, TrendFmt.hmm,
-      unit: 'hr',
-      higherBetter: true,
-      weekly: true,
-      kind: TrendKind.stacked),
-  TrendMetric('zones_all', 'Heart rate zones all', TrendGroup.strain,
-      LucideIcons.timer, TrendFmt.hmm,
-      unit: 'hr',
-      higherBetter: true,
-      weekly: true,
-      kind: TrendKind.stacked),
-  TrendMetric('strength_time', 'Strength activity time', TrendGroup.strain,
-      LucideIcons.dumbbell, TrendFmt.hmm,
-      unit: 'hr', higherBetter: true, weekly: true, zeroFill: true),
-  TrendMetric('volume_load', 'Total volume load', TrendGroup.strain,
-      LucideIcons.weight, TrendFmt.grouped,
-      unit: 'kg', higherBetter: true, weekly: true, zeroFill: true),
-  TrendMetric('avg_hr', 'Average heart rate', TrendGroup.strain,
-      LucideIcons.heartPulse, TrendFmt.integer,
-      unit: 'bpm', line: true, intraday: TrendIntraday.line),
-  TrendMetric('calories', 'Calories', TrendGroup.strain, LucideIcons.flame,
-      TrendFmt.grouped,
-      unit: 'cal', intraday: TrendIntraday.hourly),
-  TrendMetric('vo2max', 'VO₂ max', TrendGroup.strain, LucideIcons.wind,
-      TrendFmt.decimal1,
-      unit: 'mL/kg/min', higherBetter: true, line: true),
-  TrendMetric('recovery', 'Recovery', TrendGroup.recovery,
-      LucideIcons.batteryCharging, TrendFmt.percent,
-      higherBetter: true, axisMax: 100),
-  TrendMetric('hrv', 'Heart rate variability', TrendGroup.recovery,
-      LucideIcons.activity, TrendFmt.integer,
-      unit: 'ms',
-      higherBetter: true,
-      line: true,
-      intraday: TrendIntraday.hourly),
-  TrendMetric('resting_hr', 'Resting heart rate', TrendGroup.recovery,
-      LucideIcons.heartHandshake, TrendFmt.integer,
-      unit: 'bpm', higherBetter: false, line: true),
-  TrendMetric('resp_rate', 'Respiratory rate', TrendGroup.recovery,
-      LucideIcons.wind, TrendFmt.decimal1,
-      unit: 'rpm', line: true),
-  TrendMetric('sleep_perf', 'Sleep performance', TrendGroup.sleep,
-      LucideIcons.moon, TrendFmt.percent, higherBetter: true, axisMax: 100),
-  TrendMetric('time_in_bed', 'Time in bed', TrendGroup.sleep,
-      LucideIcons.bedDouble, TrendFmt.hmm,
-      unit: 'hr', kind: TrendKind.floating),
-  TrendMetric('hvn_hours', 'Hours vs. needed (hours)', TrendGroup.sleep,
-      LucideIcons.clock3, TrendFmt.hmm,
-      unit: 'hr', higherBetter: true, signed: true, kind: TrendKind.dual),
-  TrendMetric('hvn_pct', 'Hours vs. needed (%)', TrendGroup.sleep,
-      LucideIcons.clock3, TrendFmt.percent, higherBetter: true),
-  TrendMetric('consistency', 'Sleep consistency', TrendGroup.sleep,
-      LucideIcons.repeat, TrendFmt.percent,
-      higherBetter: true, axisMax: 100, kind: TrendKind.floating),
-  TrendMetric('restorative_pct', 'Restorative sleep (%)', TrendGroup.sleep,
-      LucideIcons.moonStar, TrendFmt.percent,
-      higherBetter: true, kind: TrendKind.stacked),
-  TrendMetric('restorative_hours', 'Restorative sleep (hours)',
-      TrendGroup.sleep, LucideIcons.moonStar, TrendFmt.hmm,
-      unit: 'hr', higherBetter: true, kind: TrendKind.stacked),
-  TrendMetric('efficiency', 'Sleep efficiency', TrendGroup.sleep,
-      LucideIcons.gauge, TrendFmt.percent, higherBetter: true, axisMax: 100),
-  TrendMetric('sleep_debt', 'Sleep debt', TrendGroup.sleep,
-      LucideIcons.hourglass, TrendFmt.hmm,
-      unit: 'hr', higherBetter: false, signed: true),
+  TrendMetric(
+    'strain',
+    'Day strain',
+    TrendGroup.strain,
+    LucideIcons.dumbbell,
+    TrendFmt.decimal1,
+    axisMax: 21,
+    intraday: TrendIntraday.line,
+    cumulative: true,
+  ),
+  TrendMetric(
+    'steps',
+    'Steps (beta)',
+    TrendGroup.strain,
+    LucideIcons.footprints,
+    TrendFmt.grouped,
+    higherBetter: true,
+    intraday: TrendIntraday.hourly,
+  ),
+  TrendMetric(
+    'zones_13',
+    'Heart rate zones 1-3',
+    TrendGroup.strain,
+    LucideIcons.heartPulse,
+    TrendFmt.hmm,
+    unit: 'hr',
+    higherBetter: true,
+    weekly: true,
+    kind: TrendKind.stacked,
+  ),
+  TrendMetric(
+    'zones_45',
+    'Heart rate zones 4-5',
+    TrendGroup.strain,
+    LucideIcons.heart,
+    TrendFmt.hmm,
+    unit: 'hr',
+    higherBetter: true,
+    weekly: true,
+    kind: TrendKind.stacked,
+  ),
+  TrendMetric(
+    'zones_all',
+    'Heart rate zones all',
+    TrendGroup.strain,
+    LucideIcons.timer,
+    TrendFmt.hmm,
+    unit: 'hr',
+    higherBetter: true,
+    weekly: true,
+    kind: TrendKind.stacked,
+  ),
+  TrendMetric(
+    'strength_time',
+    'Strength activity time',
+    TrendGroup.strain,
+    LucideIcons.dumbbell,
+    TrendFmt.hmm,
+    unit: 'hr',
+    higherBetter: true,
+    weekly: true,
+    zeroFill: true,
+  ),
+  TrendMetric(
+    'volume_load',
+    'Total volume load',
+    TrendGroup.strain,
+    LucideIcons.weight,
+    TrendFmt.grouped,
+    unit: 'kg',
+    higherBetter: true,
+    weekly: true,
+    zeroFill: true,
+  ),
+  TrendMetric(
+    'avg_hr',
+    'Average heart rate',
+    TrendGroup.strain,
+    LucideIcons.heartPulse,
+    TrendFmt.integer,
+    unit: 'bpm',
+    line: true,
+    intraday: TrendIntraday.line,
+  ),
+  TrendMetric(
+    'calories',
+    'Calories',
+    TrendGroup.strain,
+    LucideIcons.flame,
+    TrendFmt.grouped,
+    unit: 'cal',
+    intraday: TrendIntraday.hourly,
+  ),
+  TrendMetric(
+    'vo2max',
+    'VO₂ max',
+    TrendGroup.strain,
+    LucideIcons.wind,
+    TrendFmt.decimal1,
+    unit: 'mL/kg/min',
+    higherBetter: true,
+    line: true,
+  ),
+  TrendMetric(
+    'recovery',
+    'Recovery',
+    TrendGroup.recovery,
+    LucideIcons.batteryCharging,
+    TrendFmt.percent,
+    higherBetter: true,
+    axisMax: 100,
+  ),
+  TrendMetric(
+    'hrv',
+    'Heart rate variability',
+    TrendGroup.recovery,
+    LucideIcons.activity,
+    TrendFmt.integer,
+    unit: 'ms',
+    higherBetter: true,
+    line: true,
+    intraday: TrendIntraday.hourly,
+  ),
+  TrendMetric(
+    'resting_hr',
+    'Resting heart rate',
+    TrendGroup.recovery,
+    LucideIcons.heartHandshake,
+    TrendFmt.integer,
+    unit: 'bpm',
+    higherBetter: false,
+    line: true,
+  ),
+  TrendMetric(
+    'resp_rate',
+    'Respiratory rate',
+    TrendGroup.recovery,
+    LucideIcons.wind,
+    TrendFmt.decimal1,
+    unit: 'rpm',
+    line: true,
+  ),
+  TrendMetric(
+    'sleep_perf',
+    'Sleep performance',
+    TrendGroup.sleep,
+    LucideIcons.moon,
+    TrendFmt.percent,
+    higherBetter: true,
+    axisMax: 100,
+  ),
+  TrendMetric(
+    'time_in_bed',
+    'Time in bed',
+    TrendGroup.sleep,
+    LucideIcons.bedDouble,
+    TrendFmt.hmm,
+    unit: 'hr',
+    kind: TrendKind.floating,
+  ),
+  TrendMetric(
+    'hvn_hours',
+    'Hours vs. needed (hours)',
+    TrendGroup.sleep,
+    LucideIcons.clock3,
+    TrendFmt.hmm,
+    unit: 'hr',
+    higherBetter: true,
+    signed: true,
+    kind: TrendKind.dual,
+  ),
+  TrendMetric(
+    'hvn_pct',
+    'Hours vs. needed (%)',
+    TrendGroup.sleep,
+    LucideIcons.clock3,
+    TrendFmt.percent,
+    higherBetter: true,
+  ),
+  TrendMetric(
+    'consistency',
+    'Sleep consistency',
+    TrendGroup.sleep,
+    LucideIcons.repeat,
+    TrendFmt.percent,
+    higherBetter: true,
+    axisMax: 100,
+    kind: TrendKind.floating,
+  ),
+  TrendMetric(
+    'restorative_pct',
+    'Restorative sleep (%)',
+    TrendGroup.sleep,
+    LucideIcons.moonStar,
+    TrendFmt.percent,
+    higherBetter: true,
+    kind: TrendKind.stacked,
+  ),
+  TrendMetric(
+    'restorative_hours',
+    'Restorative sleep (hours)',
+    TrendGroup.sleep,
+    LucideIcons.moonStar,
+    TrendFmt.hmm,
+    unit: 'hr',
+    higherBetter: true,
+    kind: TrendKind.stacked,
+  ),
+  TrendMetric(
+    'efficiency',
+    'Sleep efficiency',
+    TrendGroup.sleep,
+    LucideIcons.gauge,
+    TrendFmt.percent,
+    higherBetter: true,
+    axisMax: 100,
+  ),
+  TrendMetric(
+    'sleep_debt',
+    'Sleep debt',
+    TrendGroup.sleep,
+    LucideIcons.hourglass,
+    TrendFmt.hmm,
+    unit: 'hr',
+    higherBetter: false,
+    signed: true,
+  ),
 ];
 
 TrendMetric? trendMetricOf(String id) {
@@ -229,7 +379,12 @@ const kStrainRecoveryTile = 'strain_recovery';
 
 /// What My Dashboard shows until the user customizes it.
 const kDashboardDefault = [
-  kStrainRecoveryTile, 'hrv', 'resting_hr', 'steps', 'zones_13', 'zones_45',
+  kStrainRecoveryTile,
+  'hrv',
+  'resting_hr',
+  'steps',
+  'zones_13',
+  'zones_45',
   'sleep_perf',
 ];
 
@@ -253,14 +408,14 @@ List<String> dashboardTilesOf() {
 /// while the dashboard has never been customized, which lists them all.
 Set<String>? dashboardMetricsOf() =>
     Prefs.getString(Prefs.dashboardTiles, '').isEmpty
-        ? null
-        : {...dashboardTilesOf()};
+    ? null
+    : {...dashboardTilesOf()};
 
 String trendGroupName(TrendGroup g) => switch (g) {
-      TrendGroup.strain => 'Strain',
-      TrendGroup.recovery => 'Recovery',
-      TrendGroup.sleep => 'Sleep',
-    };
+  TrendGroup.strain => 'Strain',
+  TrendGroup.recovery => 'Recovery',
+  TrendGroup.sleep => 'Sleep',
+};
 
 /// A value as the metric writes it. `--` for none.
 String trendFormat(TrendMetric m, double? v, {bool sign = false}) {
@@ -312,84 +467,87 @@ class TrendLoader {
   /// VO₂ max, as far as the data goes (see `compute/vo2max_estimate.dart`).
   /// Read once however many charts ask.
   Future<Vo2Result> vo2max() => _vo2 ??= () async {
-        final r = repo;
-        final today = todayLabel();
-        if (r == null) return const Vo2Result(why: 'No data to read yet.');
-        try {
-          final p = Profile.fromMap(await r.getProfile());
-          final first = await firstDay() ?? today;
-          final t = DateTime.parse(today);
-          final since = DateTime(t.year, t.month, t.day - (kVo2RunWindow + 30))
-                  .millisecondsSinceEpoch ~/
-              1000;
-          final runs = <Vo2Run>[];
-          for (final s in await LocalDb.sessionVo2maxEstimates(since)) {
-            // The figure behind it is a walking and running equation, and the
-            // reading wants a real outing: a run of a quarter of an hour.
-            final type = (s['type'] as String?)?.toLowerCase();
-            final a = (s['start_ts'] as num?)?.toInt();
-            final b = (s['end_ts'] as num?)?.toInt();
-            final v = (s['vo2max_estimate'] as num?)?.toDouble();
-            if ((type != 'running' && type != 'trail running') ||
-                a == null ||
-                b == null ||
-                v == null ||
-                b - a < 15 * 60) {
-              continue;
-            }
-            runs.add((
-              day: dayLabelOf(DateTime.fromMillisecondsSinceEpoch(a * 1000)),
-              v: v
-            ));
-          }
-          return estimateVo2max(
-            today: today,
-            firstDay: first,
-            profile: (
-              age: p.ageYears,
-              sex: p.sex,
-              weightKg: p.weightKg,
-              heightCm: p.heightCm
-            ),
-            recovery: await _chart('recovery'),
-            moderate: await _zones(const [2, 3]),
-            vigorous: await _zones(const [4, 5]),
-            runs: runs,
-            lab: readVo2Lab(),
-          );
-        } catch (_) {
-          return const Vo2Result(why: 'The estimate could not be read.');
+    final r = repo;
+    final today = todayLabel();
+    if (r == null) return const Vo2Result(why: 'No data to read yet.');
+    try {
+      final p = Profile.fromMap(await r.getProfile());
+      final first = await firstDay() ?? today;
+      final t = DateTime.parse(today);
+      final since =
+          DateTime(
+            t.year,
+            t.month,
+            t.day - (kVo2RunWindow + 30),
+          ).millisecondsSinceEpoch ~/
+          1000;
+      final runs = <Vo2Run>[];
+      for (final s in await LocalDb.sessionVo2maxEstimates(since)) {
+        // The figure behind it is a walking and running equation, and the
+        // reading wants a real outing: a run of a quarter of an hour.
+        final type = (s['type'] as String?)?.toLowerCase();
+        final a = (s['start_ts'] as num?)?.toInt();
+        final b = (s['end_ts'] as num?)?.toInt();
+        final v = (s['vo2max_estimate'] as num?)?.toDouble();
+        if ((type != 'running' && type != 'trail running') ||
+            a == null ||
+            b == null ||
+            v == null ||
+            b - a < 15 * 60) {
+          continue;
         }
-      }();
+        runs.add((
+          day: dayLabelOf(DateTime.fromMillisecondsSinceEpoch(a * 1000)),
+          v: v,
+        ));
+      }
+      return estimateVo2max(
+        today: today,
+        firstDay: first,
+        profile: (
+          age: p.ageYears,
+          sex: p.sex,
+          weightKg: p.weightKg,
+          heightCm: p.heightCm,
+        ),
+        recovery: await _chart('recovery'),
+        moderate: await _zones(const [2, 3]),
+        vigorous: await _zones(const [4, 5]),
+        runs: runs,
+        lab: readVo2Lab(),
+      );
+    } catch (_) {
+      return const Vo2Result(why: 'The estimate could not be read.');
+    }
+  }();
 
-  Future<Map<String, double>> _chart(String key) =>
-      _series[key] ??= () async {
-        final r = repo;
-        if (r == null) return <String, double>{};
-        try {
-          return {
-            for (final p in pointsOf(await r.getChart(key))) _dayOfEpoch(p.t): p.v,
-          };
-        } catch (_) {
-          return <String, double>{};
-        }
-      }();
+  Future<Map<String, double>> _chart(String key) => _series[key] ??= () async {
+    final r = repo;
+    if (r == null) return <String, double>{};
+    try {
+      return {
+        for (final p in pointsOf(await r.getChart(key))) _dayOfEpoch(p.t): p.v,
+      };
+    } catch (_) {
+      return <String, double>{};
+    }
+  }();
 
   Future<List<Map<String, Object?>>> _figuresRows() => _figures ??= () async {
-        try {
-          return await LocalDb.dayTrendFigures();
-        } catch (_) {
-          return const <Map<String, Object?>>[];
-        }
-      }();
+    try {
+      return await LocalDb.dayTrendFigures();
+    } catch (_) {
+      return const <Map<String, Object?>>[];
+    }
+  }();
 
   Future<List<Map<String, Object?>>> _strengthRows() => _strength ??= () async {
-        try {
-          return await LocalDb.sessionStrengthTotals();
-        } catch (_) {
-          return const <Map<String, Object?>>[];
-        }
-      }();
+    try {
+      return await LocalDb.sessionStrengthTotals();
+    } catch (_) {
+      return const <Map<String, Object?>>[];
+    }
+  }();
 
   /// The first day this install has any derived result for: where a
   /// zero-filled metric's zeros start. Before it there is no "nothing logged",
@@ -449,9 +607,9 @@ class TrendLoader {
   }
 
   Future<Map<String, double>> _figure(String col, {double scale = 1}) async => {
-        for (final r in await _figuresRows())
-          if (r[col] is num) r['day'] as String: (r[col] as num) * scale,
-      };
+    for (final r in await _figuresRows())
+      if (r[col] is num) r['day'] as String: (r[col] as num) * scale,
+  };
 
   Future<Map<String, double>> _strengthBy(bool volume) async {
     final out = <String, double>{};
@@ -460,13 +618,15 @@ class TrendLoader {
       if (start is! num) continue;
       final sets = (r['sets'] as num?) ?? 0;
       final strength =
-          sets > 0 || activityByName(r['type']?.toString())?.track == Track.sets;
+          sets > 0 ||
+          activityByName(r['type']?.toString())?.track == Track.sets;
       if (!strength) continue;
       final double? v;
       if (volume) {
         v = (r['volume_kg'] as num?)?.toDouble();
       } else {
-        final mins = (r['duration_min'] as num?) ??
+        final mins =
+            (r['duration_min'] as num?) ??
             (r['end_ts'] is num ? ((r['end_ts'] as num) - start) / 60 : null);
         v = mins?.toDouble();
       }
@@ -478,30 +638,32 @@ class TrendLoader {
   }
 
   Future<Map<String, double>> _consistency() => _sri ??= () async {
-        final r = repo;
-        if (r == null) return <String, double>{};
-        try {
-          final pairs = envValue((await r.getInsights())['regularity'])?['pairs'];
-          return {
-            if (pairs is List)
-              for (final p in pairs.whereType<Map>())
-                if (p['date'] is String && p['sri'] is num)
-                  p['date'] as String: (p['sri'] as num).toDouble(),
-          };
-        } catch (_) {
-          return <String, double>{};
-        }
-      }();
+    final r = repo;
+    if (r == null) return <String, double>{};
+    try {
+      final pairs = envValue((await r.getInsights())['regularity'])?['pairs'];
+      return {
+        if (pairs is List)
+          for (final p in pairs.whereType<Map>())
+            if (p['date'] is String && p['sri'] is num)
+              p['date'] as String: (p['sri'] as num).toDouble(),
+      };
+    } catch (_) {
+      return <String, double>{};
+    }
+  }();
 
   /// Two series of the same night, combined day by day where both exist.
-  Future<Map<String, double>> _pair(String a, String b,
-      double? Function(double a, double b) f) async {
+  Future<Map<String, double>> _pair(
+    String a,
+    String b,
+    double? Function(double a, double b) f,
+  ) async {
     final x = await _chart(a);
     final y = await _chart(b);
     return {
       for (final e in x.entries)
-        if (y[e.key] != null)
-          e.key: ?f(e.value, y[e.key]!),
+        if (y[e.key] != null) e.key: ?f(e.value, y[e.key]!),
     };
   }
 
@@ -530,7 +692,8 @@ class TrendLoader {
           // Minute readings are noisy: an hour's value is the mean of its own.
           hourly = true;
           values = _meanPerHour(
-              _perMinute((await _timeline(r, day))['hrv'], day));
+            _perMinute((await _timeline(r, day))['hrv'], day),
+          );
         case 'calories':
           hourly = true;
           values = _caloriesPerHour(await r.getDayStrain(day), day);
@@ -593,7 +756,9 @@ class TrendLoader {
     if (raw is! List) return out;
     for (final e in raw) {
       if (e is! Map || e['t'] is! num || e['v'] is! num) continue;
-      final t = DateTime.fromMillisecondsSinceEpoch((e['t'] as num).toInt() * 1000);
+      final t = DateTime.fromMillisecondsSinceEpoch(
+        (e['t'] as num).toInt() * 1000,
+      );
       if (dayLabelOf(t) != day) continue;
       out[t.hour * 60 + t.minute] = (e['v'] as num).toDouble();
     }
@@ -608,8 +773,12 @@ class TrendLoader {
     for (final e in raw) {
       if (e is! Map || e['start_ts'] is! num || e['steps'] is! num) continue;
       final steps = (e['steps'] as num).toDouble();
-      final a = DateTime.fromMillisecondsSinceEpoch((e['start_ts'] as num).toInt() * 1000);
-      final bTs = e['end_ts'] is num ? (e['end_ts'] as num).toInt() : (e['start_ts'] as num).toInt();
+      final a = DateTime.fromMillisecondsSinceEpoch(
+        (e['start_ts'] as num).toInt() * 1000,
+      );
+      final bTs = e['end_ts'] is num
+          ? (e['end_ts'] as num).toInt()
+          : (e['start_ts'] as num).toInt();
       final b = DateTime.fromMillisecondsSinceEpoch(bTs * 1000);
       if (dayLabelOf(a) != day) continue;
       final total = b.difference(a).inSeconds;
@@ -619,10 +788,16 @@ class TrendLoader {
       }
       var cursor = a;
       while (cursor.isBefore(b)) {
-        final next = DateTime(cursor.year, cursor.month, cursor.day, cursor.hour + 1);
+        final next = DateTime(
+          cursor.year,
+          cursor.month,
+          cursor.day,
+          cursor.hour + 1,
+        );
         final end = next.isBefore(b) ? next : b;
         if (dayLabelOf(cursor) == day) {
-          out[cursor.hour] = (out[cursor.hour] ?? 0) +
+          out[cursor.hour] =
+              (out[cursor.hour] ?? 0) +
               steps * end.difference(cursor).inSeconds / total;
         }
         cursor = end;
@@ -634,15 +809,18 @@ class TrendLoader {
   /// The mean of each hour's minutes that have a reading; an hour with none
   /// stays null.
   static List<double?> _meanPerHour(List<double?> minutes) => [
-        for (var h = 0; h < 24; h++)
-          _mean([for (var m = h * 60; m < h * 60 + 60; m++) ?minutes[m]]),
-      ];
+    for (var h = 0; h < 24; h++)
+      _mean([for (var m = h * 60; m < h * 60 + 60; m++) ?minutes[m]]),
+  ];
 
   /// The day's calories shared out over its hours in proportion to the strain
   /// each hour added: both come from the same heart-rate trace, so the hours add
   /// back up to the day's own total. Null when the day has no total, or no
   /// strain was gained to share it by.
-  static List<double?> _caloriesPerHour(Map<String, dynamic> strain, String day) {
+  static List<double?> _caloriesPerHour(
+    Map<String, dynamic> strain,
+    String day,
+  ) {
     final out = List<double?>.filled(24, null);
     final total = strain['calories'];
     if (total is! num || total <= 0) return out;
@@ -677,7 +855,9 @@ class TrendLoader {
         if (on is! num || off is! num || off <= on) continue;
         final a = DateTime.fromMillisecondsSinceEpoch(on.toInt() * 1000);
         final bed = ((a.hour * 60 + a.minute) - 720) % 1440;
-        out[dayLabelOf(DateTime.fromMillisecondsSinceEpoch(off.toInt() * 1000))] = (
+        out[dayLabelOf(
+          DateTime.fromMillisecondsSinceEpoch(off.toInt() * 1000),
+        )] = (
           bed: bed.toDouble(),
           wake: bed + (off - on) / 60,
         );
@@ -701,7 +881,10 @@ class TrendLoader {
       case 'restorative_hours':
         final deep = await _chart('deep_min');
         final rem = await _chart('rem_min');
-        final both = [for (final d in deep.keys) if (rem.containsKey(d)) d];
+        final both = [
+          for (final d in deep.keys)
+            if (rem.containsKey(d)) d,
+        ];
         return [
           {for (final d in both) d: rem[d]!},
           {for (final d in both) d: deep[d]!},
@@ -713,7 +896,7 @@ class TrendLoader {
         final all = [
           for (final d in tst.keys)
             if (deep.containsKey(d) && rem.containsKey(d) && (tst[d] ?? 0) > 0)
-              d
+              d,
         ];
         return [
           {for (final d in all) d: (rem[d]! / tst[d]!) * 100.0},
@@ -737,8 +920,14 @@ class TrendLoader {
   /// [m]'s value per local day.
   Future<Map<String, double>> daily(TrendMetric m) async {
     switch (m.id) {
-      case 'strain' || 'steps' || 'calories' || 'recovery' || 'hrv' ||
-            'resting_hr' || 'resp_rate' || 'efficiency':
+      case 'strain' ||
+          'steps' ||
+          'calories' ||
+          'recovery' ||
+          'hrv' ||
+          'resting_hr' ||
+          'resp_rate' ||
+          'efficiency':
         return _chart(m.id);
       case 'sleep_debt':
         // A surplus is no debt: never below nothing.
@@ -767,11 +956,17 @@ class TrendLoader {
       // Performance is hours against need, capped at 100 — the same ratio the
       // Sleep dial draws. Hours vs. needed (%) is that ratio uncapped.
       case 'sleep_perf':
-        return _pair('tst_min', 'sleep_need_min',
-            (t, n) => n <= 0 ? null : (t / n * 100).clamp(0, 100).toDouble());
+        return _pair(
+          'tst_min',
+          'sleep_need_min',
+          (t, n) => n <= 0 ? null : (t / n * 100).clamp(0, 100).toDouble(),
+        );
       case 'hvn_pct':
         return _pair(
-            'tst_min', 'sleep_need_min', (t, n) => n <= 0 ? null : t / n * 100);
+          'tst_min',
+          'sleep_need_min',
+          (t, n) => n <= 0 ? null : t / n * 100,
+        );
       case 'hvn_hours':
         return _pair('tst_min', 'sleep_need_min', (t, n) => t - n);
       case 'restorative_hours':
@@ -791,9 +986,13 @@ class TrendLoader {
 
 /// What a Home row shows: the latest value, and what it is held against.
 ({double? value, double? against}) trendHeadline(
-    TrendMetric m, Map<String, double> daily,
-    {required String today, String? firstDay}) {
-  double? valueOn(String d) => daily[d] ??
+  TrendMetric m,
+  Map<String, double> daily, {
+  required String today,
+  String? firstDay,
+}) {
+  double? valueOn(String d) =>
+      daily[d] ??
       (m.zeroFill && firstDay != null && d.compareTo(firstDay) >= 0 ? 0 : null);
   if (m.weekly) {
     // This week's total against last week's.
@@ -819,18 +1018,12 @@ class TrendLoader {
     if (v == null) continue;
     return (
       value: v,
-      against: _mean([
-        for (var j = 1; j <= 7; j++)
-          ?daily[shiftDay(d, -j)],
-      ]),
+      against: _mean([for (var j = 1; j <= 7; j++) ?daily[shiftDay(d, -j)]]),
     );
   }
   return (
     value: null,
-    against: _mean([
-      for (var j = 0; j < 7; j++)
-        ?daily[shiftDay(today, -j)],
-    ]),
+    against: _mean([for (var j = 0; j < 7; j++) ?daily[shiftDay(today, -j)]]),
   );
 }
 
@@ -876,62 +1069,97 @@ class DashboardRows extends StatelessWidget {
     ];
     if (shown.isEmpty) {
       return Surface(
-        child: Text('No metrics on your dashboard. Tap Customize to add some.',
-            style: F.body.copyWith(color: p.ink3)),
+        child: Text(
+          'No metrics on your dashboard. Tap Customize to add some.',
+          style: F.body.copyWith(color: p.ink3),
+        ),
       );
     }
-    return Column(children: [
-      for (var i = 0; i < shown.length; i++) ...[
-        if (i > 0) const SizedBox(height: S.x2),
-        shown[i],
+    return Column(
+      children: [
+        for (var i = 0; i < shown.length; i++) ...[
+          if (i > 0) const SizedBox(height: S.x2),
+          shown[i],
+        ],
       ],
-    ]);
+    );
   }
 
   static const _triangle = S.x2;
 
   Widget _row(BuildContext c, P p, TrendMetric m) {
-    final h = trendHeadline(m, daily[m.id] ?? const {},
-        today: today, firstDay: firstDay);
+    final h = trendHeadline(
+      m,
+      daily[m.id] ?? const {},
+      today: today,
+      firstDay: firstDay,
+    );
     final dir = _directionColor(m, h.value, h.against);
     final title = m.title;
     return Surface(
       onTap: () => onOpen(m.id),
-      semanticLabel: '$title. ${trendFormat(m, h.value)}'
+      semanticLabel:
+          '$title. ${trendFormat(m, h.value)}'
           '${h.against == null ? '' : ', against ${trendFormat(m, h.against)}'}',
-      pad: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x2 + S.half),
-      child: Row(children: [
-        Icon(m.icon, size: I.md, color: p.ink3),
-        const SizedBox(width: S.x3),
-        Expanded(
-          child: Text(title.toUpperCase(),
+      pad: const EdgeInsets.symmetric(
+        horizontal: S.x4,
+        vertical: S.x2 + S.half,
+      ),
+      child: Row(
+        children: [
+          Icon(m.icon, size: I.md, color: p.ink3),
+          const SizedBox(width: S.x3),
+          Expanded(
+            child: Text(
+              title.toUpperCase(),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: F.caps.copyWith(color: p.ink)),
-        ),
-        const SizedBox(width: S.x2),
-        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            Text(m.absent != null ? '--' : trendFormat(m, h.value),
-                style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-            // A number with no arrow beside it ends at the middle of where the
-            // arrows sit, so the figures of every card line up on one edge.
-            if (dir != null) ...[
-              const SizedBox(width: S.x2),
-              DeltaTriangle(
-                  up: h.value! > h.against!, color: dir, size: _triangle),
-            ] else
-              const SizedBox(width: _triangle / 2),
-          ]),
-          if (h.against != null && m.absent == null)
-            Padding(
-              padding: EdgeInsets.only(
-                  right: dir == null ? _triangle / 2 : _triangle + S.x2),
-              child: Text(trendFormat(m, h.against),
-                  style: F.num(F.cap).copyWith(color: p.ink3, fontWeight: FontWeight.w600)),
+              style: F.caps.copyWith(color: p.ink),
             ),
-        ]),
-      ]),
+          ),
+          const SizedBox(width: S.x2),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    m.absent != null ? '--' : trendFormat(m, h.value),
+                    style: F.n24.copyWith(
+                      color: p.ink,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  // A number with no arrow beside it ends at the middle of where the
+                  // arrows sit, so the figures of every card line up on one edge.
+                  if (dir != null) ...[
+                    const SizedBox(width: S.x2),
+                    DeltaTriangle(
+                      up: h.value! > h.against!,
+                      color: dir,
+                      size: _triangle,
+                    ),
+                  ] else
+                    const SizedBox(width: _triangle / 2),
+                ],
+              ),
+              if (h.against != null && m.absent == null)
+                Padding(
+                  padding: EdgeInsets.only(
+                    right: dir == null ? _triangle / 2 : _triangle + S.x2,
+                  ),
+                  child: Text(
+                    trendFormat(m, h.against),
+                    style: F.num(
+                      F.cap,
+                    ).copyWith(color: p.ink3, fontWeight: FontWeight.w600),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -945,17 +1173,17 @@ int trendWindowDays(TrendMetric m, TrendRange r) =>
 
 extension on TrendRange {
   int get days => switch (this) {
-        TrendRange.day => 1,
-        TrendRange.week => 7,
-        TrendRange.month => 30,
-        TrendRange.sixMonths => 182,
-      };
+    TrendRange.day => 1,
+    TrendRange.week => 7,
+    TrendRange.month => 30,
+    TrendRange.sixMonths => 182,
+  };
   String get word => switch (this) {
-        TrendRange.day => 'day',
-        TrendRange.week => 'week',
-        TrendRange.month => 'month',
-        TrendRange.sixMonths => '6 months',
-      };
+    TrendRange.day => 'day',
+    TrendRange.week => 'week',
+    TrendRange.month => 'month',
+    TrendRange.sixMonths => '6 months',
+  };
 }
 
 /// One bar: the days it covers and its value.
@@ -965,20 +1193,33 @@ typedef TrendBar = ({String from, String to, double? v});
 /// six months (summed for a weekly metric, averaged otherwise).
 ///
 /// [skip] leaves one day out entirely (today, for an average).
-List<TrendBar> trendBars(TrendMetric m, Map<String, double> daily,
-    TrendRange range, String end, {String? firstDay, String? skip}) {
+List<TrendBar> trendBars(
+  TrendMetric m,
+  Map<String, double> daily,
+  TrendRange range,
+  String end, {
+  String? firstDay,
+  String? skip,
+}) {
   double? on(String d) => d == skip
       ? null
       : daily[d] ??
-          (m.zeroFill && firstDay != null && d.compareTo(firstDay) >= 0 &&
-                  d.compareTo(end) <= 0
-              ? 0
-              : null);
-  if (range == TrendRange.week || range == TrendRange.day ||
+            (m.zeroFill &&
+                    firstDay != null &&
+                    d.compareTo(firstDay) >= 0 &&
+                    d.compareTo(end) <= 0
+                ? 0
+                : null);
+  if (range == TrendRange.week ||
+      range == TrendRange.day ||
       (range == TrendRange.month && !m.weekly)) {
     return [
       for (var i = range.days - 1; i >= 0; i--)
-        (from: shiftDay(end, -i), to: shiftDay(end, -i), v: on(shiftDay(end, -i))),
+        (
+          from: shiftDay(end, -i),
+          to: shiftDay(end, -i),
+          v: on(shiftDay(end, -i)),
+        ),
     ];
   }
   // A bar per week: four of them for a month, twenty-six for six months.
@@ -986,15 +1227,12 @@ List<TrendBar> trendBars(TrendMetric m, Map<String, double> daily,
     for (var w = range == TrendRange.month ? 3 : 25; w >= 0; w--)
       () {
         final last = shiftDay(end, -w * 7);
-        final vs = [
-          for (var i = 6; i >= 0; i--)
-            ?on(shiftDay(last, -i)),
-        ];
+        final vs = [for (var i = 6; i >= 0; i--) ?on(shiftDay(last, -i))];
         final double? v = vs.isEmpty
             ? null
             : m.weekly
-                ? vs.fold<double>(0, (a, b) => a + b)
-                : _mean(vs);
+            ? vs.fold<double>(0, (a, b) => a + b)
+            : _mean(vs);
         return (from: shiftDay(last, -6), to: last, v: v);
       }(),
   ];
@@ -1002,7 +1240,8 @@ List<TrendBar> trendBars(TrendMetric m, Map<String, double> daily,
 
 /// The mean of the bars that have a value. Build them with `skip: today` —
 /// a day still in progress is not part of an average.
-double? trendAverage(List<TrendBar> bars) => _mean([for (final b in bars) ?b.v]);
+double? trendAverage(List<TrendBar> bars) =>
+    _mean([for (final b in bars) ?b.v]);
 
 /// A day's own shape: [values] per minute (1440) or per hour (24), for [day].
 typedef TrendIntra = ({List<double?> values, bool hourly, String day});
@@ -1023,17 +1262,18 @@ double? trendDayValue(TrendMetric m, TrendIntra i) {
 /// The range [daily] sat in over the 28 days before [windowStart]: its mean
 /// give or take one standard deviation. Null with fewer than 7 days to go on,
 /// because a band drawn from three days says nothing about what is typical.
-({double lo, double hi})? trendTypical(Map<String, double> daily, String windowStart) {
-  final vs = [
-    for (var i = 1; i <= 28; i++) ?daily[shiftDay(windowStart, -i)],
-  ];
+({double lo, double hi})? trendTypical(
+  Map<String, double> daily,
+  String windowStart,
+) {
+  final vs = [for (var i = 1; i <= 28; i++) ?daily[shiftDay(windowStart, -i)]];
   if (vs.length < 7) return null;
   final mean = vs.fold<double>(0, (a, b) => a + b) / vs.length;
-  final varc = vs.fold<double>(0, (a, b) => a + (b - mean) * (b - mean)) / vs.length;
+  final varc =
+      vs.fold<double>(0, (a, b) => a + (b - mean) * (b - mean)) / vs.length;
   final sd = math.sqrt(varc);
   return (lo: mean - sd, hi: mean + sd);
 }
-
 
 class TrendViewScreen extends StatefulWidget {
   final String initial;
@@ -1047,8 +1287,13 @@ class TrendViewScreen extends StatefulWidget {
   /// is what is usually wanted from one.
   final String? day;
 
-  const TrendViewScreen(
-      {super.key, required this.initial, this.loader, this.today, this.day});
+  const TrendViewScreen({
+    super.key,
+    required this.initial,
+    this.loader,
+    this.today,
+    this.day,
+  });
 
   @override
   State<TrendViewScreen> createState() => _TrendViewScreenState();
@@ -1098,11 +1343,11 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   bool get _hasDay => _m.intraday != TrendIntraday.none;
 
   List<TrendRange> get _ranges => [
-        if (_hasDay) TrendRange.day,
-        TrendRange.week,
-        TrendRange.month,
-        TrendRange.sixMonths,
-      ];
+    if (_hasDay) TrendRange.day,
+    TrendRange.week,
+    TrendRange.month,
+    TrendRange.sixMonths,
+  ];
 
   @override
   void initState() {
@@ -1126,7 +1371,9 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     final layers = m.kind == TrendKind.stacked || m.kind == TrendKind.dual
         ? await loader.layers(m)
         : null;
-    final spans = m.kind == TrendKind.floating ? await loader.sleepSpans() : null;
+    final spans = m.kind == TrendKind.floating
+        ? await loader.sleepSpans()
+        : null;
     if (!mounted || m != _m) return;
     setState(() {
       _daily = daily;
@@ -1144,7 +1391,9 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     final want = _intraWant;
     final day = _dayShown;
     final r = await loader.intraday(m, day);
-    final sleep = m.id == 'hrv' && r != null ? await loader.sleepHrv(day) : null;
+    final sleep = m.id == 'hrv' && r != null
+        ? await loader.sleepHrv(day)
+        : null;
     if (!mounted || want != _intraWant) return;
     setState(() {
       _intra = r;
@@ -1175,7 +1424,9 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     final span = (span0 / scale.clamp(.05, 60)).clamp(30.0, 1440.0).toDouble();
     // The minute under the fingers stays under them, and follows them sideways.
     final under = _zoom0From + focal * span0;
-    final from = (under - (focal + pan) * span).clamp(0.0, 1440 - span).toDouble();
+    final from = (under - (focal + pan) * span)
+        .clamp(0.0, 1440 - span)
+        .toDouble();
     setState(() {
       _zoomFrom = from;
       _zoomTo = from + span;
@@ -1260,8 +1511,10 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   }
 
   ({double lo, double hi, List<double> ticks}) _axisFor(
-          TrendMetric m, List<double> vs, {required bool line}) =>
-      trendAxis(m, vs, line: line);
+    TrendMetric m,
+    List<double> vs, {
+    required bool line,
+  }) => trendAxis(m, vs, line: line);
 
   String _tickText(TrendMetric m, double t) {
     if (m.fmt == TrendFmt.hmm) {
@@ -1283,18 +1536,19 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       TrendRange.day => '',
       TrendRange.week => '${weekdayShortName(d.weekday, l)}\n${d.day}',
       TrendRange.month when _m.weekly => () {
-          final a = _dateOf(bars[i].from);
-          return a.month == d.month
-              ? '${monthShortName(a.month, l)} ${a.day} - ${d.day}'
-              : '${monthShortName(a.month, l)} ${a.day} - ${monthShortName(d.month, l)} ${d.day}';
-        }(),
-      TrendRange.month => (bars.length - 1 - i) % 7 == 0
-          ? '${monthShortName(d.month, l)}\n${d.day}'
-          : '',
-      TrendRange.sixMonths => i == 0 ||
-              _dateOf(bars[i].from).month != _dateOf(bars[i - 1].from).month
-          ? monthShortName(_dateOf(bars[i].from).month, l)
-          : '',
+        final a = _dateOf(bars[i].from);
+        return a.month == d.month
+            ? '${monthShortName(a.month, l)} ${a.day} - ${d.day}'
+            : '${monthShortName(a.month, l)} ${a.day} - ${monthShortName(d.month, l)} ${d.day}';
+      }(),
+      TrendRange.month =>
+        (bars.length - 1 - i) % 7 == 0
+            ? '${monthShortName(d.month, l)}\n${d.day}'
+            : '',
+      TrendRange.sixMonths =>
+        i == 0 || _dateOf(bars[i].from).month != _dateOf(bars[i - 1].from).month
+            ? monthShortName(_dateOf(bars[i].from).month, l)
+            : '',
     };
   }
 
@@ -1302,7 +1556,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   /// month's as the average week in it, six months as the average of its weeks.
   double? _weeklyTotal(TrendMetric m, Map<String, double> daily, String end) {
     final vs = [
-      for (final b in trendBars(m, daily, _range, end, firstDay: _firstDay)) ?b.v
+      for (final b in trendBars(m, daily, _range, end, firstDay: _firstDay))
+        ?b.v,
     ];
     if (vs.isEmpty) return null;
     final sum = vs.fold<double>(0, (a, b) => a + b);
@@ -1319,19 +1574,19 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   ];
 
   List<String> _layerNames(TrendMetric m) => switch (m.id) {
-        'zones_13' => const ['Zone 1', 'Zone 2', 'Zone 3'],
-        'zones_45' => const ['Zone 4', 'Zone 5'],
-        'zones_all' => const ['Zone 1', 'Zone 2', 'Zone 3', 'Zone 4', 'Zone 5'],
-        _ => const ['REM', 'SWS (Deep)'],
-      };
+    'zones_13' => const ['Zone 1', 'Zone 2', 'Zone 3'],
+    'zones_45' => const ['Zone 4', 'Zone 5'],
+    'zones_all' => const ['Zone 1', 'Zone 2', 'Zone 3', 'Zone 4', 'Zone 5'],
+    _ => const ['REM', 'SWS (Deep)'],
+  };
 
   List<Color> _layerColours(TrendMetric m) => switch (m.id) {
-        'zones_13' => _zoneColours.sublist(0, 3),
-        'zones_45' => _zoneColours.sublist(3, 5),
-        'zones_all' => _zoneColours,
-        // REM under deep, as the layers come.
-        _ => const [C.trendRem, C.trendSws],
-      };
+    'zones_13' => _zoneColours.sublist(0, 3),
+    'zones_45' => _zoneColours.sublist(3, 5),
+    'zones_all' => _zoneColours,
+    // REM under deep, as the layers come.
+    _ => const [C.trendRem, C.trendSws],
+  };
 
   @override
   Widget build(BuildContext c) {
@@ -1350,22 +1605,31 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     double? avg, prev, lineAvg;
     var leavesOutToday = false;
     if (!isDay) {
-      final skipped = trendAverage(trendBars(m, daily, _range, end,
-          firstDay: _firstDay, skip: _today));
+      final skipped = trendAverage(
+        trendBars(m, daily, _range, end, firstDay: _firstDay, skip: _today),
+      );
       lineAvg = skipped ?? trendAverage(bars);
       if (m.weekly) {
         avg = _weeklyTotal(m, daily, end);
         prev = _weeklyTotal(m, daily, shiftDay(end, -_win));
       } else {
-        prev = trendAverage(trendBars(m, daily, _range,
-            shiftDay(end, -_win), firstDay: _firstDay));
+        prev = trendAverage(
+          trendBars(
+            m,
+            daily,
+            _range,
+            shiftDay(end, -_win),
+            firstDay: _firstDay,
+          ),
+        );
         // Today is left out while it is still being lived; with nothing else
         // to average, today is the average.
         avg = lineAvg;
         leavesOutToday = skipped != null && _back == 0;
       }
     }
-    final band = isDay || !m.line || _range == TrendRange.sixMonths || bars.isEmpty
+    final band =
+        isDay || !m.line || _range == TrendRange.sixMonths || bars.isEmpty
         ? null
         : trendTypical(daily, bars.first.from);
 
@@ -1375,17 +1639,17 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     final dayValue = intra == null
         ? null
         : m.id == 'hrv'
-            ? _sleep?.mean
-            : trendDayValue(m, intra);
+        ? _sleep?.mean
+        : trendDayValue(m, intra);
 
     final monthBars = monthly ? _monthBars(m, daily, end) : null;
     final sel = isDay || _selected == null
         ? null
         : monthly
-            ? monthBars!.barAt(_selected!)
-            : _selected! < bars.length
-                ? bars[_selected!]
-                : null;
+        ? monthBars!.barAt(_selected!)
+        : _selected! < bars.length
+        ? bars[_selected!]
+        : null;
     final dayTouched = isDay && intra != null && _selected != null;
     final dayPoint = dayTouched && _selected! < intra.values.length
         ? intra.values[_selected!]
@@ -1424,7 +1688,11 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       value = trendFormat(m, avg);
     }
 
-    final chip = !isDay && sel == null && avg != null && prev != null &&
+    final chip =
+        !isDay &&
+            sel == null &&
+            avg != null &&
+            prev != null &&
             !(monthly && _range == TrendRange.sixMonths)
         ? _DeltaChip(m: m, avg: avg, prev: prev, range: _range)
         : null;
@@ -1436,28 +1704,51 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
           TrendRange.week => 'W',
           TrendRange.month => 'M',
           TrendRange.sixMonths => '6M',
-        }
+        },
     ];
 
     final Widget readout;
     if (!isDay && m.kind == TrendKind.dual && layerBars != null) {
       // Sleep need and sleep achieved, each with its own change.
-      double? la(int k, String e) => trendAverage(trendBars(m, _layers![k], _range, e, firstDay: _firstDay));
+      double? la(int k, String e) => trendAverage(
+        trendBars(m, _layers![k], _range, e, firstDay: _firstDay),
+      );
       final i = _selected;
-      String at(int k) => trendFormat(m, i != null && i < bars.length ? layerBars[k][i].v : la(k, end));
+      String at(int k) => trendFormat(
+        m,
+        i != null && i < bars.length ? layerBars[k][i].v : la(k, end),
+      );
       Widget? chipFor(int k) {
         if (i != null) return null;
         final a = la(k, end), b = la(k, shiftDay(end, -_win));
         return a == null || b == null
             ? null
-            : _DeltaChip(m: m, avg: a, prev: b, range: _range, higherBetter: true);
+            : _DeltaChip(
+                m: m,
+                avg: a,
+                prev: b,
+                range: _range,
+                higherBetter: true,
+              );
       }
 
       readout = _MultiReadout(
         caption: i != null && i < bars.length ? _caption(bars[i], l) : null,
         rows: [
-          (value: at(0), unit: 'hr', name: 'Avg. need', color: C.optimal, chip: chipFor(0)),
-          (value: at(1), unit: 'hr', name: 'Avg. hours', color: C.dialSleep, chip: chipFor(1)),
+          (
+            value: at(0),
+            unit: 'hr',
+            name: 'Avg. need',
+            color: C.optimal,
+            chip: chipFor(0),
+          ),
+          (
+            value: at(1),
+            unit: 'hr',
+            name: 'Avg. hours',
+            color: C.dialSleep,
+            chip: chipFor(1),
+          ),
         ],
         asAverage: i == null,
       );
@@ -1480,7 +1771,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
               unit: m.unit ?? '',
               name: names[k],
               color: colours[k],
-              chip: null
+              chip: null,
             ),
         ],
         asAverage: false,
@@ -1492,7 +1783,10 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
         unit: value == '--' ? null : m.unit,
         under: chip == null
             ? null
-            : Padding(padding: const EdgeInsets.only(top: S.x2), child: chip),
+            : Padding(
+                padding: const EdgeInsets.only(top: S.x2),
+                child: chip,
+              ),
       );
     }
 
@@ -1500,157 +1794,228 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       backgroundColor: p.bg,
       body: SafeArea(
         child: ListView(
-            key: ValueKey(m.id),
-            controller: _page,
-            padding: pad,
-            children: [
-          const NavBar('Trend View'),
-          const SizedBox(height: S.x3),
-          _MetricPill(
-            m: m,
-            open: _picking,
-            onTap: () => setState(() => _picking = !_picking),
-          ),
-          if (_picking) ...[
-            const SizedBox(height: S.x2),
-            _Picker(current: m, onPick: _pick, allowed: dashboardMetricsOf()),
-          ] else ...[
-            const SizedBox(height: S.x6),
-            if (m.absent != null)
-              StatusCard('Not available', m.absent!,
-                  fix: '', icon: LucideIcons.circleSlash)
-            else ...[
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(child: readout),
-                const SizedBox(width: S.x3),
-                _Segments(labels, _ranges.indexOf(_range),
-                    (i) => _setRange(_ranges[i])),
-              ]),
-              const SizedBox(height: S.x3),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  _Step(LucideIcons.chevronLeft, 'Earlier', () => _stepBack(1)),
-                  Text(
-                    (isDay
-                            ? _dayName(_dayShown, l)
-                            : '${_shortDate(bars.first.from, l)} - '
-                                '${_shortDate(end, l)}, ${(_dateOf(end).year % 100).toString().padLeft(2, '0')}')
-                        .toUpperCase(),
-                    style: F.over.copyWith(
-                        color: p.ink, fontWeight: FontWeight.w700),
-                  ),
-                  _Step(LucideIcons.chevronRight, 'Later',
-                      _back == 0 ? null : () => _stepBack(-1)),
-                ]),
-              ),
-              const SizedBox(height: S.x3),
-              Text(_sentence(m, avg, prev, band, dayValue, layerBars, l),
-                  style: F.body.copyWith(color: p.ink, height: 1.25)),
-              if (band != null)
-                _legend(p, [(label: 'TYPICAL RANGE', color: p.ink.withValues(alpha: .12))]),
-              if (isDay && m.id == 'hrv' && _sleep != null)
-                _legend(p, [(label: 'SLEEP', color: C.dialSleep.withValues(alpha: .4))]),
-              if (!isDay &&
-                  (m.id == 'restorative_hours' || m.id == 'restorative_pct'))
-                _legend(p, const [
-                  (label: 'SWS (DEEP)', color: C.trendSws),
-                  (label: 'REM', color: C.trendRem),
-                ]),
-              if (!isDay && m.id == 'consistency' && _range != TrendRange.sixMonths)
-                Padding(
-                  padding: const EdgeInsets.only(top: S.x4),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      SizedBox(
-                        width: S.x6,
-                        child: CustomPaint(painter: _DashPainter(p.ink.withValues(alpha: .5))),
-                      ),
-                      const SizedBox(width: S.x3),
-                      Text('Usual bed/waketime',
-                          style: F.cap.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
-                    ]),
-                  ),
-                ),
-              const SizedBox(height: S.x4),
-              if (isDay)
-                intraLoading
-                    ? const SizedBox(
-                        height: S.x16 * 4,
-                        child: Center(child: CircularProgressIndicator()))
-                    : intra == null
-                        ? SizedBox(
-                            height: S.x16 * 3,
-                            child: Center(
-                              child: Text('Nothing recorded for this day.',
-                                  style: F.cap.copyWith(color: p.ink3)),
-                            ))
-                        : _dayChart(m, intra)
-              else if (_daily == null)
-                const SizedBox(
-                    height: S.x16 * 4,
-                    child: Center(child: CircularProgressIndicator()))
-              else
-                _chartFor(m, bars, layerBars, lineAvg, band, l),
-              if (leavesOutToday) ...[
-                const SizedBox(height: S.x4),
-                Row(children: [
-                  Icon(LucideIcons.info, size: I.sm, color: p.ink3),
-                  const SizedBox(width: S.x3),
-                  Expanded(
-                    child: Text(
-                        'Average does not include today (${_shortDate(_today, l)})',
-                        style: F.cap.copyWith(color: p.ink3)),
-                  ),
-                ]),
-              ],
-              _allTimeRecordsCard(c, m, _daily, l),
-              if (m.id == 'strain' && !isDay && _daily != null) ...[
-                const SizedBox(height: S.x8),
-                _StrainBreakdown(bars: bars),
-              ],
-              if (!isDay &&
-                  layerBars != null &&
-                  m.kind == TrendKind.stacked &&
-                  m.id != 'restorative_hours' &&
-                  m.id != 'restorative_pct') ...[
-                const SizedBox(height: S.x4),
-                Row(children: [
-                  Icon(LucideIcons.info, size: I.sm, color: p.ink3),
-                  const SizedBox(width: S.x3),
-                  Expanded(
-                    child: Text('Zone time is derived from your heart rate.',
-                        style: F.cap.copyWith(color: p.ink3)),
-                  ),
-                ]),
-                const SizedBox(height: S.x6),
-                _ZoneBreakdown(
-                  title: _range == TrendRange.week ? 'WEEKLY TOTAL' : 'AVG. WEEKLY TOTAL',
-                  names: _layerNames(m),
-                  colours: _layerColours(m),
-                  minutes: [
-                    for (final lb in layerBars)
-                      _range == TrendRange.week
-                          ? lb.fold<double>(0, (a, b) => a + (b.v ?? 0))
-                          : _mean([for (final b in lb) ?b.v]) ?? 0,
+          key: ValueKey(m.id),
+          controller: _page,
+          padding: pad,
+          children: [
+            const NavBar('Trend View'),
+            const SizedBox(height: S.x3),
+            _MetricPill(
+              m: m,
+              open: _picking,
+              onTap: () => setState(() => _picking = !_picking),
+            ),
+            if (_picking) ...[
+              const SizedBox(height: S.x2),
+              _Picker(current: m, onPick: _pick, allowed: dashboardMetricsOf()),
+            ] else ...[
+              const SizedBox(height: S.x6),
+              if (m.absent != null)
+                StatusCard(
+                  'Not available',
+                  m.absent!,
+                  fix: '',
+                  icon: LucideIcons.circleSlash,
+                )
+              else ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: readout),
+                    const SizedBox(width: S.x3),
+                    _Segments(
+                      labels,
+                      _ranges.indexOf(_range),
+                      (i) => _setRange(_ranges[i]),
+                    ),
                   ],
                 ),
-              ],
-              // Where the VO₂ max figure came from, and a lab result to anchor it.
-              if (m.id == 'vo2max' && _loader != null) ...[
-                const SizedBox(height: S.x6),
-                _Vo2Panel(loader: _loader!, onLab: _vo2Changed),
-              ],
-              // What the figure is, in a few plain sentences.
-              if (trendAbout(m.id) != null) ...[
-                const SizedBox(height: S.x8),
-                _AboutCard(title: 'What is ${_aboutName(m)}?', body: trendAbout(m.id)!),
-                const SizedBox(height: S.x6),
+                const SizedBox(height: S.x3),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _Step(
+                        LucideIcons.chevronLeft,
+                        'Earlier',
+                        () => _stepBack(1),
+                      ),
+                      Text(
+                        (isDay
+                                ? _dayName(_dayShown, l)
+                                : '${_shortDate(bars.first.from, l)} - '
+                                      '${_shortDate(end, l)}, ${(_dateOf(end).year % 100).toString().padLeft(2, '0')}')
+                            .toUpperCase(),
+                        style: F.over.copyWith(
+                          color: p.ink,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      _Step(
+                        LucideIcons.chevronRight,
+                        'Later',
+                        _back == 0 ? null : () => _stepBack(-1),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: S.x3),
+                Text(
+                  _sentence(m, avg, prev, band, dayValue, layerBars, l),
+                  style: F.body.copyWith(color: p.ink, height: 1.25),
+                ),
+                if (band != null)
+                  _legend(p, [
+                    (
+                      label: 'TYPICAL RANGE',
+                      color: p.ink.withValues(alpha: .12),
+                    ),
+                  ]),
+                if (isDay && m.id == 'hrv' && _sleep != null)
+                  _legend(p, [
+                    (label: 'SLEEP', color: C.dialSleep.withValues(alpha: .4)),
+                  ]),
+                if (!isDay &&
+                    (m.id == 'restorative_hours' || m.id == 'restorative_pct'))
+                  _legend(p, const [
+                    (label: 'SWS (DEEP)', color: C.trendSws),
+                    (label: 'REM', color: C.trendRem),
+                  ]),
+                if (!isDay &&
+                    m.id == 'consistency' &&
+                    _range != TrendRange.sixMonths)
+                  Padding(
+                    padding: const EdgeInsets.only(top: S.x4),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: S.x6,
+                            child: CustomPaint(
+                              painter: _DashPainter(
+                                p.ink.withValues(alpha: .5),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: S.x3),
+                          Text(
+                            'Usual bed/waketime',
+                            style: F.cap.copyWith(
+                              color: p.ink,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: S.x4),
+                if (isDay)
+                  intraLoading
+                      ? const SizedBox(
+                          height: S.x16 * 4,
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      : intra == null
+                      ? SizedBox(
+                          height: S.x16 * 3,
+                          child: Center(
+                            child: Text(
+                              'Nothing recorded for this day.',
+                              style: F.cap.copyWith(color: p.ink3),
+                            ),
+                          ),
+                        )
+                      : _dayChart(m, intra)
+                else if (_daily == null)
+                  const SizedBox(
+                    height: S.x16 * 4,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else
+                  _chartFor(m, bars, layerBars, lineAvg, band, l),
+                if (leavesOutToday) ...[
+                  const SizedBox(height: S.x4),
+                  Row(
+                    children: [
+                      Icon(LucideIcons.info, size: I.sm, color: p.ink3),
+                      const SizedBox(width: S.x3),
+                      Expanded(
+                        child: Text(
+                          'Average does not include today (${_shortDate(_today, l)})',
+                          style: F.cap.copyWith(color: p.ink3),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                _allTimeRecordsCard(c, m, _daily, l),
+                if (m.id == 'strain' && !isDay && _daily != null) ...[
+                  const SizedBox(height: S.x8),
+                  _StrainBreakdown(bars: bars),
+                ],
+                if (!isDay &&
+                    layerBars != null &&
+                    m.kind == TrendKind.stacked &&
+                    m.id != 'restorative_hours' &&
+                    m.id != 'restorative_pct') ...[
+                  const SizedBox(height: S.x4),
+                  Row(
+                    children: [
+                      Icon(LucideIcons.info, size: I.sm, color: p.ink3),
+                      const SizedBox(width: S.x3),
+                      Expanded(
+                        child: Text(
+                          'Zone time is derived from your heart rate.',
+                          style: F.cap.copyWith(color: p.ink3),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: S.x6),
+                  _ZoneBreakdown(
+                    title: _range == TrendRange.week
+                        ? 'WEEKLY TOTAL'
+                        : 'AVG. WEEKLY TOTAL',
+                    names: _layerNames(m),
+                    colours: _layerColours(m),
+                    minutes: [
+                      for (final lb in layerBars)
+                        _range == TrendRange.week
+                            ? lb.fold<double>(0, (a, b) => a + (b.v ?? 0))
+                            : _mean([for (final b in lb) ?b.v]) ?? 0,
+                    ],
+                  ),
+                ],
+                // Where the VO₂ max figure came from, and a lab result to anchor it.
+                if (m.id == 'vo2max' && _loader != null) ...[
+                  const SizedBox(height: S.x6),
+                  _Vo2Panel(loader: _loader!, onLab: _vo2Changed),
+                ],
+                // Toggleable correlation & comparison card
+                if (_loader != null) ...[
+                  const SizedBox(height: S.x8),
+                  TrendMetricComparisonCard(
+                    loader: _loader!,
+                    currentMetricId: m.id,
+                  ),
+                ],
+                // What the figure is, in a few plain sentences.
+                if (trendAbout(m.id) != null) ...[
+                  const SizedBox(height: S.x8),
+                  _AboutCard(
+                    title: 'What is ${_aboutName(m)}?',
+                    body: trendAbout(m.id)!,
+                  ),
+                  const SizedBox(height: S.x6),
+                ],
               ],
             ],
           ],
-        ]),
+        ),
       ),
     );
   }
@@ -1702,7 +2067,9 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
               Row(
                 children: [
                   Icon(
-                    isHigh ? LucideIcons.arrowUpRight : LucideIcons.arrowDownRight,
+                    isHigh
+                        ? LucideIcons.arrowUpRight
+                        : LucideIcons.arrowDownRight,
                     size: I.sm,
                     color: color,
                   ),
@@ -1802,24 +2169,26 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   }
 
   Widget _legend(P p, List<({String label, Color color})> items) => Padding(
-        padding: const EdgeInsets.only(top: S.x5),
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            for (final (i, it) in items.indexed) ...[
-              if (i > 0) const SizedBox(width: S.x5),
-              Container(
-                width: S.x4,
-                height: S.x4,
-                decoration: BoxDecoration(color: it.color, borderRadius: R.rSm),
-              ),
-              const SizedBox(width: S.x3),
-              Text(it.label,
-                  style: F.caps.copyWith(color: p.ink)),
-            ],
-          ]),
-        ),
-      );
+    padding: const EdgeInsets.only(top: S.x5),
+    child: Align(
+      alignment: Alignment.centerRight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final (i, it) in items.indexed) ...[
+            if (i > 0) const SizedBox(width: S.x5),
+            Container(
+              width: S.x4,
+              height: S.x4,
+              decoration: BoxDecoration(color: it.color, borderRadius: R.rSm),
+            ),
+            const SizedBox(width: S.x3),
+            Text(it.label, style: F.caps.copyWith(color: p.ink)),
+          ],
+        ],
+      ),
+    ),
+  );
 
   static const _lineBlue = C.dialStrain;
 
@@ -1867,12 +2236,14 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                   final s = _sleep!;
                   canvas.drawRRect(
                     RRect.fromRectAndRadius(
-                        Rect.fromLTRB(
-                            plot.left + plot.width * s.from / 1440,
-                            plot.top,
-                            plot.left + plot.width * s.to / 1440,
-                            plot.bottom),
-                        const Radius.circular(R.sm)),
+                      Rect.fromLTRB(
+                        plot.left + plot.width * s.from / 1440,
+                        plot.top,
+                        plot.left + plot.width * s.to / 1440,
+                        plot.bottom,
+                      ),
+                      const Radius.circular(R.sm),
+                    ),
                     Paint()..color = C.dialSleep.withValues(alpha: .16),
                   );
                 }
@@ -1883,7 +2254,11 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
             for (var h = 0; h < 24; h++) {
               final v = intra.values[h];
               if (v == null) continue;
-              canvas.drawCircle(Offset(xOf(h), yOf(v)), 3, Paint()..color = _colorOf(m));
+              canvas.drawCircle(
+                Offset(xOf(h), yOf(v)),
+                3,
+                Paint()..color = _colorOf(m),
+              );
             }
           },
           onScrub: (i) => setState(() => _selected = i),
@@ -1901,61 +2276,85 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
         onScrub: (i) => setState(() => _selected = i),
       );
     }
-    final from = _zoomFrom.floor().clamp(0, 1439), to = _zoomTo.ceil().clamp(from + 2, 1440);
+    final from = _zoomFrom.floor().clamp(0, 1439),
+        to = _zoomTo.ceil().clamp(from + 2, 1440);
     final window = intra.values.sublist(from, to);
     final seen = [for (final v in window) ?v];
     // The axis follows what is on screen, so zooming in re-scales it.
     final axis = _axisFor(
-        m, seen.isEmpty ? [for (final v in intra.values) ?v] : seen,
-        line: true);
+      m,
+      seen.isEmpty ? [for (final v in intra.values) ?v] : seen,
+      line: true,
+    );
     final step = _clockStep(to - from);
-    const marks = {0: '00:00', 360: '06:00', 720: '12:00', 1080: '18:00', 1439: '24:00'};
+    const marks = {
+      0: '00:00',
+      360: '06:00',
+      720: '12:00',
+      1080: '18:00',
+      1439: '24:00',
+    };
     final mean = m.cumulative ? null : trendDayValue(m, intra);
-    return Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-      // Always as tall as the button, so the chart does not jump when it
-      // appears under a pinch.
-      SizedBox(
-        height: S.tap,
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: _zoomed
-              ? TextAction('Reset zoom', () => setState(_resetZoom),
-                  icon: LucideIcons.zoomOut)
-              : null,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // Always as tall as the button, so the chart does not jump when it
+        // appears under a pinch.
+        SizedBox(
+          height: S.tap,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: _zoomed
+                ? TextAction(
+                    'Reset zoom',
+                    () => setState(_resetZoom),
+                    icon: LucideIcons.zoomOut,
+                  )
+                : null,
+          ),
         ),
-      ),
-      ScrubLine(
-        values: window,
-        xLabels: [
-          for (var i = 0; i < window.length; i++)
-            _zoomed
-                ? ((from + i) % step == 0 ? _clock(from + i) : '')
-                : marks[i] ?? '',
-        ],
-        lo: axis.lo,
-        hi: axis.hi,
-        ticks: axis.ticks,
-        tickText: (t) => _tickText(m, t),
-        avg: mean,
-        color: _colorOf(m),
-        markers: false,
-        slots: false,
-        gap: 25,
-        height: S.x16 * 4 + S.x8,
-        onScrub: (i) => setState(() => _selected = i == null ? null : from + i),
-        onPinch: _pinch,
-      ),
-    ]);
+        ScrubLine(
+          values: window,
+          xLabels: [
+            for (var i = 0; i < window.length; i++)
+              _zoomed
+                  ? ((from + i) % step == 0 ? _clock(from + i) : '')
+                  : marks[i] ?? '',
+          ],
+          lo: axis.lo,
+          hi: axis.hi,
+          ticks: axis.ticks,
+          tickText: (t) => _tickText(m, t),
+          avg: mean,
+          color: _colorOf(m),
+          markers: false,
+          slots: false,
+          gap: 25,
+          height: S.x16 * 4 + S.x8,
+          onScrub: (i) =>
+              setState(() => _selected = i == null ? null : from + i),
+          onPinch: _pinch,
+        ),
+      ],
+    );
   }
 
-  Widget _chartFor(TrendMetric m, List<TrendBar> bars, List<List<TrendBar>>? layerBars,
-      double? avg, ({double lo, double hi})? band, AppLocalizations? l) {
+  Widget _chartFor(
+    TrendMetric m,
+    List<TrendBar> bars,
+    List<List<TrendBar>>? layerBars,
+    double? avg,
+    ({double lo, double hi})? band,
+    AppLocalizations? l,
+  ) {
     if (_monthlyStyle(m)) return _monthsChart(m, l);
     switch (m.kind) {
       case TrendKind.floating:
         return _floatingChart(m, bars, l);
       case TrendKind.dual:
-        if (layerBars != null && layerBars.length == 2) return _dualChart(m, bars, layerBars, l);
+        if (layerBars != null && layerBars.length == 2) {
+          return _dualChart(m, bars, layerBars, l);
+        }
         return _chart(m, bars, avg, band, l);
       case TrendKind.stacked:
         if (layerBars != null) return _stackedChart(m, bars, layerBars, avg, l);
@@ -1965,11 +2364,18 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     }
   }
 
-  Widget _chart(TrendMetric m, List<TrendBar> bars, double? avg,
-      ({double lo, double hi})? band, AppLocalizations? l) {
+  Widget _chart(
+    TrendMetric m,
+    List<TrendBar> bars,
+    double? avg,
+    ({double lo, double hi})? band,
+    AppLocalizations? l,
+  ) {
     final vs = [for (final b in bars) ?b.v];
-    final axis = _axisFor(m, [...vs, if (band != null) ...[band.lo, band.hi]],
-        line: m.line);
+    final axis = _axisFor(m, [
+      ...vs,
+      if (band != null) ...[band.lo, band.hi],
+    ], line: m.line);
     final color = _colorOf(m);
     final week = _range == TrendRange.week;
     final xs = [for (var i = 0; i < bars.length; i++) _xLabel(i, bars, l)];
@@ -1997,8 +2403,9 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       values: [for (final b in bars) b.v],
       xLabels: xs,
       // A week's values sit over its bars; a month is too many to label.
-      valueLabels:
-          week ? [for (final b in bars) b.v == null ? '' : trendFormat(m, b.v)] : const [],
+      valueLabels: week
+          ? [for (final b in bars) b.v == null ? '' : trendFormat(m, b.v)]
+          : const [],
       lo: axis.lo,
       hi: axis.hi,
       ticks: axis.ticks,
@@ -2014,7 +2421,11 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
 
   /// On six months, a white line at each month's average over the weekly
   /// columns it spans, the figure on it. Empty on any other range.
-  List<ColumnMark> _monthMarks(TrendMetric m, List<TrendBar> bars, List<double?> totals) {
+  List<ColumnMark> _monthMarks(
+    TrendMetric m,
+    List<TrendBar> bars,
+    List<double?> totals,
+  ) {
     if (_range != TrendRange.sixMonths) return const [];
     final out = <ColumnMark>[];
     var from = 0;
@@ -2033,8 +2444,13 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   }
 
   /// Columns stacked from the layers, each in its own colour.
-  Widget _stackedChart(TrendMetric m, List<TrendBar> bars,
-      List<List<TrendBar>> layerBars, double? avg, AppLocalizations? l) {
+  Widget _stackedChart(
+    TrendMetric m,
+    List<TrendBar> bars,
+    List<List<TrendBar>> layerBars,
+    double? avg,
+    AppLocalizations? l,
+  ) {
     final n = bars.length;
     final stacks = <List<double>?>[];
     final totals = <double?>[];
@@ -2056,8 +2472,9 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       stacks: stacks,
       segmentColors: _layerColours(m),
       xLabels: [for (var i = 0; i < n; i++) _xLabel(i, bars, l)],
-      valueLabels:
-          week ? [for (final t in totals) t == null ? '' : trendFormat(m, t)] : const [],
+      valueLabels: week
+          ? [for (final t in totals) t == null ? '' : trendFormat(m, t)]
+          : const [],
       lo: axis.lo,
       hi: axis.hi,
       ticks: axis.ticks,
@@ -2072,11 +2489,17 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   }
 
   /// Sleep need and sleep achieved, two lines on one scale from zero.
-  Widget _dualChart(TrendMetric m, List<TrendBar> bars,
-      List<List<TrendBar>> layerBars, AppLocalizations? l) {
+  Widget _dualChart(
+    TrendMetric m,
+    List<TrendBar> bars,
+    List<List<TrendBar>> layerBars,
+    AppLocalizations? l,
+  ) {
     final a = [for (final b in layerBars[0]) b.v];
     final b2 = [for (final b in layerBars[1]) b.v];
-    final axis = _axisFor(m, [for (final v in [...a, ...b2]) ?v], line: false);
+    final axis = _axisFor(m, [
+      for (final v in [...a, ...b2]) ?v,
+    ], line: false);
     final week = _range == TrendRange.week;
     String lab(double? v) => v == null ? '' : trendFormat(m, v);
     return ScrubPair(
@@ -2101,14 +2524,16 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   bool _monthlyStyle(TrendMetric m) =>
       _range == TrendRange.sixMonths &&
       m.absent == null &&
-      (m.kind == TrendKind.floating || (m.kind == TrendKind.columns && !m.weekly));
+      (m.kind == TrendKind.floating ||
+          (m.kind == TrendKind.columns && !m.weekly));
 
   _MonthBars _monthBars(TrendMetric m, Map<String, double> daily, String end) {
     final days = [for (var i = 181; i >= 0; i--) shiftDay(end, -i)];
     final spans = <({int from, int to})>[];
     var start = 0;
     for (var i = 1; i <= days.length; i++) {
-      if (i == days.length || _dateOf(days[i]).month != _dateOf(days[i - 1]).month) {
+      if (i == days.length ||
+          _dateOf(days[i]).month != _dateOf(days[i - 1]).month) {
         spans.add((from: start, to: i - 1));
         start = i;
       }
@@ -2145,11 +2570,15 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     String? note;
     Color? tone;
     if (last != null && before != null && md.avgs[before]! != 0) {
-      final pct = ((md.avgs[last]! - md.avgs[before]!) / md.avgs[before]!.abs() * 100).round();
+      final pct =
+          ((md.avgs[last]! - md.avgs[before]!) / md.avgs[before]!.abs() * 100)
+              .round();
       if (pct != 0) {
         note = '${pct > 0 ? '+' : '-'}${pct.abs()}%';
         final good = m.higherBetter;
-        tone = good == null ? null : ((pct > 0) == good ? C.optimal : C.strainDown);
+        tone = good == null
+            ? null
+            : ((pct > 0) == good ? C.optimal : C.strainDown);
       }
     }
 
@@ -2159,34 +2588,37 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       final sp = md.spans[k];
       final isLast = k == last;
       if (floating) {
-        final ns = [
-          for (var i = sp.from; i <= sp.to; i++) ?nights[md.days[i]],
-        ];
+        final ns = [for (var i = sp.from; i <= sp.to; i++) ?nights[md.days[i]]];
         if (ns.isEmpty) {
           marks.add(MonthMark(from: sp.from, to: sp.to, label: name(sp.from)));
           continue;
         }
         final bed = ns.fold<double>(0, (a, n) => a + n.bed) / ns.length;
         final wake = ns.fold<double>(0, (a, n) => a + n.wake) / ns.length;
-        marks.add(MonthMark(
+        marks.add(
+          MonthMark(
             from: sp.from,
             to: sp.to,
             label: name(sp.from),
             value: bed,
             text: _clockAfterNoon(bed),
             value2: wake,
-            text2: _clockAfterNoon(wake)));
+            text2: _clockAfterNoon(wake),
+          ),
+        );
       } else {
         final v = md.avgs[k];
-        marks.add(MonthMark(
-          from: sp.from,
-          to: sp.to,
-          label: name(sp.from),
-          value: v,
-          text: v == null ? '' : trendFormat(m, v),
-          note: isLast ? note : null,
-          tone: isLast ? tone : null,
-        ));
+        marks.add(
+          MonthMark(
+            from: sp.from,
+            to: sp.to,
+            label: name(sp.from),
+            value: v,
+            text: v == null ? '' : trendFormat(m, v),
+            note: isLast ? note : null,
+            tone: isLast ? tone : null,
+          ),
+        );
       }
     }
 
@@ -2196,7 +2628,9 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     if (floating) {
       final ranges = [
         for (final d in md.days)
-          nights[d] == null ? null : (from: nights[d]!.bed, to: nights[d]!.wake),
+          nights[d] == null
+              ? null
+              : (from: nights[d]!.bed, to: nights[d]!.wake),
       ];
       final axis = _clockAxis(ranges);
       return ScrubMonths(
@@ -2214,8 +2648,10 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
         onScrub: (i) => setState(() => _selected = i),
       );
     }
-    final axis = _axisFor(
-        m, [for (final v in dayVals) ?v, for (final v in md.avgs) ?v], line: true);
+    final axis = _axisFor(m, [
+      for (final v in dayVals) ?v,
+      for (final v in md.avgs) ?v,
+    ], line: true);
     return ScrubMonths(
       days: dayVals,
       months: marks,
@@ -2235,7 +2671,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   /// 11:00 at the bottom as a week usually sits, and further out when it
   /// does not.
   ({double lo, double hi, List<double> ticks}) _clockAxis(
-      Iterable<({double from, double to})?> ranges) {
+    Iterable<({double from, double to})?> ranges,
+  ) {
     const grid = 420.0, step = 240.0, room = 90.0;
     var lo = grid, hi = grid + step * 4;
     for (final r in ranges) {
@@ -2247,11 +2684,19 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
         hi += step;
       }
     }
-    return (lo: lo, hi: hi, ticks: [for (var t = lo; t <= hi + 1; t += step) t]);
+    return (
+      lo: lo,
+      hi: hi,
+      ticks: [for (var t = lo; t <= hi + 1; t += step) t],
+    );
   }
 
   /// Each night as a bar floating from bed to wake, on a clock.
-  Widget _floatingChart(TrendMetric m, List<TrendBar> bars, AppLocalizations? l) {
+  Widget _floatingChart(
+    TrendMetric m,
+    List<TrendBar> bars,
+    AppLocalizations? l,
+  ) {
     final spans = _spans ?? const <String, ({double bed, double wake})>{};
     final n = bars.length;
     ({double from, double to})? rangeOf(TrendBar b) {
@@ -2283,7 +2728,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
               bed: prior.fold<double>(0, (a, s) => a + s.bed) / prior.length,
               wake: prior.fold<double>(0, (a, s) => a + s.wake) / prior.length,
             );
-          }()
+          }(),
       ];
     }
     final axis = _clockAxis(ranges);
@@ -2319,31 +2764,39 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   }
 
   static String _short(TrendMetric m) => switch (m.id) {
-        'hrv' => 'HRV',
-        'resting_hr' => 'resting heart rate',
-        'resp_rate' => 'respiratory rate',
-        _ => m.title,
-      };
+    'hrv' => 'HRV',
+    'resting_hr' => 'resting heart rate',
+    'resp_rate' => 'respiratory rate',
+    _ => m.title,
+  };
 
   /// What the figure is, in a clause: "your total time in HR zones 1-3".
   static String _total(TrendMetric m) => switch (m.id) {
-        'zones_13' => 'time in HR zones 1-3',
-        'zones_45' => 'time in HR zones 4-5',
-        'zones_all' => 'time in HR zones',
-        'strength_time' => 'strength activity time',
-        _ => m.title.toLowerCase(),
-      };
+    'zones_13' => 'time in HR zones 1-3',
+    'zones_45' => 'time in HR zones 4-5',
+    'zones_all' => 'time in HR zones',
+    'strength_time' => 'strength activity time',
+    _ => m.title.toLowerCase(),
+  };
 
-  String _sentence(TrendMetric m, double? avg, double? prev,
-      ({double lo, double hi})? band, double? dayValue,
-      List<List<TrendBar>>? layerBars, AppLocalizations? l) {
+  String _sentence(
+    TrendMetric m,
+    double? avg,
+    double? prev,
+    ({double lo, double hi})? band,
+    double? dayValue,
+    List<List<TrendBar>>? layerBars,
+    AppLocalizations? l,
+  ) {
     if (_range == TrendRange.day) {
       if (dayValue == null) {
         return m.id == 'hrv'
             ? 'No heart rate variability from a night\'s sleep for this day.'
             : 'No ${m.title.toLowerCase()} recorded for this day.';
       }
-      final when = _dayShown == _today ? 'today' : 'on ${_dayName(_dayShown, l)}';
+      final when = _dayShown == _today
+          ? 'today'
+          : 'on ${_dayName(_dayShown, l)}';
       if (m.id == 'hrv') {
         return 'Your average heart rate variability asleep $when '
             '${_dayShown == _today ? 'is' : 'was'} ${trendFormat(m, dayValue)} ms.';
@@ -2352,14 +2805,16 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       final agg = m.cumulative || title.startsWith('average')
           ? ''
           : ((_intra?.hourly ?? false) && !m.line)
-              ? 'total '
-              : 'average ';
+          ? 'total '
+          : 'average ';
       return 'Your $agg$title $when '
           '${_dayShown == _today ? 'is' : 'was'} ${trendFormat(m, dayValue)}'
           '${m.unit == null ? '' : ' ${m.unit}'}.';
     }
     final word = _range.word;
-    if (m.kind == TrendKind.dual && layerBars != null && layerBars.length == 2) {
+    if (m.kind == TrendKind.dual &&
+        layerBars != null &&
+        layerBars.length == 2) {
       final need = trendAverage(layerBars[0]), got = trendAverage(layerBars[1]);
       if (need != null && got != null) {
         return 'This $word you averaged ${trendFormat(m, got)} of sleep against '
@@ -2372,8 +2827,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       final rel = avg < band.lo
           ? 'below'
           : avg > band.hi
-              ? 'above'
-              : 'within';
+          ? 'above'
+          : 'within';
       return 'Your average ${_short(m)} during this 7-day period was $rel its '
           'typical range (${trendFormat(m, band.lo)} - ${trendFormat(m, band.hi)}) '
           'at the time.';
@@ -2381,8 +2836,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     String rel(double a, double b) => trendFormat(m, a) == trendFormat(m, b)
         ? 'the same as'
         : a > b
-            ? 'above'
-            : 'below';
+        ? 'above'
+        : 'below';
     if (_range == TrendRange.week && prev != null) {
       if (m.weekly) {
         return 'During this 7-day period, your total ${_total(m)} ($shown) was '
@@ -2398,10 +2853,10 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     if (m.weekly) {
       return _range == TrendRange.week
           ? 'Your total ${_total(m)} this week is $shown. Keep wearing your '
-              'band to see how this changes over time.'
+                'band to see how this changes over time.'
           : 'Your average weekly total of ${_total(m)} over this '
-              '${_range == TrendRange.month ? 'month' : '6-month period'} is $shown. '
-              'Keep wearing your band to see how this changes over time.';
+                '${_range == TrendRange.month ? 'month' : '6-month period'} is $shown. '
+                'Keep wearing your band to see how this changes over time.';
     }
     if (_range == TrendRange.sixMonths) {
       return 'During this 6-month period, your average ${_short(m)} has been '
@@ -2428,7 +2883,10 @@ const List<double> _minuteSteps = [30, 60, 120, 180, 240, 360, 480, 720, 1440];
 /// either side. A scale with a ceiling of its own (strain 21, a percentage)
 /// never goes past it, and at that ceiling is cut evenly (0 7 14 21).
 ({double lo, double hi, List<double> ticks}) trendAxis(
-    TrendMetric m, List<double> vs, {required bool line}) {
+  TrendMetric m,
+  List<double> vs, {
+  required bool line,
+}) {
   final cap = m.axisMax;
   if (vs.isEmpty) {
     final hi = cap ?? 1.0;
@@ -2491,25 +2949,30 @@ class _Segments extends StatelessWidget {
           color: Color.alphaBlend(C.char.withValues(alpha: .5), p.bg),
           borderRadius: R.rXl,
         ),
-        child: Row(children: [
-          for (var i = 0; i < labels.length; i++)
-            Expanded(
-              child: Pressable(
-                onTap: () => onTap(i),
-                semanticLabel: 'Show ${labels[i]}',
-                child: Container(
-                  alignment: Alignment.center,
-                  decoration: i == index
-                      ? BoxDecoration(color: p.card, borderRadius: R.rLg)
-                      : null,
-                  child: Text(labels[i],
+        child: Row(
+          children: [
+            for (var i = 0; i < labels.length; i++)
+              Expanded(
+                child: Pressable(
+                  onTap: () => onTap(i),
+                  semanticLabel: 'Show ${labels[i]}',
+                  child: Container(
+                    alignment: Alignment.center,
+                    decoration: i == index
+                        ? BoxDecoration(color: p.card, borderRadius: R.rLg)
+                        : null,
+                    child: Text(
+                      labels[i],
                       maxLines: 1,
                       style: F.caps.copyWith(
-                          color: i == index ? p.ink : p.ink3)),
+                        color: i == index ? p.ink : p.ink3,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
-        ]),
+          ],
+        ),
       ),
     );
   }
@@ -2520,49 +2983,66 @@ class _Segments extends StatelessWidget {
 class _MultiReadout extends StatelessWidget {
   /// A date over the lot, while a night is touched.
   final String? caption;
-  final List<({String value, String unit, String name, Color color, Widget? chip})> rows;
+  final List<
+    ({String value, String unit, String name, Color color, Widget? chip})
+  >
+  rows;
 
   /// The names read as small captions of an average; false puts them as the
   /// kind of sleep a figure is.
   final bool asAverage;
-  const _MultiReadout(
-      {required this.caption, required this.rows, required this.asAverage});
+  const _MultiReadout({
+    required this.caption,
+    required this.rows,
+    required this.asAverage,
+  });
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      if (caption != null) ...[
-        Text(caption!.toUpperCase(),
-            style: F.over.copyWith(color: p.ink2)),
-        const SizedBox(height: S.x1),
-      ],
-      for (final r in rows) ...[
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(r.value,
-                  style: F.n34.copyWith(color: r.color, fontWeight: FontWeight.w700)),
-              if (r.value != '--') ...[
-                const SizedBox(width: S.x1),
-                Text(r.unit,
-                    style: F.head.copyWith(color: r.color, fontWeight: FontWeight.w600)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (caption != null) ...[
+          Text(caption!.toUpperCase(), style: F.over.copyWith(color: p.ink2)),
+          const SizedBox(height: S.x1),
+        ],
+        for (final r in rows) ...[
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  r.value,
+                  style: F.n34.copyWith(
+                    color: r.color,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (r.value != '--') ...[
+                  const SizedBox(width: S.x1),
+                  Text(
+                    r.unit,
+                    style: F.head.copyWith(
+                      color: r.color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                if (r.chip != null) ...[const SizedBox(width: S.x3), r.chip!],
               ],
-              if (r.chip != null) ...[const SizedBox(width: S.x3), r.chip!],
-            ],
+            ),
           ),
-        ),
-        const SizedBox(height: S.half),
-        Text(r.name.toUpperCase(),
-            style: F.over.copyWith(color: p.ink2)),
-        const SizedBox(height: S.x2),
+          const SizedBox(height: S.half),
+          Text(r.name.toUpperCase(), style: F.over.copyWith(color: p.ink2)),
+          const SizedBox(height: S.x2),
+        ],
       ],
-    ]);
+    );
   }
 }
 
@@ -2577,8 +3057,11 @@ class _DashPainter extends CustomPainter {
       ..color = color
       ..strokeWidth = 2;
     for (var x = 0.0; x < size.width; x += S.x2 + S.half) {
-      canvas.drawLine(Offset(x, size.height / 2),
-          Offset(math.min(x + S.x1, size.width), size.height / 2), paint);
+      canvas.drawLine(
+        Offset(x, size.height / 2),
+        Offset(math.min(x + S.x1, size.width), size.height / 2),
+        paint,
+      );
     }
   }
 
@@ -2604,61 +3087,88 @@ class _ZoneBreakdown extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     final total = minutes.fold<double>(0, (a, b) => a + b);
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text.rich(TextSpan(children: [
-        TextSpan(
-            text: 'HR ZONES BREAKDOWN ',
-            style: F.caps.copyWith(color: p.ink)),
-        TextSpan(
-            text: '($title)',
-            style: F.caps.copyWith(color: p.ink3)),
-      ])),
-      const SizedBox(height: S.x4),
-      if (total <= 0)
-        Text('No zone time recorded in this window.',
-            style: F.cap.copyWith(color: p.ink3))
-      else ...[
-        SizedBox(
-          height: S.x3,
-          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            for (var k = 0; k < minutes.length; k++)
-              if (minutes[k] > 0) ...[
-                Expanded(
-                  flex: math.max(1, (minutes[k] / total * 1000).round()),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: colours[k],
-                      borderRadius: BorderRadius.circular(R.sm / 3),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: S.half),
-              ],
-          ]),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: 'HR ZONES BREAKDOWN ',
+                style: F.caps.copyWith(color: p.ink),
+              ),
+              TextSpan(
+                text: '($title)',
+                style: F.caps.copyWith(color: p.ink3),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: S.x4),
-        for (var k = 0; k < minutes.length; k++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: S.x3),
-            child: Row(children: [
-              Container(
-                width: S.x3,
-                height: S.x3,
-                decoration: BoxDecoration(color: colours[k], borderRadius: R.rSm),
-              ),
-              const SizedBox(width: S.x3),
-              SizedBox(
-                width: S.x16 + S.x4,
-                child: Text(hMm(minutes[k].round()),
-                    style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-              ),
-              Expanded(
-                child: Text(names[k], style: F.body.copyWith(color: p.ink2)),
-              ),
-            ]),
+        if (total <= 0)
+          Text(
+            'No zone time recorded in this window.',
+            style: F.cap.copyWith(color: p.ink3),
+          )
+        else ...[
+          SizedBox(
+            height: S.x3,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var k = 0; k < minutes.length; k++)
+                  if (minutes[k] > 0) ...[
+                    Expanded(
+                      flex: math.max(1, (minutes[k] / total * 1000).round()),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: colours[k],
+                          borderRadius: BorderRadius.circular(R.sm / 3),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: S.half),
+                  ],
+              ],
+            ),
           ),
+          const SizedBox(height: S.x4),
+          for (var k = 0; k < minutes.length; k++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: S.x3),
+              child: Row(
+                children: [
+                  Container(
+                    width: S.x3,
+                    height: S.x3,
+                    decoration: BoxDecoration(
+                      color: colours[k],
+                      borderRadius: R.rSm,
+                    ),
+                  ),
+                  const SizedBox(width: S.x3),
+                  SizedBox(
+                    width: S.x16 + S.x4,
+                    child: Text(
+                      hMm(minutes[k].round()),
+                      style: F.n24.copyWith(
+                        color: p.ink,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      names[k],
+                      style: F.body.copyWith(color: p.ink2),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ],
-    ]);
+    );
   }
 }
 
@@ -2683,19 +3193,28 @@ class _MetricPill extends StatelessWidget {
           color: Color.alphaBlend(p.ink.withValues(alpha: .12), p.card2),
           borderRadius: R.rLg,
         ),
-        child: Row(children: [
-          Icon(m.icon, size: I.xl, color: p.ink),
-          const SizedBox(width: S.x5),
-          Expanded(
-            child: Text(m.title.toUpperCase(),
+        child: Row(
+          children: [
+            Icon(m.icon, size: I.xl, color: p.ink),
+            const SizedBox(width: S.x5),
+            Expanded(
+              child: Text(
+                m.title.toUpperCase(),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: F.caps.copyWith(
-                    color: p.ink, fontWeight: FontWeight.w700)),
-          ),
-          Icon(open ? LucideIcons.chevronUp : LucideIcons.chevronDown,
-              size: I.lg, color: p.ink),
-        ]),
+                  color: p.ink,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Icon(
+              open ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+              size: I.lg,
+              color: p.ink,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2729,62 +3248,81 @@ class _StrainBreakdown extends StatelessWidget {
       (moderate, 'Moderate (10.1-14.0)', C.strainModerate),
       (light, 'Light (0.0-10.0)', C.strainLight),
     ];
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text.rich(TextSpan(children: [
-        TextSpan(
-            text: 'STRAIN BREAKDOWN ',
-            style: F.caps.copyWith(color: p.ink)),
-        TextSpan(
-            text: '(DAYS)',
-            style: F.caps.copyWith(color: p.ink3)),
-      ])),
-      const SizedBox(height: S.x4),
-      if (vs.isEmpty)
-        Text('No strain recorded this period.',
-            style: F.cap.copyWith(color: p.ink3))
-      else ...[
-        SizedBox(
-          height: S.x3,
-          child: Row(children: [
-            for (final b in bands)
-              if (b.$1 > 0) ...[
-                Expanded(
-                  flex: b.$1,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: b.$3,
-                      borderRadius: R.rSm,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: S.half),
-              ],
-          ]),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: 'STRAIN BREAKDOWN ',
+                style: F.caps.copyWith(color: p.ink),
+              ),
+              TextSpan(
+                text: '(DAYS)',
+                style: F.caps.copyWith(color: p.ink3),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: S.x4),
-        for (final b in bands)
-          Padding(
-            padding: const EdgeInsets.only(bottom: S.x3),
-            child: Row(children: [
-              Container(
-                width: S.x3,
-                height: S.x3,
-                decoration: BoxDecoration(color: b.$3, borderRadius: R.rSm),
-              ),
-              const SizedBox(width: S.x3),
-              SizedBox(
-                width: S.x12,
-                child: Text('${b.$1}x',
-                    style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-              ),
-              Expanded(
-                child: Text(b.$2,
-                    style: F.body.copyWith(color: p.ink2)),
-              ),
-            ]),
+        if (vs.isEmpty)
+          Text(
+            'No strain recorded this period.',
+            style: F.cap.copyWith(color: p.ink3),
+          )
+        else ...[
+          SizedBox(
+            height: S.x3,
+            child: Row(
+              children: [
+                for (final b in bands)
+                  if (b.$1 > 0) ...[
+                    Expanded(
+                      flex: b.$1,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: b.$3,
+                          borderRadius: R.rSm,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: S.half),
+                  ],
+              ],
+            ),
           ),
+          const SizedBox(height: S.x4),
+          for (final b in bands)
+            Padding(
+              padding: const EdgeInsets.only(bottom: S.x3),
+              child: Row(
+                children: [
+                  Container(
+                    width: S.x3,
+                    height: S.x3,
+                    decoration: BoxDecoration(color: b.$3, borderRadius: R.rSm),
+                  ),
+                  const SizedBox(width: S.x3),
+                  SizedBox(
+                    width: S.x12,
+                    child: Text(
+                      '${b.$1}x',
+                      style: F.n24.copyWith(
+                        color: p.ink,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(b.$2, style: F.body.copyWith(color: p.ink2)),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ],
-    ]);
+    );
   }
 }
 
@@ -2840,7 +3378,9 @@ class _DeltaChip extends StatelessWidget {
     } else {
       text = '${(diff / prev.abs() * 100).abs().round()}%';
     }
-    final flat = text == '0%' || (m.signed && trendFormat(m, diff.abs()) == trendFormat(m, 0));
+    final flat =
+        text == '0%' ||
+        (m.signed && trendFormat(m, diff.abs()) == trendFormat(m, 0));
     final up = diff > 0;
     final good = higherBetter ?? m.higherBetter;
     final better = flat || good == null ? null : up == good;
@@ -2857,19 +3397,24 @@ class _DeltaChip extends StatelessWidget {
         color: better == null ? p.card2 : tone.withValues(alpha: .18),
         borderRadius: R.rSm,
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        if (!flat) ...[
-          CustomPaint(
-            size: const Size(S.x3, S.x2 + S.half),
-            painter: _TrianglePainter(color: tone, up: up),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!flat) ...[
+            CustomPaint(
+              size: const Size(S.x3, S.x2 + S.half),
+              painter: _TrianglePainter(color: tone, up: up),
+            ),
+            const SizedBox(width: S.x2),
+          ],
+          Flexible(
+            child: Text(
+              '$text vs. $past',
+              style: F.cap.copyWith(color: tone, fontWeight: FontWeight.w700),
+            ),
           ),
-          const SizedBox(width: S.x2),
         ],
-        Flexible(
-          child: Text('$text vs. $past',
-              style: F.cap.copyWith(color: tone, fontWeight: FontWeight.w700)),
-        ),
-      ]),
+      ),
     );
   }
 }
@@ -2884,20 +3429,21 @@ class _TrianglePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final path = up
         ? (Path()
-          ..moveTo(0, size.height)
-          ..lineTo(size.width / 2, 0)
-          ..lineTo(size.width, size.height)
-          ..close())
+            ..moveTo(0, size.height)
+            ..lineTo(size.width / 2, 0)
+            ..lineTo(size.width, size.height)
+            ..close())
         : (Path()
-          ..moveTo(0, 0)
-          ..lineTo(size.width, 0)
-          ..lineTo(size.width / 2, size.height)
-          ..close());
+            ..moveTo(0, 0)
+            ..lineTo(size.width, 0)
+            ..lineTo(size.width / 2, size.height)
+            ..close());
     canvas.drawPath(path, Paint()..color = color);
   }
 
   @override
-  bool shouldRepaint(_TrianglePainter old) => old.color != color || old.up != up;
+  bool shouldRepaint(_TrianglePainter old) =>
+      old.color != color || old.up != up;
 }
 
 /// The dropdown: every metric, under its group's heading.
@@ -2919,44 +3465,61 @@ class _Picker extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: S.x2),
       decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        for (final g in TrendGroup.values)
-          if (kTrendCatalogue.any((m) => m.group == g && _listed(m))) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x4, S.x2),
-            child: Row(children: [
-              Text(trendGroupName(g).toUpperCase(),
-                  style: F.over.copyWith(
-                      color: p.ink2, fontWeight: FontWeight.w700)),
-              const SizedBox(width: S.x3),
-              Expanded(child: Container(height: S.half / 2, color: p.line)),
-            ]),
-          ),
-          for (final m in kTrendCatalogue)
-            if (m.group == g && _listed(m))
-              Pressable(
-                onTap: () => onPick(m),
-                semanticLabel: m.title,
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: S.x2),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x4),
-                  decoration: BoxDecoration(
-                    color: m == current ? p.card2 : null,
-                    borderRadius: R.rLg,
-                  ),
-                  child: Row(children: [
-                    Icon(m.icon, size: I.lg, color: p.ink2),
-                    const SizedBox(width: S.x4),
-                    Expanded(
-                      child: Text(m.title.toUpperCase(),
-                          style: F.caps.copyWith(color: p.ink)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final g in TrendGroup.values)
+            if (kTrendCatalogue.any((m) => m.group == g && _listed(m))) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x4, S.x2),
+                child: Row(
+                  children: [
+                    Text(
+                      trendGroupName(g).toUpperCase(),
+                      style: F.over.copyWith(
+                        color: p.ink2,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ]),
+                    const SizedBox(width: S.x3),
+                    Expanded(
+                      child: Container(height: S.half / 2, color: p.line),
+                    ),
+                  ],
                 ),
               ),
+              for (final m in kTrendCatalogue)
+                if (m.group == g && _listed(m))
+                  Pressable(
+                    onTap: () => onPick(m),
+                    semanticLabel: m.title,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: S.x2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: S.x3,
+                        vertical: S.x4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: m == current ? p.card2 : null,
+                        borderRadius: R.rLg,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(m.icon, size: I.lg, color: p.ink2),
+                          const SizedBox(width: S.x4),
+                          Expanded(
+                            child: Text(
+                              m.title.toUpperCase(),
+                              style: F.caps.copyWith(color: p.ink),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+            ],
         ],
-      ]),
+      ),
     );
   }
 }
@@ -2982,10 +3545,10 @@ class _MonthBars {
 }
 
 String _aboutName(TrendMetric m) => switch (m.id) {
-      'hrv' => 'Heart Rate Variability',
-      'avg_hr' => 'Average Heart Rate',
-      _ => m.title.replaceAll(RegExp(r' \(.*\)'), ''),
-    };
+  'hrv' => 'Heart Rate Variability',
+  'avg_hr' => 'Average Heart Rate',
+  _ => m.title.replaceAll(RegExp(r' \(.*\)'), ''),
+};
 
 /// A short explanation of what a metric is and how to read it, written for this
 /// app's own measure of it. Null for a metric with nothing to explain.
@@ -2994,127 +3557,127 @@ String? trendAbout(String id) => _about[id];
 const _about = <String, String>{
   'vo2max':
       'VO₂ max is the most oxygen your body can use in hard, sustained effort, '
-          'in millilitres per kilo of body weight a minute. It is the size of '
-          'your aerobic engine, and one of the strongest single predictors of '
-          'how well you perform and how long you stay healthy.\n\n'
-          'Locus '
-          'estimates it in three steps, as sharp as your data allows: from your '
-          'profile and weekly heart-rate zones; from the pace and heart rate '
-          'of your outdoor runs; or anchored to a lab test you enter. It moves '
-          'weekly. A rising line means your fitness is building, a falling one '
-          'detraining or illness; the level is an estimate, the direction is '
-          'what to watch.',
+      'in millilitres per kilo of body weight a minute. It is the size of '
+      'your aerobic engine, and one of the strongest single predictors of '
+      'how well you perform and how long you stay healthy.\n\n'
+      'Locus '
+      'estimates it in three steps, as sharp as your data allows: from your '
+      'profile and weekly heart-rate zones; from the pace and heart rate '
+      'of your outdoor runs; or anchored to a lab test you enter. It moves '
+      'weekly. A rising line means your fitness is building, a falling one '
+      'detraining or illness; the level is an estimate, the direction is '
+      'what to watch.',
   'strain':
       'Day strain scores how much cardiovascular load the day put on your body, '
-          'from 0 to 21. It builds from the time your heart rate spends above its '
-          'resting level, with harder minutes counting for more. Under 10 is '
-          'light, 10 to 13.9 moderate, 14 to 17.9 strenuous, and 18 or more is '
-          'all out.\n\nThe scale is logarithmic: the last few points cost far '
-          'more effort than the first.',
+      'from 0 to 21. It builds from the time your heart rate spends above its '
+      'resting level, with harder minutes counting for more. Under 10 is '
+      'light, 10 to 13.9 moderate, 14 to 17.9 strenuous, and 18 or more is '
+      'all out.\n\nThe scale is logarithmic: the last few points cost far '
+      'more effort than the first.',
   'steps':
       'Steps counts the steps your band detected through the day. It is a beta '
-          'estimate read from wrist movement, so carrying a bag, pushing a '
-          'stroller or a rough car ride can nudge it. A guided walk in settings '
-          'calibrates it to your stride.',
+      'estimate read from wrist movement, so carrying a bag, pushing a '
+      'stroller or a rough car ride can nudge it. A guided walk in settings '
+      'calibrates it to your stride.',
   'zones_13':
       'Heart rate zones 1 to 3 are the easy to steady efforts: a gentle pulse, '
-          'an aerobic pace you could hold a conversation at, and a hard but '
-          'sustainable effort. This adds up the time you spend in them each day. '
-          'Most of your endurance is built here.\n\nZones are set from your '
-          'resting and maximum heart rate.',
+      'an aerobic pace you could hold a conversation at, and a hard but '
+      'sustainable effort. This adds up the time you spend in them each day. '
+      'Most of your endurance is built here.\n\nZones are set from your '
+      'resting and maximum heart rate.',
   'zones_45':
       'Heart rate zones 4 and 5 are the hard efforts: threshold work and '
-          'near-maximal effort. Time here is costly, so it is usually counted in '
-          'minutes and needs recovery afterwards.\n\nZones are set from your '
-          'resting and maximum heart rate.',
+      'near-maximal effort. Time here is costly, so it is usually counted in '
+      'minutes and needs recovery afterwards.\n\nZones are set from your '
+      'resting and maximum heart rate.',
   'zones_all':
       'All five heart rate zones together, from a gentle pulse in zone 1 to '
-          'near-maximal effort in zone 5, added up for each day. The breakdown '
-          'shows how that time was split.',
+      'near-maximal effort in zone 5, added up for each day. The breakdown '
+      'shows how that time was split.',
   'strength_time':
       'Strength activity time is the time you logged in strength sessions: '
-          'workouts where you recorded sets. A day with none counts as zero '
-          'once you have been using the app.',
+      'workouts where you recorded sets. A day with none counts as zero '
+      'once you have been using the app.',
   'volume_load':
       'Total volume load is the weight you moved: reps times load, added up over '
-          'every set that has a load. Sets without a weight, such as bodyweight '
-          'work, are left out, so it can read lower than the session felt.',
+      'every set that has a load. Sets without a weight, such as bodyweight '
+      'work, are left out, so it can read lower than the session felt.',
   'avg_hr':
       'Average heart rate is the mean of your heart rate over the day. It moves '
-          'with activity, caffeine, stress, heat and hydration, and a lower '
-          'average for the same routine generally goes with better fitness.\n\n'
-          'Pinch the day chart to zoom into a stretch of it.',
+      'with activity, caffeine, stress, heat and hydration, and a lower '
+      'average for the same routine generally goes with better fitness.\n\n'
+      'Pinch the day chart to zoom into a stretch of it.',
   'calories':
       'Calories is the energy your body used, estimated from your heart rate '
-          'through the day together with your age, weight, height and sex. '
-          'Heart-rate estimates are best in steady activity and rougher at rest.'
-          '\n\nThe hourly view shares the day\'s total across its hours in '
-          'proportion to how hard your heart worked in each.',
+      'through the day together with your age, weight, height and sex. '
+      'Heart-rate estimates are best in steady activity and rougher at rest.'
+      '\n\nThe hourly view shares the day\'s total across its hours in '
+      'proportion to how hard your heart worked in each.',
   'recovery':
       'Recovery says how ready your body is to take on strain today. It is built '
-          'each morning from your overnight heart rate variability, resting heart '
-          'rate, respiratory rate and sleep, each held against your own recent '
-          'baseline. Green is 67% and above, yellow 34 to 66%, red below that.',
+      'each morning from your overnight heart rate variability, resting heart '
+      'rate, respiratory rate and sleep, each held against your own recent '
+      'baseline. Green is 67% and above, yellow 34 to 66%, red below that.',
   'hrv':
       'Heart rate variability is how much the time between heartbeats varies. A '
-          'higher number generally means your nervous system is well recovered '
-          'and adaptable, but what is normal differs a lot between people, so '
-          'compare it with your own baseline.\n\nIt is read overnight, when it is '
-          'steadiest. Stress, alcohol, illness and hard training push it down. '
-          'The day view draws each hour, and shades your sleep: only the '
-          'readings taken asleep count towards the average.',
+      'higher number generally means your nervous system is well recovered '
+      'and adaptable, but what is normal differs a lot between people, so '
+      'compare it with your own baseline.\n\nIt is read overnight, when it is '
+      'steadiest. Stress, alcohol, illness and hard training push it down. '
+      'The day view draws each hour, and shades your sleep: only the '
+      'readings taken asleep count towards the average.',
   'resting_hr':
       'Resting heart rate is the lowest level your heart settles at, measured '
-          'while you sleep. It tends to fall as fitness improves and rise with '
-          'illness, dehydration, alcohol, stress or too little recovery. A '
-          'change of a few beats from your own baseline is worth noticing.',
+      'while you sleep. It tends to fall as fitness improves and rise with '
+      'illness, dehydration, alcohol, stress or too little recovery. A '
+      'change of a few beats from your own baseline is worth noticing.',
   'resp_rate':
       'Respiratory rate is how many breaths you take a minute while asleep. For '
-          'most healthy adults it is steady, around 12 to 20. A sustained rise '
-          'above your own baseline can be an early sign of illness or heavy '
-          'fatigue.',
+      'most healthy adults it is steady, around 12 to 20. A sustained rise '
+      'above your own baseline can be an early sign of illness or heavy '
+      'fatigue.',
   'sleep_perf':
       'Sleep performance compares the sleep you got with the sleep your body '
-          'needed that night, capped at 100%. Your need comes from your baseline, '
-          'the strain you took on, any sleep debt carried and naps.',
+      'needed that night, capped at 100%. Your need comes from your baseline, '
+      'the strain you took on, any sleep debt carried and naps.',
   'time_in_bed':
       'Time in bed is the span from when you settled to sleep to when you woke. '
-          'It includes short wakeful moments, so it runs longer than the hours '
-          'you actually slept.\n\nEach bar floats between your bedtime (top) and '
-          'wake time (bottom), on a clock that runs from evening to morning.',
+      'It includes short wakeful moments, so it runs longer than the hours '
+      'you actually slept.\n\nEach bar floats between your bedtime (top) and '
+      'wake time (bottom), on a clock that runs from evening to morning.',
   'hvn_hours':
       'Hours vs. needed compares the hours you slept with the hours your body '
-          'asked for. The green line is what you needed, the blue what you got. '
-          'While the blue sits under the green you are adding to your sleep '
-          'debt.',
+      'asked for. The green line is what you needed, the blue what you got. '
+      'While the blue sits under the green you are adding to your sleep '
+      'debt.',
   'hvn_pct':
       'Hours vs. needed as a percentage is the sleep you got divided by the '
-          'sleep you needed. 100% means you met your need; above it you got more '
-          'than you asked for, below it you fell short.',
+      'sleep you needed. 100% means you met your need; above it you got more '
+      'than you asked for, below it you fell short.',
   'consistency':
       'Sleep consistency measures how regular your bed and wake times are from '
-          'night to night: 100% would be the same times every day. The dashed '
-          'lines mark your usual bed and wake times.\n\nRegular timing steadies '
-          'your body clock and is linked with better sleep.',
+      'night to night: 100% would be the same times every day. The dashed '
+      'lines mark your usual bed and wake times.\n\nRegular timing steadies '
+      'your body clock and is linked with better sleep.',
   'restorative_pct':
       'Restorative sleep is time in deep (slow-wave) sleep and REM sleep, the '
-          'stages in which the body repairs itself and the brain consolidates '
-          'memory and mood. This is that time as a share of the night\'s sleep.',
+      'stages in which the body repairs itself and the brain consolidates '
+      'memory and mood. This is that time as a share of the night\'s sleep.',
   'restorative_hours':
       'Restorative sleep is time in deep (slow-wave) sleep and REM sleep, the '
-          'stages in which the body repairs itself and the brain consolidates '
-          'memory and mood. Each column stacks deep sleep and REM; touch one to '
-          'see them apart.',
+      'stages in which the body repairs itself and the brain consolidates '
+      'memory and mood. Each column stacks deep sleep and REM; touch one to '
+      'see them apart.',
   'efficiency':
       'Sleep efficiency is the share of the time you spent in bed that you were '
-          'actually asleep. A few restless minutes are normal; 85% or more is '
-          'generally considered good.',
+      'actually asleep. A few restless minutes are normal; 85% or more is '
+      'generally considered good.',
   'sleep_debt':
       'Sleep debt is the accumulated gap between the sleep you needed and the '
-          'sleep you got over recent nights. Under 30 to 45 minutes is optimal. '
-          'Higher levels can cost energy, mood, concentration and immune '
-          'strength.\n\nExtra sleep and short naps of 20 to 30 minutes help repay '
-          'it, though it can take several nights.',
+      'sleep you got over recent nights. Under 30 to 45 minutes is optimal. '
+      'Higher levels can cost energy, mood, concentration and immune '
+      'strength.\n\nExtra sleep and short naps of 20 to 30 minutes help repay '
+      'it, though it can take several nights.',
 };
 
 /// The card of plain explanation under a chart.
@@ -3132,17 +3695,27 @@ class _AboutCard extends StatelessWidget {
         color: Color.alphaBlend(p.ink.withValues(alpha: .035), p.card),
         borderRadius: R.rXl,
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: F.head.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-        const SizedBox(height: S.x4),
-        Text(body,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: F.head.copyWith(color: p.ink, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: S.x4),
+          Text(
+            body,
             style: F.body.copyWith(
-                color: p.ink2, fontWeight: FontWeight.w500, height: 1.45)),
-      ]),
+              color: p.ink2,
+              fontWeight: FontWeight.w500,
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
-
 
 /// The lab result the person entered, or null.
 Vo2Lab? readVo2Lab() {
@@ -3178,56 +3751,67 @@ class _Vo2Panel extends StatelessWidget {
         if (r == null) return const SizedBox.shrink();
         final (title, body) = switch (r.source) {
           Vo2Source.lab => (
-              'Anchored to your lab test',
-              'Your result of ${lab?.value.toStringAsFixed(1)} sets the level. '
-                  'The trend follows what the strap sees: your activity, your '
-                  'runs and your profile.'
-            ),
+            'Anchored to your lab test',
+            'Your result of ${lab?.value.toStringAsFixed(1)} sets the level. '
+                'The trend follows what the strap sees: your activity, your '
+                'runs and your profile.',
+          ),
           Vo2Source.gps => (
-              'From your outdoor runs',
-              'The middle of your last few runs of 15 minutes or more: the '
-                  'pace you held and what it cost your heart. It updates '
-                  'weekly, and each run is good to roughly 10-15 %.'
-            ),
+            'From your outdoor runs',
+            'The middle of your last few runs of 15 minutes or more: the '
+                'pace you held and what it cost your heart. It updates '
+                'weekly, and each run is good to roughly 10-15 %.',
+          ),
           Vo2Source.passive => (
-              'Passive estimate',
-              'From your age, sex, height and weight and how much hard and '
-                  'moderate heart-rate time you log each week. It is good to '
-                  'about 5 mL/kg/min: follow the direction, not the decimal. '
-                  'A run outdoors, or a lab test, sharpens it.'
-            ),
-          null => (
-              'Not enough yet',
-              r.why ?? 'Nothing to estimate from yet.',
-            ),
+            'Passive estimate',
+            'From your age, sex, height and weight and how much hard and '
+                'moderate heart-rate time you log each week. It is good to '
+                'about 5 mL/kg/min: follow the direction, not the decimal. '
+                'A run outdoors, or a lab test, sharpens it.',
+          ),
+          null => ('Not enough yet', r.why ?? 'Nothing to estimate from yet.'),
         };
         return Container(
           padding: const EdgeInsets.all(S.x5),
           decoration: BoxDecoration(color: p.card, borderRadius: R.rLg),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title.toUpperCase(),
-                style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w800)),
-            const SizedBox(height: S.x2),
-            Text(body, style: F.cap.copyWith(color: p.ink2, height: 1.4)),
-            if (r.source != null && r.why != null) ...[
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title.toUpperCase(),
+                style: F.caps.copyWith(
+                  color: p.ink,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: S.x2),
-              Text(r.why!, style: F.cap.copyWith(color: p.ink3, height: 1.4)),
+              Text(body, style: F.cap.copyWith(color: p.ink2, height: 1.4)),
+              if (r.source != null && r.why != null) ...[
+                const SizedBox(height: S.x2),
+                Text(r.why!, style: F.cap.copyWith(color: p.ink3, height: 1.4)),
+              ],
+              const SizedBox(height: S.x4),
+              Wrap(
+                spacing: S.x5,
+                children: [
+                  TextAction(
+                    lab == null
+                        ? 'Enter a lab result'
+                        : 'Change the lab result',
+                    () async {
+                      final done = await _askLab(c, lab);
+                      if (done) onLab();
+                    },
+                  ),
+                  if (lab != null)
+                    TextAction('Remove it', () {
+                      clearVo2Lab();
+                      onLab();
+                    }),
+                ],
+              ),
             ],
-            const SizedBox(height: S.x4),
-            Wrap(spacing: S.x5, children: [
-              TextAction(
-                  lab == null ? 'Enter a lab result' : 'Change the lab result',
-                  () async {
-                final done = await _askLab(c, lab);
-                if (done) onLab();
-              }),
-              if (lab != null)
-                TextAction('Remove it', () {
-                  clearVo2Lab();
-                  onLab();
-                }),
-            ]),
-          ]),
+          ),
         );
       },
     );
@@ -3265,37 +3849,44 @@ class _LabFormState extends State<_LabForm> {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      Text(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
           'The result of a test with a gas-exchange mask, in mL/kg/min. It '
           'becomes the anchor: the estimate keeps its trend and takes your '
           'level.',
-          style: F.body.copyWith(color: p.ink2, height: 1.4)),
-      const SizedBox(height: S.x4),
-      AppField(
-        label: 'VO₂ max (mL/kg/min)',
-        initialValue: _text,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        onChanged: (v) => setState(() => _text = v),
-        autofocus: true,
-      ),
-      const SizedBox(height: S.x3),
-      TextAction('Taken on $_day', () async {
-        final d = await showDatePicker(
-          context: c,
-          initialDate: DateTime.parse(_day),
-          firstDate: DateTime(2000),
-          lastDate: DateTime.now(),
-        );
-        if (d != null) setState(() => _day = dayLabelOf(d));
-      }),
-      const SizedBox(height: S.x5),
-      BigButton('Save', onTap: _value == null
-          ? null
-          : () {
-              saveVo2Lab(_day, _value!);
-              Navigator.of(c).pop(true);
-            }),
-    ]);
+          style: F.body.copyWith(color: p.ink2, height: 1.4),
+        ),
+        const SizedBox(height: S.x4),
+        AppField(
+          label: 'VO₂ max (mL/kg/min)',
+          initialValue: _text,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: (v) => setState(() => _text = v),
+          autofocus: true,
+        ),
+        const SizedBox(height: S.x3),
+        TextAction('Taken on $_day', () async {
+          final d = await showDatePicker(
+            context: c,
+            initialDate: DateTime.parse(_day),
+            firstDate: DateTime(2000),
+            lastDate: DateTime.now(),
+          );
+          if (d != null) setState(() => _day = dayLabelOf(d));
+        }),
+        const SizedBox(height: S.x5),
+        BigButton(
+          'Save',
+          onTap: _value == null
+              ? null
+              : () {
+                  saveVo2Lab(_day, _value!);
+                  Navigator.of(c).pop(true);
+                },
+        ),
+      ],
+    );
   }
 }

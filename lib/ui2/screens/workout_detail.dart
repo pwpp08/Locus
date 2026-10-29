@@ -20,9 +20,11 @@ import '../../data/local_repository.dart';
 import '../../gps/route_models.dart';
 import '../../state/app_state.dart';
 import '../../state/clock_format.dart';
+import '../../state/units_controller.dart';
 import '../activity/catalogue.dart';
 import '../activity/share.dart' show ShareSheet;
 import '../activity/tiles.dart';
+import '../components/metric_comparison_card.dart';
 import '../ui2.dart';
 import 'home_screen.dart' show repoOf, unitsOf;
 import 'add_activity.dart' show openEditActivity;
@@ -31,7 +33,13 @@ import 'window_editor.dart' show HrPoint;
 import 'workout_screen.dart' show sessionResultOf;
 
 /// The five zone hues, Z1…Z5.
-const _zoneColors = [C.refZone1, C.refZone2, C.refZone3, C.refZone4, C.refZone5];
+const _zoneColors = [
+  C.refZone1,
+  C.refZone2,
+  C.refZone3,
+  C.refZone4,
+  C.refZone5,
+];
 
 /// The same sport's last thirty days, this session left out.
 class SportAverage {
@@ -109,13 +117,17 @@ class WorkoutDetail {
   }
 
   static Future<WorkoutDetail> load(
-      LocalRepository repo, Map<String, dynamic> s) async {
+    LocalRepository repo,
+    Map<String, dynamic> s,
+  ) async {
     final id = (s['id'] as String?) ?? '';
     final type = (s['type'] as String?) ?? 'other';
-    final a = activityByName(type) ??
+    final a =
+        activityByName(type) ??
         Activity(type, LucideIcons.activity, C.purple, Track.duration, 5.0);
     final start = (s['start_ts'] as num?)?.toInt() ?? 0;
-    final end = (s['end_ts'] as num?)?.toInt() ??
+    final end =
+        (s['end_ts'] as num?)?.toInt() ??
         start + ((s['duration_min'] as num?)?.toInt() ?? 0) * 60;
     var w = <String, dynamic>{};
     try {
@@ -230,7 +242,10 @@ class WorkoutDetail {
             r.cast<String, dynamic>(),
       ];
       double? mean(Iterable<num?> xs) {
-        final v = [for (final x in xs) if (x != null) x.toDouble()];
+        final v = [
+          for (final x in xs)
+            if (x != null) x.toDouble(),
+        ];
         return v.isEmpty ? null : v.reduce((a, b) => a + b) / v.length;
       }
 
@@ -263,10 +278,12 @@ class WorkoutDetail {
         calories: mean(same.map((r) => r['calories'] as num?)),
         avgHr: mean(same.map((r) => r['avg_hr'] as num?)),
         maxHr: mean(same.map((r) => r['max_hr'] as num?)),
-        durationSec: mean(same.map((r) {
-          final m = r['duration_min'] as num?;
-          return m == null ? null : m * 60;
-        })),
+        durationSec: mean(
+          same.map((r) {
+            final m = r['duration_min'] as num?;
+            return m == null ? null : m * 60;
+          }),
+        ),
         typical: typical,
       );
     } catch (_) {}
@@ -346,7 +363,13 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
   /// Two fingers zoom the chart about where they began, and moving them
   /// together moves the view along: down to a couple of minutes, minute by
   /// minute.
-  void _pinch(WorkoutDetail d, PinchPhase phase, double scale, double focal, double pan) {
+  void _pinch(
+    WorkoutDetail d,
+    PinchPhase phase,
+    double scale,
+    double focal,
+    double pan,
+  ) {
     if (phase == PinchPhase.start) {
       final (a, b) = _view(d);
       _pinchSpan = b - a;
@@ -396,9 +419,21 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
       position: RelativeRect.fromLTRB(at.dx, at.dy, size.width - at.dx, 0),
       shape: const RoundedRectangleBorder(borderRadius: R.rMd),
       items: [
-        PopupMenuItem(value: 'share', height: S.x16, child: Text('Share', style: st)),
-        PopupMenuItem(value: 'edit', height: S.x16, child: Text('Edit', style: st)),
-        PopupMenuItem(value: 'delete', height: S.x16, child: Text('Delete', style: st)),
+        PopupMenuItem(
+          value: 'share',
+          height: S.x16,
+          child: Text('Share', style: st),
+        ),
+        PopupMenuItem(
+          value: 'edit',
+          height: S.x16,
+          child: Text('Edit', style: st),
+        ),
+        PopupMenuItem(
+          value: 'delete',
+          height: S.x16,
+          child: Text('Delete', style: st),
+        ),
       ],
     );
     if (!mounted || pick == null) return;
@@ -425,10 +460,12 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
       case 'delete':
         if (d == null) return;
         final name = d.activity.displayName(context).toLowerCase();
-        final ok = await confirmRemove(context,
-            title: 'Delete this $name?',
-            body: 'It disappears from Locus, with its strain and its route.',
-            remove: 'Delete');
+        final ok = await confirmRemove(
+          context,
+          title: 'Delete this $name?',
+          body: 'It disappears from Locus, with its strain and its route.',
+          remove: 'Delete',
+        );
         if (!ok || !mounted) return;
         final app = _app();
         final nav = Navigator.of(context);
@@ -452,7 +489,8 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
     final p = P.of(c);
     final d = _d;
     final s = widget.session;
-    final a = d?.activity ??
+    final a =
+        d?.activity ??
         activityByName(s['type'] as String?) ??
         Activity('Activity', LucideIcons.activity, C.purple, Track.duration, 5);
     final start = d?.start ?? (s['start_ts'] as num?)?.toInt() ?? 0;
@@ -460,48 +498,64 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
-        child: Column(children: [
-          _header(c, p, a, start, end),
-          Expanded(
-            child: d == null
-                ? const Center(child: CircularProgressIndicator())
-                : ListView(
-                    padding: EdgeInsets.only(bottom: S.navClear(c)),
-                    children: [
-                      _strain(c, p, d),
-                      const SizedBox(height: S.x2),
-                      _chart(c, p, d),
-                      const SizedBox(height: S.x6),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: S.x4),
-                        child: Column(children: [
-                          _legend(p, d),
-                          const SizedBox(height: S.x5),
-                          for (var z = 4; z >= 0; z--) ...[
-                            _zoneCard(c, p, d, z),
-                            const SizedBox(height: S.x3),
-                          ],
-                          if (d.route != null) ...[
-                            const SizedBox(height: S.x8),
-                            _RouteCard(d: d, onShare: () => _share()),
-                          ],
-                          const SizedBox(height: S.x10),
-                          _keyStatsHead(p),
-                          const SizedBox(height: S.x4),
-                        ]),
-                      ),
-                      _keyStats(c, p, d),
-                      if (d.count > 0) ...[
-                        const SizedBox(height: S.x5),
+        child: Column(
+          children: [
+            _header(c, p, a, start, end),
+            Expanded(
+              child: d == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView(
+                      padding: EdgeInsets.only(bottom: S.navClear(c)),
+                      children: [
+                        _strain(c, p, d),
+                        const SizedBox(height: S.x2),
+                        _chart(c, p, d),
+                        const SizedBox(height: S.x6),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: S.x4),
-                          child: _milestone(p, d),
+                          child: Column(
+                            children: [
+                              _legend(p, d),
+                              const SizedBox(height: S.x5),
+                              for (var z = 4; z >= 0; z--) ...[
+                                _zoneCard(c, p, d, z),
+                                const SizedBox(height: S.x3),
+                              ],
+                              if (d.route != null) ...[
+                                const SizedBox(height: S.x8),
+                                _RouteCard(d: d, onShare: () => _share()),
+                              ],
+                              if (d.type.toLowerCase().contains('run') ||
+                                  a.name.toLowerCase() == 'running') ...[
+                                const SizedBox(height: S.x8),
+                                RunningWorkoutComparisonCard(
+                                  detail: d,
+                                  units:
+                                      unitsOf(c) ??
+                                      UnitsController.seed(UnitSystem.metric),
+                                ),
+                              ],
+                              const SizedBox(height: S.x10),
+                              _keyStatsHead(p),
+                              const SizedBox(height: S.x4),
+                            ],
+                          ),
                         ),
+                        _keyStats(c, p, d),
+                        if (d.count > 0) ...[
+                          const SizedBox(height: S.x5),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: S.x4,
+                            ),
+                            child: _milestone(p, d),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
-          ),
-        ]),
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -516,77 +570,108 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
 
   // ── the header ──────────────────────────────────────────────────────────
   static const _mo = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   Widget _header(BuildContext c, P p, Activity a, int start, int end) {
     final s = DateTime.fromMillisecondsSinceEpoch(start * 1000);
     final e = DateTime.fromMillisecondsSinceEpoch(end * 1000);
-    final when = '${_mo[s.month - 1]} ${s.day}, ${s.year} '
+    final when =
+        '${_mo[s.month - 1]} ${s.day}, ${s.year} '
         '${formatClock(s.hour, s.minute)} to ${formatClock(e.hour, e.minute)}';
     final menuKey = GlobalKey();
     return Padding(
       padding: const EdgeInsets.fromLTRB(S.x2, S.x2, S.x3, S.x2),
-      child: Row(children: [
-        Pressable(
-          onTap: () => Navigator.of(c).maybePop(),
-          semanticLabel: 'Back',
-          child: SizedBox(
-            width: S.tap,
-            height: S.tap,
-            child: Center(
-                child: BoldChevron(left: true, height: S.x5, color: p.ink)),
-          ),
-        ),
-        const SizedBox(width: S.x2),
-        Icon(a.icon, size: I.lg + S.x1, color: p.ink),
-        const SizedBox(width: S.x3),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(a.displayName(c).toUpperCase(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: F.cap.copyWith(
-                    color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.3)),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(when,
-                  maxLines: 1,
-                  style: F.over.copyWith(color: p.ink3, fontWeight: FontWeight.w500)),
+      child: Row(
+        children: [
+          Pressable(
+            onTap: () => Navigator.of(c).maybePop(),
+            semanticLabel: 'Back',
+            child: SizedBox(
+              width: S.tap,
+              height: S.tap,
+              child: Center(
+                child: BoldChevron(left: true, height: S.x5, color: p.ink),
+              ),
             ),
-          ]),
-        ),
-        Pressable(
-          key: menuKey,
-          onTap: () {
-            final box = menuKey.currentContext?.findRenderObject() as RenderBox?;
-            final at = box == null
-                ? Offset(MediaQuery.sizeOf(c).width, S.x16)
-                : box.localToGlobal(Offset(0, box.size.height));
-            _menu(c, at);
-          },
-          semanticLabel: 'More',
-          child: SizedBox(
-            width: S.tap + S.x2,
-            height: S.tap,
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              for (var i = 0; i < 3; i++) ...[
-                if (i > 0) const SizedBox(width: S.x1),
-                Container(
-                  width: S.x2 + S.half,
-                  height: S.x2 + S.half,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: p.ink, width: S.half),
+          ),
+          const SizedBox(width: S.x2),
+          Icon(a.icon, size: I.lg + S.x1, color: p.ink),
+          const SizedBox(width: S.x3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  a.displayName(c).toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: F.cap.copyWith(
+                    color: p.ink,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.3,
+                  ),
+                ),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    when,
+                    maxLines: 1,
+                    style: F.over.copyWith(
+                      color: p.ink3,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
-            ]),
+            ),
           ),
-        ),
-      ]),
+          Pressable(
+            key: menuKey,
+            onTap: () {
+              final box =
+                  menuKey.currentContext?.findRenderObject() as RenderBox?;
+              final at = box == null
+                  ? Offset(MediaQuery.sizeOf(c).width, S.x16)
+                  : box.localToGlobal(Offset(0, box.size.height));
+              _menu(c, at);
+            },
+            semanticLabel: 'More',
+            child: SizedBox(
+              width: S.tap + S.x2,
+              height: S.tap,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var i = 0; i < 3; i++) ...[
+                    if (i > 0) const SizedBox(width: S.x1),
+                    Container(
+                      width: S.x2 + S.half,
+                      height: S.x2 + S.half,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: p.ink, width: S.half),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -604,39 +689,67 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
       }
     }
     final label = F.over.copyWith(
-        color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: 1.4);
+      color: p.ink3,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 1.4,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: S.x4),
       child: SizedBox(
         height: S.x16,
         child: at != null
-            ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
                     children: [
-                      Text('${at.v.round()}',
-                          style: F.n34.copyWith(
-                              color: C.dialStrain, fontWeight: FontWeight.w700)),
+                      Text(
+                        '${at.v.round()}',
+                        style: F.n34.copyWith(
+                          color: C.dialStrain,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(width: S.x2),
-                      Text('bpm',
-                          style: F.body.copyWith(
-                              color: C.dialStrain, fontWeight: FontWeight.w500)),
-                    ]),
-                Text(_clockAt(at.t), style: F.num(F.cap).copyWith(color: p.ink3)),
-              ])
-            : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-                  Text(v == null ? '--' : v.toStringAsFixed(1),
-                      style: F.n34
-                          .copyWith(color: C.dialStrain, fontWeight: FontWeight.w700)),
-                  if (v != null && avg != null) ...[
-                    const SizedBox(width: S.x3),
-                    _VsPill(up: v >= avg, text: avg.toStringAsFixed(1)),
-                  ],
-                ]),
-                Text('ACTIVITY STRAIN', style: label),
-              ]),
+                      Text(
+                        'bpm',
+                        style: F.body.copyWith(
+                          color: C.dialStrain,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    _clockAt(at.t),
+                    style: F.num(F.cap).copyWith(color: p.ink3),
+                  ),
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        v == null ? '--' : v.toStringAsFixed(1),
+                        style: F.n34.copyWith(
+                          color: C.dialStrain,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (v != null && avg != null) ...[
+                        const SizedBox(width: S.x3),
+                        _VsPill(up: v >= avg, text: avg.toStringAsFixed(1)),
+                      ],
+                    ],
+                  ),
+                  Text('ACTIVITY STRAIN', style: label),
+                ],
+              ),
       ),
     );
   }
@@ -650,62 +763,95 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
   Widget _chart(BuildContext c, P p, WorkoutDetail d) {
     final (v0, v1) = _view(d);
     final zoomed = v1 - v0 < d.to - d.from;
-    return Stack(children: [
-      Scrubber(
-        value: null,
-        onChanged: (f) => _scrub(d, f),
-        onLift: () => setState(() => _scrubT = null),
-        yieldToScroll: true,
-        onPinch: (ph, sc, fo, pa) => _pinch(d, ph, sc, fo, pa),
-        label: 'Heart rate through the activity',
-        describe: (f) => _clockAt(v0 + (f * (v1 - v0)).round()),
-        child: _WorkoutChart(d: d, zone: _zone, v0: v0, v1: v1, scrubT: _scrubT),
-      ),
-      if (zoomed)
-        Positioned(
-          right: S.x3,
-          top: S.x2,
-          child: Pressable(
-            onTap: () => setState(() {
-              _v0 = _v1 = null;
-            }),
-            semanticLabel: 'Show the whole activity',
-            child: Container(
-              height: S.x8,
-              padding: const EdgeInsets.symmetric(horizontal: S.x3),
-              decoration: BoxDecoration(
-                color: p.ink.withValues(alpha: .12),
-                borderRadius: R.rPill,
-              ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(LucideIcons.zoomOut, size: I.sm, color: p.ink),
-                const SizedBox(width: S.x1),
-                Text('RESET', style: F.over.copyWith(color: p.ink, fontWeight: FontWeight.w800)),
-              ]),
-            ),
+    return Stack(
+      children: [
+        Scrubber(
+          value: null,
+          onChanged: (f) => _scrub(d, f),
+          onLift: () => setState(() => _scrubT = null),
+          yieldToScroll: true,
+          onPinch: (ph, sc, fo, pa) => _pinch(d, ph, sc, fo, pa),
+          label: 'Heart rate through the activity',
+          describe: (f) => _clockAt(v0 + (f * (v1 - v0)).round()),
+          child: _WorkoutChart(
+            d: d,
+            zone: _zone,
+            v0: v0,
+            v1: v1,
+            scrubT: _scrubT,
           ),
         ),
-    ]);
+        if (zoomed)
+          Positioned(
+            right: S.x3,
+            top: S.x2,
+            child: Pressable(
+              onTap: () => setState(() {
+                _v0 = _v1 = null;
+              }),
+              semanticLabel: 'Show the whole activity',
+              child: Container(
+                height: S.x8,
+                padding: const EdgeInsets.symmetric(horizontal: S.x3),
+                decoration: BoxDecoration(
+                  color: p.ink.withValues(alpha: .12),
+                  borderRadius: R.rPill,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(LucideIcons.zoomOut, size: I.sm, color: p.ink),
+                    const SizedBox(width: S.x1),
+                    Text(
+                      'RESET',
+                      style: F.over.copyWith(
+                        color: p.ink,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   // ── the legend over the zones ───────────────────────────────────────────
-  Widget _legend(P p, WorkoutDetail d) => Row(children: [
-        SizedBox(
-          width: S.x5,
-          height: S.x6,
-          child: CustomPaint(painter: _TypicalBox(p.ink2, p.ink.withValues(alpha: .12))),
+  Widget _legend(P p, WorkoutDetail d) => Row(
+    children: [
+      SizedBox(
+        width: S.x5,
+        height: S.x6,
+        child: CustomPaint(
+          painter: _TypicalBox(p.ink2, p.ink.withValues(alpha: .12)),
         ),
-        const SizedBox(width: S.x4),
-        Text('TYPICAL RANGE',
-            style: F.caps.copyWith(
-                color: p.ink2, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
-        const Spacer(),
-        Text('DURATION ',
-            style: F.caps.copyWith(
-                color: p.ink2, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
-        Text(_hms(d.durationSec),
-            style: F.num(F.t2).copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-      ]);
+      ),
+      const SizedBox(width: S.x4),
+      Text(
+        'TYPICAL RANGE',
+        style: F.caps.copyWith(
+          color: p.ink2,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.4,
+        ),
+      ),
+      const Spacer(),
+      Text(
+        'DURATION ',
+        style: F.caps.copyWith(
+          color: p.ink2,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.4,
+        ),
+      ),
+      Text(
+        _hms(d.durationSec),
+        style: F.num(F.t2).copyWith(color: p.ink, fontWeight: FontWeight.w700),
+      ),
+    ],
+  );
 
   // ── one zone ────────────────────────────────────────────────────────────
   Widget _zoneCard(BuildContext c, P p, WorkoutDetail d, int z) {
@@ -715,8 +861,8 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
     final range = lo == null
         ? ''
         : z == 4
-            ? '${lo[4]}+ BPM'
-            : '${lo[z]}-${lo[z + 1] - 1} BPM';
+        ? '${lo[4]}+ BPM'
+        : '${lo[z]}-${lo[z + 1] - 1} BPM';
     final pct = d.durationSec <= 0 ? 0 : (secs / d.durationSec * 100).round();
     final picking = _zone != null;
     final on = _zone == z;
@@ -725,70 +871,104 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
     final pctColor = !active
         ? ink
         : picking && !on
-            ? p.ink2
-            : _zoneColors[z];
+        ? p.ink2
+        : _zoneColors[z];
     final (hm, ss) = _hmParts(secs);
     final card = Container(
-      padding: const EdgeInsets.fromLTRB(S.x4 + S.half, S.x5, S.x4 + S.half, S.x5),
+      padding: const EdgeInsets.fromLTRB(
+        S.x4 + S.half,
+        S.x5,
+        S.x4 + S.half,
+        S.x5,
+      ),
       decoration: BoxDecoration(
         color: p.card,
         borderRadius: R.rLg,
         border: Border.all(
-            color: on ? p.ink.withValues(alpha: .7) : p.card, width: S.half / 2),
+          color: on ? p.ink.withValues(alpha: .7) : p.card,
+          width: S.half / 2,
+        ),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic, children: [
-          Text('ZONE ${z + 1}',
-              style: F.caps.copyWith(
-                  color: ink, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
-          const SizedBox(width: S.x3),
-          Flexible(
-            child: Text(range,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                'ZONE ${z + 1}',
                 style: F.caps.copyWith(
+                  color: ink,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                ),
+              ),
+              const SizedBox(width: S.x3),
+              Flexible(
+                child: Text(
+                  range,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: F.caps.copyWith(
                     color: active ? p.ink2 : ink,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2)),
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              const SizedBox(width: S.x3),
+              Text(
+                '$pct%',
+                style: F.caps.copyWith(
+                  color: pctColor,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: .6,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                hm,
+                style: F.num(
+                  F.t2,
+                ).copyWith(color: ink, fontWeight: FontWeight.w700),
+              ),
+              Text(
+                ':$ss',
+                style: F.num(F.body).copyWith(
+                  color: active ? p.ink3 : ink,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: S.x3),
-          Text('$pct%',
-              style: F.caps.copyWith(
-                  color: pctColor, fontWeight: FontWeight.w700, letterSpacing: .6)),
-          const Spacer(),
-          Text(hm,
-              style: F.num(F.t2).copyWith(color: ink, fontWeight: FontWeight.w700)),
-          Text(':$ss',
-              style: F.num(F.body).copyWith(
-                  color: active ? p.ink3 : ink, fontWeight: FontWeight.w600)),
-        ]),
-        if (active) ...[
-          const SizedBox(height: S.x4),
-          SizedBox(
-            height: S.x6,
-            child: CustomPaint(
-              painter: _ZoneBar(
-                frac: d.durationSec <= 0 ? 0 : secs / d.durationSec,
-                color: _zoneColors[z],
-                typical: picking ? null : d.avg.typical[z],
-                runs: picking
-                    ? [
-                        for (final (a, b) in d.zoneRuns[z])
-                          (
-                            (a - d.start) / math.max(1, d.durationSec),
-                            (b - d.start) / math.max(1, d.durationSec),
-                          ),
-                      ]
-                    : null,
-                runColor: on ? _zoneColors[z] : p.ink.withValues(alpha: .78),
-                hatch: p.ink.withValues(alpha: .14),
-                box: p.ink,
+          if (active) ...[
+            const SizedBox(height: S.x4),
+            SizedBox(
+              height: S.x6,
+              child: CustomPaint(
+                painter: _ZoneBar(
+                  frac: d.durationSec <= 0 ? 0 : secs / d.durationSec,
+                  color: _zoneColors[z],
+                  typical: picking ? null : d.avg.typical[z],
+                  runs: picking
+                      ? [
+                          for (final (a, b) in d.zoneRuns[z])
+                            (
+                              (a - d.start) / math.max(1, d.durationSec),
+                              (b - d.start) / math.max(1, d.durationSec),
+                            ),
+                        ]
+                      : null,
+                  runColor: on ? _zoneColors[z] : p.ink.withValues(alpha: .78),
+                  hatch: p.ink.withValues(alpha: .14),
+                  box: p.ink,
+                ),
               ),
             ),
-          ),
+          ],
         ],
-      ]),
+      ),
     );
     if (!active) return card;
     return Pressable(
@@ -799,40 +979,76 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
   }
 
   // ── key statistics ──────────────────────────────────────────────────────
-  Widget _keyStatsHead(P p) => Row(children: [
-        Text('KEY STATISTICS',
-            style: F.body.copyWith(
-                color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.6)),
-        const Spacer(),
-        Text('VS. 30 DAY AVERAGE',
-            style: F.caps.copyWith(
-                color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
-      ]);
+  Widget _keyStatsHead(P p) => Row(
+    children: [
+      Text(
+        'KEY STATISTICS',
+        style: F.body.copyWith(
+          color: p.ink,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.6,
+        ),
+      ),
+      const Spacer(),
+      Text(
+        'VS. 30 DAY AVERAGE',
+        style: F.caps.copyWith(
+          color: p.ink3,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.4,
+        ),
+      ),
+    ],
+  );
 
   Widget _keyStats(BuildContext c, P p, WorkoutDetail d) {
     final w = MediaQuery.sizeOf(c).width * .43;
     final dur = d.durationSec;
     final (dm, ds) = _hmParts(dur);
     final cards = [
-      _Stat(LucideIcons.flame, 'CALORIES',
-          d.calories == null ? '--' : '${d.calories}', 'cals', null,
-          d.calories == null || d.avg.calories == null
-              ? null
-              : (d.calories! >= d.avg.calories!, '${d.avg.calories!.round()}cals')),
-      _Stat(LucideIcons.heart, 'AVG HR',
-          d.avgHr == null ? '--' : '${d.avgHr}', 'bpm', null,
-          d.avgHr == null || d.avg.avgHr == null
-              ? null
-              : (d.avgHr! >= d.avg.avgHr!, '${d.avg.avgHr!.round()}bpm')),
-      _Stat(LucideIcons.heartPulse, 'MAX HR',
-          d.maxHr == null ? '--' : '${d.maxHr}', 'bpm', null,
-          d.maxHr == null || d.avg.maxHr == null
-              ? null
-              : (d.maxHr! >= d.avg.maxHr!, '${d.avg.maxHr!.round()}bpm')),
-      _Stat(LucideIcons.timer, 'DURATION', dm, '', ':$ds',
-          d.avg.durationSec == null
-              ? null
-              : (dur >= d.avg.durationSec!, _hms(d.avg.durationSec!.round()))),
+      _Stat(
+        LucideIcons.flame,
+        'CALORIES',
+        d.calories == null ? '--' : '${d.calories}',
+        'cals',
+        null,
+        d.calories == null || d.avg.calories == null
+            ? null
+            : (
+                d.calories! >= d.avg.calories!,
+                '${d.avg.calories!.round()}cals',
+              ),
+      ),
+      _Stat(
+        LucideIcons.heart,
+        'AVG HR',
+        d.avgHr == null ? '--' : '${d.avgHr}',
+        'bpm',
+        null,
+        d.avgHr == null || d.avg.avgHr == null
+            ? null
+            : (d.avgHr! >= d.avg.avgHr!, '${d.avg.avgHr!.round()}bpm'),
+      ),
+      _Stat(
+        LucideIcons.heartPulse,
+        'MAX HR',
+        d.maxHr == null ? '--' : '${d.maxHr}',
+        'bpm',
+        null,
+        d.maxHr == null || d.avg.maxHr == null
+            ? null
+            : (d.maxHr! >= d.avg.maxHr!, '${d.avg.maxHr!.round()}bpm'),
+      ),
+      _Stat(
+        LucideIcons.timer,
+        'DURATION',
+        dm,
+        '',
+        ':$ds',
+        d.avg.durationSec == null
+            ? null
+            : (dur >= d.avg.durationSec!, _hms(d.avg.durationSec!.round())),
+      ),
     ];
     return SizedBox(
       height: S.x16 * 2 + S.x4,
@@ -841,45 +1057,73 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
         padding: const EdgeInsets.symmetric(horizontal: S.x4),
         itemCount: cards.length,
         separatorBuilder: (_, _) => const SizedBox(width: S.x3),
-        itemBuilder: (_, i) => SizedBox(width: w, child: _statCard(p, cards[i])),
+        itemBuilder: (_, i) =>
+            SizedBox(width: w, child: _statCard(p, cards[i])),
       ),
     );
   }
 
   Widget _statCard(P p, _Stat s) => Container(
-        padding: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x3, S.x4),
-        decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
+    padding: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x3, S.x4),
+    decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
             Icon(s.icon, size: I.md, color: p.ink),
             const SizedBox(width: S.x3),
-            Text(s.label,
-                style: F.over.copyWith(
-                    color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
-          ]),
-          const Spacer(),
-          Row(crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic, children: [
-            Text(s.value,
-                style: F.n34.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+            Text(
+              s.label,
+              style: F.over.copyWith(
+                color: p.ink3,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.4,
+              ),
+            ),
+          ],
+        ),
+        const Spacer(),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              s.value,
+              style: F.n34.copyWith(color: p.ink, fontWeight: FontWeight.w700),
+            ),
             if (s.small != null)
-              Text(s.small!,
-                  style: F.num(F.head).copyWith(color: p.ink, fontWeight: FontWeight.w600)),
+              Text(
+                s.small!,
+                style: F.num(
+                  F.head,
+                ).copyWith(color: p.ink, fontWeight: FontWeight.w600),
+              ),
             if (s.unit.isNotEmpty) ...[
               const SizedBox(width: S.x1),
-              Text(s.unit, style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w500)),
+              Text(
+                s.unit,
+                style: F.body.copyWith(
+                  color: p.ink,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ],
-          ]),
-          const SizedBox(height: S.x2),
-          if (s.vs != null) _VsPill(up: s.vs!.$1, text: s.vs!.$2),
-        ]),
-      );
+          ],
+        ),
+        const SizedBox(height: S.x2),
+        if (s.vs != null) _VsPill(up: s.vs!.$1, text: s.vs!.$2),
+      ],
+    ),
+  );
 
   // ── the sport's count ───────────────────────────────────────────────────
   Widget _milestone(P p, WorkoutDetail d) {
     const steps = [5, 10, 25, 50, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
-    final next = steps.firstWhere((s) => s > d.count,
-        orElse: () => (d.count ~/ 500 + 1) * 500);
+    final next = steps.firstWhere(
+      (s) => s > d.count,
+      orElse: () => (d.count ~/ 500 + 1) * 500,
+    );
     final prev = steps.lastWhere((s) => s <= d.count, orElse: () => 0);
     final frac = ((d.count - prev) / math.max(1, next - prev)).clamp(0.0, 1.0);
     return Container(
@@ -888,50 +1132,72 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
         borderRadius: R.rXl,
         border: Border.all(color: p.ink.withValues(alpha: .16), width: 1.5),
       ),
-      child: Row(children: [
-        Container(
-          width: S.x16 + S.x2,
-          height: S.x16 + S.x2,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: C.char,
-            border: Border.all(color: C.lavender.withValues(alpha: .8), width: S.half),
-          ),
-          child: Icon(d.activity.icon, size: I.lg, color: C.lavender),
-        ),
-        const SizedBox(width: S.x5),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text.rich(TextSpan(children: [
-              TextSpan(
-                  text: '${d.count}',
-                  style: F.num(F.n24).copyWith(
-                      color: C.dialStrain, fontWeight: FontWeight.w700)),
-              TextSpan(
-                  text: '/$next',
-                  style: F.num(F.n24).copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-            ])),
-            const SizedBox(height: S.x1),
-            Text('${next - d.count} more until your next milestone',
-                style: F.body.copyWith(color: p.ink)),
-            const SizedBox(height: S.x3),
-            ClipRRect(
-              borderRadius: R.rPill,
-              child: SizedBox(
-                height: S.x2,
-                child: Stack(children: [
-                  Container(color: p.ink.withValues(alpha: .12)),
-                  FractionallySizedBox(
-                    widthFactor: frac,
-                    child: Container(color: C.dialSleep),
-                  ),
-                ]),
+      child: Row(
+        children: [
+          Container(
+            width: S.x16 + S.x2,
+            height: S.x16 + S.x2,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: C.char,
+              border: Border.all(
+                color: C.lavender.withValues(alpha: .8),
+                width: S.half,
               ),
             ),
-          ]),
-        ),
-        Icon(LucideIcons.chevronRight, size: I.md, color: p.ink3),
-      ]),
+            child: Icon(d.activity.icon, size: I.lg, color: C.lavender),
+          ),
+          const SizedBox(width: S.x5),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '${d.count}',
+                        style: F.num(F.n24).copyWith(
+                          color: C.dialStrain,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      TextSpan(
+                        text: '/$next',
+                        style: F.num(
+                          F.n24,
+                        ).copyWith(color: p.ink, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: S.x1),
+                Text(
+                  '${next - d.count} more until your next milestone',
+                  style: F.body.copyWith(color: p.ink),
+                ),
+                const SizedBox(height: S.x3),
+                ClipRRect(
+                  borderRadius: R.rPill,
+                  child: SizedBox(
+                    height: S.x2,
+                    child: Stack(
+                      children: [
+                        Container(color: p.ink.withValues(alpha: .12)),
+                        FractionallySizedBox(
+                          widthFactor: frac,
+                          child: Container(color: C.dialSleep),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(LucideIcons.chevronRight, size: I.md, color: p.ink3),
+        ],
+      ),
     );
   }
 }
@@ -943,7 +1209,14 @@ class _Stat {
 
   /// Above the average, and the average as written.
   final (bool, String)? vs;
-  const _Stat(this.icon, this.label, this.value, this.unit, this.small, this.vs);
+  const _Stat(
+    this.icon,
+    this.label,
+    this.value,
+    this.unit,
+    this.small,
+    this.vs,
+  );
 }
 
 /// "▼ 6.9": the sport's average, and which side of it this session landed.
@@ -956,17 +1229,27 @@ class _VsPill extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: S.x2 + S.half, vertical: S.x1),
+      padding: const EdgeInsets.symmetric(
+        horizontal: S.x2 + S.half,
+        vertical: S.x1,
+      ),
       decoration: BoxDecoration(
         color: p.ink.withValues(alpha: .1),
         borderRadius: R.rSm,
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        DeltaTriangle(up: up, color: p.ink2, size: S.x3),
-        const SizedBox(width: S.x2),
-        Text(text,
-            style: F.num(F.body).copyWith(color: p.ink2, fontWeight: FontWeight.w700)),
-      ]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DeltaTriangle(up: up, color: p.ink2, size: S.x3),
+          const SizedBox(width: S.x2),
+          Text(
+            text,
+            style: F.num(
+              F.body,
+            ).copyWith(color: p.ink2, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -991,12 +1274,13 @@ class _WorkoutChart extends StatelessWidget {
   /// The seconds in view, and the sample under a finger.
   final int v0, v1;
   final int? scrubT;
-  const _WorkoutChart(
-      {required this.d,
-      required this.zone,
-      required this.v0,
-      required this.v1,
-      required this.scrubT});
+  const _WorkoutChart({
+    required this.d,
+    required this.zone,
+    required this.v0,
+    required this.v1,
+    required this.scrubT,
+  });
 
   @override
   Widget build(BuildContext c) {
@@ -1094,40 +1378,52 @@ class _ChartPaint extends CustomPainter {
           ..lineTo(xOf(pts.first.t), plot.bottom)
           ..close();
         canvas.drawPath(
-            fill,
-            Paint()
-              ..shader = ui.Gradient.linear(
-                  Offset(0, plot.top), Offset(0, plot.bottom), [
+          fill,
+          Paint()
+            ..shader = ui.Gradient.linear(
+              Offset(0, plot.top),
+              Offset(0, plot.bottom),
+              [
                 C.dialStrain.withValues(alpha: .42),
                 C.dialStrain.withValues(alpha: .02),
-              ]));
+              ],
+            ),
+        );
         canvas.drawPath(
-            line,
-            Paint()
-              ..color = C.dialStrain
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 2
-              ..strokeJoin = StrokeJoin.round);
+          line,
+          Paint()
+            ..color = C.dialStrain
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2
+            ..strokeJoin = StrokeJoin.round,
+        );
       } else {
         // One zone lit: the trace grey, and each stretch in the zone filled
         // in its colour, each run apart from the next by a thin dark line.
         final col = _zoneColors[z];
         canvas.drawPath(
-            line,
-            Paint()
-              ..color = ink3
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 1.4);
+          line,
+          Paint()
+            ..color = ink3
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.4,
+        );
         final shade = Paint()
-          ..shader = ui.Gradient.linear(Offset(0, plot.top), Offset(0, plot.bottom),
-              [col.withValues(alpha: .85), col.withValues(alpha: .08)]);
+          ..shader = ui.Gradient.linear(
+            Offset(0, plot.top),
+            Offset(0, plot.bottom),
+            [col.withValues(alpha: .85), col.withValues(alpha: .08)],
+          );
         final edge = Paint()
           ..color = col
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2;
         for (final (ra, rb) in d.zoneRuns[z]) {
           if (rb < v0 || ra > v1) continue;
-          final seg = [for (final e in pts) if (e.t >= ra && e.t <= rb) e];
+          final seg = [
+            for (final e in pts)
+              if (e.t >= ra && e.t <= rb) e,
+          ];
           if (seg.isEmpty) continue;
           final x0 = xOf(ra), x1 = math.max(xOf(rb), x0 + 1.5);
           final top = Path()..moveTo(x0, yOf(seg.first.v));
@@ -1141,8 +1437,13 @@ class _ChartPaint extends CustomPainter {
             ..close();
           canvas.drawPath(area, shade);
           canvas.drawPath(top, edge);
-          canvas.drawLine(Offset(x1, plot.top), Offset(x1, plot.bottom),
-              Paint()..color = ground..strokeWidth = 1.5);
+          canvas.drawLine(
+            Offset(x1, plot.top),
+            Offset(x1, plot.bottom),
+            Paint()
+              ..color = ground
+              ..strokeWidth = 1.5,
+          );
         }
       }
     }
@@ -1150,7 +1451,13 @@ class _ChartPaint extends CustomPainter {
 
     // Labels on the left, over the grid.
     for (var v = lo + 25; v < hi; v += 25) {
-      _text(canvas, '${v.round()}', Offset(S.x1, yOf(v) - S.x2), ink3, F.num(F.cap));
+      _text(
+        canvas,
+        '${v.round()}',
+        Offset(S.x1, yOf(v) - S.x2),
+        ink3,
+        F.num(F.cap),
+      );
     }
 
     // Where the session starts and ends: dashed lines, dots at the foot, and
@@ -1162,14 +1469,23 @@ class _ChartPaint extends CustomPainter {
         ..color = ink.withValues(alpha: .8)
         ..strokeWidth = 1.5;
       for (var y = plot.top; y < plot.bottom; y += S.x2) {
-        canvas.drawLine(Offset(x, y), Offset(x, math.min(y + S.x1, plot.bottom)), dash);
+        canvas.drawLine(
+          Offset(x, y),
+          Offset(x, math.min(y + S.x1, plot.bottom)),
+          dash,
+        );
       }
       canvas.drawCircle(Offset(x, plot.bottom), S.x1, Paint()..color = ink);
       final at = DateTime.fromMillisecondsSinceEpoch(t * 1000);
-      final tp = _layout(formatClock(at.hour, at.minute),
-          F.num(F.cap).copyWith(color: ink, fontWeight: FontWeight.w700));
+      final tp = _layout(
+        formatClock(at.hour, at.minute),
+        F.num(F.cap).copyWith(color: ink, fontWeight: FontWeight.w700),
+      );
       final tx = left ? x : x - tp.width;
-      tp.paint(canvas, Offset(tx.clamp(0, size.width - tp.width), plot.bottom + S.x2));
+      tp.paint(
+        canvas,
+        Offset(tx.clamp(0, size.width - tp.width), plot.bottom + S.x2),
+      );
     }
 
     // The finger: a dotted line down the chart, and a dot on the reading.
@@ -1187,16 +1503,24 @@ class _ChartPaint extends CustomPainter {
         canvas.drawLine(Offset(x, y), Offset(x, y + S.x1), dot);
       }
       if (hit != null) {
-        canvas.drawCircle(Offset(x, yOf(hit.v)), S.x2 + S.half, Paint()..color = ink);
         canvas.drawCircle(
-            Offset(x, yOf(hit.v)), S.x2, Paint()..color = C.dialStrain);
+          Offset(x, yOf(hit.v)),
+          S.x2 + S.half,
+          Paint()..color = ink,
+        );
+        canvas.drawCircle(
+          Offset(x, yOf(hit.v)),
+          S.x2,
+          Paint()..color = C.dialStrain,
+        );
       }
     }
   }
 
-  TextPainter _layout(String s, TextStyle st) =>
-      TextPainter(text: TextSpan(text: s, style: st), textDirection: TextDirection.ltr)
-        ..layout();
+  TextPainter _layout(String s, TextStyle st) => TextPainter(
+    text: TextSpan(text: s, style: st),
+    textDirection: TextDirection.ltr,
+  )..layout();
 
   void _text(Canvas canvas, String s, Offset at, Color color, TextStyle st) =>
       _layout(s, st.copyWith(color: color)).paint(canvas, at);
@@ -1249,19 +1573,28 @@ class _ZoneBar extends CustomPainter {
         final x0 = a.clamp(0.0, 1.0) * size.width;
         final x1 = math.max(b.clamp(0.0, 1.0) * size.width, x0 + 2);
         canvas.drawRRect(
-            RRect.fromRectAndRadius(Rect.fromLTRB(x0, 0, x1, size.height),
-                const Radius.circular(S.half)),
-            Paint()..color = runColor);
+          RRect.fromRectAndRadius(
+            Rect.fromLTRB(x0, 0, x1, size.height),
+            const Radius.circular(S.half),
+          ),
+          Paint()..color = runColor,
+        );
       }
       return;
     }
     if (frac > 0) {
       canvas.drawRRect(
-          RRect.fromRectAndRadius(
-              Rect.fromLTWH(0, 0, math.max(size.height * .6, frac * size.width),
-                  size.height),
-              r),
-          Paint()..color = color);
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            0,
+            0,
+            math.max(size.height * .6, frac * size.width),
+            size.height,
+          ),
+          r,
+        ),
+        Paint()..color = color,
+      );
     }
     final t = typical;
     if (t != null) {
@@ -1273,7 +1606,11 @@ class _ZoneBar extends CustomPainter {
         ..strokeWidth = 1.2;
       for (final x in [x0, x1]) {
         for (var y = rect.top; y < rect.bottom; y += 5) {
-          canvas.drawLine(Offset(x, y), Offset(x, math.min(y + 2.5, rect.bottom)), dp);
+          canvas.drawLine(
+            Offset(x, y),
+            Offset(x, math.min(y + 2.5, rect.bottom)),
+            dp,
+          );
         }
       }
     }
@@ -1281,7 +1618,10 @@ class _ZoneBar extends CustomPainter {
 
   @override
   bool shouldRepaint(_ZoneBar o) =>
-      o.frac != frac || o.runs != runs || o.typical != typical || o.runColor != runColor;
+      o.frac != frac ||
+      o.runs != runs ||
+      o.typical != typical ||
+      o.runColor != runColor;
 }
 
 /// The legend's key: a dashed-sided box.
@@ -1297,7 +1637,11 @@ class _TypicalBox extends CustomPainter {
       ..strokeWidth = 1.2;
     for (final x in [0.6, size.width - .6]) {
       for (var y = 0.0; y < size.height; y += 4) {
-        canvas.drawLine(Offset(x, y), Offset(x, math.min(y + 2, size.height)), p);
+        canvas.drawLine(
+          Offset(x, y),
+          Offset(x, math.min(y + 2, size.height)),
+          p,
+        );
       }
     }
   }
@@ -1330,16 +1674,24 @@ class _RouteCardState extends State<_RouteCard> {
     super.dispose();
   }
 
-  Future<void> _build(double w, double h, double dpr, Color bg, Color ink) async {
+  Future<void> _build(
+    double w,
+    double h,
+    double dpr,
+    Color bg,
+    Color ink,
+  ) async {
     if (_builtFor == w) return;
     _builtFor = w;
     final geo = [for (final pt in widget.d.route!.points) (pt.lat, pt.lng)];
-    final m = await buildRouteMosaic(geo,
-        width: (w * dpr).round(),
-        height: (h * dpr).round(),
-        bg: bg,
-        ink: ink,
-        pad: .12);
+    final m = await buildRouteMosaic(
+      geo,
+      width: (w * dpr).round(),
+      height: (h * dpr).round(),
+      bg: bg,
+      ink: ink,
+      pad: .12,
+    );
     if (!mounted) {
       m?.dispose();
       return;
@@ -1379,142 +1731,206 @@ class _RouteCardState extends State<_RouteCard> {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
-      child: Column(children: [
-        SizedBox(
-          height: _mapH,
-          child: LayoutBuilder(builder: (c, box) {
-            final w = box.maxWidth;
-            if (mapTilesAllowed) {
-              _build(w, _mapH, MediaQuery.devicePixelRatioOf(c), ground, p.ink);
-            }
-            return Stack(children: [
-              Positioned.fill(
-                child: ClipRect(
-                  child: InteractiveViewer(
-                    transformationController: _view,
-                    minScale: 1,
-                    maxScale: 5,
-                    child: CustomPaint(
-                      size: Size(w, _mapH),
-                      painter: _RoutePaint(
-                        points: r.points,
-                        mosaic: _mosaic,
-                        ground: ground,
-                        line: C.dialStrain,
-                      ),
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: S.x5,
-                top: S.x5,
-                child: Text('ROUTE',
-                    style: F.body.copyWith(
-                        color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.6)),
-              ),
-              Positioned(
-                right: S.x5,
-                top: S.x5,
-                child: Pressable(
-                  onTap: widget.onShare,
-                  semanticLabel: 'Share',
-                  child: Container(
-                    width: S.x12 + S.x1,
-                    height: S.x12 + S.x1,
-                    decoration: BoxDecoration(color: C.char, borderRadius: R.rMd),
-                    child: const Icon(LucideIcons.share2, size: I.lg, color: C.white),
-                  ),
-                ),
-              ),
-              Positioned(
-                right: S.x4,
-                bottom: S.x5,
-                child: Container(
-                  decoration: BoxDecoration(
-                      color: C.cream.withValues(alpha: .85), borderRadius: R.rSm),
-                  child: Column(children: [
-                    for (final (icon, by, name) in [
-                      (LucideIcons.plus, 1.6, 'Zoom in'),
-                      (LucideIcons.minus, 1 / 1.6, 'Zoom out'),
-                    ])
-                      Pressable(
-                        onTap: () => _zoom(by),
-                        semanticLabel: name,
-                        child: SizedBox(
-                          width: S.tap + S.x2,
-                          height: S.tap + S.x2,
-                          child: Icon(icon, size: I.xl, color: C.n500),
+      child: Column(
+        children: [
+          SizedBox(
+            height: _mapH,
+            child: LayoutBuilder(
+              builder: (c, box) {
+                final w = box.maxWidth;
+                if (mapTilesAllowed) {
+                  _build(
+                    w,
+                    _mapH,
+                    MediaQuery.devicePixelRatioOf(c),
+                    ground,
+                    p.ink,
+                  );
+                }
+                return Stack(
+                  children: [
+                    Positioned.fill(
+                      child: ClipRect(
+                        child: InteractiveViewer(
+                          transformationController: _view,
+                          minScale: 1,
+                          maxScale: 5,
+                          child: CustomPaint(
+                            size: Size(w, _mapH),
+                            painter: _RoutePaint(
+                              points: r.points,
+                              mosaic: _mosaic,
+                              ground: ground,
+                              line: C.dialStrain,
+                            ),
+                            child: const SizedBox.expand(),
+                          ),
                         ),
                       ),
-                  ]),
+                    ),
+                    Positioned(
+                      left: S.x5,
+                      top: S.x5,
+                      child: Text(
+                        'ROUTE',
+                        style: F.body.copyWith(
+                          color: p.ink,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.6,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: S.x5,
+                      top: S.x5,
+                      child: Pressable(
+                        onTap: widget.onShare,
+                        semanticLabel: 'Share',
+                        child: Container(
+                          width: S.x12 + S.x1,
+                          height: S.x12 + S.x1,
+                          decoration: BoxDecoration(
+                            color: C.char,
+                            borderRadius: R.rMd,
+                          ),
+                          child: const Icon(
+                            LucideIcons.share2,
+                            size: I.lg,
+                            color: C.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: S.x4,
+                      bottom: S.x5,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: C.cream.withValues(alpha: .85),
+                          borderRadius: R.rSm,
+                        ),
+                        child: Column(
+                          children: [
+                            for (final (icon, by, name) in [
+                              (LucideIcons.plus, 1.6, 'Zoom in'),
+                              (LucideIcons.minus, 1 / 1.6, 'Zoom out'),
+                            ])
+                              Pressable(
+                                onTap: () => _zoom(by),
+                                semanticLabel: name,
+                                child: SizedBox(
+                                  width: S.tap + S.x2,
+                                  height: S.tap + S.x2,
+                                  child: Icon(icon, size: I.xl, color: C.n500),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (_mosaic != null)
+                      Positioned(
+                        left: S.x4,
+                        bottom: S.x3,
+                        child: Text(
+                          kOsmAttribution,
+                          style: F.over.copyWith(color: p.ink2),
+                        ),
+                      )
+                    else if (!mapTilesAllowed && !_asked)
+                      Positioned(
+                        left: S.x3,
+                        bottom: S.x2,
+                        child: TextAction('Show the map', () {
+                          // Drawing the basemap asks openstreetmap.org for the
+                          // tiles around the route: a tap here is the user saying
+                          // it may, the same switch the share sheet sets.
+                          setMapTilesAllowed(true);
+                          setState(() {
+                            _asked = true;
+                            _builtFor = null;
+                          });
+                        }),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(S.x6, S.x8, S.x4, S.x8),
+            child: Row(
+              children: [
+                _routeStat(
+                  p,
+                  dist.toStringAsFixed(2),
+                  imperial ? 'mi' : 'km',
+                  'DISTANCE',
                 ),
-              ),
-              if (_mosaic != null)
-                Positioned(
-                  left: S.x4,
-                  bottom: S.x3,
-                  child: Text(kOsmAttribution,
-                      style: F.over.copyWith(color: p.ink2)),
-                )
-              else if (!mapTilesAllowed && !_asked)
-                Positioned(
-                  left: S.x3,
-                  bottom: S.x2,
-                  child: TextAction('Show the map', () {
-                    // Drawing the basemap asks openstreetmap.org for the
-                    // tiles around the route: a tap here is the user saying
-                    // it may, the same switch the share sheet sets.
-                    setMapTilesAllowed(true);
-                    setState(() {
-                      _asked = true;
-                      _builtFor = null;
-                    });
-                  }),
+                _routeStat(
+                  p,
+                  speed == null ? '--' : speed.toStringAsFixed(1),
+                  imperial ? 'mph' : 'kph',
+                  'SPEED',
                 ),
-            ]);
-          }),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(S.x6, S.x8, S.x4, S.x8),
-          child: Row(children: [
-            _routeStat(p, dist.toStringAsFixed(2), imperial ? 'mi' : 'km', 'DISTANCE'),
-            _routeStat(p, speed == null ? '--' : speed.toStringAsFixed(1),
-                imperial ? 'mph' : 'kph', 'SPEED'),
-            _routeStat(
-                p,
-                gain == null
-                    ? '--'
-                    : '${(imperial ? gain * 3.28084 : gain).round()}',
-                imperial ? 'ft' : 'm',
-                'ELEV. GAIN'),
-          ]),
-        ),
-      ]),
+                _routeStat(
+                  p,
+                  gain == null
+                      ? '--'
+                      : '${(imperial ? gain * 3.28084 : gain).round()}',
+                  imperial ? 'ft' : 'm',
+                  'ELEV. GAIN',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _routeStat(P p, String v, String unit, String label) => Expanded(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic, children: [
-            Text(v, style: F.num(F.n34).copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-            Text(unit, style: F.head.copyWith(color: p.ink, fontWeight: FontWeight.w500)),
-          ]),
-          const SizedBox(height: S.x1),
-          Text(label,
-              style: F.caps.copyWith(
-                  color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
-        ]),
-      );
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              v,
+              style: F.num(
+                F.n34,
+              ).copyWith(color: p.ink, fontWeight: FontWeight.w700),
+            ),
+            Text(
+              unit,
+              style: F.head.copyWith(color: p.ink, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+        const SizedBox(height: S.x1),
+        Text(
+          label,
+          style: F.caps.copyWith(
+            color: p.ink3,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.4,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 /// Metres climbed: each rise counted once it clears three metres above the
 /// lowest point since the last one, so GPS altitude jitter is not a climb.
 /// Null when the route carries no altitude.
 double? _elevationGain(List<RoutePoint> pts) {
-  final alts = [for (final p in pts) if (p.alt != null) p.alt!];
+  final alts = [
+    for (final p in pts)
+      if (p.alt != null) p.alt!,
+  ];
   if (alts.length < 2) return null;
   var gain = 0.0, base = alts.first;
   for (final a in alts.skip(1)) {
@@ -1532,19 +1948,24 @@ class _RoutePaint extends CustomPainter {
   final List<RoutePoint> points;
   final RouteMosaic? mosaic;
   final Color ground, line;
-  _RoutePaint(
-      {required this.points,
-      required this.mosaic,
-      required this.ground,
-      required this.line});
+  _RoutePaint({
+    required this.points,
+    required this.mosaic,
+    required this.ground,
+    required this.line,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final m = mosaic;
     List<Offset> path;
     if (m != null) {
-      canvas.drawImageRect(m.image, Rect.fromLTWH(0, 0, m.width, m.height),
-          Offset.zero & size, Paint()..filterQuality = FilterQuality.medium);
+      canvas.drawImageRect(
+        m.image,
+        Rect.fromLTWH(0, 0, m.width, m.height),
+        Offset.zero & size,
+        Paint()..filterQuality = FilterQuality.medium,
+      );
       final sx = size.width / m.width, sy = size.height / m.height;
       path = [for (final o in m.path) Offset(o.dx * sx, o.dy * sy)];
     } else {
@@ -1557,23 +1978,25 @@ class _RoutePaint extends CustomPainter {
       pp.lineTo(o.dx, o.dy);
     }
     canvas.drawPath(
-        pp,
-        Paint()
-          ..color = line
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 4
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round);
+      pp,
+      Paint()
+        ..color = line
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
     // The start: a dark disc ringed in white. The finish: a chequered disc.
     const r = S.x4 + S.half;
     canvas.drawCircle(path.first, r, Paint()..color = C.char);
     canvas.drawCircle(
-        path.first,
-        r,
-        Paint()
-          ..color = C.white
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3);
+      path.first,
+      r,
+      Paint()
+        ..color = C.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+    );
     final f = path.last;
     canvas.drawCircle(f, r, Paint()..color = C.white);
     canvas.save();
@@ -1582,8 +2005,10 @@ class _RoutePaint extends CustomPainter {
     for (var i = -5; i < 5; i++) {
       for (var j = -5; j < 5; j++) {
         if ((i + j).isEven) {
-          canvas.drawRect(Rect.fromLTWH(f.dx + i * sq, f.dy + j * sq, sq, sq),
-              Paint()..color = C.char);
+          canvas.drawRect(
+            Rect.fromLTWH(f.dx + i * sq, f.dy + j * sq, sq, sq),
+            Paint()..color = C.char,
+          );
         }
       }
     }
@@ -1601,9 +2026,13 @@ class _RoutePaint extends CustomPainter {
       hiLng = math.max(hiLng, p.lng);
     }
     final k = math.cos((loLat + hiLat) / 2 * math.pi / 180);
-    final w = math.max(1e-9, (hiLng - loLng) * k), h = math.max(1e-9, hiLat - loLat);
+    final w = math.max(1e-9, (hiLng - loLng) * k),
+        h = math.max(1e-9, hiLat - loLat);
     final pad = S.x12;
-    final scale = math.min((size.width - pad * 2) / w, (size.height - pad * 2) / h);
+    final scale = math.min(
+      (size.width - pad * 2) / w,
+      (size.height - pad * 2) / h,
+    );
     final ox = (size.width - w * scale) / 2, oy = (size.height - h * scale) / 2;
     return [
       for (final p in points)

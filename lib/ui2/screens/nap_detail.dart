@@ -19,7 +19,7 @@ import '../../state/clock_format.dart';
 import '../ui2.dart';
 import 'home/home_data.dart' show pointsOf;
 import 'home_screen.dart' show hm, repoOf;
-import 'window_editor.dart' show HrPoint;
+import 'window_editor.dart' show HrPoint, WindowKind, openWindowEditor;
 
 /// Stage segment for a nap.
 class NapStageRun {
@@ -103,16 +103,14 @@ class NapDetailData {
     Map<String, dynamic> nap, {
     String? day,
   }) async {
-    final startNum = (nap['start'] ??
-            nap['start_ts'] ??
-            nap['onset_ts'] ??
-            nap['onset']) as num?;
+    final startNum =
+        (nap['start'] ?? nap['start_ts'] ?? nap['onset_ts'] ?? nap['onset'])
+            as num?;
     var startSec = startNum?.toInt() ?? 0;
-    final endNum = (nap['end'] ??
-            nap['end_ts'] ??
-            nap['wake_ts'] ??
-            nap['wake']) as num?;
-    var endSec = endNum?.toInt() ??
+    final endNum =
+        (nap['end'] ?? nap['end_ts'] ?? nap['wake_ts'] ?? nap['wake']) as num?;
+    var endSec =
+        endNum?.toInt() ??
         (startSec > 0
             ? startSec + ((nap['duration_min'] as num?)?.toInt() ?? 60) * 60
             : 0);
@@ -122,10 +120,13 @@ class NapDetailData {
       startSec = nowSec - (((nap['duration_min'] as num?)?.toInt() ?? 60) * 60);
       endSec = nowSec;
     } else if (endSec <= startSec) {
-      endSec = startSec + math.max(60, ((nap['duration_min'] as num?)?.toInt() ?? 60) * 60);
+      endSec =
+          startSec +
+          math.max(60, ((nap['duration_min'] as num?)?.toInt() ?? 60) * 60);
     }
 
-    final napDay = day ??
+    final napDay =
+        day ??
         nap['day']?.toString() ??
         dayLabelOf(DateTime.fromMillisecondsSinceEpoch(startSec * 1000));
 
@@ -196,82 +197,83 @@ class NapDetailData {
     var cursor = startSec;
 
     if (latencySec > 0) {
-      stageRuns.add(NapStageRun(
-        start: cursor,
-        end: cursor + latencySec,
-        stage: SleepStage.awake,
-      ));
+      stageRuns.add(
+        NapStageRun(
+          start: cursor,
+          end: cursor + latencySec,
+          stage: SleepStage.awake,
+        ),
+      );
       cursor += latencySec;
     }
 
     // First light sleep cycle entry
     final l1 = (lightSec * 0.55).round();
     if (l1 > 0) {
-      stageRuns.add(NapStageRun(
-        start: cursor,
-        end: cursor + l1,
-        stage: SleepStage.light,
-      ));
+      stageRuns.add(
+        NapStageRun(start: cursor, end: cursor + l1, stage: SleepStage.light),
+      );
       cursor += l1;
     }
 
     // SWS Deep sleep core
     if (deepSec > 0) {
-      stageRuns.add(NapStageRun(
-        start: cursor,
-        end: cursor + deepSec,
-        stage: SleepStage.deep,
-      ));
+      stageRuns.add(
+        NapStageRun(
+          start: cursor,
+          end: cursor + deepSec,
+          stage: SleepStage.deep,
+        ),
+      );
       cursor += deepSec;
     }
 
     // Mid-nap light sleep or brief awakening
     final midAwake = math.min(math.max(0, awakeSec - latencySec) ~/ 2, 180);
     if (midAwake > 0) {
-      stageRuns.add(NapStageRun(
-        start: cursor,
-        end: cursor + midAwake,
-        stage: SleepStage.awake,
-      ));
+      stageRuns.add(
+        NapStageRun(
+          start: cursor,
+          end: cursor + midAwake,
+          stage: SleepStage.awake,
+        ),
+      );
       cursor += midAwake;
     }
 
     // Second light sleep segment
     final l2 = math.max(0, lightSec - l1);
     if (l2 > 0) {
-      stageRuns.add(NapStageRun(
-        start: cursor,
-        end: cursor + l2,
-        stage: SleepStage.light,
-      ));
+      stageRuns.add(
+        NapStageRun(start: cursor, end: cursor + l2, stage: SleepStage.light),
+      );
       cursor += l2;
     }
 
     // REM sleep segment towards end
     if (remSec > 0) {
-      stageRuns.add(NapStageRun(
-        start: cursor,
-        end: cursor + remSec,
-        stage: SleepStage.rem,
-      ));
+      stageRuns.add(
+        NapStageRun(start: cursor, end: cursor + remSec, stage: SleepStage.rem),
+      );
       cursor += remSec;
     }
 
     // Final awake stretch before rising
     if (cursor < endSec) {
-      stageRuns.add(NapStageRun(
-        start: cursor,
-        end: endSec,
-        stage: SleepStage.awake,
-      ));
+      stageRuns.add(
+        NapStageRun(start: cursor, end: endSec, stage: SleepStage.awake),
+      );
     }
 
     // 4 Nap Metrics:
     // 1. Wake events: number of awake runs divided by total hours in bed
-    final awakeEventCount = stageRuns.where((r) => r.stage == SleepStage.awake).length;
+    final awakeEventCount = stageRuns
+        .where((r) => r.stage == SleepStage.awake)
+        .length;
     final inBedHours = math.max(0.2, inBedMin / 60.0);
     final wakeEventsPerHour = double.parse(
-        (awakeEventCount / inBedHours).clamp(0.4, 3.5).toStringAsFixed(1));
+      (awakeEventCount / inBedHours).clamp(0.4, 3.5).toStringAsFixed(1),
+    );
 
     // 2. Efficiency: asleep / in-bed
     final rawEff = (nap['efficiency'] as num?)?.toDouble();
@@ -350,20 +352,15 @@ class NapDetailData {
     );
   }
 
-  static NapDetailData fallback(
-    Map<String, dynamic> nap, {
-    String? day,
-  }) {
-    final startNum = (nap['start'] ??
-            nap['start_ts'] ??
-            nap['onset_ts'] ??
-            nap['onset']) as num?;
+  static NapDetailData fallback(Map<String, dynamic> nap, {String? day}) {
+    final startNum =
+        (nap['start'] ?? nap['start_ts'] ?? nap['onset_ts'] ?? nap['onset'])
+            as num?;
     var startSec = startNum?.toInt() ?? 0;
-    final endNum = (nap['end'] ??
-            nap['end_ts'] ??
-            nap['wake_ts'] ??
-            nap['wake']) as num?;
-    var endSec = endNum?.toInt() ??
+    final endNum =
+        (nap['end'] ?? nap['end_ts'] ?? nap['wake_ts'] ?? nap['wake']) as num?;
+    var endSec =
+        endNum?.toInt() ??
         (startSec > 0
             ? startSec + ((nap['duration_min'] as num?)?.toInt() ?? 60) * 60
             : 0);
@@ -373,10 +370,13 @@ class NapDetailData {
       startSec = nowSec - (((nap['duration_min'] as num?)?.toInt() ?? 60) * 60);
       endSec = nowSec;
     } else if (endSec <= startSec) {
-      endSec = startSec + math.max(60, ((nap['duration_min'] as num?)?.toInt() ?? 60) * 60);
+      endSec =
+          startSec +
+          math.max(60, ((nap['duration_min'] as num?)?.toInt() ?? 60) * 60);
     }
 
-    final napDay = day ??
+    final napDay =
+        day ??
         nap['day']?.toString() ??
         dayLabelOf(DateTime.fromMillisecondsSinceEpoch(startSec * 1000));
 
@@ -399,10 +399,26 @@ class NapDetailData {
 
     final stageRuns = <NapStageRun>[
       if (awakeSec > 0)
-        NapStageRun(start: startSec, end: startSec + (awakeSec ~/ 2), stage: SleepStage.awake),
-      NapStageRun(start: startSec + (awakeSec ~/ 2), end: startSec + (awakeSec ~/ 2) + lightSec, stage: SleepStage.light),
-      NapStageRun(start: startSec + (awakeSec ~/ 2) + lightSec, end: startSec + (awakeSec ~/ 2) + lightSec + deepSec, stage: SleepStage.deep),
-      NapStageRun(start: startSec + (awakeSec ~/ 2) + lightSec + deepSec, end: endSec, stage: SleepStage.rem),
+        NapStageRun(
+          start: startSec,
+          end: startSec + (awakeSec ~/ 2),
+          stage: SleepStage.awake,
+        ),
+      NapStageRun(
+        start: startSec + (awakeSec ~/ 2),
+        end: startSec + (awakeSec ~/ 2) + lightSec,
+        stage: SleepStage.light,
+      ),
+      NapStageRun(
+        start: startSec + (awakeSec ~/ 2) + lightSec,
+        end: startSec + (awakeSec ~/ 2) + lightSec + deepSec,
+        stage: SleepStage.deep,
+      ),
+      NapStageRun(
+        start: startSec + (awakeSec ~/ 2) + lightSec + deepSec,
+        end: endSec,
+        stage: SleepStage.rem,
+      ),
     ];
 
     return NapDetailData(
@@ -438,12 +454,7 @@ class NapDetailScreen extends StatefulWidget {
   final String? day;
   final NapDetailData? data;
 
-  const NapDetailScreen({
-    super.key,
-    required this.nap,
-    this.day,
-    this.data,
-  });
+  const NapDetailScreen({super.key, required this.nap, this.day, this.data});
 
   @override
   State<NapDetailScreen> createState() => _NapDetailScreenState();
@@ -468,7 +479,13 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
     });
   }
 
-  void _pinch(NapDetailData d, PinchPhase phase, double scale, double focal, double pan) {
+  void _pinch(
+    NapDetailData d,
+    PinchPhase phase,
+    double scale,
+    double focal,
+    double pan,
+  ) {
     if (phase == PinchPhase.start) {
       final (a, b) = _view(d);
       _pinchSpan = b - a;
@@ -513,14 +530,26 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
       if (mounted) setState(() => _d = d);
     } catch (_) {
       if (mounted) {
-        setState(() => _d = NapDetailData.fallback(widget.nap, day: widget.day));
+        setState(
+          () => _d = NapDetailData.fallback(widget.nap, day: widget.day),
+        );
       }
     }
   }
 
   static const _mo = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   String _formatDateSpan(int start, int end) {
@@ -539,9 +568,21 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
       position: RelativeRect.fromLTRB(at.dx, at.dy, size.width - at.dx, 0),
       shape: const RoundedRectangleBorder(borderRadius: R.rMd),
       items: [
-        PopupMenuItem(value: 'edit', height: S.x16, child: Text('Edit Nap', style: st)),
-        PopupMenuItem(value: 'delete', height: S.x16, child: Text('Delete Nap', style: st)),
-        PopupMenuItem(value: 'convert', height: S.x16, child: Text('Convert to Sleep', style: st)),
+        PopupMenuItem(
+          value: 'edit',
+          height: S.x16,
+          child: Text('Edit Nap', style: st),
+        ),
+        PopupMenuItem(
+          value: 'delete',
+          height: S.x16,
+          child: Text('Delete Nap', style: st),
+        ),
+        PopupMenuItem(
+          value: 'convert',
+          height: S.x16,
+          child: Text('Convert to Sleep', style: st),
+        ),
       ],
     );
     if (!mounted || pick == null) return;
@@ -562,33 +603,26 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
     final baseStart = DateTime.fromMillisecondsSinceEpoch(d.start * 1000);
     final baseEnd = DateTime.fromMillisecondsSinceEpoch(d.end * 1000);
 
-    final from = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: baseStart.hour, minute: baseStart.minute),
-      helpText: 'WHEN YOU FELL ASLEEP',
+    final r = await openWindowEditor(
+      context,
+      kind: WindowKind.nap,
+      title: 'Edit nap',
+      start: baseStart,
+      end: baseEnd,
+      save: 'Save nap',
     );
-    if (from == null || !mounted) return;
+    if (r == null || !mounted) return;
 
-    final to = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: baseEnd.hour, minute: baseEnd.minute),
-      helpText: 'WHEN YOU WOKE UP',
-    );
-    if (to == null || !mounted) return;
-
-    final startDt = DateTime(baseStart.year, baseStart.month, baseStart.day, from.hour, from.minute);
-    var endDt = DateTime(baseStart.year, baseStart.month, baseStart.day, to.hour, to.minute);
-    if (!endDt.isAfter(startDt)) {
-      endDt = DateTime(baseStart.year, baseStart.month, baseStart.day + 1, to.hour, to.minute);
-    }
-
+    final (startDt, endDt) = r;
     final s = startDt.millisecondsSinceEpoch ~/ 1000;
     final e = endDt.millisecondsSinceEpoch ~/ 1000;
 
     if (!manualNapWindowIsValid(s, e)) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('A nap is between 5 minutes and 6 hours.')),
+        const SnackBar(
+          content: Text('A nap is between 5 minutes and 6 hours.'),
+        ),
       );
       return;
     }
@@ -612,7 +646,8 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
     final ok = await confirmRemove(
       context,
       title: 'Delete this nap?',
-      body: 'It disappears from your sleep record and sleep need is recalculated.',
+      body:
+          'It disappears from your sleep record and sleep need is recalculated.',
       remove: 'Delete',
     );
     if (!ok || !mounted) return;
@@ -660,7 +695,10 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    final d = _d ?? widget.data ?? NapDetailData.fallback(widget.nap, day: widget.day);
+    final d =
+        _d ??
+        widget.data ??
+        NapDetailData.fallback(widget.nap, day: widget.day);
     final start = d.start;
     final end = d.end;
 
@@ -681,33 +719,33 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
                 child: ListView(
                   padding: EdgeInsets.only(bottom: S.navClear(c)),
                   children: [
-                          _heroReadouts(c, p, d),
-                          const SizedBox(height: S.x2),
-                          _chart(c, p, d),
-                          const SizedBox(height: S.x6),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: S.x4),
-                            child: Column(
-                              children: [
-                                _stageHeader(p, d),
-                                const SizedBox(height: S.x4),
-                                _stageCard(c, p, d, SleepStage.awake),
-                                const SizedBox(height: S.x3),
-                                _stageCard(c, p, d, SleepStage.light),
-                                const SizedBox(height: S.x3),
-                                _stageCard(c, p, d, SleepStage.deep),
-                                const SizedBox(height: S.x3),
-                                _stageCard(c, p, d, SleepStage.rem),
-                                const SizedBox(height: S.x10),
-                                _metricsHeader(p),
-                                const SizedBox(height: S.x4),
-                              ],
-                            ),
-                          ),
-                          _metricCards(c, p, d),
-                          const SizedBox(height: S.x8),
+                    _heroReadouts(c, p, d),
+                    const SizedBox(height: S.x2),
+                    _chart(c, p, d),
+                    const SizedBox(height: S.x6),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: S.x4),
+                      child: Column(
+                        children: [
+                          _stageHeader(p, d),
+                          const SizedBox(height: S.x4),
+                          _stageCard(c, p, d, SleepStage.awake),
+                          const SizedBox(height: S.x3),
+                          _stageCard(c, p, d, SleepStage.light),
+                          const SizedBox(height: S.x3),
+                          _stageCard(c, p, d, SleepStage.deep),
+                          const SizedBox(height: S.x3),
+                          _stageCard(c, p, d, SleepStage.rem),
+                          const SizedBox(height: S.x10),
+                          _metricsHeader(p),
+                          const SizedBox(height: S.x4),
                         ],
                       ),
+                    ),
+                    _metricCards(c, p, d),
+                    const SizedBox(height: S.x8),
+                  ],
+                ),
               ),
             ],
           ),
@@ -719,84 +757,85 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
   Widget _header(BuildContext c, P p, int start, int end) {
     final menuKey = GlobalKey();
     return Padding(
-        padding: const EdgeInsets.fromLTRB(S.x2, S.x2, S.x2, S.x3),
-        child: Row(
-          children: [
-            Pressable(
-              onTap: () => Navigator.of(c).pop(_changed),
-              semanticLabel: 'Close',
-              child: SizedBox(
-                width: S.tap,
-                height: S.tap,
-                child: Center(
-                  child: Icon(LucideIcons.x, size: I.md, color: p.ink),
-                ),
+      padding: const EdgeInsets.fromLTRB(S.x2, S.x2, S.x2, S.x3),
+      child: Row(
+        children: [
+          Pressable(
+            onTap: () => Navigator.of(c).pop(_changed),
+            semanticLabel: 'Close',
+            child: SizedBox(
+              width: S.tap,
+              height: S.tap,
+              child: Center(
+                child: Icon(LucideIcons.x, size: I.md, color: p.ink),
               ),
             ),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _NapIcon(size: I.md, color: p.ink),
-                      const SizedBox(width: S.x2),
-                      Text(
-                        'NAP',
-                        style: F.head.copyWith(
-                          color: p.ink,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
-                        ),
+          ),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _NapIcon(size: I.md, color: p.ink),
+                    const SizedBox(width: S.x2),
+                    Text(
+                      'NAP',
+                      style: F.head.copyWith(
+                        color: p.ink,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: S.half),
-                  Text(
-                    _formatDateSpan(start, end),
-                    style: F.cap.copyWith(
-                      color: p.ink3,
-                      fontWeight: FontWeight.w500,
                     ),
+                  ],
+                ),
+                const SizedBox(height: S.half),
+                Text(
+                  _formatDateSpan(start, end),
+                  style: F.cap.copyWith(
+                    color: p.ink3,
+                    fontWeight: FontWeight.w500,
                   ),
+                ),
+              ],
+            ),
+          ),
+          Pressable(
+            key: menuKey,
+            onTap: () {
+              final box =
+                  menuKey.currentContext?.findRenderObject() as RenderBox?;
+              final at = box == null
+                  ? Offset(MediaQuery.sizeOf(c).width, S.x16)
+                  : box.localToGlobal(Offset(0, box.size.height));
+              _menu(at);
+            },
+            semanticLabel: 'More',
+            child: SizedBox(
+              width: S.tap,
+              height: S.tap,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var i = 0; i < 3; i++) ...[
+                    if (i > 0) const SizedBox(width: S.x1),
+                    Container(
+                      width: S.x2,
+                      height: S.x2,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: p.ink, width: S.half),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-            Pressable(
-              key: menuKey,
-              onTap: () {
-                final box = menuKey.currentContext?.findRenderObject() as RenderBox?;
-                final at = box == null
-                    ? Offset(MediaQuery.sizeOf(c).width, S.x16)
-                    : box.localToGlobal(Offset(0, box.size.height));
-                _menu(at);
-              },
-              semanticLabel: 'More',
-              child: SizedBox(
-                width: S.tap,
-                height: S.tap,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    for (var i = 0; i < 3; i++) ...[
-                      if (i > 0) const SizedBox(width: S.x1),
-                      Container(
-                        width: S.x2,
-                        height: S.x2,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: p.ink, width: S.half),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _heroReadouts(BuildContext c, P p, NapDetailData d) {
@@ -932,10 +971,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
             const Spacer(),
             Text(
               'This nap reduced your sleep need by ${d.durationMin} minutes.',
-              style: F.body.copyWith(
-                color: p.ink,
-                fontWeight: FontWeight.w500,
-              ),
+              style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -1007,47 +1043,44 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
   }
 
   Widget _stageHeader(P p, NapDetailData d) => Row(
-        children: [
-          SizedBox(
-            width: S.x5,
-            height: S.x5,
-            child: CustomPaint(
-              painter: _TypicalBoxPainter(p.ink2, p.ink.withValues(alpha: .12)),
-            ),
-          ),
-          const SizedBox(width: S.x3),
-          Text(
-            'TYPICAL RANGE',
-            style: F.caps.copyWith(
-              color: p.ink3,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.4,
-            ),
-          ),
-          const Spacer(),
-          Text.rich(
+    children: [
+      SizedBox(
+        width: S.x5,
+        height: S.x5,
+        child: CustomPaint(
+          painter: _TypicalBoxPainter(p.ink2, p.ink.withValues(alpha: .12)),
+        ),
+      ),
+      const SizedBox(width: S.x3),
+      Text(
+        'TYPICAL RANGE',
+        style: F.caps.copyWith(
+          color: p.ink3,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.4,
+        ),
+      ),
+      const Spacer(),
+      Text.rich(
+        TextSpan(
+          children: [
             TextSpan(
-              children: [
-                TextSpan(
-                  text: 'DURATION ',
-                  style: F.caps.copyWith(
-                    color: p.ink3,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.4,
-                  ),
-                ),
-                TextSpan(
-                  text: hm(d.inBedMin),
-                  style: F.body.copyWith(
-                    color: p.ink,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+              text: 'DURATION ',
+              style: F.caps.copyWith(
+                color: p.ink3,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.4,
+              ),
             ),
-          ),
-        ],
-      );
+            TextSpan(
+              text: hm(d.inBedMin),
+              style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
 
   (Color, String) _stageStyle(P p, SleepStage stage) {
     switch (stage) {
@@ -1062,12 +1095,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
     }
   }
 
-  Widget _stageCard(
-    BuildContext c,
-    P p,
-    NapDetailData d,
-    SleepStage stage,
-  ) {
+  Widget _stageCard(BuildContext c, P p, NapDetailData d, SleepStage stage) {
     final secs = d.stageSec[stage] ?? 0;
     final durSec = math.max(1, d.inBedMin * 60);
     final pct = ((secs / durSec) * 100).round();
@@ -1114,10 +1142,9 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
               const Spacer(),
               Text(
                 hm(secs ~/ 60),
-                style: F.num(F.t2).copyWith(
-                  color: p.ink,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: F.num(
+                  F.t2,
+                ).copyWith(color: p.ink, fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -1131,10 +1158,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
                 typical: d.typicalStage[stage],
                 runs: [
                   for (final r in d.stageRuns.where((r) => r.stage == stage))
-                    (
-                      (r.start - d.start) / durSec,
-                      (r.end - d.start) / durSec,
-                    ),
+                    ((r.start - d.start) / durSec, (r.end - d.start) / durSec),
                 ],
                 hatch: p.ink.withValues(alpha: .12),
                 box: p.ink,
@@ -1155,32 +1179,34 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
   }
 
   Widget _metricsHeader(P p) => Row(
-        children: [
-          Text(
-            'NAP METRICS',
-            style: F.body.copyWith(
-              color: p.ink,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.6,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            'VS. 30 DAY RANGE',
-            style: F.caps.copyWith(
-              color: p.ink3,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.4,
-            ),
-          ),
-        ],
-      );
+    children: [
+      Text(
+        'NAP METRICS',
+        style: F.body.copyWith(
+          color: p.ink,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.6,
+        ),
+      ),
+      const Spacer(),
+      Text(
+        'VS. 30 DAY RANGE',
+        style: F.caps.copyWith(
+          color: p.ink3,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.4,
+        ),
+      ),
+    ],
+  );
 
   Widget _metricCards(BuildContext c, P p, NapDetailData d) {
     final wakeVal = (d.wakeEventsPerHour ?? 0.9).toStringAsFixed(1);
     final effVal = (d.efficiency ?? 41.0).round().toString();
     final respVal = (d.respiratoryRate ?? 16.4).toStringAsFixed(1);
-    final latVal = d.latencyMin != null ? _formatLatency(d.latencyMin!) : '0:00';
+    final latVal = d.latencyMin != null
+        ? _formatLatency(d.latencyMin!)
+        : '0:00';
 
     final effNum = d.efficiency ?? 41.0;
     final effLow = effNum < 65.0;
@@ -1269,10 +1295,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
     final chipColor = isAlert ? C.amber : C.optimal;
     return Container(
       padding: const EdgeInsets.all(S.x4),
-      decoration: BoxDecoration(
-        color: p.card,
-        borderRadius: R.rXl,
-      ),
+      decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1337,10 +1360,9 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
                 const SizedBox(width: S.x1 + S.half),
                 Text(
                   chipText,
-                  style: F.num(F.cap).copyWith(
-                    color: chipColor,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: F.num(
+                    F.cap,
+                  ).copyWith(color: chipColor, fontWeight: FontWeight.w700),
                 ),
               ],
             ),
@@ -1370,9 +1392,7 @@ class _NapIcon extends StatelessWidget {
     return SizedBox(
       width: size,
       height: size,
-      child: CustomPaint(
-        painter: _NapIconPainter(c),
-      ),
+      child: CustomPaint(painter: _NapIconPainter(c)),
     );
   }
 }
@@ -1421,7 +1441,10 @@ class _VsPill extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: S.x2 + S.half, vertical: S.x1),
+      padding: const EdgeInsets.symmetric(
+        horizontal: S.x2 + S.half,
+        vertical: S.x1,
+      ),
       decoration: BoxDecoration(
         color: p.ink.withValues(alpha: .1),
         borderRadius: R.rSm,
@@ -1433,7 +1456,9 @@ class _VsPill extends StatelessWidget {
           const SizedBox(width: S.x2),
           Text(
             text,
-            style: F.num(F.body).copyWith(color: p.ink2, fontWeight: FontWeight.w700),
+            style: F.num(
+              F.body,
+            ).copyWith(color: p.ink2, fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -1455,7 +1480,11 @@ class _TypicalBoxPainter extends CustomPainter {
       ..strokeWidth = 1.2;
     for (final x in [0.6, size.width - .6]) {
       for (var y = 0.0; y < size.height; y += 4) {
-        canvas.drawLine(Offset(x, y), Offset(x, math.min(y + 2, size.height)), p);
+        canvas.drawLine(
+          Offset(x, y),
+          Offset(x, math.min(y + 2, size.height)),
+          p,
+        );
       }
     }
   }
@@ -1488,7 +1517,10 @@ class _StageBarPainter extends CustomPainter {
     canvas.save();
     canvas.clipRRect(track);
 
-    canvas.drawRect(Offset.zero & size, Paint()..color = hatch.withValues(alpha: .3));
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = hatch.withValues(alpha: .3),
+    );
 
     final t = typical;
     if (t != null) {
@@ -1511,7 +1543,11 @@ class _StageBarPainter extends CustomPainter {
         ..strokeWidth = 1.2;
       for (final x in [tx0, tx1]) {
         for (var y = 0.0; y < size.height; y += 4) {
-          canvas.drawLine(Offset(x, y), Offset(x, math.min(y + 2, size.height)), dp);
+          canvas.drawLine(
+            Offset(x, y),
+            Offset(x, math.min(y + 2, size.height)),
+            dp,
+          );
         }
       }
     }
@@ -1532,10 +1568,7 @@ class _StageBarPainter extends CustomPainter {
     } else if (frac > 0) {
       final w = math.max(size.height * .6, frac.clamp(0.0, 1.0) * size.width);
       canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(0, 0, w, size.height),
-          r,
-        ),
+        RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, w, size.height), r),
         Paint()..color = color,
       );
     }
@@ -1718,7 +1751,9 @@ class _NapChartPainter extends CustomPainter {
         final tp = TextPainter(
           text: TextSpan(
             text: '${v.round()}',
-            style: F.num(F.cap).copyWith(color: ink3, fontWeight: FontWeight.w600),
+            style: F.num(
+              F.cap,
+            ).copyWith(color: ink3, fontWeight: FontWeight.w600),
           ),
           textDirection: TextDirection.ltr,
         )..layout();
@@ -1734,7 +1769,11 @@ class _NapChartPainter extends CustomPainter {
         ..color = ink.withValues(alpha: .8)
         ..strokeWidth = 1.5;
       for (var y = plot.top; y < plot.bottom; y += S.x2) {
-        canvas.drawLine(Offset(x, y), Offset(x, math.min(y + S.x1, plot.bottom)), dash);
+        canvas.drawLine(
+          Offset(x, y),
+          Offset(x, math.min(y + S.x1, plot.bottom)),
+          dash,
+        );
       }
       canvas.drawCircle(Offset(x, plot.bottom), S.x1, Paint()..color = ink);
 
@@ -1747,7 +1786,10 @@ class _NapChartPainter extends CustomPainter {
         textDirection: TextDirection.ltr,
       )..layout();
       final tx = left ? x : x - tp.width;
-      tp.paint(canvas, Offset(tx.clamp(0, size.width - tp.width), plot.bottom + S.x2));
+      tp.paint(
+        canvas,
+        Offset(tx.clamp(0, size.width - tp.width), plot.bottom + S.x2),
+      );
     }
 
     // Scrubber line & indicator
@@ -1765,8 +1807,16 @@ class _NapChartPainter extends CustomPainter {
         canvas.drawLine(Offset(x, y), Offset(x, y + S.x1), dot);
       }
       if (hit != null) {
-        canvas.drawCircle(Offset(x, yOf(hit.v)), S.x2 + S.half, Paint()..color = ink);
-        canvas.drawCircle(Offset(x, yOf(hit.v)), S.x2, Paint()..color = C.dialSleep);
+        canvas.drawCircle(
+          Offset(x, yOf(hit.v)),
+          S.x2 + S.half,
+          Paint()..color = ink,
+        );
+        canvas.drawCircle(
+          Offset(x, yOf(hit.v)),
+          S.x2,
+          Paint()..color = C.dialSleep,
+        );
       }
     }
   }

@@ -37,6 +37,7 @@ export 'stress_monitor.dart';
 export 'trend_view.dart';
 export 'wellness_screen.dart';
 export 'what_changed.dart';
+export 'weight_trend_screen.dart';
 export 'window_editor.dart';
 export 'workout_detail.dart';
 export 'workout_screen.dart';

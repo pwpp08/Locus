@@ -20,14 +20,15 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
 import '../../state/prefs.dart';
+import '../../state/units_controller.dart';
 import '../ui2.dart';
 import '../screens/action_sheet.dart' show openCoach;
 import '../screens/coach.dart' show CoachSetup, coachSubtitle;
 import '../screens/healthspan_screen.dart' show HealthspanScreen;
-import '../screens/home_screen.dart'
-    show deviceBatteryOf;
+import '../screens/home_screen.dart' show deviceBatteryOf;
 import '../screens/milestones_screen.dart' show MilestonesScreen;
 import '../screens/watch_compare_screen.dart' show WatchCompareScreen;
+import '../screens/weight_trend_screen.dart' show WeightTrendScreen;
 import '../screens/wellness_screen.dart' show WellnessScreen;
 import 'alarm.dart' show AlarmScreen;
 import 'data.dart';
@@ -53,25 +54,31 @@ class SetRow extends StatelessWidget {
   /// the extra param. Sized and tinted the same as the [Icon] it replaces.
   final Widget Function(Color tint)? glyph;
 
-  const SetRow(IconData this.icon, this.color, this.title,
-      {super.key,
-      this.sub = '',
-      this.value = '',
-      this.danger = false,
-      this.chevron = true,
-      this.trailing,
-      this.onTap})
-      : glyph = null;
+  const SetRow(
+    IconData this.icon,
+    this.color,
+    this.title, {
+    super.key,
+    this.sub = '',
+    this.value = '',
+    this.danger = false,
+    this.chevron = true,
+    this.trailing,
+    this.onTap,
+  }) : glyph = null;
 
-  const SetRow.brand(this.glyph, this.color, this.title,
-      {super.key,
-      this.sub = '',
-      this.value = '',
-      this.danger = false,
-      this.chevron = true,
-      this.onTap})
-      : icon = null,
-        trailing = null;
+  const SetRow.brand(
+    this.glyph,
+    this.color,
+    this.title, {
+    super.key,
+    this.sub = '',
+    this.value = '',
+    this.danger = false,
+    this.chevron = true,
+    this.onTap,
+  }) : icon = null,
+       trailing = null;
 
   @override
   Widget build(BuildContext c) {
@@ -81,53 +88,60 @@ class SetRow extends StatelessWidget {
       semanticLabel: sub.isEmpty ? title : '$title. $sub',
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: S.x3),
-        child: Row(children: [
-          Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            // A circle, like every icon chip.
-            decoration: BoxDecoration(
-              color: danger ? p.wash(C.red) : p.card2,
-              shape: BoxShape.circle,
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              alignment: Alignment.center,
+              // A circle, like every icon chip.
+              decoration: BoxDecoration(
+                color: danger ? p.wash(C.red) : p.card2,
+                shape: BoxShape.circle,
+              ),
+              child: glyph != null
+                  ? glyph!(danger ? p.on(C.red) : p.ink)
+                  : Icon(icon, size: I.sm, color: danger ? p.on(C.red) : p.ink),
             ),
-            child: glyph != null
-                ? glyph!(danger ? p.on(C.red) : p.ink)
-                : Icon(icon, size: I.sm, color: danger ? p.on(C.red) : p.ink),
-          ),
-          const SizedBox(width: S.x3),
-          Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title,
-                  style: F.body.copyWith(color: danger ? p.on(C.red) : p.ink)),
-              if (value.isNotEmpty && bigText(c))
-                Text(value,
-                    style: F.cap.copyWith(
-                        color: p.ink3, fontWeight: FontWeight.w600)),
-              if (sub.isNotEmpty)
-                Text(sub, style: F.over.copyWith(color: p.ink3)),
-            ]),
-          ),
-          // THE ROW RULE (see MetricRow): the title is the only flexible part,
-          // so every value in a settings list ends on one right edge. Two flex
-          // children would split the width by ratio and break that column.
-          // The value moves UNDER the title at accessibility sizes instead —
-          // "2026-08-16 04:12" is arbitrary-length, and at 3.1× it pushed
-          // itself and the chevron off the right of every settings screen.
-          if (trailing != null) ...[
-            const SizedBox(width: S.x2),
-            trailing!,
+            const SizedBox(width: S.x3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: F.body.copyWith(color: danger ? p.on(C.red) : p.ink),
+                  ),
+                  if (value.isNotEmpty && bigText(c))
+                    Text(
+                      value,
+                      style: F.cap.copyWith(
+                        color: p.ink3,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  if (sub.isNotEmpty)
+                    Text(sub, style: F.over.copyWith(color: p.ink3)),
+                ],
+              ),
+            ),
+            // THE ROW RULE (see MetricRow): the title is the only flexible part,
+            // so every value in a settings list ends on one right edge. Two flex
+            // children would split the width by ratio and break that column.
+            // The value moves UNDER the title at accessibility sizes instead —
+            // "2026-08-16 04:12" is arbitrary-length, and at 3.1× it pushed
+            // itself and the chevron off the right of every settings screen.
+            if (trailing != null) ...[const SizedBox(width: S.x2), trailing!],
+            if (trailing == null && value.isNotEmpty && !bigText(c)) ...[
+              const SizedBox(width: S.x2),
+              Text(value, style: F.cap.copyWith(color: p.ink3)),
+            ],
+            if (trailing == null && chevron && !danger) ...[
+              const SizedBox(width: S.x2),
+              Icon(LucideIcons.chevronRight, size: I.sm, color: p.ink3),
+            ],
           ],
-          if (trailing == null && value.isNotEmpty && !bigText(c)) ...[
-            const SizedBox(width: S.x2),
-            Text(value, style: F.cap.copyWith(color: p.ink3)),
-          ],
-          if (trailing == null && chevron && !danger) ...[
-            const SizedBox(width: S.x2),
-            Icon(LucideIcons.chevronRight, size: I.sm, color: p.ink3),
-          ],
-        ]),
+        ),
       ),
     );
   }
@@ -229,19 +243,21 @@ class _PhotoCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext c) => ValueListenableBuilder<String?>(
-        valueListenable: ProfilePhoto.path,
-        builder: (c, path, _) => path == null
-            ? fallback
-            : Container(
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  image: DecorationImage(
-                      image: FileImage(File(path)), fit: BoxFit.cover),
-                ),
+    valueListenable: ProfilePhoto.path,
+    builder: (c, path, _) => path == null
+        ? fallback
+        : Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              image: DecorationImage(
+                image: FileImage(File(path)),
+                fit: BoxFit.cover,
               ),
-      );
+            ),
+          ),
+  );
 }
 
 /// The large avatar at the top of Profile and More: the picture, and the
@@ -272,45 +288,54 @@ class ProfilePhotoHeader extends StatelessWidget {
     final p = P.of(c);
     final initial = (name ?? '').trim();
     const size = S.x16 + S.x8;
-    return Column(children: [
-      Pressable(
-        semanticLabel: 'Change profile picture',
-        onTap: () => _change(c),
-        child: Stack(children: [
-          _PhotoCircle(
-            size: size,
-            fallback: Container(
-              width: size,
-              height: size,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: p.card2),
-              child: initial.isEmpty
-                  ? Icon(LucideIcons.user, size: I.xl, color: p.ink2)
-                  : Text(initial.characters.first.toUpperCase(),
-                      style: F.n34.copyWith(color: p.ink)),
-            ),
-          ),
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Container(
-              width: S.x8,
-              height: S.x8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: p.ink,
-                border: Border.all(color: p.bg, width: S.half),
+    return Column(
+      children: [
+        Pressable(
+          semanticLabel: 'Change profile picture',
+          onTap: () => _change(c),
+          child: Stack(
+            children: [
+              _PhotoCircle(
+                size: size,
+                fallback: Container(
+                  width: size,
+                  height: size,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: p.card2,
+                  ),
+                  child: initial.isEmpty
+                      ? Icon(LucideIcons.user, size: I.xl, color: p.ink2)
+                      : Text(
+                          initial.characters.first.toUpperCase(),
+                          style: F.n34.copyWith(color: p.ink),
+                        ),
+                ),
               ),
-              child: Icon(LucideIcons.camera, size: I.sm, color: p.bg),
-            ),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  width: S.x8,
+                  height: S.x8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: p.ink,
+                    border: Border.all(color: p.bg, width: S.half),
+                  ),
+                  child: Icon(LucideIcons.camera, size: I.sm, color: p.bg),
+                ),
+              ),
+            ],
           ),
-        ]),
-      ),
-      if (initial.isNotEmpty) ...[
-        const SizedBox(height: S.x3),
-        Text(initial, style: F.t2.copyWith(color: p.ink)),
+        ),
+        if (initial.isNotEmpty) ...[
+          const SizedBox(height: S.x3),
+          Text(initial, style: F.t2.copyWith(color: p.ink)),
+        ],
       ],
-    ]);
+    );
   }
 }
 
@@ -352,9 +377,13 @@ class ProfileAvatar extends StatelessWidget {
           child: initial.isEmpty
               ? Icon(LucideIcons.user, size: I.md, color: p.ink)
               : ExcludeSemantics(
-                  child: Text(initial.characters.first.toUpperCase(),
-                      style: F.body
-                          .copyWith(color: p.ink, fontWeight: FontWeight.w600)),
+                  child: Text(
+                    initial.characters.first.toUpperCase(),
+                    style: F.body.copyWith(
+                      color: p.ink,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
         ),
       ),
@@ -414,8 +443,7 @@ class _ProfileHomeState extends State<ProfileHome> {
     final repo = app.repo;
     final sources = liveSources(app).length;
     if (repo == null) {
-      return ProfileStats(
-          name: app.user?['name'] as String?, sources: sources);
+      return ProfileStats(name: app.user?['name'] as String?, sources: sources);
     }
     final bytes = await app.dataFileBytes();
     return ProfileStats(
@@ -437,17 +465,17 @@ class _ProfileHomeState extends State<ProfileHome> {
 
   @override
   Widget build(BuildContext c) => FutureBuilder<ProfileStats>(
-        future: _stats,
-        builder: (c, snap) => ProfileHomeView(
-          tab: widget.tab,
-          stats: snap.data,
-          onDevices: () => _open(c, const MyDevices()),
-          onSettings: () => _open(c, const MoreSettings()),
-          onExport: () => _open(c, const DataScreen()),
-          onEdit: () => _open(c, const EditProfile()),
-          onCoach: () => _open(c, const CoachSetup()),
-        ),
-      );
+    future: _stats,
+    builder: (c, snap) => ProfileHomeView(
+      tab: widget.tab,
+      stats: snap.data,
+      onDevices: () => _open(c, const MyDevices()),
+      onSettings: () => _open(c, const MoreSettings()),
+      onExport: () => _open(c, const DataScreen()),
+      onEdit: () => _open(c, const EditProfile()),
+      onCoach: () => _open(c, const CoachSetup()),
+    ),
+  );
 }
 
 class ProfileHomeView extends StatelessWidget {
@@ -459,16 +487,16 @@ class ProfileHomeView extends StatelessWidget {
   /// The More tab: a tab title instead of a back bar, and the app settings.
   final bool tab;
 
-  const ProfileHomeView(
-      {super.key,
-      this.tab = false,
-      this.stats,
-      this.onDevices,
-      this.onCoach,
-      this.onSettings,
-      this.onExport,
-      this.onEdit,
-      });
+  const ProfileHomeView({
+    super.key,
+    this.tab = false,
+    this.stats,
+    this.onDevices,
+    this.onCoach,
+    this.onSettings,
+    this.onExport,
+    this.onEdit,
+  });
 
   @override
   Widget build(BuildContext c) {
@@ -476,101 +504,153 @@ class ProfileHomeView extends StatelessWidget {
     final l = AppLocalizations.of(c);
     final s = stats;
     final list = ListView(
-              padding: EdgeInsets.fromLTRB(
-                  S.x4, 0, S.x4, tab ? S.navClear(c) : S.x10),
-              children: [
-                const SizedBox(height: S.x4),
-                ProfilePhotoHeader(name: s?.name),
-                const SizedBox(height: S.x2),
-                if (tab) ...[
-                  settingsGroup(c, 'Insights & coaching', [
-                    SetRow(LucideIcons.sparkles, C.purple,
-                        AppLocalizations.of(c)?.profileAiCoach ?? 'AI coach',
-                        sub: coachSubtitle(c) ??
-                            'Chat, recommendations and daily briefings',
-                        onTap: () => openCoach(c)),
-                    SetRow(LucideIcons.calendarDays, C.green,
-                        'Habit tracker',
-                        sub: 'Daily habits, journals and impacts',
-                        onTap: () => goto(c, const WellnessScreen(initialTab: 2))),
-                    SetRow(LucideIcons.activity, C.blue,
-                        'Healthspan',
-                        sub: 'Biological age, cardiovascular & cellular health',
-                        onTap: () => goto(c, const HealthspanScreen())),
-                    SetRow(LucideIcons.watch, C.lavender,
-                        'Compare with watch',
-                        sub: 'Side-by-side data with Apple Watch or Garmin',
-                        onTap: () => goto(c, const WatchCompareScreen())),
-                    SetRow(LucideIcons.trophy, C.amber,
-                        'Milestones',
-                        sub: 'Lifetime achievements and personal records',
-                        onTap: () => goto(c, const MilestonesScreen())),
-                  ]),
-                ],
-                settingsGroup(c, l?.profileQuickAccessGroup ?? 'Quick access', [
-                  // The band's battery rides the devices row: Profile is
-                  // where "is my band all right?" is asked from every tab.
-                  Builder(builder: (c) {
-                    final battery = deviceBatteryOf(c);
-                    return SetRow(LucideIcons.watch, C.blue,
-                        l?.profileMyDevices ?? 'My devices',
-                        sub: [
-                          if (s != null)
-                            l?.profileSourcesCount(s.sources) ??
-                                '${s.sources} source${s.sources == 1 ? '' : 's'}',
-                          if (battery != null)
-                            l?.profileBandBattery(battery.$1.round()) ??
-                                'Band ${battery.$1.round()}%',
-                        ].join(' · '),
-                        onTap: onDevices);
-                  }),
-                  SetRow(LucideIcons.alarmClock, C.lavender,
-                      l?.settingsAlarmRowTitle ?? 'Alarm',
-                      sub: l?.settingsAlarmRowSub ??
-                          'Buzzes on your wrist, on the band’s own clock',
-                      onTap: () => goto(c, const AlarmScreen())),
-                  SetRow(LucideIcons.userPen, C.purple,
-                      l?.profileEditProfile ?? 'Edit profile',
-                      sub: l?.profileEditProfileSub ??
-                          'Sex, age, height, weight',
-                      onTap: onEdit),
-                ]),
-                settingsGroup(c, l?.profileYourDataGroup ?? 'Your data', [
-                  SetRow(LucideIcons.cloud, C.blue,
-                      'Cloud account',
-                      sub: 'Online backup and data sync',
-                      onTap: () => goto(c, const AccountScreen())),
-                  SetRow(LucideIcons.database, C.green,
-                      l?.profileStorage ?? 'Storage',
-                      value: s?.storageBytes == null
-                          ? ''
-                          : formatBytes(s!.storageBytes!),
-                      chevron: false),
-                  // Export straight from here: it used to be five taps deep,
-                  // behind a row named for its position ("More settings").
-                  SetRow(LucideIcons.download, C.green,
-                      l?.profileExportRow ?? 'Export and backup',
-                      sub: l?.profileExportRowSub ??
-                          'Spreadsheets, a full copy, and bringing history in',
-                      onTap: onExport),
-                ]),
-              ],
-            );
+      padding: EdgeInsets.fromLTRB(S.x4, 0, S.x4, tab ? S.navClear(c) : S.x10),
+      children: [
+        const SizedBox(height: S.x4),
+        ProfilePhotoHeader(name: s?.name),
+        const SizedBox(height: S.x2),
+        if (tab) ...[
+          settingsGroup(c, 'Insights & coaching', [
+            SetRow(
+              LucideIcons.sparkles,
+              C.purple,
+              AppLocalizations.of(c)?.profileAiCoach ?? 'AI coach',
+              sub:
+                  coachSubtitle(c) ??
+                  'Chat, recommendations and daily briefings',
+              onTap: () => openCoach(c),
+            ),
+            SetRow(
+              LucideIcons.calendarDays,
+              C.green,
+              'Habit tracker',
+              sub: 'Daily habits, journals and impacts',
+              onTap: () => goto(c, const WellnessScreen(initialTab: 2)),
+            ),
+            SetRow(
+              LucideIcons.activity,
+              C.blue,
+              'Healthspan',
+              sub: 'Biological age, cardiovascular & cellular health',
+              onTap: () => goto(c, const HealthspanScreen()),
+            ),
+            SetRow(
+              LucideIcons.watch,
+              C.lavender,
+              'Compare with watch',
+              sub: 'Side-by-side data with Apple Watch or Garmin',
+              onTap: () => goto(c, const WatchCompareScreen()),
+            ),
+            SetRow(
+              LucideIcons.trophy,
+              C.amber,
+              'Milestones',
+              sub: 'Lifetime achievements and personal records',
+              onTap: () => goto(c, const MilestonesScreen()),
+            ),
+          ]),
+        ],
+        settingsGroup(c, l?.profileQuickAccessGroup ?? 'Quick access', [
+          Builder(
+            builder: (c) {
+              final app = c.watch<AppState>();
+              final units = c.watch<UnitsController>();
+              final wKg = (app.user?['weight_kg'] as num?)?.toDouble();
+              final wStr = wKg != null ? units.weight(wKg) : null;
+              return SetRow(
+                LucideIcons.scale,
+                C.dialStrain,
+                'Weight',
+                sub: wStr != null
+                    ? '$wStr · 7-day trend and history'
+                    : 'Trend and history',
+                onTap: () => goto(c, const WeightTrendScreen()),
+              );
+            },
+          ),
+          // The band's battery rides the devices row: Profile is
+          // where "is my band all right?" is asked from every tab.
+          Builder(
+            builder: (c) {
+              final battery = deviceBatteryOf(c);
+              return SetRow(
+                LucideIcons.watch,
+                C.blue,
+                l?.profileMyDevices ?? 'My devices',
+                sub: [
+                  if (s != null)
+                    l?.profileSourcesCount(s.sources) ??
+                        '${s.sources} source${s.sources == 1 ? '' : 's'}',
+                  if (battery != null)
+                    l?.profileBandBattery(battery.$1.round()) ??
+                        'Band ${battery.$1.round()}%',
+                ].join(' · '),
+                onTap: onDevices,
+              );
+            },
+          ),
+          SetRow(
+            LucideIcons.alarmClock,
+            C.lavender,
+            l?.settingsAlarmRowTitle ?? 'Alarm',
+            sub:
+                l?.settingsAlarmRowSub ??
+                'Buzzes on your wrist, on the band’s own clock',
+            onTap: () => goto(c, const AlarmScreen()),
+          ),
+          SetRow(
+            LucideIcons.userPen,
+            C.purple,
+            l?.profileEditProfile ?? 'Edit profile',
+            sub: l?.profileEditProfileSub ?? 'Sex, age, height, weight',
+            onTap: onEdit,
+          ),
+        ]),
+        settingsGroup(c, l?.profileYourDataGroup ?? 'Your data', [
+          SetRow(
+            LucideIcons.cloud,
+            C.blue,
+            'Cloud account',
+            sub: 'Online backup and data sync',
+            onTap: () => goto(c, const AccountScreen()),
+          ),
+          SetRow(
+            LucideIcons.database,
+            C.green,
+            l?.profileStorage ?? 'Storage',
+            value: s?.storageBytes == null ? '' : formatBytes(s!.storageBytes!),
+            chevron: false,
+          ),
+          // Export straight from here: it used to be five taps deep,
+          // behind a row named for its position ("More settings").
+          SetRow(
+            LucideIcons.download,
+            C.green,
+            l?.profileExportRow ?? 'Export and backup',
+            sub:
+                l?.profileExportRowSub ??
+                'Spreadsheets, a full copy, and bringing history in',
+            onTap: onExport,
+          ),
+        ]),
+      ],
+    );
     // The tab is hosted by the shell's scaffold; the pushed screen brings its
     // own.
     if (tab) return list;
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: S.x4),
-            child: NavBar(l?.profileTitle ?? 'Profile'),
-          ),
-          Expanded(child: list),
-        ]),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: S.x4),
+              child: NavBar(l?.profileTitle ?? 'Profile'),
+            ),
+            Expanded(child: list),
+          ],
+        ),
       ),
     );
   }
-
 }
