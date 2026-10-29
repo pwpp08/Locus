@@ -162,16 +162,19 @@ class _StrengthRecordScreenState extends State<StrengthRecordScreen> {
     for (final t in typed) {
       if (t.key == widget.exerciseKey) pin = t;
     }
-    final steps = await exerciseSteps(_def);
     if (!mounted) return;
     setState(() {
       _record = r;
       _points = r == null
           ? const []
           : recordProgress(widget.exerciseKey, r.kind, rows, typed: pin);
-      _steps = steps;
       _loaded = true;
       _at = null;
+    });
+    exerciseSteps(_def).then((steps) {
+      if (mounted && steps.isNotEmpty) {
+        setState(() => _steps = steps);
+      }
     });
   }
 

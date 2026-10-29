@@ -146,7 +146,7 @@ Widget settingsGroup(BuildContext c, String title, List<Widget> rows) {
           Padding(
             padding: const EdgeInsets.fromLTRB(S.x1, 0, S.x1, S.x2),
             child: Text(
-              title.toUpperCase(),
+              title,
               style: F.caps.copyWith(color: p.ink3, letterSpacing: 0.5),
             ),
           ),
