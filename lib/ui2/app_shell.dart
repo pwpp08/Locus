@@ -180,7 +180,7 @@ class _AppShellState extends State<AppShell> {
             Positioned(
               left: S.x4,
               right: S.x4,
-              bottom: S.x4 + MediaQuery.paddingOf(c).bottom,
+              bottom: (S.x2 + 2.0) + MediaQuery.paddingOf(c).bottom,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -224,19 +224,29 @@ class _TabBar extends StatelessWidget {
     Widget tab(ShellDomain d) => Expanded(
           child: _Tab(domain: d, on: d == current, onTap: () => onTap(d)),
         );
-    // A frosted rounded rectangle floating over the tabs, with a hairline edge.
+    // A frosted rounded rectangle floating over the tabs, with a subtle glassy glow on the edge.
     // The selected tab has a soft bottom-up glow highlight from the bottom edge;
     // the buttons sit between the tabs as icon-only slots.
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: R.rXxl,
-        border: Border.all(color: C.white.withValues(alpha: .12), width: 1.0),
-        color: Color.alphaBlend(C.slate.withValues(alpha: .5), C.char),
+        border: Border.all(color: C.white.withValues(alpha: .22), width: 1.0),
+        color: Color.alphaBlend(C.slate.withValues(alpha: .4), C.char),
         boxShadow: [
           BoxShadow(
-            color: C.char.withValues(alpha: .5),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
+            color: Colors.black.withValues(alpha: .55),
+            blurRadius: 28,
+            offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: C.white.withValues(alpha: .15),
+            blurRadius: 10,
+            spreadRadius: 0.5,
+          ),
+          BoxShadow(
+            color: C.white.withValues(alpha: .06),
+            blurRadius: 3,
+            spreadRadius: 1.0,
           ),
         ],
       ),
@@ -333,28 +343,26 @@ class _Tab extends StatelessWidget {
             children: [
               if (on)
                 Positioned(
-                  left: -S.x2,
-                  right: -S.x2,
-                  bottom: -S.x2,
-                  height: S.x10,
+                  left: -S.x6,
+                  right: -S.x6,
+                  bottom: -S.x4,
+                  height: S.x12 + S.x2,
                   child: IgnorePointer(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(R.xl),
-                      child: ImageFiltered(
-                        imageFilter: ui.ImageFilter.blur(
-                            sigmaX: 16, sigmaY: 16, tileMode: TileMode.decal),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: RadialGradient(
-                              center: const Alignment(0, 1.0),
-                              radius: 1.05,
-                              colors: [
-                                C.white.withValues(alpha: .36),
-                                C.white.withValues(alpha: .15),
-                                Colors.transparent,
-                              ],
-                              stops: const [0.0, 0.45, 1.0],
-                            ),
+                    child: ImageFiltered(
+                      imageFilter: ui.ImageFilter.blur(
+                          sigmaX: 14, sigmaY: 14),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: RadialGradient(
+                            center: const Alignment(0, 1.0),
+                            radius: 0.85,
+                            colors: [
+                              C.white.withValues(alpha: .32),
+                              C.white.withValues(alpha: .14),
+                              C.white.withValues(alpha: .03),
+                              Colors.transparent,
+                            ],
+                            stops: const [0.0, 0.35, 0.65, 1.0],
                           ),
                         ),
                       ),

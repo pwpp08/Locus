@@ -561,27 +561,70 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
 
   Future<void> _menu(Offset at) async {
     final size = MediaQuery.sizeOf(context);
-    final st = F.t2.copyWith(color: C.char, fontWeight: FontWeight.w400);
+    final p = P.of(context);
     final pick = await showMenu<String>(
       context: context,
-      color: C.white,
-      position: RelativeRect.fromLTRB(at.dx, at.dy, size.width - at.dx, 0),
-      shape: const RoundedRectangleBorder(borderRadius: R.rMd),
+      color: Color.alphaBlend(p.card, const Color(0xFF1E242C)),
+      elevation: 12,
+      position: RelativeRect.fromLTRB(at.dx - 140, at.dy, size.width - at.dx, 0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: C.white.withValues(alpha: .14), width: 1.0),
+      ),
       items: [
         PopupMenuItem(
           value: 'edit',
-          height: S.x16,
-          child: Text('Edit Nap', style: st),
+          height: S.x12,
+          child: Row(
+            children: [
+              Icon(LucideIcons.pencil, size: I.md, color: p.ink2),
+              const SizedBox(width: S.x4),
+              Text(
+                'EDIT NAP',
+                style: F.caps.copyWith(
+                  color: p.ink,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                ),
+              ),
+            ],
+          ),
         ),
         PopupMenuItem(
           value: 'delete',
-          height: S.x16,
-          child: Text('Delete Nap', style: st),
+          height: S.x12,
+          child: Row(
+            children: [
+              Icon(LucideIcons.trash2, size: I.md, color: p.ink2),
+              const SizedBox(width: S.x4),
+              Text(
+                'DELETE NAP',
+                style: F.caps.copyWith(
+                  color: p.ink,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                ),
+              ),
+            ],
+          ),
         ),
         PopupMenuItem(
           value: 'convert',
-          height: S.x16,
-          child: Text('Convert to Sleep', style: st),
+          height: S.x12,
+          child: Row(
+            children: [
+              Icon(LucideIcons.bedDouble, size: I.md, color: p.ink2),
+              const SizedBox(width: S.x4),
+              Text(
+                'CONVERT TO SLEEP',
+                style: F.caps.copyWith(
+                  color: p.ink,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -712,42 +755,57 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
       child: Scaffold(
         backgroundColor: p.bg,
         body: SafeArea(
-          child: Column(
-            children: [
-              _header(c, p, start, end),
-              Expanded(
-                child: ListView(
-                  padding: EdgeInsets.only(bottom: S.navClear(c)),
-                  children: [
-                    _heroReadouts(c, p, d),
-                    const SizedBox(height: S.x2),
-                    _chart(c, p, d),
-                    const SizedBox(height: S.x6),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: S.x4),
-                      child: Column(
-                        children: [
-                          _stageHeader(p, d),
-                          const SizedBox(height: S.x4),
-                          _stageCard(c, p, d, SleepStage.awake),
-                          const SizedBox(height: S.x3),
-                          _stageCard(c, p, d, SleepStage.light),
-                          const SizedBox(height: S.x3),
-                          _stageCard(c, p, d, SleepStage.deep),
-                          const SizedBox(height: S.x3),
-                          _stageCard(c, p, d, SleepStage.rem),
-                          const SizedBox(height: S.x10),
-                          _metricsHeader(p),
-                          const SizedBox(height: S.x4),
-                        ],
-                      ),
-                    ),
-                    _metricCards(c, p, d),
-                    const SizedBox(height: S.x8),
-                  ],
-                ),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  p.bg,
+                  Color.alphaBlend(p.ink.withValues(alpha: .025), p.bg),
+                  Color.alphaBlend(p.ink.withValues(alpha: .04), p.bg),
+                  p.bg,
+                ],
+                stops: const [0.0, 0.12, 0.35, 0.55],
               ),
-            ],
+            ),
+            child: Column(
+              children: [
+                _header(c, p, start, end),
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.only(bottom: S.navClear(c)),
+                    children: [
+                      _heroReadouts(c, p, d),
+                      const SizedBox(height: S.x2),
+                      _chart(c, p, d),
+                      const SizedBox(height: S.x6),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: S.x4),
+                        child: Column(
+                          children: [
+                            _stageHeader(p, d),
+                            const SizedBox(height: S.x4),
+                            _stageCard(c, p, d, SleepStage.awake),
+                            const SizedBox(height: S.x2 + S.half),
+                            _stageCard(c, p, d, SleepStage.light),
+                            const SizedBox(height: S.x2 + S.half),
+                            _stageCard(c, p, d, SleepStage.deep),
+                            const SizedBox(height: S.x2 + S.half),
+                            _stageCard(c, p, d, SleepStage.rem),
+                            const SizedBox(height: S.x8),
+                            _metricsHeader(p),
+                            const SizedBox(height: S.x4),
+                          ],
+                        ),
+                      ),
+                      _metricCards(c, p, d),
+                      const SizedBox(height: S.x8),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -767,7 +825,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
               width: S.tap,
               height: S.tap,
               child: Center(
-                child: Icon(LucideIcons.x, size: I.md, color: p.ink),
+                child: Icon(LucideIcons.x, size: I.md * 0.9, color: p.ink),
               ),
             ),
           ),
@@ -819,13 +877,13 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   for (var i = 0; i < 3; i++) ...[
-                    if (i > 0) const SizedBox(width: S.x1),
+                    if (i > 0) const SizedBox(width: S.x1 * 0.9),
                     Container(
-                      width: S.x2,
-                      height: S.x2,
+                      width: S.x2 * 0.9,
+                      height: S.x2 * 0.9,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: p.ink, width: S.half),
+                        border: Border.all(color: p.ink, width: S.half * 0.9),
                       ),
                     ),
                   ],
@@ -841,6 +899,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
   Widget _heroReadouts(BuildContext c, P p, NapDetailData d) {
     final scrub = _scrubT;
     final labelStyle = F.over.copyWith(
+      fontSize: (F.over.fontSize ?? 10.0) * 0.9,
       color: p.ink3,
       fontWeight: FontWeight.w800,
       letterSpacing: 1.4,
@@ -870,6 +929,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
                   Text(
                     hm(stageSec ~/ 60),
                     style: F.n34.copyWith(
+                      fontSize: (F.n34.fontSize ?? 34.0) * 0.9,
                       color: stColor,
                       fontWeight: FontWeight.w700,
                     ),
@@ -920,6 +980,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
                           Text(
                             hm(d.durationMin),
                             style: F.n34.copyWith(
+                              fontSize: (F.n34.fontSize ?? 34.0) * 0.9,
                               color: C.dialSleep,
                               fontWeight: FontWeight.w700,
                             ),
@@ -948,6 +1009,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
                           Text(
                             hm(d.restorativeMin),
                             style: F.n34.copyWith(
+                              fontSize: (F.n34.fontSize ?? 34.0) * 0.9,
                               color: C.dialSleep,
                               fontWeight: FontWeight.w700,
                             ),
@@ -1108,7 +1170,10 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
         : (picking && !on ? p.ink2 : stageColor);
 
     final card = Container(
-      padding: const EdgeInsets.all(S.x4),
+      padding: EdgeInsets.symmetric(
+        horizontal: S.x4 * 0.9,
+        vertical: (S.x3 + S.half) * 0.9,
+      ),
       decoration: BoxDecoration(
         color: p.card,
         borderRadius: R.rLg,
@@ -1125,15 +1190,17 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
               Text(
                 name,
                 style: F.caps.copyWith(
+                  fontSize: 11.0 * 0.9,
                   color: p.ink,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.4,
                 ),
               ),
-              const SizedBox(width: S.x2),
+              const SizedBox(width: S.x2 * 0.9),
               Text(
                 '$pct%',
                 style: F.caps.copyWith(
+                  fontSize: 11.0 * 0.9,
                   color: pctColor,
                   fontWeight: FontWeight.w700,
                   letterSpacing: .6,
@@ -1144,13 +1211,17 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
                 hm(secs ~/ 60),
                 style: F.num(
                   F.t2,
-                ).copyWith(color: p.ink, fontWeight: FontWeight.w700),
+                ).copyWith(
+                  fontSize: 17.0 * 0.9,
+                  color: p.ink,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: S.x3),
+          const SizedBox(height: S.x2 + S.half),
           SizedBox(
-            height: S.x4,
+            height: S.x4 * 0.9,
             child: CustomPaint(
               painter: _StageBarPainter(
                 frac: secs / durSec,
@@ -1216,7 +1287,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
       child: Column(
         children: [
           SizedBox(
-            height: S.x16 * 2 + S.x2,
+            height: S.x16 + S.x12 + S.x2,
             child: Row(
               children: [
                 Expanded(
@@ -1248,7 +1319,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
           ),
           const SizedBox(height: S.x3),
           SizedBox(
-            height: S.x16 * 2 + S.x2,
+            height: S.x16 + S.x12 + S.x2,
             child: Row(
               children: [
                 Expanded(
@@ -1294,24 +1365,25 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
   }) {
     final chipColor = isAlert ? C.amber : C.optimal;
     return Container(
-      padding: const EdgeInsets.all(S.x4),
+      padding: const EdgeInsets.fromLTRB(S.x3 + S.half, S.x3, S.x3, S.x3),
       decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: I.md, color: p.ink),
-              const SizedBox(width: S.x3),
+              Icon(icon, size: I.md * 0.9, color: p.ink),
+              const SizedBox(width: S.x2),
               Expanded(
                 child: Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: F.over.copyWith(
+                    fontSize: 9.0,
                     color: p.ink3,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: 1.4,
+                    letterSpacing: 1.2,
                   ),
                 ),
               ),
@@ -1325,6 +1397,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
               Text(
                 value,
                 style: F.n34.copyWith(
+                  fontSize: 26,
                   color: p.ink,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1333,17 +1406,18 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
               Text(
                 unit,
                 style: F.body.copyWith(
+                  fontSize: 13,
                   color: p.ink,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: S.x3),
+          const SizedBox(height: S.x2),
           Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: S.x2 + S.half,
-              vertical: S.x1,
+              horizontal: S.x2,
+              vertical: S.half,
             ),
             decoration: BoxDecoration(
               color: chipColor.withValues(alpha: .15),
@@ -1646,7 +1720,19 @@ class _NapChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final plot = Rect.fromLTRB(0, S.x2, size.width, size.height - _foot);
-    canvas.drawRect(plot, Paint()..color = ground);
+    final bgPaint = Paint()
+      ..shader = ui.Gradient.linear(
+        Offset(0, plot.top),
+        Offset(0, plot.bottom),
+        [
+          Color.alphaBlend(ink.withValues(alpha: .025), ground),
+          ground,
+          Color.alphaBlend(ground, Colors.black),
+          Colors.black.withValues(alpha: .5),
+        ],
+        [0.0, 0.20, 0.70, 1.0],
+      );
+    canvas.drawRect(plot, bgPaint);
     final span = math.max(1, v1 - v0);
     double xOf(num t) => (t - v0) / span * size.width;
 

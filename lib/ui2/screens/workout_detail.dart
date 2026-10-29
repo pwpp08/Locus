@@ -412,27 +412,70 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
 
   Future<void> _menu(BuildContext c, Offset at) async {
     final size = MediaQuery.sizeOf(c);
-    final st = F.t2.copyWith(color: C.char, fontWeight: FontWeight.w400);
+    final p = P.of(c);
     final pick = await showMenu<String>(
       context: c,
-      color: C.white,
-      position: RelativeRect.fromLTRB(at.dx, at.dy, size.width - at.dx, 0),
-      shape: const RoundedRectangleBorder(borderRadius: R.rMd),
+      color: Color.alphaBlend(p.card, const Color(0xFF1E242C)),
+      elevation: 12,
+      position: RelativeRect.fromLTRB(at.dx - 120, at.dy, size.width - at.dx, 0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: C.white.withValues(alpha: .14), width: 1.0),
+      ),
       items: [
         PopupMenuItem(
           value: 'share',
-          height: S.x16,
-          child: Text('Share', style: st),
+          height: S.x12,
+          child: Row(
+            children: [
+              Icon(LucideIcons.share2, size: I.md, color: p.ink2),
+              const SizedBox(width: S.x4),
+              Text(
+                'SHARE',
+                style: F.caps.copyWith(
+                  color: p.ink,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                ),
+              ),
+            ],
+          ),
         ),
         PopupMenuItem(
           value: 'edit',
-          height: S.x16,
-          child: Text('Edit', style: st),
+          height: S.x12,
+          child: Row(
+            children: [
+              Icon(LucideIcons.pencil, size: I.md, color: p.ink2),
+              const SizedBox(width: S.x4),
+              Text(
+                'EDIT',
+                style: F.caps.copyWith(
+                  color: p.ink,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                ),
+              ),
+            ],
+          ),
         ),
         PopupMenuItem(
           value: 'delete',
-          height: S.x16,
-          child: Text('Delete', style: st),
+          height: S.x12,
+          child: Row(
+            children: [
+              Icon(LucideIcons.trash2, size: I.md, color: p.ink2),
+              const SizedBox(width: S.x4),
+              Text(
+                'DELETE',
+                style: F.caps.copyWith(
+                  color: p.ink,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -498,63 +541,78 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
-        child: Column(
-          children: [
-            _header(c, p, a, start, end),
-            Expanded(
-              child: d == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView(
-                      padding: EdgeInsets.only(bottom: S.navClear(c)),
-                      children: [
-                        _strain(c, p, d),
-                        const SizedBox(height: S.x2),
-                        _chart(c, p, d),
-                        const SizedBox(height: S.x6),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: S.x4),
-                          child: Column(
-                            children: [
-                              _legend(p, d),
-                              const SizedBox(height: S.x5),
-                              for (var z = 4; z >= 0; z--) ...[
-                                _zoneCard(c, p, d, z),
-                                const SizedBox(height: S.x3),
-                              ],
-                              if (d.route != null) ...[
-                                const SizedBox(height: S.x8),
-                                _RouteCard(d: d, onShare: () => _share()),
-                              ],
-                              if (d.type.toLowerCase().contains('run') ||
-                                  a.name.toLowerCase() == 'running') ...[
-                                const SizedBox(height: S.x8),
-                                RunningWorkoutComparisonCard(
-                                  detail: d,
-                                  units:
-                                      unitsOf(c) ??
-                                      UnitsController.seed(UnitSystem.metric),
-                                ),
-                              ],
-                              const SizedBox(height: S.x10),
-                              _keyStatsHead(p),
-                              const SizedBox(height: S.x4),
-                            ],
-                          ),
-                        ),
-                        _keyStats(c, p, d),
-                        if (d.count > 0) ...[
-                          const SizedBox(height: S.x5),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: S.x4,
-                            ),
-                            child: _milestone(p, d),
-                          ),
-                        ],
-                      ],
-                    ),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                p.bg,
+                Color.alphaBlend(p.ink.withValues(alpha: .025), p.bg),
+                Color.alphaBlend(p.ink.withValues(alpha: .04), p.bg),
+                p.bg,
+              ],
+              stops: const [0.0, 0.12, 0.35, 0.55],
             ),
-          ],
+          ),
+          child: Column(
+            children: [
+              _header(c, p, a, start, end),
+              Expanded(
+                child: d == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView(
+                        padding: EdgeInsets.only(bottom: S.navClear(c)),
+                        children: [
+                          _strain(c, p, d),
+                          const SizedBox(height: S.x2),
+                          _chart(c, p, d),
+                          const SizedBox(height: S.x6),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: S.x4),
+                            child: Column(
+                              children: [
+                                _legend(p, d),
+                                const SizedBox(height: S.x4),
+                                for (var z = 4; z >= 0; z--) ...[
+                                  _zoneCard(c, p, d, z),
+                                  const SizedBox(height: S.x2 + S.half),
+                                ],
+                                if (d.route != null) ...[
+                                  const SizedBox(height: S.x6),
+                                  _RouteCard(d: d, onShare: () => _share()),
+                                ],
+                                if (d.type.toLowerCase().contains('run') ||
+                                    a.name.toLowerCase() == 'running') ...[
+                                  const SizedBox(height: S.x6),
+                                  RunningWorkoutComparisonCard(
+                                    detail: d,
+                                    units:
+                                        unitsOf(c) ??
+                                        UnitsController.seed(UnitSystem.metric),
+                                  ),
+                                ],
+                                const SizedBox(height: S.x8),
+                                _keyStatsHead(p),
+                                const SizedBox(height: S.x4),
+                              ],
+                            ),
+                          ),
+                          _keyStats(c, p, d),
+                          if (d.count > 0) ...[
+                            const SizedBox(height: S.x5),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: S.x4,
+                              ),
+                              child: _milestone(p, d),
+                            ),
+                          ],
+                        ],
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -602,7 +660,7 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
               width: S.tap,
               height: S.tap,
               child: Center(
-                child: BoldChevron(left: true, height: S.x5, color: p.ink),
+                child: BoldChevron(left: true, height: S.x5 * 0.9, color: p.ink),
               ),
             ),
           ),
@@ -656,13 +714,13 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   for (var i = 0; i < 3; i++) ...[
-                    if (i > 0) const SizedBox(width: S.x1),
+                    if (i > 0) const SizedBox(width: S.x1 * 0.9),
                     Container(
-                      width: S.x2 + S.half,
-                      height: S.x2 + S.half,
+                      width: (S.x2 + S.half) * 0.9,
+                      height: (S.x2 + S.half) * 0.9,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: p.ink, width: S.half),
+                        border: Border.all(color: p.ink, width: S.half * 0.9),
                       ),
                     ),
                   ],
@@ -689,6 +747,7 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
       }
     }
     final label = F.over.copyWith(
+      fontSize: (F.over.fontSize ?? 10.0) * 0.9,
       color: p.ink3,
       fontWeight: FontWeight.w800,
       letterSpacing: 1.4,
@@ -708,6 +767,7 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                       Text(
                         '${at.v.round()}',
                         style: F.n34.copyWith(
+                          fontSize: (F.n34.fontSize ?? 34.0) * 0.9,
                           color: C.dialStrain,
                           fontWeight: FontWeight.w700,
                         ),
@@ -716,6 +776,7 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                       Text(
                         'bpm',
                         style: F.body.copyWith(
+                          fontSize: (F.body.fontSize ?? 15.0) * 0.9,
                           color: C.dialStrain,
                           fontWeight: FontWeight.w500,
                         ),
@@ -737,6 +798,7 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                       Text(
                         v == null ? '--' : v.toStringAsFixed(1),
                         style: F.n34.copyWith(
+                          fontSize: (F.n34.fontSize ?? 34.0) * 0.9,
                           color: C.dialStrain,
                           fontWeight: FontWeight.w700,
                         ),
@@ -875,11 +937,11 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
         : _zoneColors[z];
     final (hm, ss) = _hmParts(secs);
     final card = Container(
-      padding: const EdgeInsets.fromLTRB(
-        S.x4 + S.half,
-        S.x5,
-        S.x4 + S.half,
-        S.x5,
+      padding: EdgeInsets.fromLTRB(
+        (S.x4 + S.half) * 0.9,
+        S.x5 * 0.9,
+        (S.x4 + S.half) * 0.9,
+        S.x5 * 0.9,
       ),
       decoration: BoxDecoration(
         color: p.card,
@@ -899,28 +961,31 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
               Text(
                 'ZONE ${z + 1}',
                 style: F.caps.copyWith(
+                  fontSize: 11.0 * 0.9,
                   color: ink,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.4,
                 ),
               ),
-              const SizedBox(width: S.x3),
+              const SizedBox(width: S.x3 * 0.9),
               Flexible(
                 child: Text(
                   range,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: F.caps.copyWith(
+                    fontSize: 11.0 * 0.9,
                     color: active ? p.ink2 : ink,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.2,
                   ),
                 ),
               ),
-              const SizedBox(width: S.x3),
+              const SizedBox(width: S.x3 * 0.9),
               Text(
                 '$pct%',
                 style: F.caps.copyWith(
+                  fontSize: 11.0 * 0.9,
                   color: pctColor,
                   fontWeight: FontWeight.w700,
                   letterSpacing: .6,
@@ -931,11 +996,16 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                 hm,
                 style: F.num(
                   F.t2,
-                ).copyWith(color: ink, fontWeight: FontWeight.w700),
+                ).copyWith(
+                  fontSize: 17.0 * 0.9,
+                  color: ink,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               Text(
                 ':$ss',
                 style: F.num(F.body).copyWith(
+                  fontSize: 15.0 * 0.9,
                   color: active ? p.ink3 : ink,
                   fontWeight: FontWeight.w600,
                 ),
@@ -943,9 +1013,9 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
             ],
           ),
           if (active) ...[
-            const SizedBox(height: S.x4),
+            const SizedBox(height: S.x3 * 0.9),
             SizedBox(
-              height: S.x6,
+              height: (S.x6 * 0.9).roundToDouble(),
               child: CustomPaint(
                 painter: _ZoneBar(
                   frac: d.durationSec <= 0 ? 0 : secs / d.durationSec,
@@ -1002,7 +1072,6 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
   );
 
   Widget _keyStats(BuildContext c, P p, WorkoutDetail d) {
-    final w = MediaQuery.sizeOf(c).width * .43;
     final dur = d.durationSec;
     final (dm, ds) = _hmParts(dur);
     final cards = [
@@ -1037,7 +1106,7 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
         null,
         d.maxHr == null || d.avg.maxHr == null
             ? null
-            : (d.maxHr! >= d.avg.maxHr!, '${d.avg.maxHr!.round()}bpm'),
+            : (d.maxHr! >= d.avg.maxHr!, '${d.maxHr!.round()}bpm'),
       ),
       _Stat(
         LucideIcons.timer,
@@ -1050,60 +1119,86 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
             : (dur >= d.avg.durationSec!, _hms(d.avg.durationSec!.round())),
       ),
     ];
-    return SizedBox(
-      height: S.x16 * 2 + S.x4,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: S.x4),
-        itemCount: cards.length,
-        separatorBuilder: (_, _) => const SizedBox(width: S.x3),
-        itemBuilder: (_, i) =>
-            SizedBox(width: w, child: _statCard(p, cards[i])),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: S.x4),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: _statCard(p, cards[0])),
+              const SizedBox(width: S.x3),
+              Expanded(child: _statCard(p, cards[1])),
+            ],
+          ),
+          const SizedBox(height: S.x3),
+          Row(
+            children: [
+              Expanded(child: _statCard(p, cards[2])),
+              const SizedBox(width: S.x3),
+              Expanded(child: _statCard(p, cards[3])),
+            ],
+          ),
+        ],
       ),
     );
   }
 
   Widget _statCard(P p, _Stat s) => Container(
-    padding: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x3, S.x4),
+    padding: const EdgeInsets.fromLTRB(S.x4, S.x3 + S.half, S.x3, S.x3 + S.half),
     decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Row(
           children: [
-            Icon(s.icon, size: I.md, color: p.ink),
-            const SizedBox(width: S.x3),
-            Text(
-              s.label,
-              style: F.over.copyWith(
-                color: p.ink3,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.4,
+            Icon(s.icon, size: I.md * 0.9, color: p.ink),
+            const SizedBox(width: S.x2),
+            Expanded(
+              child: Text(
+                s.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: F.over.copyWith(
+                  fontSize: 9.0,
+                  color: p.ink3,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                ),
               ),
             ),
           ],
         ),
-        const Spacer(),
+        const SizedBox(height: S.x3),
         Row(
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
           children: [
             Text(
               s.value,
-              style: F.n34.copyWith(color: p.ink, fontWeight: FontWeight.w700),
+              style: F.n34.copyWith(
+                fontSize: 26,
+                color: p.ink,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             if (s.small != null)
               Text(
                 s.small!,
                 style: F.num(
                   F.head,
-                ).copyWith(color: p.ink, fontWeight: FontWeight.w600),
+                ).copyWith(
+                  fontSize: 18,
+                  color: p.ink,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             if (s.unit.isNotEmpty) ...[
               const SizedBox(width: S.x1),
               Text(
                 s.unit,
                 style: F.body.copyWith(
+                  fontSize: 13,
                   color: p.ink,
                   fontWeight: FontWeight.w500,
                 ),
@@ -1328,7 +1423,19 @@ class _ChartPaint extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final plot = Rect.fromLTRB(0, S.x2, size.width, size.height - _foot);
-    canvas.drawRect(plot, Paint()..color = ground);
+    final bgPaint = Paint()
+      ..shader = ui.Gradient.linear(
+        Offset(0, plot.top),
+        Offset(0, plot.bottom),
+        [
+          Color.alphaBlend(ink.withValues(alpha: .025), ground),
+          ground,
+          Color.alphaBlend(ground, Colors.black),
+          Colors.black.withValues(alpha: .5),
+        ],
+        [0.0, 0.20, 0.70, 1.0],
+      );
+    canvas.drawRect(plot, bgPaint);
     final span = math.max(1, v1 - v0);
     double xOf(num t) => (t - v0) / span * size.width;
     // What is in view, with a sample either side so the trace runs off the edge.
