@@ -144,7 +144,8 @@ void main() {
     ));
     await t.pump();
     await t.pump();
-    expect(find.text('DAY STRAIN'), findsOneWidget);
+    // The picker's label, and the comparison card's chips for the same metric.
+    expect(find.text('DAY STRAIN'), findsWidgets);
     expect(find.text('12.0'), findsOneWidget); // (10+12+14)/3, today left out
     expect(find.textContaining('Average does not include today'), findsOneWidget);
 
@@ -159,13 +160,13 @@ void main() {
     await t.pump();
     expect(find.text('12.0'), findsOneWidget, reason: 'lifting returns to the average');
 
-    await t.tap(find.text('DAY STRAIN'));
+    await t.tap(find.text('DAY STRAIN').first);
     await t.pump();
     expect(find.text('RECOVERY'), findsWidgets);
     await t.tap(find.text('SLEEP DEBT'));
     await t.pump();
     await t.pump();
-    expect(find.text('SLEEP DEBT'), findsOneWidget);
+    expect(find.text('SLEEP DEBT'), findsWidgets);
     expect(find.text('0:40'), findsAtLeastNWidgets(1));
     expect(t.takeException(), isNull);
     h.dispose();

@@ -564,11 +564,11 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
     final p = P.of(context);
     final pick = await showMenu<String>(
       context: context,
-      color: Color.alphaBlend(p.card, const Color(0xFF1E242C)),
+      color: p.card,
       elevation: 12,
       position: RelativeRect.fromLTRB(at.dx - 140, at.dy, size.width - at.dx, 0),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: R.rXxl,
         side: BorderSide(color: C.white.withValues(alpha: .14), width: 1.0),
       ),
       items: [
@@ -899,7 +899,6 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
   Widget _heroReadouts(BuildContext c, P p, NapDetailData d) {
     final scrub = _scrubT;
     final labelStyle = F.over.copyWith(
-      fontSize: (F.over.fontSize ?? 10.0) * 0.9,
       color: p.ink3,
       fontWeight: FontWeight.w800,
       letterSpacing: 1.4,
@@ -929,7 +928,6 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
                   Text(
                     hm(stageSec ~/ 60),
                     style: F.n34.copyWith(
-                      fontSize: (F.n34.fontSize ?? 34.0) * 0.9,
                       color: stColor,
                       fontWeight: FontWeight.w700,
                     ),
@@ -980,7 +978,6 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
                           Text(
                             hm(d.durationMin),
                             style: F.n34.copyWith(
-                              fontSize: (F.n34.fontSize ?? 34.0) * 0.9,
                               color: C.dialSleep,
                               fontWeight: FontWeight.w700,
                             ),
@@ -1009,7 +1006,6 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
                           Text(
                             hm(d.restorativeMin),
                             style: F.n34.copyWith(
-                              fontSize: (F.n34.fontSize ?? 34.0) * 0.9,
                               color: C.dialSleep,
                               fontWeight: FontWeight.w700,
                             ),
@@ -1190,7 +1186,6 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
               Text(
                 name,
                 style: F.caps.copyWith(
-                  fontSize: 11.0 * 0.9,
                   color: p.ink,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.4,
@@ -1200,7 +1195,6 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
               Text(
                 '$pct%',
                 style: F.caps.copyWith(
-                  fontSize: 11.0 * 0.9,
                   color: pctColor,
                   fontWeight: FontWeight.w700,
                   letterSpacing: .6,
@@ -1209,10 +1203,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
               const Spacer(),
               Text(
                 hm(secs ~/ 60),
-                style: F.num(
-                  F.t2,
-                ).copyWith(
-                  fontSize: 17.0 * 0.9,
+                style: F.num(F.head).copyWith(
                   color: p.ink,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1380,7 +1371,6 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: F.over.copyWith(
-                    fontSize: 9.0,
                     color: p.ink3,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.2,
@@ -1396,8 +1386,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
             children: [
               Text(
                 value,
-                style: F.n34.copyWith(
-                  fontSize: 26,
+                style: F.n24.copyWith(
                   color: p.ink,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1405,8 +1394,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
               const SizedBox(width: S.x1),
               Text(
                 unit,
-                style: F.body.copyWith(
-                  fontSize: 13,
+                style: F.cap.copyWith(
                   color: p.ink,
                   fontWeight: FontWeight.w500,
                 ),
@@ -1727,8 +1715,8 @@ class _NapChartPainter extends CustomPainter {
         [
           Color.alphaBlend(ink.withValues(alpha: .025), ground),
           ground,
-          Color.alphaBlend(ground, Colors.black),
-          Colors.black.withValues(alpha: .5),
+          ground,
+          C.char.withValues(alpha: .5),
         ],
         [0.0, 0.20, 0.70, 1.0],
       );

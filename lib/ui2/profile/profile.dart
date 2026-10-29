@@ -418,7 +418,12 @@ class ProfileStats {
   final int sources;
   final int? storageBytes;
 
-  const ProfileStats({this.name, this.sources = 0, this.storageBytes});
+  /// The saved weight, already in the reader's units ("61.5 kg"); null until
+  /// one is set.
+  final String? weight;
+
+  const ProfileStats(
+      {this.name, this.sources = 0, this.storageBytes, this.weight});
 }
 
 class ProfileHome extends StatefulWidget {
@@ -442,14 +447,21 @@ class _ProfileHomeState extends State<ProfileHome> {
     final app = context.read<AppState>();
     final repo = app.repo;
     final sources = liveSources(app).length;
+    final wKg = (app.user?['weight_kg'] as num?)?.toDouble();
+    final weight =
+        wKg == null ? null : context.read<UnitsController>().weight(wKg);
     if (repo == null) {
-      return ProfileStats(name: app.user?['name'] as String?, sources: sources);
+      return ProfileStats(
+          name: app.user?['name'] as String?,
+          sources: sources,
+          weight: weight);
     }
     final bytes = await app.dataFileBytes();
     return ProfileStats(
       name: app.user?['name'] as String?,
       sources: sources,
       storageBytes: bytes,
+      weight: weight,
     );
   }
 
@@ -551,22 +563,14 @@ class ProfileHomeView extends StatelessWidget {
           ]),
         ],
         settingsGroup(c, l?.profileQuickAccessGroup ?? 'Quick access', [
-          Builder(
-            builder: (c) {
-              final app = c.watch<AppState>();
-              final units = c.watch<UnitsController>();
-              final wKg = (app.user?['weight_kg'] as num?)?.toDouble();
-              final wStr = wKg != null ? units.weight(wKg) : null;
-              return SetRow(
-                LucideIcons.scale,
-                C.dialStrain,
-                'Weight',
-                sub: wStr != null
-                    ? '$wStr · 7-day trend and history'
-                    : 'Trend and history',
-                onTap: () => goto(c, const WeightTrendScreen()),
-              );
-            },
+          SetRow(
+            LucideIcons.scale,
+            C.dialStrain,
+            'Weight',
+            sub: s?.weight != null
+                ? '${s!.weight} · 7-day trend and history'
+                : 'Trend and history',
+            onTap: () => goto(c, const WeightTrendScreen()),
           ),
           // The band's battery rides the devices row: Profile is
           // where "is my band all right?" is asked from every tab.

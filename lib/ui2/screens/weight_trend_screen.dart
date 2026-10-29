@@ -77,10 +77,11 @@ class _WeightTrendScreenState extends State<WeightTrendScreen> {
   DateTime get _endDate {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    return today.subtract(Duration(days: _back * _windowDays));
+    return DateTime(today.year, today.month, today.day - _back * _windowDays);
   }
 
-  DateTime get _startDate => _endDate.subtract(Duration(days: _windowDays - 1));
+  DateTime get _startDate => DateTime(
+      _endDate.year, _endDate.month, _endDate.day - (_windowDays - 1));
 
   void _step(int delta) {
     setState(() {
@@ -114,7 +115,7 @@ class _WeightTrendScreenState extends State<WeightTrendScreen> {
 
     final days = <DateTime>[];
     for (var i = 0; i < _windowDays; i++) {
-      days.add(_startDate.add(Duration(days: i)));
+      days.add(DateTime(_startDate.year, _startDate.month, _startDate.day + i));
     }
 
     double toUserUnit(double kg) => units.isImperial ? kg * 2.20462262185 : kg;
@@ -691,7 +692,7 @@ class _WeightChartPainter extends CustomPainter {
       final tp = TextPainter(
         text: TextSpan(
           text: axis.format(tick),
-          style: F.over.copyWith(color: ink3, fontSize: 10),
+          style: F.over.copyWith(color: ink3),
         ),
         textDirection: TextDirection.ltr,
       )..layout();

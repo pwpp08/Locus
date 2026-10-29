@@ -300,16 +300,19 @@ class _WindowEditorState extends State<WindowEditor> {
             const SizedBox(height: S.x2),
             Row(
               children: [
-                _spanChip(c, '30M', 1800),
-                const SizedBox(width: S.x1),
-                _spanChip(c, '2H', 2 * _hour),
-                const SizedBox(width: S.x1),
-                _spanChip(c, '6H', 6 * _hour),
-                const SizedBox(width: S.x1),
-                _spanChip(c, '1D', _day),
-                const SizedBox(width: S.x1),
-                _spanChip(c, '2D', 2 * _day),
-                const Spacer(),
+                Expanded(
+                  child: Wrap(
+                    spacing: S.x1,
+                    runSpacing: S.x1,
+                    children: [
+                      _spanChip(c, '30M', 1800),
+                      _spanChip(c, '2H', 2 * _hour),
+                      _spanChip(c, '6H', 6 * _hour),
+                      _spanChip(c, '1D', _day),
+                      _spanChip(c, '2D', 2 * _day),
+                    ],
+                  ),
+                ),
                 Pressable(
                   onTap: () => _zoom(1 / 1.6),
                   semanticLabel: 'Zoom in',
@@ -937,7 +940,7 @@ class _WindowPreviewState extends State<WindowPreview> {
               if (isInteractive)
                 Text(
                   'Slide lines • Drag center • Pinch / +/- to zoom',
-                  style: F.cap.copyWith(color: p.ink3, fontSize: 10),
+                  style: F.over.copyWith(color: p.ink3),
                 ),
             ],
           ),

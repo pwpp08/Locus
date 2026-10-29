@@ -234,7 +234,7 @@ class _TabBar extends StatelessWidget {
         color: Color.alphaBlend(C.slate.withValues(alpha: .4), C.char),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: .55),
+            color: C.char.withValues(alpha: .55),
             blurRadius: 28,
             offset: const Offset(0, 10),
           ),

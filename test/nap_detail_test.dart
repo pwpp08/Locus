@@ -158,9 +158,9 @@ void main() {
     await tester.tap(find.bySemanticsLabel('More'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Edit Nap'), findsOneWidget);
-    expect(find.text('Delete Nap'), findsOneWidget);
-    expect(find.text('Convert to Sleep'), findsOneWidget);
+    expect(find.text('EDIT NAP'), findsOneWidget);
+    expect(find.text('DELETE NAP'), findsOneWidget);
+    expect(find.text('CONVERT TO SLEEP'), findsOneWidget);
   });
 
   testWidgets('NapDetailScreen tapping stage highlights stage', (tester) async {

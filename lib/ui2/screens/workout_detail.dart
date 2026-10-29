@@ -415,11 +415,11 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
     final p = P.of(c);
     final pick = await showMenu<String>(
       context: c,
-      color: Color.alphaBlend(p.card, const Color(0xFF1E242C)),
+      color: p.card,
       elevation: 12,
       position: RelativeRect.fromLTRB(at.dx - 120, at.dy, size.width - at.dx, 0),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: R.rXxl,
         side: BorderSide(color: C.white.withValues(alpha: .14), width: 1.0),
       ),
       items: [
@@ -747,7 +747,6 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
       }
     }
     final label = F.over.copyWith(
-      fontSize: (F.over.fontSize ?? 10.0) * 0.9,
       color: p.ink3,
       fontWeight: FontWeight.w800,
       letterSpacing: 1.4,
@@ -767,7 +766,6 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                       Text(
                         '${at.v.round()}',
                         style: F.n34.copyWith(
-                          fontSize: (F.n34.fontSize ?? 34.0) * 0.9,
                           color: C.dialStrain,
                           fontWeight: FontWeight.w700,
                         ),
@@ -776,7 +774,6 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                       Text(
                         'bpm',
                         style: F.body.copyWith(
-                          fontSize: (F.body.fontSize ?? 15.0) * 0.9,
                           color: C.dialStrain,
                           fontWeight: FontWeight.w500,
                         ),
@@ -798,7 +795,6 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                       Text(
                         v == null ? '--' : v.toStringAsFixed(1),
                         style: F.n34.copyWith(
-                          fontSize: (F.n34.fontSize ?? 34.0) * 0.9,
                           color: C.dialStrain,
                           fontWeight: FontWeight.w700,
                         ),
@@ -961,7 +957,6 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
               Text(
                 'ZONE ${z + 1}',
                 style: F.caps.copyWith(
-                  fontSize: 11.0 * 0.9,
                   color: ink,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.4,
@@ -974,7 +969,6 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: F.caps.copyWith(
-                    fontSize: 11.0 * 0.9,
                     color: active ? p.ink2 : ink,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.2,
@@ -985,7 +979,6 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
               Text(
                 '$pct%',
                 style: F.caps.copyWith(
-                  fontSize: 11.0 * 0.9,
                   color: pctColor,
                   fontWeight: FontWeight.w700,
                   letterSpacing: .6,
@@ -994,18 +987,14 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
               const Spacer(),
               Text(
                 hm,
-                style: F.num(
-                  F.t2,
-                ).copyWith(
-                  fontSize: 17.0 * 0.9,
+                style: F.num(F.head).copyWith(
                   color: ink,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               Text(
                 ':$ss',
-                style: F.num(F.body).copyWith(
-                  fontSize: 15.0 * 0.9,
+                style: F.num(F.cap).copyWith(
                   color: active ? p.ink3 : ink,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1160,7 +1149,6 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: F.over.copyWith(
-                  fontSize: 9.0,
                   color: p.ink3,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
@@ -1176,8 +1164,7 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
           children: [
             Text(
               s.value,
-              style: F.n34.copyWith(
-                fontSize: 26,
+              style: F.n24.copyWith(
                 color: p.ink,
                 fontWeight: FontWeight.w700,
               ),
@@ -1188,7 +1175,6 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                 style: F.num(
                   F.head,
                 ).copyWith(
-                  fontSize: 18,
                   color: p.ink,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1197,8 +1183,7 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
               const SizedBox(width: S.x1),
               Text(
                 s.unit,
-                style: F.body.copyWith(
-                  fontSize: 13,
+                style: F.cap.copyWith(
                   color: p.ink,
                   fontWeight: FontWeight.w500,
                 ),
@@ -1430,8 +1415,8 @@ class _ChartPaint extends CustomPainter {
         [
           Color.alphaBlend(ink.withValues(alpha: .025), ground),
           ground,
-          Color.alphaBlend(ground, Colors.black),
-          Colors.black.withValues(alpha: .5),
+          ground,
+          C.char.withValues(alpha: .5),
         ],
         [0.0, 0.20, 0.70, 1.0],
       );

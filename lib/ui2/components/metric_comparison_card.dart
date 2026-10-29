@@ -260,11 +260,12 @@ class _TrendMetricComparisonCardState extends State<TrendMetricComparisonCard> {
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final startDate = today.subtract(Duration(days: _windowDays - 1));
+    final startDate =
+        DateTime(today.year, today.month, today.day - (_windowDays - 1));
 
     final days = <DateTime>[];
     for (var i = 0; i < _windowDays; i++) {
-      days.add(startDate.add(Duration(days: i)));
+      days.add(DateTime(startDate.year, startDate.month, startDate.day + i));
     }
 
     final seriesA = <double?>[];
@@ -396,7 +397,7 @@ class _TrendMetricComparisonCardState extends State<TrendMetricComparisonCard> {
                         children: [
                           Icon(
                             isSelected ? LucideIcons.check : LucideIcons.plus,
-                            size: 13,
+                            size: I.sm,
                             color: isSelected ? activeColor : p.ink3,
                           ),
                           const SizedBox(width: S.x1),
@@ -1177,7 +1178,7 @@ class _RunningWorkoutComparisonCardState
                       style: F.over.copyWith(color: p.ink3),
                     ),
                     const SizedBox(width: 4),
-                    Icon(LucideIcons.flag, size: 10, color: p.ink3),
+                    Icon(LucideIcons.flag, size: I.sm, color: p.ink3),
                   ],
                 ),
               ],
@@ -1226,16 +1227,15 @@ class _RunningWorkoutComparisonCardState
           children: [
             Icon(
               active ? LucideIcons.check : LucideIcons.plus,
-              size: 13,
+              size: I.sm,
               color: active ? color : p.ink3,
             ),
             const SizedBox(width: S.x1),
             Text(
               _metricTitle(m),
-              style: F.body.copyWith(
+              style: F.cap.copyWith(
                 color: active ? p.ink : p.ink2,
                 fontWeight: active ? FontWeight.bold : FontWeight.w500,
-                fontSize: 13,
               ),
             ),
           ],
@@ -1430,7 +1430,7 @@ class _DualAxisChartPainter extends CustomPainter {
         final tp = TextPainter(
           text: TextSpan(
             text: axisA!.format(tick),
-            style: F.over.copyWith(color: ink3, fontSize: 9.5),
+            style: F.over.copyWith(color: ink3),
           ),
           textDirection: TextDirection.ltr,
         )..layout();
@@ -1447,7 +1447,7 @@ class _DualAxisChartPainter extends CustomPainter {
         final tp = TextPainter(
           text: TextSpan(
             text: axisB!.format(tick),
-            style: F.over.copyWith(color: ink3, fontSize: 9.5),
+            style: F.over.copyWith(color: ink3),
           ),
           textDirection: TextDirection.ltr,
         )..layout();

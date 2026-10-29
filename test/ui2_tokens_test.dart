@@ -322,6 +322,13 @@ const _notComponents = {
   // sessions and the cross-day rollup). Its rows have a gallery case.
   'TrendViewScreen', 'StressMonitorScreen',
   'ReportIssueScreen',
+  // Scaffold routes over the database: the weight trend and its log sheet
+  // (writes a reading), the healthspan and milestones pages.
+  'WeightTrendScreen', 'LogWeightSheet', 'HealthspanScreen',
+  'MilestonesScreen',
+  // The two comparison cards need a TrendLoader (database reads) or a whole
+  // WorkoutDetail; a gallery case would be a photograph of a fixture.
+  'TrendMetricComparisonCard', 'RunningWorkoutComparisonCard',
   'MyDevices', 'MyDevicesView', 'DeviceDetail', 'DeviceDetailView', 'RePair',
   // The strap-buzz relay picker: a Scaffold route over a live
   // NotificationRelay, whose list is whatever the OS notification stream has

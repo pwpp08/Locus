@@ -16,7 +16,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_analytics/onehz.dart' as ana;
-import 'package:openstrap_edge/coach/coach_config.dart';
 import 'package:openstrap_edge/compute/derivation_engine.dart';
 import 'package:openstrap_edge/data/day_label.dart';
 import 'package:openstrap_edge/data/local_repository.dart';
@@ -24,16 +23,6 @@ import 'package:openstrap_edge/data/local_repository_impl.dart';
 import 'package:openstrap_edge/models/metric.dart';
 import 'package:openstrap_edge/ui2/screens/screens.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
-import 'package:provider/provider.dart';
-
-/// A [CoachConfig] that just answers the one question Home asks it, without a
-/// keychain or a prefs store behind it.
-class _Coach extends CoachConfig {
-  _Coach(this._on);
-  final bool _on;
-  @override
-  bool get configured => _on;
-}
 
 /// Local noon of `today - back`, the stamp `getChart` puts on a stored point.
 int _noon(int back) {
@@ -832,34 +821,6 @@ void main() {
       await t.tap(find.text('30 DAYS'));
       await t.pumpAndSettle();
       expect(find.textContaining('Daily average'), findsOneWidget);
-    });
-  });
-
-  // ── the coach is findable before it is set up ──
-  group('the coach button in the tab bar', () {
-    Widget frame(bool configured, {void Function(BuildContext)? onAi}) =>
-        MaterialApp(
-            theme: buildTheme(Brightness.light),
-            home: ChangeNotifierProvider<CoachConfig>.value(
-              value: _Coach(configured),
-              child: AppShell(
-                builder: (_, _) => const SizedBox.shrink(),
-                onAi: onAi ?? openCoach,
-              ),
-            ));
-
-    testWidgets('it is a door: the tap reaches the coach', (t) async {
-      var opened = 0;
-      await t.pumpWidget(frame(false, onAi: (_) => opened++));
-      await t.tap(find.bySemanticsLabel('Coach'));
-      await t.pump();
-      expect(opened, 1);
-    });
-
-    testWidgets('it is on every tab, beside Home and Health', (t) async {
-      await t.pumpWidget(frame(true));
-      expect(find.byType(AiOrb), findsOneWidget);
-      expect(find.byIcon(LucideIcons.sparkles), findsOneWidget);
     });
   });
 

@@ -138,21 +138,14 @@ class _LogWeightSheetState extends State<LogWeightSheet> {
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     IntrinsicWidth(
-                      child: TextField(
+                      child: AppField(
+                        bare: true,
+                        semanticLabel: 'Weight',
                         controller: _controller,
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
-                        textAlign: TextAlign.center,
-                        style: F.n34.copyWith(
-                          color: p.ink,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
+                        textStyle: F.n34.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
                     const SizedBox(width: S.x1),
