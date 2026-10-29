@@ -996,14 +996,81 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
   List<Widget> _napsButton(BuildContext c, AppLocalizations? l, SleepData d) {
     final day = d.day;
     if (day == null) return const [];
-    if ((d.timeline['naps'] as List?)?.isEmpty ?? true) return const [];
+    final naps = (d.timeline['naps'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    if (naps.isEmpty) return const [];
+    final p = P.of(c);
     return [
-      const SizedBox(height: S.x2),
-      // `_loading` too: `_goDay` swaps `_day` and keeps the old `_d` on
-      // screen until `_load()` resolves, so a tap in that window would
-      // open naps for the day you just navigated away from.
-      TextAction(l?.sleepDetailEditNaps ?? 'Naps',
-          _saving || _loading ? null : () => go(c, NapsScreen(day: day))),
+      const SizedBox(height: S.x4),
+      Section(
+        'RECORDED NAPS',
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final nap in naps)
+              Padding(
+                padding: const EdgeInsets.only(bottom: S.x2),
+                child: Pressable(
+                  onTap: _saving || _loading
+                      ? null
+                      : () async {
+                          final changed = await Navigator.of(c).push<bool>(
+                            MaterialPageRoute<bool>(
+                                builder: (_) =>
+                                    NapDetailScreen(nap: nap, day: day)),
+                          );
+                          if (changed == true && mounted) _load();
+                        },
+                  semanticLabel: 'View nap details',
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: S.x4, vertical: S.x3),
+                    decoration: BoxDecoration(
+                      color: p.card,
+                      borderRadius: R.rMd,
+                      border: Border.all(color: p.ink.withValues(alpha: .08)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: S.x8 + S.x1,
+                          height: S.x8 + S.x1,
+                          decoration: BoxDecoration(
+                            color: p.wash(C.dialSleep),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(LucideIcons.sun,
+                              size: I.sm, color: p.on(C.dialSleep)),
+                        ),
+                        const SizedBox(width: S.x3),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${clockOfTs(((nap['start'] ?? nap['start_ts']) as num?) ?? 0)} – ${clockOfTs(((nap['end'] ?? nap['end_ts']) as num?) ?? 0)}',
+                                style: F.body.copyWith(
+                                    color: p.ink, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                nap['duration_min'] != null
+                                    ? hm((nap['duration_min'] as num).toInt())
+                                    : 'Recorded nap',
+                                style: F.cap.copyWith(color: p.ink3),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(LucideIcons.chevronRight,
+                            size: I.sm, color: p.ink3),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     ];
   }
 

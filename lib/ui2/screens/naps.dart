@@ -372,15 +372,12 @@ class _NapsScreenState extends State<NapsScreen> {
     final l = AppLocalizations.of(c);
     final mine = nap['source'] == 'manual';
     final mins = nap['duration_min'] as int?;
+    final startNum = (nap['start'] ?? nap['start_ts'] ?? nap['onset_ts']) as num? ?? 0;
+    final endNum = (nap['end'] ?? nap['end_ts'] ?? nap['wake_ts']) as num? ?? startNum;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(top: S.x1),
-          child: Icon(mine ? LucideIcons.userCheck : LucideIcons.moon,
-              size: I.sm, color: p.on(mine ? C.green : C.indigo)),
-        ),
-        const SizedBox(width: S.x3),
         Expanded(
           child: Pressable(
             onTap: () async {
@@ -390,30 +387,43 @@ class _NapsScreenState extends State<NapsScreen> {
               if (changed == true && mounted) _load();
             },
             semanticLabel: 'View nap details',
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(
-                '${clockOfTs(nap['start'] as num)} – '
-                '${clockOfTs(nap['end'] as num)}',
-                style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: S.x1),
-              Text(
-                // A logged nap has no measured asleep/in-bed split, so it says
-                // what it is instead of borrowing the detector's language.
-                // `hm(null)` is the empty string, and a row whose only caption
-                // is ' · detected' is the silent nothing this app does not do.
-                mins == null
-                    ? (mine
-                        ? (l?.napsYouLoggedThis ?? 'You logged this')
-                        : (l?.napsDetected ?? 'Detected'))
-                    : (mine
-                        ? (l?.napsLoggedWithMins(hm(mins)) ??
-                            '${hm(mins)} · you logged this')
-                        : (l?.napsDetectedWithMins(hm(mins)) ??
-                            '${hm(mins)} asleep · detected')),
-                style: F.cap.copyWith(color: p.ink3),
-              ),
-            ]),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: S.x1),
+                  child: Icon(mine ? LucideIcons.userCheck : LucideIcons.moon,
+                      size: I.sm, color: p.on(mine ? C.green : C.indigo)),
+                ),
+                const SizedBox(width: S.x3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${clockOfTs(startNum)} – ${clockOfTs(endNum)}',
+                        style: F.body.copyWith(
+                            color: p.ink, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: S.x1),
+                      Text(
+                        mins == null
+                            ? (mine
+                                ? (l?.napsYouLoggedThis ?? 'You logged this')
+                                : (l?.napsDetected ?? 'Detected'))
+                            : (mine
+                                ? (l?.napsLoggedWithMins(hm(mins)) ??
+                                    '${hm(mins)} · you logged this')
+                                : (l?.napsDetectedWithMins(hm(mins)) ??
+                                    '${hm(mins)} asleep · detected')),
+                        style: F.cap.copyWith(color: p.ink3),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(LucideIcons.chevronRight, size: I.sm, color: p.ink3),
+              ],
+            ),
           ),
         ),
         const SizedBox(width: S.x2),

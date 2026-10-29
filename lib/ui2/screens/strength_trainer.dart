@@ -78,10 +78,14 @@ class StrengthTrainerScreen extends StatefulWidget {
   /// 0 Progress, 1 My workouts.
   final int tab;
 
+  /// Whether hosted as a tab in the AppShell bar (clears nav bar, hides X close button).
+  final bool tabMode;
+
   /// Handed in by a test; read from the store when null.
   final ({List<LoggedRow> rows, List<TypedRecord> typed, List<StrengthWorkout> workouts})?
       data;
-  const StrengthTrainerScreen({super.key, this.tab = 0, this.data});
+  const StrengthTrainerScreen(
+      {super.key, this.tab = 0, this.data, this.tabMode = false});
 
   @override
   State<StrengthTrainerScreen> createState() => _StrengthTrainerScreenState();
@@ -149,15 +153,18 @@ class _StrengthTrainerScreenState extends State<StrengthTrainerScreen> {
             child: SizedBox(
               height: S.x12,
               child: Row(children: [
-                Pressable(
-                  onTap: () => Navigator.of(c).maybePop(),
-                  semanticLabel: 'Close',
-                  child: SizedBox(
-                    width: S.x12,
-                    height: S.x12,
-                    child: Icon(LucideIcons.x, size: I.lg + S.x1, color: p.ink),
+                if (widget.tabMode)
+                  const SizedBox(width: S.x12)
+                else
+                  Pressable(
+                    onTap: () => Navigator.of(c).maybePop(),
+                    semanticLabel: 'Close',
+                    child: SizedBox(
+                      width: S.x12,
+                      height: S.x12,
+                      child: Icon(LucideIcons.x, size: I.lg + S.x1, color: p.ink),
+                    ),
                   ),
-                ),
                 Expanded(
                   child: Center(
                     child: Semantics(
@@ -213,8 +220,14 @@ class _StrengthTrainerScreenState extends State<StrengthTrainerScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _tab == 0
                     ? _ProgressTab(
-                        rows: _rows, typed: _typed, onChanged: _load)
-                    : _WorkoutsTab(workouts: _workouts, onChanged: _load),
+                        rows: _rows,
+                        typed: _typed,
+                        onChanged: _load,
+                        tabMode: widget.tabMode)
+                    : _WorkoutsTab(
+                        workouts: _workouts,
+                        onChanged: _load,
+                        tabMode: widget.tabMode),
           ),
         ]),
       ),
@@ -251,8 +264,12 @@ class _ProgressTab extends StatefulWidget {
   final List<LoggedRow> rows;
   final List<TypedRecord> typed;
   final Future<void> Function() onChanged;
+  final bool tabMode;
   const _ProgressTab(
-      {required this.rows, required this.typed, required this.onChanged});
+      {required this.rows,
+      required this.typed,
+      required this.onChanged,
+      this.tabMode = false});
 
   @override
   State<_ProgressTab> createState() => _ProgressTabState();
@@ -296,7 +313,8 @@ class _ProgressTabState extends State<_ProgressTab> {
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(S.x6, S.x4, S.x6, S.x16),
+      padding: EdgeInsets.fromLTRB(
+          S.x6, S.x4, S.x6, widget.tabMode ? S.navClear(c) : S.x16),
       children: [
         Text('Total Volume Load',
             style: F.t2.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
@@ -567,7 +585,11 @@ class _PrRow extends StatelessWidget {
 class _WorkoutsTab extends StatelessWidget {
   final List<StrengthWorkout> workouts;
   final Future<void> Function() onChanged;
-  const _WorkoutsTab({required this.workouts, required this.onChanged});
+  final bool tabMode;
+  const _WorkoutsTab(
+      {required this.workouts,
+      required this.onChanged,
+      this.tabMode = false});
 
   Future<void> _quick(BuildContext c) async {
     final ok = await startStrengthSession(c);
@@ -649,7 +671,8 @@ class _WorkoutsTab extends StatelessWidget {
     final p = P.of(c);
     final rule = Container(height: 1, color: p.ink.withValues(alpha: .1));
     return ListView(
-      padding: const EdgeInsets.fromLTRB(S.x6, S.x4, S.x6, S.x16),
+      padding: EdgeInsets.fromLTRB(
+          S.x6, S.x4, S.x6, tabMode ? S.navClear(c) : S.x16),
       children: [
         Text('Start a Workout',
             style: F.t2.copyWith(color: p.ink, fontWeight: FontWeight.w600)),

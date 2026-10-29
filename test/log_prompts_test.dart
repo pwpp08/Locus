@@ -345,7 +345,7 @@ void main() {
       // Not the Today fallback an unknown payload gets — the route is KNOWN,
       // which is the half `/profile` and `/recap` were missing.
       expect(t.screen, kRouteMeds);
-      expect(domainForRoute(kRouteMeds), ShellDomain.health);
+      expect(domainForRoute(kRouteMeds), ShellDomain.today);
       // Wellness is a pushed page now, so the deep link pushes it open on
       // Medication rather than asking a kept-alive tab to switch.
       final screen = screenForRoute(kRouteMeds);

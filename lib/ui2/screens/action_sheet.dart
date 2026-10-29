@@ -7,14 +7,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
 import '../activity/picker.dart';
 import '../ui2.dart';
 import 'coach.dart';
-import 'health_monitor.dart';
 import 'home_screen.dart' show go, repoOf;
-import 'journal_compose.dart';
+import 'log_food.dart' show LogFoodSheet;
+import 'log_weight_sheet.dart' show LogWeightSheet;
 import 'workout_screen.dart' show activityHost, loadSetHistory;
 
 /// The coach, or its setup when no model is configured yet.
@@ -38,9 +37,9 @@ Future<void> startActivity(BuildContext c) async {
 }
 
 Future<void> openActionSheet(BuildContext c) {
-  final l = AppLocalizations.of(c);
   return AppSheet.show<void>(
     c,
+    title: 'QUICK ACTIONS',
     child: Builder(builder: (sheet) {
       void then(void Function() open) {
         Navigator.of(sheet).pop();
@@ -49,25 +48,25 @@ Future<void> openActionSheet(BuildContext c) {
 
       return Column(mainAxisSize: MainAxisSize.min, children: [
         _ActionRow(
+          LucideIcons.scale,
+          C.green,
+          'Log weight',
+          'Keep your profile weight current for calorie accuracy',
+          () => then(() => LogWeightSheet.show(c)),
+        ),
+        _ActionRow(
           LucideIcons.dumbbell,
           C.dialStrain,
-          'Start Activity',
+          'Start activity',
           'Track a workout live with strain and heart rate',
           () => then(() => startActivity(c)),
         ),
         _ActionRow(
-          LucideIcons.bookOpen,
-          C.lavender,
-          l?.journalComposeTitle ?? 'Journal',
-          'Log today’s behaviours and how you feel',
-          () => then(() => go(c, const JournalCompose())),
-        ),
-        _ActionRow(
-          LucideIcons.radio,
-          C.coral,
-          l?.devicesLive ?? 'LIVE',
-          'Live heart rate and today’s vitals',
-          () => then(() => go(c, const HealthMonitorScreen())),
+          LucideIcons.utensils,
+          C.amber,
+          'Log macros',
+          'Record meals, snacks or scan food barcode',
+          () => then(() => LogFoodSheet.show(c)),
         ),
       ]);
     }),

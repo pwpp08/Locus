@@ -59,19 +59,19 @@ void main() {
   ) async {
     final selected = <ShellDomain>[];
     await mount(tester, onSelect: selected.add);
-    await select(tester, ShellDomain.health);
+    await select(tester, ShellDomain.strength);
     await select(tester, ShellDomain.more);
 
     await back(tester);
-    expect(find.text('screen Health'), findsOneWidget);
+    expect(find.text('screen Strength'), findsOneWidget);
     expect(exited(), isFalse);
     await back(tester);
     expect(find.text('screen Home'), findsOneWidget);
     expect(exited(), isFalse);
     expect(selected, [
-      ShellDomain.health,
+      ShellDomain.strength,
       ShellDomain.more,
-      ShellDomain.health,
+      ShellDomain.strength,
       ShellDomain.today,
     ], reason: 'Back must also update the tab persisted by the host');
 
@@ -84,9 +84,9 @@ void main() {
   ) async {
     final selected = <ShellDomain>[];
     await mount(tester, onSelect: selected.add);
-    await select(tester, ShellDomain.health);
-    await select(tester, ShellDomain.health);
-    expect(selected, [ShellDomain.health, ShellDomain.health]);
+    await select(tester, ShellDomain.strength);
+    await select(tester, ShellDomain.strength);
+    expect(selected, [ShellDomain.strength, ShellDomain.strength]);
 
     await back(tester);
     expect(find.text('screen Home'), findsOneWidget);
@@ -100,11 +100,11 @@ void main() {
   ) async {
     await mount(tester);
     for (var i = 0; i < 5; i++) {
-      await select(tester, ShellDomain.health);
+      await select(tester, ShellDomain.strength);
       await select(tester, ShellDomain.more);
     }
     await back(tester);
-    expect(find.text('screen Health'), findsOneWidget);
+    expect(find.text('screen Strength'), findsOneWidget);
     await back(tester);
     expect(find.text('screen Home'), findsOneWidget);
     expect(exited(), isFalse);
@@ -116,11 +116,11 @@ void main() {
     tester,
   ) async {
     await mount(tester);
-    await select(tester, ShellDomain.health);
+    await select(tester, ShellDomain.strength);
     await select(tester, ShellDomain.today);
     await select(tester, ShellDomain.more);
     await back(tester);
-    expect(find.text('screen Health'), findsOneWidget);
+    expect(find.text('screen Strength'), findsOneWidget);
     await back(tester);
     expect(find.text('screen Home'), findsOneWidget);
     expect(exited(), isFalse);
@@ -132,10 +132,10 @@ void main() {
     tester,
   ) async {
     await mount(tester);
-    await select(tester, ShellDomain.health);
+    await select(tester, ShellDomain.strength);
     await select(tester, ShellDomain.today);
     await back(tester);
-    expect(find.text('screen Health'), findsOneWidget);
+    expect(find.text('screen Strength'), findsOneWidget);
     await back(tester);
     expect(find.text('screen Home'), findsOneWidget);
     expect(exited(), isFalse);
@@ -160,8 +160,8 @@ void main() {
     tester,
   ) async {
     await mount(tester);
-    await select(tester, ShellDomain.health);
-    final context = tester.element(find.text('screen Health'));
+    await select(tester, ShellDomain.strength);
+    final context = tester.element(find.text('screen Strength'));
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => const Scaffold(body: Text('detail screen')),
@@ -171,7 +171,7 @@ void main() {
 
     await back(tester);
     expect(find.text('detail screen'), findsNothing);
-    expect(find.text('screen Health'), findsOneWidget);
+    expect(find.text('screen Strength'), findsOneWidget);
     expect(exited(), isFalse);
     await back(tester);
     expect(find.text('screen Home'), findsOneWidget);
@@ -179,16 +179,16 @@ void main() {
 
   testWidgets('a dialog closes before tab history is consumed', (tester) async {
     await mount(tester);
-    await select(tester, ShellDomain.health);
+    await select(tester, ShellDomain.strength);
     showDialog<void>(
-      context: tester.element(find.text('screen Health')),
+      context: tester.element(find.text('screen Strength')),
       builder: (_) => const AlertDialog(content: Text('dialog')),
     );
     await tester.pumpAndSettle();
 
     await back(tester);
     expect(find.text('dialog'), findsNothing);
-    expect(find.text('screen Health'), findsOneWidget);
+    expect(find.text('screen Strength'), findsOneWidget);
     expect(exited(), isFalse);
     await back(tester);
     expect(find.text('screen Home'), findsOneWidget);
@@ -200,7 +200,7 @@ void main() {
     await mount(tester);
     await tester.tap(find.text('increment Home'));
     await tester.pump();
-    await select(tester, ShellDomain.health);
+    await select(tester, ShellDomain.strength);
     await back(tester);
     expect(find.text('Home count 1'), findsOneWidget);
   });

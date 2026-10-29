@@ -21,12 +21,14 @@ import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
 import '../../state/prefs.dart';
 import '../ui2.dart';
-import '../screens/circadian_detail.dart' show CircadianDetail;
+import '../screens/action_sheet.dart' show openCoach;
 import '../screens/coach.dart' show CoachSetup, coachSubtitle;
+import '../screens/healthspan_screen.dart' show HealthspanScreen;
 import '../screens/home_screen.dart'
     show deviceBatteryOf;
-import '../screens/nutrition_screen.dart' show NutritionScreen;
-import '../screens/workout_screen.dart' show WorkoutScreen;
+import '../screens/milestones_screen.dart' show MilestonesScreen;
+import '../screens/watch_compare_screen.dart' show WatchCompareScreen;
+import '../screens/wellness_screen.dart' show WellnessScreen;
 import 'alarm.dart' show AlarmScreen;
 import 'data.dart';
 import 'account_screen.dart';
@@ -481,25 +483,28 @@ class ProfileHomeView extends StatelessWidget {
                 ProfilePhotoHeader(name: s?.name),
                 const SizedBox(height: S.x2),
                 if (tab) ...[
-                  settingsGroup(c, 'Activity & sleep', [
-                    SetRow(LucideIcons.dumbbell, C.blue,
-                        l?.tabActivity ?? 'Activity',
-                        sub: 'Start a session, browse activities, history',
-                        onTap: () => goto(c, const WorkoutScreen(page: true))),
-                    SetRow(LucideIcons.utensils, C.amber,
-                        l?.nutritionTitle ?? 'Nutrition',
-                        sub: 'Food, water and goals',
-                        onTap: () => goto(c, const NutritionScreen(page: true))),
-                    SetRow(LucideIcons.alarmClock, C.lavender,
-                        l?.settingsAlarmRowTitle ?? 'Alarm',
-                        sub: l?.settingsAlarmRowSub ??
-                            'Buzzes on your wrist, on the band’s own clock',
-                        onTap: () => goto(c, const AlarmScreen())),
-                    SetRow(LucideIcons.sunMoon, C.lavender,
-                        l?.healthBodyClockTitle ?? 'Body clock',
-                        sub: l?.healthChronotypeJetlagRegularity ??
-                            'Natural bedtime, weekend shift and schedule consistency',
-                        onTap: () => goto(c, const CircadianDetail())),
+                  settingsGroup(c, 'Insights & coaching', [
+                    SetRow(LucideIcons.sparkles, C.purple,
+                        AppLocalizations.of(c)?.profileAiCoach ?? 'AI coach',
+                        sub: coachSubtitle(c) ??
+                            'Chat, recommendations and daily briefings',
+                        onTap: () => openCoach(c)),
+                    SetRow(LucideIcons.calendarDays, C.green,
+                        'Habit tracker',
+                        sub: 'Daily habits, journals and impacts',
+                        onTap: () => goto(c, const WellnessScreen(initialTab: 2))),
+                    SetRow(LucideIcons.activity, C.blue,
+                        'Healthspan',
+                        sub: 'Biological age, cardiovascular & cellular health',
+                        onTap: () => goto(c, const HealthspanScreen())),
+                    SetRow(LucideIcons.watch, C.lavender,
+                        'Compare with watch',
+                        sub: 'Side-by-side data with Apple Watch or Garmin',
+                        onTap: () => goto(c, const WatchCompareScreen())),
+                    SetRow(LucideIcons.trophy, C.amber,
+                        'Milestones',
+                        sub: 'Lifetime achievements and personal records',
+                        onTap: () => goto(c, const MilestonesScreen())),
                   ]),
                 ],
                 settingsGroup(c, l?.profileQuickAccessGroup ?? 'Quick access', [
@@ -519,27 +524,16 @@ class ProfileHomeView extends StatelessWidget {
                         ].join(' · '),
                         onTap: onDevices);
                   }),
+                  SetRow(LucideIcons.alarmClock, C.lavender,
+                      l?.settingsAlarmRowTitle ?? 'Alarm',
+                      sub: l?.settingsAlarmRowSub ??
+                          'Buzzes on your wrist, on the band’s own clock',
+                      onTap: () => goto(c, const AlarmScreen())),
                   SetRow(LucideIcons.userPen, C.purple,
                       l?.profileEditProfile ?? 'Edit profile',
                       sub: l?.profileEditProfileSub ??
                           'Sex, age, height, weight',
                       onTap: onEdit),
-                  // THE ONLY DOOR TO THE COACH'S SETUP, and it has to be —
-                  // Home's sparkles button is now gated on `coachReady`, so on
-                  // a fresh install there is no icon to find it behind. It
-                  // belongs here anyway: a model, a base URL and a key are
-                  // settings, and the coach's own overflow menu offering the
-                  // same form was two doors onto one state.
-                  //
-                  // `watch` rather than `read` so the sub-line stops saying
-                  // "Not set up" the moment it is.
-                  Builder(builder: (c) => SetRow(
-                      LucideIcons.sparkles, C.purple,
-                      AppLocalizations.of(c)?.profileAiCoach ?? 'AI coach',
-                      sub: coachSubtitle(c) ??
-                          (AppLocalizations.of(c)?.profileNotSetUp ??
-                              'Not set up'),
-                      onTap: onCoach)),
                 ]),
                 settingsGroup(c, l?.profileYourDataGroup ?? 'Your data', [
                   SetRow(LucideIcons.cloud, C.blue,
@@ -559,11 +553,6 @@ class ProfileHomeView extends StatelessWidget {
                       sub: l?.profileExportRowSub ??
                           'Spreadsheets, a full copy, and bringing history in',
                       onTap: onExport),
-                  SetRow(LucideIcons.settings, C.n500,
-                      l?.profileSettingsRow ?? 'Settings',
-                      sub: l?.profileSettingsRowSub ??
-                          'Band, app, data, privacy and advanced',
-                      onTap: onSettings),
                 ]),
               ],
             );

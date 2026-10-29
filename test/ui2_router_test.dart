@@ -129,11 +129,9 @@ void main() {
   group('deep links survive the Home · Health · More layout', () {
     test('every notification tab index resolves', () {
       expect(domainForTab(0), ShellDomain.today);
-      // Sleep and workouts are deep dives behind Home's dials; Heart and Body
-      // live in Health.
-      expect(domainForTab(1), ShellDomain.today);
-      expect(domainForTab(2), ShellDomain.health);
-      expect(domainForTab(3), ShellDomain.health);
+      expect(domainForTab(1), ShellDomain.strength);
+      expect(domainForTab(2), ShellDomain.macros);
+      expect(domainForTab(3), ShellDomain.macros);
       expect(domainForTab(4), ShellDomain.today);
       // A payload from a build that had more tabs than we do.
       expect(domainForTab(9), ShellDomain.today);
@@ -143,31 +141,31 @@ void main() {
     test('a tab saved by the five-tab bar reopens where its content went', () {
       // Home, Health, Nutrition, Workout, Wellness.
       expect(domainForSavedTab(0), ShellDomain.today);
-      expect(domainForSavedTab(1), ShellDomain.health);
-      expect(domainForSavedTab(2), ShellDomain.today);
+      expect(domainForSavedTab(1), ShellDomain.strength);
+      expect(domainForSavedTab(2), ShellDomain.macros);
       expect(domainForSavedTab(3), ShellDomain.today);
-      expect(domainForSavedTab(4), ShellDomain.health);
+      expect(domainForSavedTab(4), ShellDomain.today);
       expect(domainForSavedTab(42), ShellDomain.today);
     });
 
     test('a tab saved by the four-tab bar reopens where its content went', () {
       // Today, Sleep, Activity, Health.
       expect(domainForSavedTabV2(0), ShellDomain.today);
-      expect(domainForSavedTabV2(1), ShellDomain.today);
-      expect(domainForSavedTabV2(2), ShellDomain.today);
-      expect(domainForSavedTabV2(3), ShellDomain.health);
+      expect(domainForSavedTabV2(1), ShellDomain.strength);
+      expect(domainForSavedTabV2(2), ShellDomain.macros);
+      expect(domainForSavedTabV2(3), ShellDomain.macros);
     });
 
     test('every kRoute constant lands somewhere deliberate', () {
       final routes = {
         kRouteAiMorning: ShellDomain.today,
         kRouteAiEvening: ShellDomain.today,
-        kRouteJournalCompose: ShellDomain.health,
-        kRouteBreathing: ShellDomain.health,
-        kRouteMeds: ShellDomain.health,
+        kRouteJournalCompose: ShellDomain.today,
+        kRouteBreathing: ShellDomain.today,
+        kRouteMeds: ShellDomain.today,
         kRouteWorkoutSuggestion: ShellDomain.today,
         kRouteDetectedActivities: ShellDomain.today,
-        kRouteWater: ShellDomain.today,
+        kRouteWater: ShellDomain.macros,
         kRouteWorkoutIdle: ShellDomain.today,
         kRouteAlarm: ShellDomain.today,
       };
@@ -178,10 +176,10 @@ void main() {
       // pushed page of Activity now, so the tap pushes it.
       expect(screenForRoute(kRouteWater), isA<NutritionScreen>());
       expect((screenForRoute(kRouteWater)! as NutritionScreen).page, isTrue);
-      expect(domainForRoute('/profile'), ShellDomain.today);
+      expect(domainForRoute('/profile'), ShellDomain.more);
       expect(screenForRoute('/profile'), isA<ProfileHome>(),
           reason: 'the battery notification promises the band, not Today');
-      expect(domainForRoute('/recap'), ShellDomain.health);
+      expect(domainForRoute('/recap'), ShellDomain.today);
       // Unknown / retired routes must not crash a cold launch.
       expect(domainForRoute(''), ShellDomain.today);
       expect(screenForRoute('/nope'), isNull);

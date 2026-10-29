@@ -18,6 +18,7 @@
 // a section or a pushed screen inside the domain that owns it — Sleep and
 // Strain are the deep dives behind their dials on Home.
 
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'lucide.dart';
 
@@ -25,10 +26,11 @@ import '../l10n/app_localizations.dart';
 import 'grammar.dart';
 import 'theme.dart';
 
-/// The three destinations, in bar order.
+/// The four destinations, in bar order.
 enum ShellDomain {
   today('Home', LucideIcons.house, C.domHome),
-  health('Health', LucideIcons.heartPulse, C.domHealth),
+  strength('Strength', LucideIcons.dumbbell, C.domMove),
+  macros('Macros', LucideIcons.utensils, C.domFood),
   more('More', LucideIcons.menu, C.domMind);
 
   const ShellDomain(this.label, this.icon, this.accent);
@@ -42,7 +44,8 @@ enum ShellDomain {
     final l = AppLocalizations.of(c);
     return switch (this) {
           ShellDomain.today => l?.tabHome,
-          ShellDomain.health => l?.tabHealth,
+          ShellDomain.strength => 'Strength',
+          ShellDomain.macros => 'Macros',
           ShellDomain.more => l?.tabMore,
         } ??
         label;
@@ -239,43 +242,37 @@ class _TabBar extends StatelessWidget {
       ),
       child: Glass(
         radius: R.rXxl,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: S.navBar),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: S.x2, vertical: S.x1),
-            child: Row(
-              children: [
-                tab(ShellDomain.today),
-                tab(ShellDomain.health),
-                if (onAction != null)
-                  Expanded(
-                    child: Center(
-                      child: Pressable(
-                        onTap: onAction,
-                        semanticLabel: l?.workoutStartWorkoutFix ?? 'Start',
-                        child: Container(
-                          width: S.x10,
-                          height: S.x10,
-                          decoration: BoxDecoration(
-                              color: p.card2, shape: BoxShape.circle),
-                          child: Icon(LucideIcons.plus,
-                              size: I.lg, color: p.ink),
+        child: ClipRRect(
+          borderRadius: R.rXxl,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: S.navBar),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: S.x2, vertical: S.x1),
+              child: Row(
+                children: [
+                  tab(ShellDomain.today),
+                  tab(ShellDomain.strength),
+                  if (onAction != null)
+                    Expanded(
+                      child: Center(
+                        child: Pressable(
+                          onTap: onAction,
+                          semanticLabel: l?.workoutStartWorkoutFix ?? 'Actions',
+                          child: Container(
+                            width: S.x10,
+                            height: S.x10,
+                            decoration: BoxDecoration(
+                                color: p.card2, shape: BoxShape.circle),
+                            child: Icon(LucideIcons.plus,
+                                size: I.lg, color: p.ink),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                if (onAi != null)
-                  Expanded(
-                    child: Center(
-                      child: Pressable(
-                        onTap: onAi,
-                        semanticLabel: l?.coachNavTitle ?? 'Coach',
-                        child: const AiOrb(size: S.x10),
-                      ),
-                    ),
-                  ),
-                tab(ShellDomain.more),
-              ],
+                  tab(ShellDomain.macros),
+                  tab(ShellDomain.more),
+                ],
+              ),
             ),
           ),
         ),
@@ -336,22 +333,29 @@ class _Tab extends StatelessWidget {
             children: [
               if (on)
                 Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: -S.x1,
-                  height: S.x8 + S.x2,
+                  left: -S.x2,
+                  right: -S.x2,
+                  bottom: -S.x2,
+                  height: S.x10,
                   child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: RadialGradient(
-                          center: const Alignment(0, 1.0),
-                          radius: 0.95,
-                          colors: [
-                            C.white.withValues(alpha: .30),
-                            C.white.withValues(alpha: .12),
-                            Colors.transparent,
-                          ],
-                          stops: const [0.0, 0.45, 1.0],
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(R.xl),
+                      child: ImageFiltered(
+                        imageFilter: ui.ImageFilter.blur(
+                            sigmaX: 16, sigmaY: 16, tileMode: TileMode.decal),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: RadialGradient(
+                              center: const Alignment(0, 1.0),
+                              radius: 1.05,
+                              colors: [
+                                C.white.withValues(alpha: .36),
+                                C.white.withValues(alpha: .15),
+                                Colors.transparent,
+                              ],
+                              stops: const [0.0, 0.45, 1.0],
+                            ),
+                          ),
                         ),
                       ),
                     ),

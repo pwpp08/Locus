@@ -198,7 +198,7 @@ Widget _root(Widget child, Brightness b, double scale) => MediaQuery(
 /// used. Fixture data, not a device capture — `SNAPSHOTS_README=1` to write.
 const _readmeShots = {
   'today': ShellDomain.today,
-  'health': ShellDomain.health,
+  'health': ShellDomain.more,
   'sleep': null,
   'heart-rate': null,
   'workout': null,

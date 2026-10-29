@@ -30,13 +30,12 @@ import 'ui2/screens/action_sheet.dart';
 import 'ui2/screens/ai_briefing.dart';
 import 'ui2/screens/calm_breathing.dart';
 import 'ui2/screens/what_changed.dart';
-import 'ui2/screens/health_screen.dart';
 import 'ui2/screens/home_screen.dart';
 import 'ui2/screens/journal_compose.dart';
 import 'ui2/screens/log_workout.dart';
 import 'ui2/screens/detected_activities.dart';
 import 'ui2/screens/nutrition_screen.dart';
-import 'ui2/screens/start_activity.dart';
+import 'ui2/screens/strength_trainer.dart';
 import 'ui2/screens/wellness_screen.dart';
 import 'ui2/screens/workout_screen.dart';
 import 'ui2/ui2.dart';
@@ -382,21 +381,26 @@ class _InitFailed extends StatelessWidget {
 /// Health. Payloads from older builds keep working, which is the whole point —
 /// a notification is scheduled days before it is tapped.
 ShellDomain domainForTab(int tab) => switch (tab) {
-      2 || 3 => ShellDomain.health,
+      1 => ShellDomain.strength,
+      2 || 3 => ShellDomain.macros,
       _ => ShellDomain.today,
     };
 
 /// The tab a build with the five-tab bar (Home, Health, Nutrition, Workout,
 /// Wellness) saved → where that content lives now.
 ShellDomain domainForSavedTab(int old) => switch (old) {
-      1 || 4 => ShellDomain.health,
+      1 => ShellDomain.strength,
+      2 => ShellDomain.macros,
       _ => ShellDomain.today,
     };
 
 /// The tab a build with the four-tab bar (Today, Sleep, Activity, Health)
 /// saved → where that content lives now.
-ShellDomain domainForSavedTabV2(int old) =>
-    old == 3 ? ShellDomain.health : ShellDomain.today;
+ShellDomain domainForSavedTabV2(int old) => switch (old) {
+      1 => ShellDomain.strength,
+      2 || 3 => ShellDomain.macros,
+      _ => ShellDomain.today,
+    };
 
 /// The tab to open on: the current bar's index once one was saved, otherwise
 /// an older bar's index translated, so an upgrade lands where the user was.
@@ -415,31 +419,19 @@ ShellDomain restoredShellTab() {
 /// build.
 ShellDomain domainForRoute(String route) => switch (routePath(route)) {
       kRouteAiMorning || kRouteAiEvening => ShellDomain.today,
-      // Journal, breathing and medication live behind Health's wellbeing
-      // doors, so a back from the pushed screen lands there.
       kRouteJournalCompose || kRouteBreathing || kRouteMeds =>
-        ShellDomain.health,
-      // Water is a journal field logged beside food; the food log is pushed
-      // over Home.
-      kRouteWater => ShellDomain.today,
-      // The movement/sedentary nudges, recovery-ready and step-goal notes,
-      // and the detected-activity reviews: all about what is on Today.
+        ShellDomain.today,
+      kRouteWater => ShellDomain.macros,
       kRouteMovement ||
       kRouteRecovery ||
       kRouteSteps ||
       kRouteDetectedActivities ||
       kRouteWorkoutSuggestion =>
         ShellDomain.today,
-      // The forgotten-workout nudge. The live session bar with its finish
-      // control is pinned to the shell on every tab, so Home is enough and
-      // screenForRoute stays null for it.
       kRouteWorkoutIdle => ShellDomain.today,
-      // Battery and band alerts. Profile is pushed over Home.
-      kRouteProfile => ShellDomain.today,
-      // The alarm safety notifications and the alarm-fired note: the alarm
-      // screen is pushed over Home.
+      kRouteProfile => ShellDomain.more,
       kRouteAlarm => ShellDomain.today,
-      kRouteRecap => ShellDomain.health,
+      kRouteRecap => ShellDomain.today,
       _ => ShellDomain.today,
     };
 
@@ -604,11 +596,12 @@ class _ShellState extends State<_Shell> {
         _domain = d;
         Prefs.setInt(Prefs.shellTabV3, d.index);
       },
-      onAction: (c) => go(c, const StartActivityScreen()),
-      onAi: openCoach,
+      onAction: (c) => openActionSheet(c),
+      onAi: null,
       builder: (c, d) => switch (d) {
         ShellDomain.today => const HomeScreen(),
-        ShellDomain.health => const HealthScreen(),
+        ShellDomain.strength => const StrengthTrainerScreen(tabMode: true),
+        ShellDomain.macros => const NutritionScreen(),
         ShellDomain.more => const ProfileHome(tab: true),
       },
     );
