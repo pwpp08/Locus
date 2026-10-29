@@ -108,8 +108,8 @@ void main() {
     repo.fail = false;
     await t.tap(find.text('TRY AGAIN'));
     await t.pumpAndSettle();
-    expect(find.text('Possible nap'), findsOneWidget);
-    expect(find.text('Possible workout'), findsOneWidget);
+    expect(find.text('POSSIBLE NAP'), findsOneWidget);
+    expect(find.text('POSSIBLE WORKOUT'), findsOneWidget);
   });
 
   testWidgets('confirm and discard remove only the selected item', (t) async {

@@ -390,6 +390,14 @@ Map<String, Widget> componentCases() => {
         secondary: 'Keep it',
         onChoice: (_) {},
       )),
+      // The selector under a zoomable chart.
+      'range_bar': RangeBar(
+        values: const RangeValues(20, 70),
+        min: 0,
+        max: 100,
+        hue: C.dialStrain,
+        onChanged: (_) {},
+      ),
       // Glass, as the tab bar draws it.
       'glass': Builder(builder: (c) => Glass(
             radius: R.rPill,

@@ -1171,21 +1171,21 @@ class _ZoomState extends State<_DayGraphZoom> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         card,
-        RangeSlider(
+        RangeBar(
           values: RangeValues(lo.toDouble(), hi.toDouble()),
           min: 0,
           max: n.toDouble(),
           // Quarter-hour steps: fine enough to land on a workout, coarse
           // enough that a thumb can hit a two-hour window.
           divisions: n ~/ 15 > 0 ? n ~/ 15 : null,
-          activeColor: p.on(C.red),
+          hue: p.on(C.dialStrain),
           labels: widget.graph.dayStart == null
               ? null
               : RangeLabels(
                   clockOfTs(widget.graph.dayStart! + lo * 60),
                   clockOfTs(widget.graph.dayStart! + hi * 60),
                 ),
-          semanticFormatterCallback: (v) => widget.graph.dayStart == null
+          semanticFormatter: (v) => widget.graph.dayStart == null
               ? '${v.round()}'
               : clockOfTs(widget.graph.dayStart! + v.round() * 60),
           onChanged: (r) {

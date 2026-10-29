@@ -213,8 +213,15 @@ class ActivityProposalCard extends StatelessWidget {
     );
     final end = DateTime.fromMillisecondsSinceEpoch(suggestion.endTs * 1000);
     final material = MaterialLocalizations.of(c);
-    String when(DateTime value) =>
-        '${material.formatMediumDate(value)} ${material.formatTimeOfDay(TimeOfDay.fromDateTime(value), alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(c))}';
+    String clock(DateTime value) => material.formatTimeOfDay(
+        TimeOfDay.fromDateTime(value),
+        alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(c));
+    // The date once; the end repeats it only when the window crosses midnight.
+    final sameDay = start.year == end.year &&
+        start.month == end.month &&
+        start.day == end.day;
+    final when = '${material.formatMediumDate(start)} · ${clock(start)} – '
+        '${sameDay ? '' : '${material.formatMediumDate(end)} '}${clock(end)}';
     return Surface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,31 +230,28 @@ class ActivityProposalCard extends StatelessWidget {
             children: [
               Icon(
                 nap ? LucideIcons.moon : LucideIcons.activity,
-                color: p.on(accent),
+                color: p.ink3,
                 size: I.md,
               ),
               const SizedBox(width: S.x2),
               Expanded(
                 child: Text(
-                  nap
-                      ? (l?.activityPossibleNap ?? 'Possible nap')
-                      : (l?.activityPossibleWorkout ?? 'Possible workout'),
-                  style: F.head.copyWith(color: p.ink),
+                  (nap
+                          ? (l?.activityPossibleNap ?? 'Possible nap')
+                          : (l?.activityPossibleWorkout ?? 'Possible workout'))
+                      .toUpperCase(),
+                  style: F.caps.copyWith(color: p.ink),
                 ),
               ),
               if (highlighted)
                 Icon(LucideIcons.bell, color: p.on(accent), size: I.md),
             ],
           ),
-          const SizedBox(height: S.x2),
+          const SizedBox(height: S.x1),
           Text(
-            '${when(start)} – ${when(end)}',
-            style: F.body.copyWith(color: p.ink2),
-          ),
-          Text(
-            l?.activityLengthMinutes(suggestion.durationMin) ??
-                '${suggestion.durationMin} min',
-            style: F.cap.copyWith(color: p.ink3),
+            '$when · '
+            '${l?.activityLengthMinutes(suggestion.durationMin) ?? '${suggestion.durationMin} min'}',
+            style: F.cap.copyWith(color: p.ink2),
           ),
           const SizedBox(height: S.x3),
           // The heart rate around it, the window drawn on it the way the
@@ -257,33 +261,32 @@ class ActivityProposalCard extends StatelessWidget {
             end: suggestion.endTs,
             kind: nap ? WindowKind.nap : WindowKind.workout,
             hr: hr,
+            zoomable: true,
+            height: S.x16 * 2,
           ),
           const SizedBox(height: S.x3),
+          // The workout editor is where the sport is picked, so it says that;
+          // a nap only has times to edit. A discard is kept by window and wins
+          // over every re-detection; same words as the correction on a logged
+          // nap and a night.
           Wrap(
-            spacing: S.x4,
-            runSpacing: S.x2,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            runSpacing: S.x1,
             children: [
-              _action(c, l?.activityConfirm ?? 'Confirm', onConfirm, accent),
-              // The workout editor is where the sport is picked, so it says
-              // that; a nap only has times to edit.
-              _action(
-                c,
+              BigButton(l?.activityConfirm ?? 'Confirm',
+                  compact: true, onTap: onConfirm),
+              TextAction(
                 nap
                     ? (l?.activityEdit ?? 'Edit')
                     : (l?.activityChangeSport ?? 'Change sport'),
                 onEdit,
-                accent,
               ),
-              // Same words as the correction on a logged nap and a night, so
-              // "this was wrong" reads the same wherever the detection shows.
-              // A discard is kept by window and wins over every re-detection.
-              _action(
-                c,
+              TextAction(
                 nap
                     ? (l?.napsNotANapLabel ?? 'Not a nap')
                     : (l?.activityNotAWorkout ?? 'Not a workout'),
                 onDiscard,
-                C.red,
               ),
             ],
           ),
@@ -291,24 +294,6 @@ class ActivityProposalCard extends StatelessWidget {
       ),
     );
   }
-
-  Widget _action(
-    BuildContext c,
-    String label,
-    VoidCallback? tap,
-    Color accent,
-  ) => Pressable(
-    onTap: tap,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: S.x2),
-      child: Text(
-        label.toUpperCase(),
-        style: F.caps.copyWith(
-          color: accent == C.red ? P.of(c).on(C.red) : P.of(c).ink,
-        ),
-      ),
-    ),
-  );
 }
 
 /// Home's banner for what the detector found: the first proposal itself, with

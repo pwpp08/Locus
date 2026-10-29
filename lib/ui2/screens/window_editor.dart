@@ -591,6 +591,11 @@ class WindowPreview extends StatefulWidget {
   final void Function(int start, int end)? onChanged;
   final VoidCallback? onExpand;
 
+  /// Read-only, but the view is the reader's: pinch to zoom, drag to pan, and
+  /// a [RangeBar] under the chart for the stretch in view. The window stays
+  /// where it was detected.
+  final bool zoomable;
+
   const WindowPreview({
     super.key,
     required this.start,
@@ -600,6 +605,7 @@ class WindowPreview extends StatefulWidget {
     this.height = S.x16 * 2 + S.x8,
     this.onChanged,
     this.onExpand,
+    this.zoomable = false,
   });
 
   @override
@@ -622,13 +628,40 @@ class _WindowPreviewState extends State<WindowPreview> {
   int _pinchSpan = 0;
   int _pinchFrom = 0;
 
+  /// What a [WindowPreview.zoomable] view can show: the window with room round
+  /// it, never past now.
+  late int _domFrom, _domTo;
+  double? _panAt;
+  int _panFrom = 0;
+
   @override
   void initState() {
     super.initState();
     _curStart = widget.start;
     _curEnd = widget.end;
     _initView();
+    final pad = math.max(6 * _hour, 2 * (_curEnd - _curStart));
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    _domFrom = _curStart - pad;
+    _domTo = math.max(_curEnd + _hour, math.min(_curEnd + pad, now));
     _loadHr();
+  }
+
+  /// Sets what is in view, held inside the domain and above the minimum span.
+  void _setView(int from, int span) {
+    final dom = _domTo - _domFrom;
+    final s = span.clamp(15 * 60, math.max(15 * 60, dom)).toInt();
+    final f = from.clamp(_domFrom, math.max(_domFrom, _domTo - s)).toInt();
+    setState(() {
+      _viewSpan = s;
+      _viewFrom = f;
+    });
+  }
+
+  void _pan(double f) {
+    _panAt ??= f;
+    if (_panFrom == 0) _panFrom = _viewFrom;
+    _setView(_panFrom - ((f - _panAt!) * _viewSpan).round(), _viewSpan);
   }
 
   void _initView() {
@@ -734,6 +767,8 @@ class _WindowPreviewState extends State<WindowPreview> {
   }
 
   void _onLift() {
+    _panAt = null;
+    _panFrom = 0;
     _dragMode = null;
     _dragInitialT = null;
     _initialStartSec = null;
@@ -753,10 +788,14 @@ class _WindowPreviewState extends State<WindowPreview> {
         );
         final at = _pinchFrom + (focal * _pinchSpan).round();
         final from = at - ((focal + pan) * span).round();
-        setState(() {
-          _viewSpan = span;
-          _viewFrom = from;
-        });
+        if (widget.zoomable) {
+          _setView(from, span);
+        } else {
+          setState(() {
+            _viewSpan = span;
+            _viewFrom = from;
+          });
+        }
         _loadHr();
       case PinchPhase.end:
         _loadHr();
@@ -764,6 +803,68 @@ class _WindowPreviewState extends State<WindowPreview> {
   }
 
   DateTime _at(int sec) => DateTime.fromMillisecondsSinceEpoch(sec * 1000);
+
+  String _clock(num sec) {
+    final t = _at(sec.round());
+    return formatClock(t.hour, t.minute);
+  }
+
+  /// The chart as the day's breakdown draws it: caps title and unit above,
+  /// the chart under a finger (pinch zooms, a drag pans), the stretch in view
+  /// on a range bar below.
+  Widget _zoomable(BuildContext c, P p, Widget chart) {
+    final tint = widget.kind == WindowKind.workout ? C.dialStrain : C.dialSleep;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text('HEART RATE', style: F.caps.copyWith(color: p.ink)),
+            const Spacer(),
+            Text('bpm', style: F.num(F.cap).copyWith(color: p.ink3)),
+          ],
+        ),
+        const SizedBox(height: S.x2),
+        SizedBox(
+          height: widget.height,
+          child: Scrubber(
+            value: null,
+            onChanged: _pan,
+            onLift: _onLift,
+            yieldToScroll: true,
+            onPinch: _pinch,
+            label: 'Heart rate around the detected window',
+            describe: (f) => _clock(_viewFrom + f * _viewSpan),
+            child: chart,
+          ),
+        ),
+        RangeBar(
+          values: RangeValues(
+            _viewFrom.toDouble(),
+            (_viewFrom + _viewSpan).toDouble(),
+          ),
+          min: _domFrom.toDouble(),
+          max: _domTo.toDouble(),
+          divisions: math.max(1, (_domTo - _domFrom) ~/ 900),
+          hue: tint,
+          labels: RangeLabels(
+            _clock(_viewFrom),
+            _clock(_viewFrom + _viewSpan),
+          ),
+          semanticFormatter: _clock,
+          onChanged: (r) {
+            if (r.end - r.start < 15 * 60) return;
+            _setView(r.start.round(), (r.end - r.start).round());
+          },
+          onChangeEnd: (_) => _loadHr(),
+        ),
+        Text(
+          'Pinch or drag the handles to zoom.',
+          style: F.cap.copyWith(color: p.ink3),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext c) {
@@ -780,6 +881,7 @@ class _WindowPreviewState extends State<WindowPreview> {
       empty: _hr != null && _hr!.isEmpty,
     );
 
+    if (widget.zoomable && !isInteractive) return _zoomable(c, p, chartWidget);
     if (!isInteractive && widget.onExpand == null) {
       return SizedBox(height: widget.height, child: chartWidget);
     }

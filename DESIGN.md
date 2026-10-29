@@ -267,6 +267,7 @@ Circles: dials, rings, the monitor stress square's contents, `IconChip` (32), an
 
 - **Elevation:** dark mode has none; depth is the tonal grading in §2.2. Light mode uses `el(1)` = 0/8/24 at 6 % char, and deeper levels multiply it.
 - **The only real shadows** are the plus-menu panel (char 50 %, blur 32, y 8) and the strain-target knob glow (ink 18 %, blur 16, spread 4).
+- **The tab bar** is an opaque char/slate rounded rectangle (`R.xxl`) with no shadow and no glow. Its only ornament is the rim: a `S.hair` gradient outline, white 50 % at the top-left corner, 14 % at 30 %, 6 % at 70 %, 16 % at the bottom-right. The selected tab carries a pool of light on its foot: a `S.x12 * 2` circle, radial white 26 % → 0 % in five stops, centred on the tab's bottom edge and clipped by the bar. The gradient reaches zero at the circle's own edge, so it has no outline to see.
 - **Glass:** a 24 px backdrop blur under `p.glass`, plus a white 8 % hairline (or `p.line` in light). It is budgeted to two on screen at once: the tab bar and the minimised-workout banner. It is never used in a list item. Under high contrast or `Perf.lowGlass` it is drawn solid.
 
 **Gradient inventory** (do not add new ones without a reason this list does not already cover):
@@ -356,6 +357,7 @@ Gestures are built only from `lib/ui2/grammar.dart`. The token test fails on a r
 | `Scrubber(yieldToScroll)` | a drag that runs mostly vertical (`dy > dx` and more than 8 px) is handed to the page. The scrub stops and `onLift` fires, so a chart in a list never scrubs while the list scrolls. |
 | `Scrubber(onPinch)` | two fingers end the scrub and start a pinch. It reports `scale` (spread ÷ starting spread), `focal` (the starting midpoint, 0…1) and `pan` (how far the midpoint moved, as a fraction of the width). A scale recognizer is placed in the gesture arena so the page's scroll cannot steal the second finger. |
 | `Scrubber(hold)` | press and hold instead, for a chart inside a tappable card: a tap opens the card and a hold reads a value. |
+| `RangeBar` | the selector under a zoomable chart: an 8 pt pill track with the stretch in view lit in the chart's hue (`dialStrain` for activity, `dialSleep` for sleep), round ink thumbs, labels on drag. Never red. The chart's pinch and the bar move the same values. |
 | `DialScrubber` | a drag round a ring. The angle is measured clockwise from 12 o'clock. It never wraps: carried past 12, the value holds at the end it came from. A touch that starts inside 55 % of the radius (where the dial's own buttons sit) is ignored. Slider role. |
 | `SwipeHandle` | a vertical swipe of 24 px or more fires once (up or down). A tap that moves less than 8 px toggles. |
 | `Dismissible` | swiping the "Your first weeks" card away hides it until tomorrow. |
@@ -497,6 +499,7 @@ My Dashboard                CUSTOMIZE ✎
 6. **Either** a bare-day card (nothing measured; while a workout runs this becomes "A workout is still running") **or** the **dials** plus the **monitors**. If no dial has anything to draw, a single "Recovery is not scored today" card replaces them.
 7. Stale-insights card, then "Your first weeks" (swipeable).
 8. Wearable cells (only for non-WHOOP devices), then detected activities.
+    - **Detected activity card** (`ActivityProposalCard`): caps title with a bare `ink3` icon, the dates, then a `WindowPreview(zoomable: true)`: caps `HEART RATE` and `bpm` above, the chart (pinch to zoom, one finger to pan, the detected window shaded with its two lines), a `RangeBar` below, then `CONFIRM` as the ink `BigButton` and the other two answers as `TextAction`s. No colour on the answers; the destructive one is not red.
 9. **My Day:** a section head with the plus button, the ACTIVITIES card, then TONIGHT'S SLEEP (today only).
 10. **My Dashboard:** a section head with CUSTOMIZE, then the chosen tiles in the user's order.
 

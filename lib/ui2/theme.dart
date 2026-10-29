@@ -554,6 +554,8 @@ class F {
 class S {
   /// Half a step: the 2 pt optical nudge (a text baseline against an icon).
   static const half = 2.0;
+  /// One device-independent pixel: a rim or hairline's width.
+  static const hair = 1.0;
   static const x1 = 4.0;
   static const x2 = 8.0;
   static const x3 = 12.0;

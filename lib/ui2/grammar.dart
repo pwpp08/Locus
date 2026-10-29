@@ -2541,6 +2541,11 @@ class BigButton extends StatelessWidget {
   final ButtonTone tone;
   final bool round;
 
+  /// The size for a button that sits inside a card beside other actions: 40
+  /// tall, as wide as its label, the caps type of a text action. The full
+  /// pill stays the one primary action of a page.
+  final bool compact;
+
   /// Shows a small spinner in place of [icon] (work in progress).
   final bool busy;
   final VoidCallback? onTap;
@@ -2555,6 +2560,7 @@ class BigButton extends StatelessWidget {
     this.onTap,
     this.tone = ButtonTone.standard,
     this.round = false,
+    this.compact = false,
   });
 
   @override
@@ -2597,10 +2603,13 @@ class BigButton extends StatelessWidget {
       child: Container(
         // A minimum, never a fixed height — at accessibility text sizes the
         // label is taller than 56 and a fixed box would clip it.
-        constraints: const BoxConstraints(minHeight: S.x12 + S.x2),
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: S.x5, vertical: S.x3),
-        alignment: Alignment.center,
+        constraints:
+            BoxConstraints(minHeight: compact ? S.x10 : S.x12 + S.x2),
+        width: compact ? null : double.infinity,
+        padding: compact
+            ? const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x2)
+            : const EdgeInsets.symmetric(horizontal: S.x5, vertical: S.x3),
+        alignment: compact ? null : Alignment.center,
         decoration: BoxDecoration(color: ground, borderRadius: R.rPill),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -2609,8 +2618,10 @@ class BigButton extends StatelessWidget {
             Flexible(
               child: Text(
                 label.toUpperCase(),
-                style: F.body.copyWith(
-                    color: ink, fontWeight: FontWeight.w800, letterSpacing: 1.4),
+                style: (compact ? F.caps : F.body).copyWith(
+                    color: ink,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: compact ? .8 : 1.4),
                 textAlign: TextAlign.center,
                 maxLines: 2,
               ),
@@ -3441,6 +3452,63 @@ class Glass extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: Fx.glassBlur, sigmaY: Fx.glassBlur),
         child: box,
+      ),
+    );
+  }
+}
+
+/// The range selector under a zoomable chart: a pill track, the stretch in
+/// view lit in [hue], two round ink thumbs. Drag a thumb to narrow or widen
+/// what the chart shows; the chart's own pinch moves the same values.
+class RangeBar extends StatelessWidget {
+  final RangeValues values;
+  final double min, max;
+  final int? divisions;
+  final Color hue;
+  final RangeLabels? labels;
+  final String Function(double)? semanticFormatter;
+  final ValueChanged<RangeValues> onChanged;
+  final ValueChanged<RangeValues>? onChangeEnd;
+
+  const RangeBar({
+    super.key,
+    required this.values,
+    required this.min,
+    required this.max,
+    required this.hue,
+    required this.onChanged,
+    this.divisions,
+    this.labels,
+    this.semanticFormatter,
+    this.onChangeEnd,
+  });
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    return SliderTheme(
+      data: SliderTheme.of(c).copyWith(
+        trackHeight: S.x1 + S.half,
+        rangeTrackShape: const RoundedRectRangeSliderTrackShape(),
+        activeTrackColor: hue,
+        inactiveTrackColor: p.ink.withValues(alpha: .12),
+        overlayColor: hue.withValues(alpha: .12),
+        rangeThumbShape: const RoundRangeSliderThumbShape(
+            enabledThumbRadius: S.x2),
+        thumbColor: p.ink,
+        showValueIndicator: ShowValueIndicator.onDrag,
+        valueIndicatorColor: p.card2,
+        valueIndicatorTextStyle: F.num(F.cap).copyWith(color: p.ink),
+      ),
+      child: RangeSlider(
+        values: values,
+        min: min,
+        max: max,
+        divisions: divisions,
+        labels: labels,
+        semanticFormatterCallback: semanticFormatter,
+        onChanged: onChanged,
+        onChangeEnd: onChangeEnd,
       ),
     );
   }

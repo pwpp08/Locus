@@ -18,7 +18,6 @@
 // a section or a pushed screen inside the domain that owns it — Sleep and
 // Strain are the deep dives behind their dials on Home.
 
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'lucide.dart';
 
@@ -224,64 +223,65 @@ class _TabBar extends StatelessWidget {
     Widget tab(ShellDomain d) => Expanded(
           child: _Tab(domain: d, on: d == current, onTap: () => onTap(d)),
         );
-    // A frosted rounded rectangle floating over the tabs, with a subtle glassy glow on the edge.
-    // The selected tab has a soft bottom-up glow highlight from the bottom edge;
-    // the buttons sit between the tabs as icon-only slots.
+    // A dark rounded rectangle floating over the tabs. Its only decoration is
+    // the rim: a hairline that catches light at the top-left corner and fades
+    // away round the bar. No glow, no shadow. The selected tab carries a soft
+    // pool of light at its foot.
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: R.rXxl,
-        border: Border.all(color: C.white.withValues(alpha: .22), width: 1.0),
-        color: Color.alphaBlend(C.slate.withValues(alpha: .4), C.char),
-        boxShadow: [
-          BoxShadow(
-            color: C.char.withValues(alpha: .55),
-            blurRadius: 28,
-            offset: const Offset(0, 10),
-          ),
-          BoxShadow(
-            color: C.white.withValues(alpha: .15),
-            blurRadius: 10,
-            spreadRadius: 0.5,
-          ),
-          BoxShadow(
-            color: C.white.withValues(alpha: .06),
-            blurRadius: 3,
-            spreadRadius: 1.0,
-          ),
-        ],
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            C.white.withValues(alpha: .50),
+            C.white.withValues(alpha: .14),
+            C.white.withValues(alpha: .06),
+            C.white.withValues(alpha: .16),
+          ],
+          stops: const [0.0, 0.3, 0.7, 1.0],
+        ),
       ),
-      child: Glass(
-        radius: R.rXxl,
-        child: ClipRRect(
-          borderRadius: R.rXxl,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: S.navBar),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: S.x2, vertical: S.x1),
-              child: Row(
-                children: [
-                  tab(ShellDomain.today),
-                  tab(ShellDomain.strength),
-                  if (onAction != null)
-                    Expanded(
-                      child: Center(
-                        child: Pressable(
-                          onTap: onAction,
-                          semanticLabel: l?.workoutStartWorkoutFix ?? 'Actions',
-                          child: Container(
-                            width: S.x10,
-                            height: S.x10,
-                            decoration: BoxDecoration(
-                                color: p.card2, shape: BoxShape.circle),
-                            child: Icon(LucideIcons.plus,
-                                size: I.lg, color: p.ink),
+      child: Padding(
+        padding: const EdgeInsets.all(S.hair),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: R.rXxl,
+            color: Color.alphaBlend(C.slate.withValues(alpha: .4), C.char),
+          ),
+          child: ClipRRect(
+            borderRadius: R.rXxl,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: S.navBar),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: S.x2, vertical: S.x1),
+                child: Row(
+                  children: [
+                    tab(ShellDomain.today),
+                    tab(ShellDomain.strength),
+                    if (onAction != null)
+                      Expanded(
+                        child: Center(
+                          child: Pressable(
+                            onTap: onAction,
+                            semanticLabel:
+                                l?.workoutStartWorkoutFix ?? 'Actions',
+                            child: Container(
+                              width: S.x10,
+                              height: S.x10,
+                              decoration: BoxDecoration(
+                                  color: p.card2, shape: BoxShape.circle),
+                              child: Icon(LucideIcons.plus,
+                                  size: I.lg, color: p.ink),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  tab(ShellDomain.macros),
-                  tab(ShellDomain.more),
-                ],
+                    tab(ShellDomain.macros),
+                    tab(ShellDomain.more),
+                  ],
+                ),
               ),
             ),
           ),
@@ -340,29 +340,29 @@ class _Tab extends StatelessWidget {
           height: S.navBar - S.x2,
           child: Stack(
             alignment: Alignment.center,
+            clipBehavior: Clip.none,
             children: [
               if (on)
+                // A round pool of light centred on the tab's foot. The
+                // gradient is zero at the circle's own edge, so nothing in it
+                // has a boundary to see; the bar clips what falls below.
                 Positioned(
-                  left: -S.x6,
-                  right: -S.x6,
-                  bottom: -S.x4,
-                  height: S.x12 + S.x2,
+                  bottom: -S.x12,
                   child: IgnorePointer(
-                    child: ImageFiltered(
-                      imageFilter: ui.ImageFilter.blur(
-                          sigmaX: 14, sigmaY: 14),
+                    child: SizedBox(
+                      width: S.x12 * 2,
+                      height: S.x12 * 2,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: RadialGradient(
-                            center: const Alignment(0, 1.0),
-                            radius: 0.85,
                             colors: [
-                              C.white.withValues(alpha: .32),
-                              C.white.withValues(alpha: .14),
-                              C.white.withValues(alpha: .03),
-                              Colors.transparent,
+                              C.white.withValues(alpha: .26),
+                              C.white.withValues(alpha: .16),
+                              C.white.withValues(alpha: .07),
+                              C.white.withValues(alpha: .02),
+                              C.white.withValues(alpha: 0),
                             ],
-                            stops: const [0.0, 0.35, 0.65, 1.0],
+                            stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
                           ),
                         ),
                       ),

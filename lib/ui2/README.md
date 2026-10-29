@@ -102,6 +102,8 @@ Scrubber({required double? value, required ValueChanged<double> onChanged,
 it used to drop the constraint entirely and the doc comment claimed a hit slop
 that did not exist.
 
+`RangeBar({values, min, max, hue, onChanged})` is the range selector under a zoomable chart (`WindowPreview(zoomable: true)`, the day breakdown).
+
 `Scrubber` is the only drag: it carries the slider role, so increase/decrease
 reach it without a pointer, and `describe` is what those steps say out loud.
 
