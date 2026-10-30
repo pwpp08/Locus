@@ -256,7 +256,7 @@ class _ExercisePickerState extends State<_ExercisePicker> {
           padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x2),
           decoration: BoxDecoration(
             color: selected ? p.fill(C.purple) : p.card2,
-            borderRadius: R.rPill,
+            borderRadius: R.rSm,
           ),
           child: Text(
             label,

@@ -390,6 +390,11 @@ Map<String, Widget> componentCases() => {
         secondary: 'Keep it',
         onChoice: (_) {},
       )),
+      // The window switch and the window pager, as every paged chart
+      // wears them.
+      'range_segments': RangeSegments(const ['D', 'W', 'M', '6M'], 1, (_) {}),
+      'window_pager':
+          WindowPager('Oct 24 - Oct 30, 26', onEarlier: () {}, onLater: null),
       // The selector under a zoomable chart.
       'range_bar': RangeBar(
         values: const RangeValues(20, 70),

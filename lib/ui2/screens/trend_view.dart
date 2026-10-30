@@ -1781,12 +1781,9 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
         caption: caption,
         value: value,
         unit: value == '--' ? null : m.unit,
-        under: chip == null
-            ? null
-            : Padding(
-                padding: const EdgeInsets.only(top: S.x2),
-                child: chip,
-              ),
+        // The chip rides the pager's row, not under the figure: under it the
+        // chip wrapped and pushed the pager onto a row of its own.
+        under: null,
       );
     }
 
@@ -1823,7 +1820,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                   children: [
                     Expanded(child: readout),
                     const SizedBox(width: S.x3),
-                    _Segments(
+                    RangeSegments(
                       labels,
                       _ranges.indexOf(_range),
                       (i) => _setRange(_ranges[i]),
@@ -1831,34 +1828,24 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                   ],
                 ),
                 const SizedBox(height: S.x3),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _Step(
-                        LucideIcons.chevronLeft,
-                        'Earlier',
-                        () => _stepBack(1),
-                      ),
-                      Text(
-                        (isDay
-                                ? _dayName(_dayShown, l)
-                                : '${_shortDate(bars.first.from, l)} - '
-                                      '${_shortDate(end, l)}, ${(_dateOf(end).year % 100).toString().padLeft(2, '0')}')
-                            .toUpperCase(),
-                        style: F.over.copyWith(
-                          color: p.ink,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      _Step(
-                        LucideIcons.chevronRight,
-                        'Later',
-                        _back == 0 ? null : () => _stepBack(-1),
-                      ),
-                    ],
-                  ),
+                // The change against the window before, and which window that
+                // is: one row, the chip left and the pager right.
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  runSpacing: S.x2,
+                  children: [
+                    chip ?? const SizedBox.shrink(),
+                    WindowPager(
+                      isDay
+                          ? _dayName(_dayShown, l)
+                          : '${_shortDate(bars.first.from, l)} - '
+                              '${_shortDate(end, l)}, '
+                              '${(_dateOf(end).year % 100).toString().padLeft(2, '0')}',
+                      onEarlier: () => _stepBack(1),
+                      onLater: _back == 0 ? null : () => _stepBack(-1),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: S.x3),
                 Text(
@@ -2928,58 +2915,6 @@ const List<double> _minuteSteps = [30, 60, 120, 180, 240, 360, 480, 720, 1440];
   );
 }
 
-/// The range tabs: a short dark track with the chosen one lifted out of it.
-/// Fixed in width, so a fourth tab (D) shares the same track instead of
-/// widening it.
-class _Segments extends StatelessWidget {
-  final List<String> labels;
-  final int index;
-  final ValueChanged<int> onTap;
-  const _Segments(this.labels, this.index, this.onTap);
-
-  @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    return SizedBox(
-      width: S.x16 * 2.8,
-      height: S.tap,
-      child: Container(
-        padding: const EdgeInsets.all(S.x1),
-        decoration: BoxDecoration(
-          color: Color.alphaBlend(C.char.withValues(alpha: .5), p.bg),
-          borderRadius: R.rXl,
-        ),
-        child: Row(
-          children: [
-            for (var i = 0; i < labels.length; i++)
-              Expanded(
-                child: Pressable(
-                  onTap: () => onTap(i),
-                  semanticLabel: 'Show ${labels[i]}',
-                  child: Container(
-                    alignment: Alignment.center,
-                    decoration: i == index
-                        ? BoxDecoration(color: p.card, borderRadius: R.rLg)
-                        : null,
-                    child: Text(
-                      labels[i],
-                      maxLines: 1,
-                      style: F.caps.copyWith(
-                        color: i == index ? p.ink : p.ink3,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Several figures, each in its own colour with its own name under it: sleep
-/// need beside sleep achieved, deep beside REM.
 class _MultiReadout extends StatelessWidget {
   /// A date over the lot, while a night is touched.
   final String? caption;
@@ -3326,27 +3261,6 @@ class _StrainBreakdown extends StatelessWidget {
   }
 }
 
-class _Step extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-  const _Step(this.icon, this.label, this.onTap);
-
-  @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    return Pressable(
-      onTap: onTap,
-      semanticLabel: label,
-      child: SizedBox(
-        width: S.x8,
-        height: S.tap,
-        child: Icon(icon, size: I.md, color: onTap == null ? p.track : p.ink),
-      ),
-    );
-  }
-}
-
 /// The change against the window before, as a percentage: green when it is the
 /// way this metric wants to go, orange when it is not, plain when neither way
 /// is better. Only drawn when both windows have an average.
@@ -3392,7 +3306,8 @@ class _DeltaChip extends StatelessWidget {
       TrendRange.sixMonths => 'prior 6 months',
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: S.x2, vertical: S.x1),
+      padding: const EdgeInsets.symmetric(
+          horizontal: S.x1 + S.half, vertical: S.half),
       decoration: BoxDecoration(
         color: better == null ? p.card2 : tone.withValues(alpha: .18),
         borderRadius: R.rSm,
@@ -3402,15 +3317,17 @@ class _DeltaChip extends StatelessWidget {
         children: [
           if (!flat) ...[
             CustomPaint(
-              size: const Size(S.x3, S.x2 + S.half),
+              size: const Size(S.x2 + S.half, S.x2),
               painter: _TrianglePainter(color: tone, up: up),
             ),
-            const SizedBox(width: S.x2),
+            const SizedBox(width: S.x1),
           ],
           Flexible(
             child: Text(
               '$text vs. $past',
-              style: F.cap.copyWith(color: tone, fontWeight: FontWeight.w700),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: F.over.copyWith(color: tone, fontWeight: FontWeight.w700),
             ),
           ),
         ],

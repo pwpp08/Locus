@@ -1651,96 +1651,22 @@ class _LiveStrengthState extends State<LiveStrength> {
               size: I.md, color: index == plan.length - 1 ? p.line : p.ink3),
         ),
       ]),
-      const SizedBox(height: S.x2),
+      const SizedBox(height: S.x3),
       Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Pressable(
-            onTap: changeExercise,
-            semanticLabel: 'Swap exercise',
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x1),
-              decoration: BoxDecoration(
-                color: p.wash(p.ink).withValues(alpha: .06),
-                borderRadius: R.rPill,
-              ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(LucideIcons.repeat, size: I.sm, color: p.ink2),
-                const SizedBox(width: S.x1),
-                Text('Swap',
-                    style: F.cap.copyWith(
-                        color: p.ink2, fontWeight: FontWeight.w600)),
-              ]),
-            ),
-          ),
-          const SizedBox(width: S.x2),
+          _chip(p, LucideIcons.repeat, 'Swap', changeExercise),
           if (plan.length > 1) ...[
-            Pressable(
-              onTap: skipExercise,
-              semanticLabel: 'Skip exercise',
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x1),
-                decoration: BoxDecoration(
-                  color: p.wash(p.ink).withValues(alpha: .06),
-                  borderRadius: R.rPill,
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(LucideIcons.skipForward, size: I.sm, color: p.ink2),
-                  const SizedBox(width: S.x1),
-                  Text('Skip',
-                      style: F.cap.copyWith(
-                          color: p.ink2, fontWeight: FontWeight.w600)),
-                ]),
-              ),
-            ),
             const SizedBox(width: S.x2),
+            _chip(p, LucideIcons.skipForward, 'Skip', skipExercise),
           ],
-          Pressable(
-            onTap: addExercise,
-            semanticLabel: 'Add exercise',
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x1),
-              decoration: BoxDecoration(
-                color: p.wash(p.ink).withValues(alpha: .06),
-                borderRadius: R.rPill,
-              ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(LucideIcons.plus, size: I.sm, color: p.ink),
-                const SizedBox(width: S.x1),
-                Text(l?.activityLiveAddExerciseTitle ?? 'Add exercise',
-                    style: F.cap.copyWith(
-                        color: p.ink, fontWeight: FontWeight.w600)),
-              ]),
-            ),
-          ),
+          const SizedBox(width: S.x2),
+          _chip(p, LucideIcons.plus,
+              l?.activityLiveAddExerciseTitle ?? 'Add exercise', addExercise,
+              lit: true),
         ],
       ),
       const SizedBox(height: S.x4),
-
-      // set dots — one per set logged for this exercise, plus the one in hand
-      Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(setsHere.length + 1, (i) {
-          final filled = i < setsHere.length;
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: S.x1),
-            width: filled ? 11 : 9,
-            height: filled ? 11 : 9,
-            decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: filled ? C.dialStrain : p.ink.withValues(alpha: .12)),
-          );
-        }),
-      ),
-      const SizedBox(height: S.x2),
-      // Tabular: this counts up mid-lift, and proportional digits made the
-      // label shuffle sideways on every set.
-      Text(l?.activityLiveSetNumber(setsHere.length + 1) ??
-              'Set ${setsHere.length + 1}',
-          style: F.cap.copyWith(
-              color: p.ink3,
-              fontFeatures: const [FontFeature.tabularFigures()])),
-      const SizedBox(height: S.x6),
 
       if (restLeft.value > 0)
         ValueListenableBuilder<int>(
@@ -1762,16 +1688,17 @@ class _LiveStrengthState extends State<LiveStrength> {
           child: Column(children: [
             for (var i = 0; i < setsHere.length; i++) ...[
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: S.x3),
+                padding: const EdgeInsets.symmetric(vertical: S.x2),
                 child: Row(children: [
                   Container(
-                    width: 24,
-                    height: 24,
+                    width: S.x6,
+                    height: S.x6,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                        color: p.wash(C.purple), borderRadius: R.rSm),
+                        color: p.ink.withValues(alpha: .08),
+                        borderRadius: R.rSm),
                     child: Text('${i + 1}',
-                        style: F.over.copyWith(color: p.on(C.purple))),
+                        style: F.over.copyWith(color: p.ink2)),
                   ),
                   const SizedBox(width: S.x3),
                   Expanded(
@@ -1823,64 +1750,156 @@ class _LiveStrengthState extends State<LiveStrength> {
     ]);
   }
 
+  /// A small chip: the exercise actions, which are corrections rather than
+  /// the thing the screen is for.
+  Widget _chip(P p, IconData icon, String label, VoidCallback onTap,
+          {bool lit = false}) =>
+      Pressable(
+        onTap: onTap,
+        semanticLabel: label,
+        child: Container(
+          height: S.x8,
+          padding: const EdgeInsets.symmetric(horizontal: S.x3),
+          decoration: BoxDecoration(
+            color: p.ink.withValues(alpha: .06),
+            borderRadius: R.rSm,
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: I.sm, color: lit ? p.ink : p.ink2),
+            const SizedBox(width: S.x1),
+            Text(label,
+                style: F.caps.copyWith(color: lit ? p.ink : p.ink2)),
+          ]),
+        ),
+      );
+
+  /// What you are about to log: the set's number, its load and its reps, on
+  /// one row of two pads. It used to be two stacked steppers with 56 pt
+  /// circles and a display-size figure each, which pushed the effort row and
+  /// the sets already logged off the bottom of the phone.
   List<Widget> _entry(P p, BuildContext c) {
     final l = AppLocalizations.of(c);
     final u = unitsOf(c);
     final stepKg = u?.loadStepKg(def?.step ?? 2.5) ?? (def?.step ?? 2.5);
     return [
-        _stepper(
-            c,
-            p,
-            l?.activityLiveWeightLabel ?? 'WEIGHT',
-            bodyweight ? (l?.activityLiveBwAbbrev ?? 'BW') : _fmt(kg, u),
-            bodyweight ? '' : (u?.weightUnit ?? 'kg'),
-            () => setState(() => kg = (kg - stepKg).clamp(0, 500).toDouble()),
-            () => setState(() => kg = kg + stepKg)),
-        const SizedBox(height: S.x3),
-        Pressable(
+      Row(children: [
+        Expanded(
+          child: _pad(
+              c,
+              p,
+              l?.activityLiveWeightLabel ?? 'WEIGHT',
+              bodyweight ? (l?.activityLiveBwAbbrev ?? 'BW') : _fmt(kg, u),
+              bodyweight ? '' : (u?.weightUnit ?? 'kg'),
+              () => setState(() => kg = (kg - stepKg).clamp(0, 500).toDouble()),
+              () => setState(() => kg = kg + stepKg)),
+        ),
+        const SizedBox(width: S.x3),
+        Expanded(
+          child: _pad(c, p, l?.activityLiveRepsLabel ?? 'REPS', '$reps', '',
+              () => setState(() => reps = (reps - 1).clamp(1, 100)),
+              () => setState(() => reps = reps + 1)),
+        ),
+      ]),
+      const SizedBox(height: S.x2),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: Pressable(
           onTap: () => setState(() => bodyweight = !bodyweight),
-          child: Text(
-              bodyweight
-                  ? (l?.activityLiveBodyweightExcludedNote ??
-                      'Bodyweight — left out of volume')
-                  : (l?.activityLiveLogAsBodyweight ?? 'Log as bodyweight'),
-              style: F.cap.copyWith(color: p.on(C.purple))),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: S.x1),
+            child: Text(
+                bodyweight
+                    ? (l?.activityLiveBodyweightExcludedNote ??
+                        'Bodyweight — left out of volume')
+                    : (l?.activityLiveLogAsBodyweight ?? 'Log as bodyweight'),
+                style: F.cap.copyWith(color: p.on(C.dialStrain))),
+          ),
         ),
-        const SizedBox(height: S.x5),
-        _stepper(c, p, l?.activityLiveRepsLabel ?? 'REPS', '$reps', '',
-            () => setState(() => reps = (reps - 1).clamp(1, 100)),
-            () => setState(() => reps = reps + 1)),
-        const SizedBox(height: S.x5),
-        Align(
-            alignment: Alignment.centerLeft,
-            child: Text(l?.activityLiveEffortRpeHeader ?? 'EFFORT (RPE)',
-                style: F.over.copyWith(color: p.ink3))),
-        const SizedBox(height: S.x3),
-        Row(
-          children: List.generate(5, (i) {
-            final v = i + 6; // Borg CR-10 reps-in-reserve range
-            final on = rpe == v;
-            const cols = [C.green, C.teal, C.blue, C.orange, C.red];
-            return Expanded(
-              child: Pressable(
-                semanticLabel: 'RPE $v',
-                onTap: () => setState(() => rpe = v),
-                child: Container(
-                  margin: EdgeInsets.only(right: i == 4 ? 0 : S.x2),
-                  height: 44,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                      color: on ? p.fill(cols[i]) : p.wash(cols[i]),
-                      borderRadius: R.rMd),
-                  child: Text('$v',
-                      style: F.head.copyWith(
-                          color: on ? p.inkOn(p.fill(cols[i])) : p.on(cols[i]))),
-                ),
+      ),
+      const SizedBox(height: S.x3),
+      // Effort: the label and the five steps on one row, wrapping only where
+      // the type is scaled far up.
+      Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: S.x3,
+        runSpacing: S.x2,
+        children: [
+          Text(l?.activityLiveEffortRpeHeader ?? 'EFFORT (RPE)',
+              style: F.over.copyWith(color: p.ink3)),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            for (var i = 0; i < 5; i++) ...[
+              if (i > 0) const SizedBox(width: S.x2),
+              _rpeStep(p, i + 6),
+            ],
+          ]),
+        ],
+      ),
+    ];
+  }
+
+  /// One entry pad: its caption, then minus / figure / plus on one line.
+  Widget _pad(BuildContext c, P p, String label, String value, String unit,
+      VoidCallback minus, VoidCallback plus) {
+    final l = AppLocalizations.of(c);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(S.x2, S.x2, S.x2, S.x2),
+      decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
+      child: Column(children: [
+        Text(label, style: F.over.copyWith(color: p.ink3)),
+        const SizedBox(height: S.x1),
+        Row(children: [
+          counterButton(p, LucideIcons.minus, p.ink,
+              l?.activityLiveDecrease(label) ?? '$label down', minus,
+              size: S.x10),
+          Expanded(
+            child: ExcludeSemantics(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Flexible(
+                    child: Text(value,
+                        style: F.n34.copyWith(
+                            color: p.ink, fontWeight: FontWeight.w700),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                  if (unit.isNotEmpty) ...[
+                    const SizedBox(width: S.x1),
+                    Text(unit, style: F.cap.copyWith(color: p.ink3)),
+                  ],
+                ],
               ),
-            );
-          }),
+            ),
+          ),
+          counterButton(p, LucideIcons.plus, p.ink,
+              l?.activityLiveIncrease(label) ?? '$label up', plus,
+              size: S.x10),
+        ]),
+      ]),
+    );
+  }
+
+  /// One step of the Borg CR-10 reps-in-reserve range.
+  Widget _rpeStep(P p, int v) {
+    final on = rpe == v;
+    return Pressable(
+      semanticLabel: 'RPE $v',
+      onTap: () => setState(() => rpe = v),
+      child: Container(
+        width: S.x10,
+        height: S.x8 + S.x1,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: on ? p.ink : p.ink.withValues(alpha: .08),
+          borderRadius: R.rSm,
         ),
-      ];
+        child: Text('$v',
+            style: F.cap.copyWith(
+                color: on ? p.bg : p.ink2, fontWeight: FontWeight.w800)),
+      ),
+    );
   }
 
   Widget _rest_(P p, BuildContext c) {
@@ -1891,11 +1910,11 @@ class _LiveStrengthState extends State<LiveStrength> {
             style: F.over.copyWith(color: p.on(C.teal))),
         const SizedBox(height: S.x3),
         SizedBox(
-          width: 170,
-          height: 170,
+          width: S.x16 * 2 + S.x4,
+          height: S.x16 * 2 + S.x4,
           child: Stack(alignment: Alignment.center, children: [
             CustomPaint(
-                size: const Size(170, 170),
+                size: const Size(S.x16 * 2 + S.x4, S.x16 * 2 + S.x4),
                 painter:
                     Ring(restLeft.value / restTarget, p.on(C.teal), p.track)),
             Column(mainAxisSize: MainAxisSize.min, children: [
@@ -1922,22 +1941,6 @@ class _LiveStrengthState extends State<LiveStrength> {
             ]),
           ]),
         ),
-      ]);
-  }
-
-  Widget _stepper(BuildContext c, P p, String label, String value,
-          String unit, VoidCallback minus, VoidCallback plus) {
-    final l = AppLocalizations.of(c);
-    return Column(children: [
-        Text(label, style: F.over.copyWith(color: p.ink3)),
-        const SizedBox(height: S.x3),
-        Row(children: [
-          counterButton(p, LucideIcons.minus, p.ink,
-              l?.activityLiveDecrease(label) ?? '$label down', minus),
-          Expanded(child: bigNum(p, value, unit)),
-          counterButton(p, LucideIcons.plus, p.ink,
-              l?.activityLiveIncrease(label) ?? '$label up', plus),
-        ]),
       ]);
   }
 
@@ -2142,7 +2145,7 @@ class _LiveSwimState extends State<LiveSwim> {
                       decoration: BoxDecoration(
                           color:
                               poolLen == len ? p.wash(C.blue) : p.card2,
-                          borderRadius: R.rPill),
+                          borderRadius: R.rSm),
                       child: Text(
                         '$len ${uiText(context, 'm')}',
                           style: F.cap.copyWith(

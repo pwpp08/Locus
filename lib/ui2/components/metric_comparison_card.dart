@@ -338,7 +338,7 @@ class _TrendMetricComparisonCardState extends State<TrendMetricComparisonCard> {
                   ),
                   decoration: BoxDecoration(
                     color: p.card2,
-                    borderRadius: R.rPill,
+                    borderRadius: R.rSm,
                   ),
                   child: Text(
                     '${_windowDays}D',
@@ -386,7 +386,7 @@ class _TrendMetricComparisonCardState extends State<TrendMetricComparisonCard> {
                         color: isSelected
                             ? activeColor.withValues(alpha: .18)
                             : p.card2,
-                        borderRadius: R.rPill,
+                        borderRadius: R.rSm,
                         border: Border.all(
                           color: isSelected ? activeColor : p.line,
                           width: isSelected ? 1.5 : 1.0,
@@ -1216,7 +1216,7 @@ class _RunningWorkoutComparisonCardState
         padding: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x1),
         decoration: BoxDecoration(
           color: active ? color.withValues(alpha: .18) : p.card2,
-          borderRadius: R.rPill,
+          borderRadius: R.rSm,
           border: Border.all(
             color: active ? color : p.line,
             width: active ? 1.5 : 1.0,

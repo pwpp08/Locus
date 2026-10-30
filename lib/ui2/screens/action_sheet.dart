@@ -5,36 +5,17 @@
 // the screen that already does the work — nothing here records anything.
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../../state/app_state.dart';
-import '../activity/picker.dart';
 import '../ui2.dart';
 import 'coach.dart';
-import 'home_screen.dart' show go, repoOf;
+import 'home_screen.dart' show go;
 import 'log_food.dart' show LogFoodSheet;
 import 'log_weight_sheet.dart' show LogWeightSheet;
-import 'workout_screen.dart' show activityHost, loadSetHistory;
+import 'start_activity.dart' show StartActivityScreen;
 
 /// The coach, or its setup when no model is configured yet.
 void openCoach(BuildContext c) =>
     go(c, coachReadyNow(c) ? const CoachScreen() : const CoachSetup());
-
-/// The activity picker, with the same host and weight the Activity screen
-/// hands it. Weight is null rather than a default when the profile has none.
-Future<void> startActivity(BuildContext c) async {
-  final app = c.read<AppState>();
-  final nav = Navigator.of(c);
-  final repo = repoOf(c);
-  final profile = repo == null ? const <String, dynamic>{} : await repo.getProfile();
-  final history = await loadSetHistory();
-  await nav.push(MaterialPageRoute<void>(
-    builder: (_) => ActivityPicker(
-      weightKg: (profile['weight_kg'] as num?)?.toDouble(),
-      host: activityHost(app, history: history),
-    ),
-  ));
-}
 
 Future<void> openActionSheet(BuildContext c) {
   return AppSheet.show<void>(
@@ -59,7 +40,8 @@ Future<void> openActionSheet(BuildContext c) {
           C.dialStrain,
           'Start activity',
           'Track a workout live with strain and heart rate',
-          () => then(() => startActivity(c)),
+          // The same door My Day's + opens, not the bare picker.
+          () => then(() => go(c, const StartActivityScreen())),
         ),
         _ActionRow(
           LucideIcons.utensils,

@@ -183,7 +183,7 @@ class _MilestoneTile extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x1),
                 decoration: BoxDecoration(
                   color: p.card2,
-                  borderRadius: R.rPill,
+                  borderRadius: R.rSm,
                 ),
                 child: Text(
                   badge,

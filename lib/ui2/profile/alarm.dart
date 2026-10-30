@@ -785,7 +785,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: S.x8, vertical: S.x4),
                     decoration: BoxDecoration(
-                      borderRadius: R.rPill,
+                      borderRadius: R.rMd,
                       border: Border.all(color: p.ink, width: S.half),
                     ),
                     child: Text('CREATE SCHEDULE',

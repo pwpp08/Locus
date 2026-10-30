@@ -54,12 +54,12 @@ void main() {
       await _pump(t, WorkoutSuggestionScreen(preloaded: [_sug()]));
 
       expect(find.text('DETECTED ACTIVITIES'), findsOneWidget);
-      expect(find.text('Possible workout'), findsOneWidget);
+      expect(find.text('POSSIBLE WORKOUT'), findsOneWidget);
       // The WINDOW, not just a start time — the whole reason to open this
       // screen is to see whether the detector clipped it.
       expect(find.textContaining('6:30 PM'), findsOneWidget);
       expect(find.textContaining('7:31 PM'), findsOneWidget);
-      expect(find.text('61 min'), findsOneWidget);
+      expect(find.textContaining('61 min'), findsOneWidget);
       // Every answer is reachable, including the one that matters most.
       expect(find.text('CONFIRM'), findsOneWidget);
       expect(find.text('CHANGE SPORT'), findsOneWidget);

@@ -222,7 +222,7 @@ class _WeightTrendScreenState extends State<WeightTrendScreen> {
                     ),
                     decoration: BoxDecoration(
                       color: p.card2,
-                      borderRadius: R.rPill,
+                      borderRadius: R.rSm,
                       border: Border.all(color: p.line),
                     ),
                     child: Row(
@@ -294,20 +294,11 @@ class _WeightTrendScreenState extends State<WeightTrendScreen> {
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: p.card,
-                    borderRadius: R.rPill,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _rangeChip('1W', WeightTrendRange.week),
-                      _rangeChip('1M', WeightTrendRange.month),
-                      _rangeChip('6M', WeightTrendRange.sixMonths),
-                    ],
-                  ),
+                RangeSegments(
+                  const ['1W', '1M', '6M'],
+                  _range.index,
+                  (i) => _setRange(WeightTrendRange.values[i]),
+                  width: S.x16 * 2.2,
                 ),
               ],
             ),
@@ -582,29 +573,6 @@ class _WeightTrendScreenState extends State<WeightTrendScreen> {
             ),
             const SizedBox(height: S.x8),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _rangeChip(String label, WeightTrendRange r) {
-    final p = P.of(context);
-    final on = _range == r;
-    return Pressable(
-      onTap: () => _setRange(r),
-      semanticLabel: label,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x1),
-        decoration: BoxDecoration(
-          color: on ? p.card2 : Colors.transparent,
-          borderRadius: R.rPill,
-        ),
-        child: Text(
-          label,
-          style: F.caps.copyWith(
-            color: on ? p.ink : p.ink3,
-            fontWeight: on ? FontWeight.w800 : FontWeight.w600,
-          ),
         ),
       ),
     );

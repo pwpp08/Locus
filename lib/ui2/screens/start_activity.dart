@@ -565,7 +565,7 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
                     const EdgeInsets.symmetric(horizontal: S.x2, vertical: S.x1),
                 decoration: BoxDecoration(
                   color: p.wash(p.ink).withValues(alpha: .08),
-                  borderRadius: R.rPill,
+                  borderRadius: R.rSm,
                 ),
                 child: Text(
                   hasAlarm ? 'CHANGE' : 'SET ALARM',
@@ -607,7 +607,7 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
                             horizontal: S.x2, vertical: S.half),
                         decoration: BoxDecoration(
                           color: C.dialSleep.withValues(alpha: .2),
-                          borderRadius: R.rPill,
+                          borderRadius: R.rSm,
                           border: Border.all(
                               color: C.dialSleep.withValues(alpha: .4)),
                         ),

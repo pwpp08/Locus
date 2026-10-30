@@ -516,7 +516,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                           horizontal: S.x8, vertical: S.x3 + S.half),
                       decoration: BoxDecoration(
                         color: Color.alphaBlend(C.char.withValues(alpha: .5), p.bg),
-                        borderRadius: R.rPill,
+                        borderRadius: R.rMd,
                         border: Border.all(
                             color: p.ink.withValues(alpha: .9), width: S.half),
                       ),
@@ -834,7 +834,7 @@ class _PlannerBar extends StatelessWidget {
                     horizontal: S.x5, vertical: S.x2 + S.x1),
                 decoration: BoxDecoration(
                   color: Color.alphaBlend(C.char.withValues(alpha: .95), p.bg),
-                  borderRadius: R.rPill,
+                  borderRadius: R.rSm,
                   border: Border.all(color: p.ink, width: S.half),
                 ),
                 child: Text(inBedLabel,

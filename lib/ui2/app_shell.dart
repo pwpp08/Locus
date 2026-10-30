@@ -224,9 +224,9 @@ class _TabBar extends StatelessWidget {
           child: _Tab(domain: d, on: d == current, onTap: () => onTap(d)),
         );
     // A dark rounded rectangle floating over the tabs. Its only decoration is
-    // the rim: a hairline that catches light at the top-left corner and fades
-    // away round the bar. No glow, no shadow. The selected tab carries a soft
-    // pool of light at its foot.
+    // the rim: a hairline lit at the top-left corner and gone by a third of
+    // the way round, as if one light sat above and to the left. No glow, no
+    // shadow. The selected tab carries a soft pool of light at its foot.
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: R.rXxl,
@@ -234,12 +234,12 @@ class _TabBar extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            C.white.withValues(alpha: .50),
-            C.white.withValues(alpha: .14),
-            C.white.withValues(alpha: .06),
-            C.white.withValues(alpha: .16),
+            C.white.withValues(alpha: .30),
+            C.white.withValues(alpha: .09),
+            C.white.withValues(alpha: .04),
+            C.white.withValues(alpha: .04),
           ],
-          stops: const [0.0, 0.3, 0.7, 1.0],
+          stops: const [0.0, 0.18, 0.45, 1.0],
         ),
       ),
       child: Padding(

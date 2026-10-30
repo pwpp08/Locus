@@ -313,9 +313,12 @@ class SleepData {
       final n = await repo.getDaySleepV2(todayDay);
       if (n['has_sleep'] == true) todayNight = n;
     }
-    final day = todayNight != null
-        ? todayDay
-        : pickDay(days, want, heldOverNightOf(today) ?? todayDay);
+    // Today, even with no night on it: Home REFUSES a held-over night (it
+    // draws an empty Sleep dial and says "No sleep yet today"), so opening
+    // that dial on yesterday's night answered a question nobody asked. With
+    // no night, today's own "no sleep recorded" state is the honest answer,
+    // and the day nav steps back to the night that does exist.
+    final day = todayNight != null ? todayDay : pickDay(days, want, todayDay);
     if (day == null) return SleepData(days: days);
 
     final night = todayNight ?? await repo.getDaySleepV2(day);

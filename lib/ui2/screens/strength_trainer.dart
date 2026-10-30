@@ -316,86 +316,53 @@ class _ProgressTabState extends State<_ProgressTab> {
       padding: EdgeInsets.fromLTRB(
           S.x6, S.x4, S.x6, widget.tabMode ? S.navClear(c) : S.x16),
       children: [
-        Text('Total Volume Load',
-            style: F.t2.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
+        Text('Total volume load',
+            style: F.head.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
         const SizedBox(height: S.x3),
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(top: S.x1),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(
-                    bar == null
-                        ? 'AVG VOLUME LOAD'
-                        : _barCaption(bar, l),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: F.cap.copyWith(
-                        color: p.ink2,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.4)),
-                const SizedBox(height: S.x1),
-                Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(
-                          (bar == null ? w.average : bar.kg) == null
-                              ? '--'
-                              : groupedKg((bar == null ? w.average : bar.kg)!),
-                          style: F.n34
-                              .copyWith(color: p.ink, fontWeight: FontWeight.w700)),
-                      const SizedBox(width: S.x1 + S.half),
-                      Text('kg',
-                          style: F.head.copyWith(
-                              color: p.ink, fontWeight: FontWeight.w500)),
-                    ]),
-              ]),
-            ),
-          ),
-          const SizedBox(width: S.x3),
-          SizedBox(
-            width: S.x16 * 3 - S.x6,
-            child: Column(children: [
-              _Seg(
-                items: const ['W', 'M', '6M'],
-                index: _span.index,
-                onTap: (i) => setState(() {
-                  _span = VolumeSpan.values[i];
-                  _back = 0;
-                  _at = null;
-                }),
+        // The same shape as Trend View: the figure left, the range segment
+        // right, then the window pager on its own row.
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ScrubReadout(
+                caption: bar == null ? 'Avg. volume load' : _barCaption(bar, l),
+                value: (bar == null ? w.average : bar.kg) == null
+                    ? '--'
+                    : groupedKg((bar == null ? w.average : bar.kg)!),
+                unit: (bar == null ? w.average : bar.kg) == null ? null : 'kg',
               ),
-              const SizedBox(height: S.x4),
-              Row(children: [
-                _pageButton(p, true, () => setState(() {
-                      _back++;
+            ),
+            const SizedBox(width: S.x3),
+            RangeSegments(
+              const ['W', 'M', '6M'],
+              _span.index,
+              (i) => setState(() {
+                _span = VolumeSpan.values[i];
+                _back = 0;
+                _at = null;
+              }),
+              width: S.x16 * 2.2,
+            ),
+          ],
+        ),
+        const SizedBox(height: S.x3),
+        Align(
+          alignment: Alignment.centerRight,
+          child: WindowPager(
+            _range(w, l),
+            onEarlier: () => setState(() {
+              _back++;
+              _at = null;
+            }),
+            onLater: _back == 0
+                ? null
+                : () => setState(() {
+                      _back--;
                       _at = null;
-                    })),
-                Expanded(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(_range(w, l),
-                        maxLines: 1,
-                        style: F.cap.copyWith(
-                            color: p.ink,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.0)),
-                  ),
-                ),
-                _pageButton(
-                    p,
-                    false,
-                    _back == 0
-                        ? null
-                        : () => setState(() {
-                              _back--;
-                              _at = null;
-                            })),
-              ]),
-            ]),
+                    }),
           ),
-        ]),
+        ),
         const SizedBox(height: S.x4),
         ScrubColumns(
           values: [for (final b in w.bars) b.kg],
@@ -417,8 +384,8 @@ class _ProgressTabState extends State<_ProgressTab> {
         const SizedBox(height: S.x6),
         Row(children: [
           Expanded(
-            child: Text('Personal Records',
-                style: F.t2.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
+            child: Text('Personal records',
+                style: F.head.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
           ),
           Pressable(
             onTap: _add,
@@ -427,7 +394,7 @@ class _ProgressTabState extends State<_ProgressTab> {
               height: S.x8 + S.x1,
               padding: const EdgeInsets.symmetric(horizontal: S.x3),
               decoration: BoxDecoration(
-                  color: p.ink.withValues(alpha: .1), borderRadius: R.rPill),
+                  color: p.ink.withValues(alpha: .1), borderRadius: R.rSm),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(LucideIcons.plus, size: I.sm, color: p.ink),
                 const SizedBox(width: S.x1),
@@ -475,61 +442,6 @@ class _ProgressTabState extends State<_ProgressTab> {
         .toUpperCase();
   }
 
-  Widget _pageButton(P p, bool left, VoidCallback? onTap) => Pressable(
-        onTap: onTap,
-        semanticLabel: left ? 'Earlier' : 'Later',
-        child: SizedBox(
-          width: S.x6 + S.x1,
-          height: S.tap,
-          child: Center(
-            child: BoldChevron(
-                left: left,
-                color: onTap == null ? p.ink.withValues(alpha: .25) : p.ink,
-                height: S.x4),
-          ),
-        ),
-      );
-}
-
-/// The segmented switch: a dark track, the chosen segment lifted.
-class _Seg extends StatelessWidget {
-  final List<String> items;
-  final int index;
-  final ValueChanged<int> onTap;
-  const _Seg({required this.items, required this.index, required this.onTap});
-
-  @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    return Container(
-      height: S.x10 + S.x2 - S.half,
-      padding: const EdgeInsets.all(S.x1 + S.half / 2),
-      decoration: BoxDecoration(
-        color: Color.alphaBlend(C.char.withValues(alpha: .55), p.bg),
-        borderRadius: R.rLg,
-      ),
-      child: Row(children: [
-        for (var i = 0; i < items.length; i++)
-          Expanded(
-            child: Pressable(
-              onTap: () => onTap(i),
-              semanticLabel: items[i],
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: i == index ? p.card2 : const Color(0x00000000),
-                  borderRadius: R.rMd,
-                ),
-                child: Text(items[i],
-                    style: F.cap.copyWith(
-                        color: i == index ? p.ink : p.ink2,
-                        fontWeight: FontWeight.w800)),
-              ),
-            ),
-          ),
-      ]),
-    );
-  }
 }
 
 /// One personal record: the lift's photo, its name, its figure.

@@ -3514,6 +3514,109 @@ class RangeBar extends StatelessWidget {
   }
 }
 
+/// The range segment: D / W / M / 6M over a dark track, the chosen one lifted
+/// onto a [P.card] tile. The one switch for "which window am I looking at",
+/// on Trend View, the strength trainer and every screen that pages a window.
+class RangeSegments extends StatelessWidget {
+  final List<String> labels;
+  final int index;
+  final ValueChanged<int> onTap;
+
+  /// Null stretches to the space it is given; Trend View pins it so the
+  /// readout beside it keeps a stable width.
+  final double? width;
+
+  const RangeSegments(this.labels, this.index, this.onTap,
+      {super.key, this.width = S.x16 * 2.8});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    return SizedBox(
+      width: width,
+      height: S.tap,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Color.alphaBlend(C.char.withValues(alpha: .5), p.bg),
+          borderRadius: R.rXl,
+        ),
+        child: Row(
+          children: [
+            for (var i = 0; i < labels.length; i++)
+              Expanded(
+                child: Pressable(
+                  onTap: () => onTap(i),
+                  semanticLabel: 'Show ${labels[i]}',
+                  child: Padding(
+                    padding: const EdgeInsets.all(S.x1),
+                    child: Container(
+                      alignment: Alignment.center,
+                      decoration: i == index
+                          ? BoxDecoration(color: p.card, borderRadius: R.rLg)
+                          : null,
+                      child: Text(
+                        labels[i],
+                        maxLines: 1,
+                        style:
+                            F.caps.copyWith(color: i == index ? p.ink : p.ink3),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "‹ OCT 24 - OCT 30, 26 ›": which window the chart below is showing, and the
+/// two steps either side of it. A null callback is the end of the road and
+/// draws its chevron dead. Drawn 32 tall, touched over [S.tap].
+class WindowPager extends StatelessWidget {
+  final String label;
+  final VoidCallback? onEarlier, onLater;
+
+  const WindowPager(this.label, {super.key, this.onEarlier, this.onLater});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    Widget step(bool left, VoidCallback? onTap) => Pressable(
+          onTap: onTap,
+          semanticLabel: left ? 'Earlier' : 'Later',
+          child: SizedBox(
+            width: S.x8 + S.x1,
+            height: S.tap,
+            child: Center(
+              child: BoldChevron(
+                left: left,
+                color: onTap == null ? p.ink.withValues(alpha: .22) : p.ink,
+                height: S.x4,
+              ),
+            ),
+          ),
+        );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        step(true, onEarlier),
+        Flexible(
+          child: Text(
+            label.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: F.over.copyWith(
+                color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1),
+          ),
+        ),
+        step(false, onLater),
+      ],
+    );
+  }
+}
+
 /// The on/off control. Volt-green track with a dark thumb when on, the plain track
 /// with a muted thumb when off. Built on Material's `Switch` so it keeps the
 /// switch's semantics role and keyboard handling.

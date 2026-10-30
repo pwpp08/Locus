@@ -245,7 +245,9 @@ Touch targets are never smaller than 44 even when the drawing is: the pager is d
 | `R.lg` | 12 | inner rows and cards: activity rows, day buttons, week cards, zone cards, Trend View metric pill and picker rows, the selected range segment and `SubTabs` item, selection chips, the `ActionCard` action, snackbar |
 | `R.xl` | 14 | every `Surface` card, dialogs, Strain & Recovery card, key-stat cards, picker card, the range segment and `SubTabs` track, dashed `StatusCard` outline |
 | `R.xxl` | 18 | sheet top corners, date and time pickers' dialog shells |
-| `R.pill` | 999 | tab bar, tab pill, `BigButton`, RESET chip, START pill, switches, grab handles, onboarding step bar |
+| `R.pill` | 999 | tab bar, tab pill, `BigButton` (the compact one too), RESET chip, START pill and the live transport, switches, grab handles, onboarding step bar, progress tracks and pips |
+
+A pill is for a **bar, a track or a full-width primary button** — never for a chip, a selection tile or a small button: those are `R.sm` (chip), `R.md` (button) or `R.lg` (row). The range segment is `RangeSegments`, not a hand-rolled row of pills.
 
 Corners derived from the scale:
 - Day pager: `S.x2 + S.half` = **10**
@@ -267,7 +269,7 @@ Circles: dials, rings, the monitor stress square's contents, `IconChip` (32), an
 
 - **Elevation:** dark mode has none; depth is the tonal grading in §2.2. Light mode uses `el(1)` = 0/8/24 at 6 % char, and deeper levels multiply it.
 - **The only real shadows** are the plus-menu panel (char 50 %, blur 32, y 8) and the strain-target knob glow (ink 18 %, blur 16, spread 4).
-- **The tab bar** is an opaque char/slate rounded rectangle (`R.xxl`) with no shadow and no glow. Its only ornament is the rim: a `S.hair` gradient outline, white 50 % at the top-left corner, 14 % at 30 %, 6 % at 70 %, 16 % at the bottom-right. The selected tab carries a pool of light on its foot: a `S.x12 * 2` circle, radial white 26 % → 0 % in five stops, centred on the tab's bottom edge and clipped by the bar. The gradient reaches zero at the circle's own edge, so it has no outline to see.
+- **The tab bar** is an opaque char/slate rounded rectangle (`R.xxl`) with no shadow and no glow. Its only ornament is the rim: a `S.hair` gradient outline lit at the top-left corner and gone by a fifth of the way round — white 30 %, then 9 % at 18 %, 4 % at 45 %, and 4 % to the end — as if one light sat above and to the left. The selected tab carries a pool of light on its foot: a `S.x12 * 2` circle, radial white 26 % → 0 % in five stops, centred on the tab's bottom edge and clipped by the bar. The gradient reaches zero at the circle's own edge, so it has no outline to see.
 - **Glass:** a 24 px backdrop blur under `p.glass`, plus a white 8 % hairline (or `p.line` in light). It is budgeted to two on screen at once: the tab bar and the minimised-workout banner. It is never used in a list item. Under high contrast or `Perf.lowGlass` it is drawn solid.
 
 **Gradient inventory** (do not add new ones without a reason this list does not already cover):
@@ -357,6 +359,8 @@ Gestures are built only from `lib/ui2/grammar.dart`. The token test fails on a r
 | `Scrubber(yieldToScroll)` | a drag that runs mostly vertical (`dy > dx` and more than 8 px) is handed to the page. The scrub stops and `onLift` fires, so a chart in a list never scrubs while the list scrolls. |
 | `Scrubber(onPinch)` | two fingers end the scrub and start a pinch. It reports `scale` (spread ÷ starting spread), `focal` (the starting midpoint, 0…1) and `pan` (how far the midpoint moved, as a fraction of the width). A scale recognizer is placed in the gesture arena so the page's scroll cannot steal the second finger. |
 | `Scrubber(hold)` | press and hold instead, for a chart inside a tappable card: a tap opens the card and a hold reads a value. |
+| `RangeSegments` | the D / W / M / 6M switch over a `char` 50 % track (`R.xl`), the chosen one lifted onto a `card` tile (`R.lg`). Trend View, the strength trainer and the weight screen all wear this one; no screen rolls its own. |
+| `WindowPager` | "‹ OCT 24 - OCT 30, 26 ›": which window the chart below shows. `BoldChevron` in a 36 × 44 target, dead at ink 22 %, the date `F.over` w800 at +1. |
 | `RangeBar` | the selector under a zoomable chart: an 8 pt pill track with the stretch in view lit in the chart's hue (`dialStrain` for activity, `dialSleep` for sleep), round ink thumbs, labels on drag. Never red. The chart's pinch and the bar move the same values. |
 | `DialScrubber` | a drag round a ring. The angle is measured clockwise from 12 o'clock. It never wraps: carried past 12, the value holds at the end it came from. A touch that starts inside 55 % of the radius (where the dial's own buttons sit) is ignored. Slider role. |
 | `SwipeHandle` | a vertical swipe of 24 px or more fires once (up or down). A tap that moves less than 8 px toggles. |
@@ -823,6 +827,8 @@ Opened from a dashboard row, a week card chevron, or a detail screen. One metric
 | Sleep | sleep performance, time in bed (floating), hours vs. needed in hours (dual) and as %, consistency (floating with "usual"), restorative % and hours (stacked), efficiency, sleep debt (signed, never below 0) |
 
 ---
+
+**The readout row.** The figure and its caption sit left, `RangeSegments` right. The change against the window before (`_DeltaChip`, `F.over` in a `R.sm` chip) rides the **pager's** row, left of `WindowPager` — under the figure it wrapped to two lines and pushed the pager onto a row of its own. Both are in a `Wrap`, so only a far-up text scale drops the pager below the chip.
 
 ## 14. Detail screens built on this language
 

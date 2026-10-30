@@ -410,7 +410,7 @@ class _WindowEditorState extends State<WindowEditor> {
         padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x2),
         decoration: BoxDecoration(
           color: on ? p.ink : p.card,
-          borderRadius: R.rPill,
+          borderRadius: R.rSm,
         ),
         child: Text(label, style: F.caps.copyWith(color: on ? p.bg : p.ink2)),
       ),
@@ -819,8 +819,13 @@ class _WindowPreviewState extends State<WindowPreview> {
       children: [
         Row(
           children: [
-            Text('HEART RATE', style: F.caps.copyWith(color: p.ink)),
-            const Spacer(),
+            Flexible(
+              child: Text('HEART RATE',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: F.caps.copyWith(color: p.ink)),
+            ),
+            const SizedBox(width: S.x2),
             Text('bpm', style: F.num(F.cap).copyWith(color: p.ink3)),
           ],
         ),

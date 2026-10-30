@@ -104,7 +104,7 @@ class _HealthspanScreenState extends State<HealthspanScreen> {
                                       color: isYounger
                                           ? p.wash(C.green)
                                           : p.wash(C.amber),
-                                      borderRadius: R.rPill,
+                                      borderRadius: R.rSm,
                                     ),
                                     child: Text(
                                       isYounger ? 'OPTIMAL' : 'ON TRACK',

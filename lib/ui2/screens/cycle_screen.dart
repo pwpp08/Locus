@@ -588,7 +588,7 @@ class _CycleTabState extends State<CycleTab> with RevisionReload {
                     ),
                     decoration: BoxDecoration(
                       color: on.contains(s) ? p.wash(C.pink) : p.card2,
-                      borderRadius: R.rPill,
+                      borderRadius: R.rSm,
                     ),
                     child: Text(
                       _symptomLabel(l, s),

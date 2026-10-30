@@ -84,8 +84,8 @@ void main() {
     expect(find.text('MY WORKOUTS'), findsOneWidget);
     // No third tab.
     expect(find.textContaining('WORKOUTS'), findsNWidgets(1));
-    expect(find.text('Total Volume Load'), findsOneWidget);
-    expect(find.text('AVG VOLUME LOAD'), findsOneWidget);
+    expect(find.text('Total volume load'), findsOneWidget);
+    expect(find.text('AVG. VOLUME LOAD'), findsOneWidget);
     expect(find.text('W'), findsOneWidget);
     expect(find.text('M'), findsOneWidget);
     expect(find.text('6M'), findsOneWidget);
@@ -98,12 +98,12 @@ void main() {
         reason: 'the week has one day with sets, 1,640 kg');
     await t.tap(find.text('6M'));
     await t.pump();
-    expect(find.text('AVG VOLUME LOAD'), findsOneWidget);
+    expect(find.text('AVG. VOLUME LOAD'), findsOneWidget);
 
     // Records, from the logged sets: a load, and reps for the bodyweight lift.
-    await t.scrollUntilVisible(find.text('Personal Records'), 200,
+    await t.scrollUntilVisible(find.text('Personal records'), 200,
         scrollable: find.byType(Scrollable).first);
-    expect(find.text('Personal Records'), findsOneWidget);
+    expect(find.text('Personal records'), findsOneWidget);
     expect(find.text('100'), findsOneWidget);
     expect(find.text('kg'), findsWidgets);
     expect(find.text('6'), findsOneWidget);
