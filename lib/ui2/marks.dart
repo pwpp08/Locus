@@ -2,6 +2,8 @@
 // below. Drawn rather than taken from the icon font so a stroke can be as fine
 // as the screen wants, and so each sits on the same 24-unit grid.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'theme.dart';
@@ -397,4 +399,152 @@ class MarkCount extends StatelessWidget {
             style: F.num(F.cap).copyWith(
                 color: color, fontWeight: FontWeight.w700, height: 1)),
       );
+}
+
+/// A figure that rolls from [from] to [value] the way an odometer turns: every
+/// digit in its own window, the last one fastest, a higher one only as the one
+/// below it passes 9 — up when the figure grew, down when it fell. Eases out,
+/// so it slows into the result. Reduced motion shows the result at once.
+///
+/// [onTick] fires as the last digit turns over (no more often than
+/// [Motion.tickGap]), for a haptic; [onDone] once the roll has settled.
+class RollingNumber extends StatefulWidget {
+  final double from, value;
+  final int decimals;
+  final TextStyle style;
+  final VoidCallback? onTick, onDone;
+
+  const RollingNumber({
+    super.key,
+    required this.from,
+    required this.value,
+    required this.style,
+    this.decimals = 1,
+    this.onTick,
+    this.onDone,
+  });
+
+  @override
+  State<RollingNumber> createState() => _RollingNumberState();
+}
+
+class _RollingNumberState extends State<RollingNumber>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this)
+    ..addListener(_tick)
+    ..addStatusListener((s) {
+      if (s == AnimationStatus.completed) widget.onDone?.call();
+    });
+  bool _started = false;
+  int? _last;
+  Duration _lastTickAt = Duration.zero;
+
+  double get _shown =>
+      widget.from +
+      (widget.value - widget.from) * Ease.standard.transform(_c.value);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    final d = motion(context, Motion.roll);
+    if (d == Duration.zero) {
+      _c.value = 1;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onDone?.call();
+      });
+      return;
+    }
+    _c.duration = d;
+    _c.forward();
+  }
+
+  void _tick() {
+    final low = (_shown * math.pow(10, widget.decimals)).floor();
+    if (low == _last) return;
+    final first = _last == null;
+    _last = low;
+    final at = _c.lastElapsedDuration ?? Duration.zero;
+    if (first || at - _lastTickAt < Motion.tickGap) return;
+    _lastTickAt = at;
+    widget.onTick?.call();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final style =
+        widget.style.copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
+    final tp = TextPainter(
+      text: TextSpan(text: '0', style: style),
+      textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(c),
+    )..layout();
+    final w = tp.width, h = tp.height;
+    final whole = math.max(widget.from.abs(), widget.value.abs()).floor();
+    final places = '$whole'.length;
+    return Semantics(
+      label: widget.value.toStringAsFixed(widget.decimals),
+      child: ExcludeSemantics(
+        child: AnimatedBuilder(
+          animation: _c,
+          builder: (_, _) {
+            final v = _shown;
+            // Each place's position from the last one up: the last turns with
+            // the value, a higher one by the carry of the place below.
+            final pos = <double>[];
+            var carry = 0.0;
+            for (var k = -widget.decimals; k < places; k++) {
+              final at = v / math.pow(10, k);
+              final p = k == -widget.decimals
+                  ? at % 10
+                  : (at.floor() % 10) + carry;
+              pos.add(p);
+              carry = p > 9 ? p - 9 : 0;
+            }
+            Widget digit(int k) {
+              final p = pos[k + widget.decimals];
+              final base = p.floor();
+              final frac = p - base;
+              // A leading place the figure has not reached yet stays blank.
+              String face(int d) =>
+                  k > 0 && v < math.pow(10, k) && d % 10 == 0 ? '' : '${d % 10}';
+              return ClipRect(
+                child: SizedBox(
+                  width: w,
+                  height: h,
+                  child: Stack(children: [
+                    Positioned(
+                        left: 0,
+                        right: 0,
+                        top: -frac * h,
+                        child: Text(face(base),
+                            textAlign: TextAlign.center, style: style)),
+                    Positioned(
+                        left: 0,
+                        right: 0,
+                        top: (1 - frac) * h,
+                        child: Text(face(base + 1),
+                            textAlign: TextAlign.center, style: style)),
+                  ]),
+                ),
+              );
+            }
+
+            return Row(mainAxisSize: MainAxisSize.min, children: [
+              for (var k = places - 1; k >= 0; k--) digit(k),
+              if (widget.decimals > 0) Text('.', style: style),
+              for (var k = -1; k >= -widget.decimals; k--) digit(k),
+            ]);
+          },
+        ),
+      ),
+    );
+  }
 }

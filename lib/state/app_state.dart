@@ -4630,6 +4630,9 @@ class AppState extends ChangeNotifier {
       );
       if (!detected) return;
       _smartWakeFiredForEpoch = epoch; // set BEFORE the write — see below
+      // The band only reports a RUN_ALARM buzz when it gets round to it; the
+      // shake has to be watched for from the moment it starts.
+      _onAlarmBuzzing();
       // Marked fired before the write goes out on purpose: a write that
       // throws must not retry every 30 s for the rest of the window (that
       // would just be repeated buzzing), and the untouched fallback arm
@@ -4711,6 +4714,7 @@ class AppState extends ChangeNotifier {
       return;
     }
     _smartWakeFiredForEpoch = epoch; // before the write, as Smart Wake does
+    _onAlarmBuzzing();
     await engine.runAlarm();
     _log('[goal-wake] ${item.mode.name}: goal reached — early buzz.');
   }

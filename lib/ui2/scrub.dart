@@ -675,6 +675,9 @@ class ScrubLine extends StatelessWidget {
   /// curving through the midpoints between points.
   final bool smooth;
 
+  /// The trace's width; by default 2.5 with markers, 1.5 for a minute trace.
+  final double? stroke;
+
   /// Painted after the grid and before the line (a shaded span), and after the
   /// markers (a "now" line).
   final ScrubPaint? paintUnder, paintOver;
@@ -708,6 +711,7 @@ class ScrubLine extends StatelessWidget {
     this.colorAt,
     this.fill = true,
     this.smooth = false,
+    this.stroke,
     this.paintUnder,
     this.paintOver,
     this.height = 200,
@@ -761,6 +765,7 @@ class ScrubLine extends StatelessWidget {
           colorAt: colorAt,
           fill: fill,
           smooth: smooth,
+          stroke: stroke,
           paintUnder: paintUnder,
           paintOver: paintOver,
           at: at,
@@ -787,6 +792,7 @@ class _LinePainter extends CustomPainter {
   final Color Function(double v)? colorAt;
   final bool fill;
   final bool smooth;
+  final double? stroke;
   final ScrubPaint? paintUnder, paintOver;
   final EdgeInsets inset;
 
@@ -810,6 +816,7 @@ class _LinePainter extends CustomPainter {
     required this.colorAt,
     required this.fill,
     required this.smooth,
+    required this.stroke,
     required this.paintUnder,
     required this.paintOver,
     required this.inset,
@@ -952,7 +959,7 @@ class _LinePainter extends CustomPainter {
         Paint()
           ..color = color.withValues(alpha: markers ? .55 : 1)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = markers ? 2.5 : 1.5
+          ..strokeWidth = stroke ?? (markers ? 2.5 : 1.5)
           ..strokeJoin = StrokeJoin.round
           ..strokeCap = StrokeCap.round,
       );

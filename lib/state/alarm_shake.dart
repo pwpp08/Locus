@@ -36,28 +36,45 @@ const Duration kAlarmShakeTail = Duration(seconds: 150);
 
 class AlarmShakeDetector {
   final List<int> _joltsMs = [];
-  bool _above = false;
+
+  /// Which side of the 1 g band the last sample sat on: 1 above, -1 below,
+  /// 0 inside it.
+  int _side = 0;
+
+  /// The last sample's time, so frames that arrive in a burst (BLE batches
+  /// them) still read as consecutive samples rather than the same ones again.
+  int? _lastMs;
 
   void reset() {
     _joltsMs.clear();
-    _above = false;
+    _side = 0;
+    _lastMs = null;
   }
 
   /// Feed one live frame of |a| samples (g) that arrived at [nowMs]. The
   /// samples are taken as evenly spaced at [kShakeSamplePeriodMs], ending at
   /// [nowMs]. Returns true when the jolts seen so far make a shake; the
   /// detector resets itself then, so one shake fires once.
+  ///
+  /// A jolt starts when |a| leaves the band around 1 g, or crosses straight
+  /// from one side of it to the other: a hard shake swings from well over
+  /// 1.45 g to well under 0.55 g between two samples and never lands inside
+  /// the band, and counting only exits from it saw that as one long jolt.
   bool add(List<double> mags, int nowMs) {
     final n = mags.length;
     for (var i = 0; i < n; i++) {
-      final t = nowMs - (n - 1 - i) * kShakeSamplePeriodMs;
-      final jolt = (mags[i] - 1.0).abs() > kShakeJoltG;
-      if (jolt && !_above) {
+      var t = nowMs - (n - 1 - i) * kShakeSamplePeriodMs;
+      final last = _lastMs;
+      if (last != null && t <= last) t = last + kShakeSamplePeriodMs;
+      _lastMs = t;
+      final d = mags[i] - 1.0;
+      final side = d > kShakeJoltG ? 1 : (d < -kShakeJoltG ? -1 : 0);
+      if (side != 0 && side != _side) {
         if (_joltsMs.isEmpty || t - _joltsMs.last >= kShakeMinGapMs) {
           _joltsMs.add(t);
         }
       }
-      _above = jolt;
+      _side = side;
       while (_joltsMs.isNotEmpty && t - _joltsMs.first > kShakeWindowMs) {
         _joltsMs.removeAt(0);
       }

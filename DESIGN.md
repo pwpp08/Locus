@@ -822,7 +822,7 @@ Opened from a dashboard row, a week card chevron, or a detail screen. One metric
 
 | Group | Metrics |
 |---|---|
-| Strain | day strain (0–21, minute day line, cumulative), steps (hourly bars), HR zones 1–3, 4–5 and all (stacked, weekly), strength time (weekly, zero-filled), total volume load (weekly, kg), average HR (line, minute day), calories (hourly), VO₂ max (line) |
+| Strain | day strain (0–21, minute day line, cumulative: drawn as the strain the rest of the day kept — the lowest figure from each minute on, so it only climbs or holds, ends on the headline, holds across gaps from midnight; a 2.5 trace), steps (hourly bars), HR zones 1–3, 4–5 and all (stacked, weekly), strength time (weekly, zero-filled), total volume load (weekly, kg), average HR (line, minute day), calories (hourly), VO₂ max (line) |
 | Recovery | recovery (%, traffic light), HRV (line, hourly day with the night shaded), resting HR (line, lower is better), respiratory rate (line) |
 | Sleep | sleep performance, time in bed (floating), hours vs. needed in hours (dual) and as %, consistency (floating with "usual"), restorative % and hours (stacked), efficiency, sleep debt (signed, never below 0) |
 
@@ -830,7 +830,9 @@ Opened from a dashboard row, a week card chevron, or a detail screen. One metric
 
 **The readout row.** The figure and its caption sit left, `RangeSegments` right. The change against the window before (`_DeltaChip`) rides the **pager's** row, left of `WindowPager`, on ONE line always: the chip says only the percentage (`▼ 6%`, `F.num(F.over)` in an `R.sm` chip) — the pager beside it already names the window, so "vs. prior week" is spoken (its `Semantics` label) but not printed. The pager takes the rest of the row and ellipsizes its date before it ever wraps.
 
-**My Dashboard, expanded.** Customize sets each metric to a slim row or its week in full (`ExpandedTrendCard`, `Prefs.dashboardExpanded`). The card is Trend View's W range on Home with no range switch: caps title and a chevron (the door into Trend View), the readout, the chip with the week's dates, then the same `ScrubLine` / `ScrubColumns` the W range draws (value labels over each day, the average dashed). Strain & Recovery is always a chart.
+**Logging a weight.** Saving turns the sheet into the result: the new figure rolls in from the last logged one like an odometer (`RollingNumber`, `Motion.roll`, eased out), a selection tick per turn of the last digit no closer than `Motion.tickGap`, a firmer tap as it settles, the change since last time under it (neutral triangle and ink: a gain is not good or bad), and the sheet closes after `Motion.linger`.
+
+**My Dashboard, expanded.** Customize sets each metric to a slim row or its week in full (`ExpandedTrendCard`, `Prefs.dashboardExpanded`). The card is Trend View's W range on Home with no range switch: caps title and a chevron (the door into Trend View), the readout, the chip with the week's dates, then the chart the W range draws, by the same builder: nights floating on a clock for time in bed and consistency (`ScrubRanges`), need against achieved for hours vs. needed (`ScrubPair`), the layers stacked in their own colours for zones and restorative sleep, otherwise `ScrubLine` / `ScrubColumns` (value labels over each day, the average dashed). Home loads the layers and bed/wake spans for its tiles alongside the daily figures. Strain & Recovery is always a chart.
 
 ## 14. Detail screens built on this language
 

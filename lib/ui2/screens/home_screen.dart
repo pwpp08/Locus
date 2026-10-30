@@ -437,8 +437,23 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       final m = trendMetricOf(k);
       if (m != null) daily[k] = await loader.daily(m);
     }
+    // What the expanded cards draw besides the daily figure: the layers of a
+    // stacked or paired metric, and bed and wake for nights on a clock.
+    final layers = <String, List<Map<String, double>>>{};
+    Map<String, ({double bed, double wake})>? spans;
+    for (final k in _tiles) {
+      final m = trendMetricOf(k);
+      if (m == null) continue;
+      if (m.kind == TrendKind.stacked || m.kind == TrendKind.dual) {
+        layers[k] = await loader.layers(m);
+      } else if (m.kind == TrendKind.floating) {
+        spans ??= await loader.sleepSpans();
+      }
+    }
     final first = await loader.firstDay();
     if (!mounted) return;
+    _layers = layers;
+    _spans = spans;
     _night = night;
     _sessions = sessions;
     _naps = naps;
@@ -451,6 +466,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   }
 
   Map<String, Map<String, double>> _daily = const {};
+  Map<String, List<Map<String, double>>> _layers = const {};
+  Map<String, ({double bed, double wake})>? _spans;
   String? _firstDay;
 
   Widget _header(BuildContext c, String? dayId) {
@@ -734,6 +751,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         ids: _tiles,
         expanded: _expanded,
         daily: _daily,
+        layers: _layers,
+        spans: _spans,
         today: d.dayId ?? todayLabel(widget.now),
         firstDay: _firstDay,
         onOpen: (k) => go(c, TrendViewScreen(initial: k)),

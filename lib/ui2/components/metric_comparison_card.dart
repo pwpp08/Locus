@@ -15,7 +15,7 @@ import '../../gps/route_models.dart';
 import '../../state/units_controller.dart';
 import '../screens/home_screen.dart' show monthShortName, weekdayShortName;
 import '../screens/trend_view.dart'
-    show TrendLoader, TrendMetric, kTrendCatalogue, trendMetricOf;
+    show TrendFmt, TrendLoader, TrendMetric, kTrendCatalogue, trendFormat, trendMetricOf;
 import '../screens/workout_detail.dart' show WorkoutDetail;
 import '../ui2.dart';
 
@@ -143,43 +143,12 @@ class _TrendMetricComparisonCardState extends State<TrendMetricComparisonCard> {
     _loadData();
   }
 
+  // Trend View's own formatting: every duration here is in minutes.
   String _formatMetricVal(TrendMetric m, double? v) {
-    if (v == null || !v.isFinite) return '--';
-    switch (m.id) {
-      case 'strain':
-        return v.toStringAsFixed(1);
-      case 'steps':
-      case 'calories':
-      case 'volume_load':
-        return v.round().toString();
-      case 'recovery':
-      case 'sleep_perf':
-      case 'efficiency':
-        return '${v.round()}%';
-      case 'hrv':
-        return '${v.round()} ms';
-      case 'resting_hr':
-      case 'avg_hr':
-        return '${v.round()} bpm';
-      case 'resp_rate':
-        return '${v.toStringAsFixed(1)} rpm';
-      case 'time_in_bed':
-      case 'restorative_hours':
-      case 'strength_time':
-        final totalMins = (v * 60).round();
-        final h = totalMins ~/ 60;
-        final min = totalMins % 60;
-        return '${h}h ${min.toString().padLeft(2, '0')}m';
-      case 'hvn_hours':
-      case 'sleep_debt':
-        final sign = v < 0 ? '-' : (v > 0 ? '+' : '');
-        final totalMins = v.abs().round();
-        final h = totalMins ~/ 60;
-        final min = totalMins % 60;
-        return '$sign${h}h ${min.toString().padLeft(2, '0')}m';
-      default:
-        return v.toStringAsFixed(1);
-    }
+    final t = trendFormat(m, v);
+    return v == null || !v.isFinite || m.unit == null || m.unit == 'hr'
+        ? t
+        : '$t ${m.unit}';
   }
 
   String _metricShortName(TrendMetric m) {
@@ -762,25 +731,15 @@ class _TrendMetricComparisonCardState extends State<TrendMetricComparisonCard> {
     );
   }
 
-  String _formatAxis(TrendMetric m, double v) {
-    switch (m.id) {
-      case 'strain':
-        return v.toStringAsFixed(0);
-      case 'steps':
-      case 'calories':
-        return '${(v / 1000).toStringAsFixed(1)}k';
-      case 'recovery':
-      case 'sleep_perf':
-      case 'efficiency':
-        return '${v.round()}%';
-      case 'time_in_bed':
-      case 'restorative_hours':
-      case 'strength_time':
-        return '${v.toStringAsFixed(1)}h';
-      default:
-        return v.round().toString();
-    }
-  }
+  String _formatAxis(TrendMetric m, double v) => switch (m.fmt) {
+    TrendFmt.hmm =>
+      '${(v / 60).toStringAsFixed((v / 60) % 1 == 0 ? 0 : 1)}h',
+    TrendFmt.percent => '${v.round()}%',
+    TrendFmt.decimal1 => v.toStringAsFixed(v.abs() < 10 ? 1 : 0),
+    TrendFmt.grouped when v.abs() >= 1000 =>
+      '${(v / 1000).toStringAsFixed(1)}k',
+    _ => '${v.round()}',
+  };
 
   Widget _statLine(String label, String value, P p) => Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -72,6 +72,23 @@ void main() {
       expect(fired, isFalse);
     });
 
+    test('a hard shake that never lands near 1 g is a shake', () {
+      final d = AlarmShakeDetector();
+      // Swinging 2.6 g / 0.2 g every 120 ms, straight across the band.
+      final f = [for (var i = 0; i < 60; i++) (i ~/ 12).isEven ? 2.6 : 0.2];
+      expect(d.add(f, 1000), isTrue);
+    });
+
+    test('frames that arrive in one burst still count as separate jolts', () {
+      final d = AlarmShakeDetector();
+      var fired = false;
+      for (var i = 0; i < 3 && !fired; i++) {
+        final f = still(25)..[10] = 3.0;
+        fired = d.add(f, 1000); // same arrival time: a batched delivery
+      }
+      expect(fired, isTrue);
+    });
+
     test('the buzz itself (small vibration) is not a shake', () {
       final d = AlarmShakeDetector();
       final f = [for (var i = 0; i < 200; i++) i.isEven ? 1.3 : 0.7];

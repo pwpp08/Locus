@@ -1554,6 +1554,12 @@ Map<String, Widget> _stateCases() => {
       ),
       // A dashboard metric chosen to show in full: its week, the change against
       // the week before, and a line chart (HRV) or columns (a weekly total).
+      // A saved figure rolling in from the last one, digit by digit.
+      'rolling_number': RollingNumber(
+        from: 71.8,
+        value: 72.4,
+        style: F.n48.copyWith(fontWeight: FontWeight.w700),
+      ),
       'expanded_trend_card': ExpandedTrendCard(
         m: trendMetricOf('hrv')!,
         today: '2026-08-16',

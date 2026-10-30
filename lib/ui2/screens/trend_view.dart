@@ -695,7 +695,10 @@ class TrendLoader {
       switch (m.id) {
         case 'strain':
           hourly = false;
-          values = _perMinute((await r.getDayStrain(day))['curve'], day);
+          values = keptStrain(
+            _perMinute((await r.getDayStrain(day))['curve'], day),
+            through: day == todayLabel() ? null : 1440,
+          );
         case 'avg_hr':
           hourly = false;
           values = _perMinute((await _timeline(r, day))['hr'], day);
@@ -762,6 +765,36 @@ class TrendLoader {
 
   /// `[{t: epoch s, v}]` onto the 1440 minutes of [day]; points from any other
   /// local day are left out.
+  /// The day's strain as a line that only climbs or holds, minute by minute,
+  /// ending on the headline.
+  ///
+  /// The score itself nets quiet waking time against light activity banked
+  /// earlier (`strainCurveFromSeries` in analytics), so the stored curve can
+  /// dip. What is drawn is the part of each minute's figure the rest of the
+  /// day never took back: the lowest value from that minute on. It never
+  /// shows more than was measured, and its last point is the headline.
+  ///
+  /// Minutes with no reading hold the figure before them (nothing was added),
+  /// from midnight at 0 to the last reading — or to [through] (the whole of a
+  /// past day).
+  static List<double?> keptStrain(List<double?> curve, {int? through}) {
+    final last = curve.lastIndexWhere((v) => v != null);
+    if (last < 0) return curve;
+    final out = List<double?>.filled(curve.length, null);
+    var floor = curve[last]!;
+    for (var i = last; i >= 0; i--) {
+      final v = curve[i];
+      if (v != null && v < floor) floor = v;
+      out[i] = v == null ? null : floor;
+    }
+    var held = 0.0;
+    final end = math.max(last, (through ?? 0) - 1).clamp(0, curve.length - 1);
+    for (var i = 0; i <= end; i++) {
+      held = out[i] ??= held;
+    }
+    return out;
+  }
+
   static List<double?> _perMinute(Object? raw, String day) {
     final out = List<double?>.filled(1440, null);
     if (raw is! List) return out;
@@ -1061,6 +1094,12 @@ class DashboardRows extends StatelessWidget {
   /// Metrics drawn as their week chart ([ExpandedTrendCard]), not a row.
   final Set<String> expanded;
 
+  /// Per metric, the layers its expanded chart is built from.
+  final Map<String, List<Map<String, double>>> layers;
+
+  /// Bed and wake per night, for the expanded charts drawn on a clock.
+  final Map<String, ({double bed, double wake})>? spans;
+
   const DashboardRows({
     super.key,
     required this.ids,
@@ -1070,6 +1109,8 @@ class DashboardRows extends StatelessWidget {
     required this.onOpen,
     this.tiles = const {},
     this.expanded = const {},
+    this.layers = const {},
+    this.spans,
   });
 
   @override
@@ -1086,6 +1127,8 @@ class DashboardRows extends StatelessWidget {
                   daily: daily[m.id] ?? const {},
                   today: today,
                   firstDay: firstDay,
+                  layers: layers[m.id],
+                  spans: spans,
                   onOpen: () => onOpen(m.id),
                 )
               : _row(c, p, m),
@@ -1198,6 +1241,13 @@ class ExpandedTrendCard extends StatefulWidget {
   final String? firstDay;
   final VoidCallback onOpen;
 
+  /// The layers behind a stacked or paired metric ([TrendLoader.layers]):
+  /// drawn as Trend View draws them, in their own colours.
+  final List<Map<String, double>>? layers;
+
+  /// Bed and wake per night, for a metric drawn as nights on a clock.
+  final Map<String, ({double bed, double wake})>? spans;
+
   const ExpandedTrendCard({
     super.key,
     required this.m,
@@ -1205,6 +1255,8 @@ class ExpandedTrendCard extends StatefulWidget {
     required this.today,
     this.firstDay,
     required this.onOpen,
+    this.layers,
+    this.spans,
   });
 
   @override
@@ -1249,8 +1301,36 @@ class _ExpandedTrendCardState extends State<ExpandedTrendCard> {
     final first = _dateOf(bars.first.from), last = _dateOf(end);
     final range = '${monthShortName(first.month, l)} ${first.day} - '
         '${monthShortName(last.month, l)} ${last.day}';
+    void scrub(int? i) => setState(() => _at = i);
+    const height = S.x16 * 3 + S.x4;
+    final layerBars = widget.layers == null
+        ? null
+        : [
+            for (final lm in widget.layers!)
+              trendBars(m, lm, TrendRange.week, end, firstDay: widget.firstDay),
+          ];
+    // Trend View's own chart where the metric has a shape of its own.
+    final own = vs.isEmpty
+        ? null
+        : switch (m.kind) {
+            TrendKind.floating when widget.spans != null =>
+              _TrendViewScreenState.floatingChart(m, bars, widget.spans!,
+                  xs: xs, week: true, onScrub: scrub, height: S.x16 * 4),
+            TrendKind.dual when layerBars?.length == 2 =>
+              _TrendViewScreenState.dualChart(m, layerBars!,
+                  xs: xs, week: true, onScrub: scrub, height: height),
+            TrendKind.stacked when layerBars != null && layerBars.isNotEmpty =>
+              _TrendViewScreenState.stackedChart(m, layerBars,
+                  xs: xs,
+                  week: true,
+                  avg: m.weekly ? null : avg,
+                  ink: p.ink,
+                  onScrub: scrub,
+                  height: height),
+            _ => null,
+          };
 
-    final chart = vs.isEmpty
+    final chart = own ?? (vs.isEmpty
         ? SizedBox(
             height: S.x16 * 2,
             child: Center(
@@ -1271,8 +1351,8 @@ class _ExpandedTrendCardState extends State<ExpandedTrendCard> {
                 color: color,
                 markers: true,
                 gap: 1,
-                height: S.x16 * 3 + S.x4,
-                onScrub: (i) => setState(() => _at = i),
+                height: height,
+                onScrub: scrub,
               )
             : ScrubColumns(
                 values: values,
@@ -1285,9 +1365,9 @@ class _ExpandedTrendCardState extends State<ExpandedTrendCard> {
                 avg: m.weekly ? null : avg,
                 color: color,
                 colorOf: m.id == 'recovery' ? (i, v) => recoveryColor(v) : null,
-                height: S.x16 * 3 + S.x4,
-                onScrub: (i) => setState(() => _at = i),
-              );
+                height: height,
+                onScrub: scrub,
+              ));
 
     return Container(
       padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x4),
@@ -1689,11 +1769,11 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       ? _longDate(b.from, l)
       : '${_shortDate(b.from, l)} - ${_longDate(b.to, l)}';
 
-  String _clock(int minuteOfDay) =>
+  static String _clock(int minuteOfDay) =>
       '${(minuteOfDay ~/ 60).toString().padLeft(2, '0')}:${(minuteOfDay % 60).toString().padLeft(2, '0')}';
 
   /// Minutes after noon as the clock reads them.
-  String _clockAfterNoon(double t) {
+  static String _clockAfterNoon(double t) {
     final m = (t.round() + 720) % 1440;
     return _clock(m);
   }
@@ -1768,7 +1848,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     _ => const ['REM', 'SWS (Deep)'],
   };
 
-  List<Color> _layerColours(TrendMetric m) => switch (m.id) {
+  static List<Color> _layerColours(TrendMetric m) => switch (m.id) {
     'zones_13' => _zoneColours.sublist(0, 3),
     'zones_45' => _zoneColours.sublist(3, 5),
     'zones_all' => _zoneColours,
@@ -2508,6 +2588,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
           markers: false,
           slots: false,
           gap: 25,
+          // Strain is the day's running total: a heavier trace than a reading.
+          stroke: m.cumulative ? 2.5 : null,
           height: S.x16 * 4 + S.x8,
           onScrub: (i) =>
               setState(() => _selected = i == null ? null : from + i),
@@ -2621,15 +2703,37 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     return out;
   }
 
-  /// Columns stacked from the layers, each in its own colour.
   Widget _stackedChart(
     TrendMetric m,
     List<TrendBar> bars,
     List<List<TrendBar>> layerBars,
     double? avg,
     AppLocalizations? l,
-  ) {
-    final n = bars.length;
+  ) => stackedChart(
+    m,
+    layerBars,
+    xs: [for (var i = 0; i < bars.length; i++) _xLabel(i, bars, l)],
+    week: _range == TrendRange.week,
+    avg: avg,
+    ink: P.of(context).ink,
+    marks: (totals) => _monthMarks(m, bars, totals),
+    onScrub: (i) => setState(() => _selected = i),
+  );
+
+  /// Columns stacked from the layers, each in its own colour. Shared with
+  /// Home's expanded card ([ExpandedTrendCard]).
+  static Widget stackedChart(
+    TrendMetric m,
+    List<List<TrendBar>> layerBars, {
+    required List<String> xs,
+    required bool week,
+    required double? avg,
+    required Color ink,
+    required ValueChanged<int?> onScrub,
+    List<ColumnMark> Function(List<double?> totals)? marks,
+    double height = S.x16 * 4 + S.x8,
+  }) {
+    final n = xs.length;
     final stacks = <List<double>?>[];
     final totals = <double?>[];
     for (var i = 0; i < n; i++) {
@@ -2643,13 +2747,12 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
         totals.add(ps.fold<double>(0, (a, b) => a + b));
       }
     }
-    final axis = _axisFor(m, [for (final t in totals) ?t], line: false);
-    final week = _range == TrendRange.week;
+    final axis = trendAxis(m, [for (final t in totals) ?t], line: false);
     return ScrubColumns(
       values: totals,
       stacks: stacks,
       segmentColors: _layerColours(m),
-      xLabels: [for (var i = 0; i < n; i++) _xLabel(i, bars, l)],
+      xLabels: xs,
       valueLabels: week
           ? [for (final t in totals) t == null ? '' : trendFormat(m, t)]
           : const [],
@@ -2658,42 +2761,56 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       ticks: axis.ticks,
       tickText: (t) => _tickText(m, t),
       avg: avg,
-      marks: _monthMarks(m, bars, totals),
-      labelColor: P.of(context).ink,
+      marks: marks?.call(totals) ?? const [],
+      labelColor: ink,
       color: _colorOf(m),
-      height: S.x16 * 4 + S.x8,
-      onScrub: (i) => setState(() => _selected = i),
+      height: height,
+      onScrub: onScrub,
     );
   }
 
-  /// Sleep need and sleep achieved, two lines on one scale from zero.
   Widget _dualChart(
     TrendMetric m,
     List<TrendBar> bars,
     List<List<TrendBar>> layerBars,
     AppLocalizations? l,
-  ) {
+  ) => dualChart(
+    m,
+    layerBars,
+    xs: [for (var i = 0; i < bars.length; i++) _xLabel(i, bars, l)],
+    week: _range == TrendRange.week,
+    onScrub: (i) => setState(() => _selected = i),
+  );
+
+  /// Sleep need and sleep achieved, two lines on one scale from zero.
+  static Widget dualChart(
+    TrendMetric m,
+    List<List<TrendBar>> layerBars, {
+    required List<String> xs,
+    required bool week,
+    required ValueChanged<int?> onScrub,
+    double height = S.x16 * 4 + S.x8,
+  }) {
     final a = [for (final b in layerBars[0]) b.v];
     final b2 = [for (final b in layerBars[1]) b.v];
-    final axis = _axisFor(m, [
+    final axis = trendAxis(m, [
       for (final v in [...a, ...b2]) ?v,
     ], line: false);
-    final week = _range == TrendRange.week;
     String lab(double? v) => v == null ? '' : trendFormat(m, v);
     return ScrubPair(
       a: a,
       b: b2,
       aLabels: week ? [for (final v in a) lab(v)] : const [],
       bLabels: week ? [for (final v in b2) lab(v)] : const [],
-      xLabels: [for (var i = 0; i < bars.length; i++) _xLabel(i, bars, l)],
+      xLabels: xs,
       lo: axis.lo,
       hi: axis.hi,
       ticks: axis.ticks,
       tickText: (t) => _tickText(m, t),
       colorA: C.optimal,
       colorB: C.dialSleep,
-      height: S.x16 * 4 + S.x8,
-      onScrub: (i) => setState(() => _selected = i),
+      height: height,
+      onScrub: onScrub,
     );
   }
 
@@ -2848,7 +2965,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   /// room for the times written over and under its bar: 19:00 at the top,
   /// 11:00 at the bottom as a week usually sits, and further out when it
   /// does not.
-  ({double lo, double hi, List<double> ticks}) _clockAxis(
+  static ({double lo, double hi, List<double> ticks}) _clockAxis(
     Iterable<({double from, double to})?> ranges,
   ) {
     const grid = 420.0, step = 240.0, room = 90.0;
@@ -2869,13 +2986,29 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     );
   }
 
-  /// Each night as a bar floating from bed to wake, on a clock.
   Widget _floatingChart(
     TrendMetric m,
     List<TrendBar> bars,
     AppLocalizations? l,
-  ) {
-    final spans = _spans ?? const <String, ({double bed, double wake})>{};
+  ) => floatingChart(
+    m,
+    bars,
+    _spans ?? const {},
+    xs: [for (var i = 0; i < bars.length; i++) _xLabel(i, bars, l)],
+    week: _range == TrendRange.week,
+    onScrub: (i) => setState(() => _selected = i),
+  );
+
+  /// Each night as a bar floating from bed to wake, on a clock.
+  static Widget floatingChart(
+    TrendMetric m,
+    List<TrendBar> bars,
+    Map<String, ({double bed, double wake})> spans, {
+    required List<String> xs,
+    required bool week,
+    required ValueChanged<int?> onScrub,
+    double height = S.x16 * 4 + S.x16,
+  }) {
     final n = bars.length;
     ({double from, double to})? rangeOf(TrendBar b) {
       final days = <({double bed, double wake})>[];
@@ -2910,7 +3043,6 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       ];
     }
     final axis = _clockAxis(ranges);
-    final week = _range == TrendRange.week;
     final consistency = m.id == 'consistency';
     // A month names its average bed and wake times on the axis.
     final seen = [for (final r in ranges) ?r];
@@ -2925,7 +3057,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
           ];
     return ScrubRanges(
       ranges: ranges,
-      xLabels: [for (var i = 0; i < n; i++) _xLabel(i, bars, l)],
+      xLabels: xs,
       lo: axis.lo,
       hi: axis.hi,
       ticks: axis.ticks,
@@ -2936,8 +3068,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       labelAll: !consistency && week,
       usual: usual,
       tags: tags,
-      height: S.x16 * 4 + S.x16,
-      onScrub: (i) => setState(() => _selected = i),
+      height: height,
+      onScrub: onScrub,
     );
   }
 

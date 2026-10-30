@@ -707,6 +707,15 @@ class Motion {
   /// Never on layout, never looped.
   static const hero = Duration(milliseconds: 420);
 
+  /// A figure rolling to its new value ([RollingNumber]), and how long the
+  /// result then stays before the sheet that showed it closes.
+  static const roll = Duration(milliseconds: 1100);
+  static const linger = Duration(milliseconds: 1300);
+
+  /// The least time between two haptic ticks of a rolling figure, so a long
+  /// roll reads as a smooth run of taps and not a buzz.
+  static const tickGap = Duration(milliseconds: 45);
+
   /// The session clock. A live workout counts REAL seconds, so this is the one
   /// duration that must NOT pass through [motion] — reduced motion silences
   /// animation, it does not stop time. It lives here because theme.dart is the
