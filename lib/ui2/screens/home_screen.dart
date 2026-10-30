@@ -384,6 +384,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   }
 
   List<String> _tiles = dashboardTilesOf();
+  Set<String> _expanded = dashboardExpandedOf();
 
   Future<void> _loadExtras(LocalRepository repo, HomeData d) async {
     final day = d.dayId ?? _day ?? todayLabel();
@@ -731,6 +732,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       ),
       DashboardRows(
         ids: _tiles,
+        expanded: _expanded,
         daily: _daily,
         today: d.dayId ?? todayLabel(widget.now),
         firstDay: _firstDay,
@@ -896,15 +898,20 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   }
 
   Future<void> _editDashboard() async {
-    final next = await AppSheet.open<List<String>>(
+    final next = await AppSheet.open<DashboardChoice>(
       context,
       scroll: true,
-      builder: (_) => HomeDashboardEditor(selected: _tiles),
+      builder: (_) =>
+          HomeDashboardEditor(selected: _tiles, expanded: _expanded),
     );
     if (next == null || !mounted) return;
-    Prefs.setString(Prefs.dashboardTiles, next.join(','));
+    Prefs.setString(Prefs.dashboardTiles, next.tiles.join(','));
+    Prefs.setString(Prefs.dashboardExpanded, next.expanded.join(','));
     Prefs.setBool(Prefs.dashboardChartChosen, true);
-    setState(() => _tiles = next);
+    setState(() {
+      _tiles = next.tiles;
+      _expanded = next.expanded;
+    });
     _load();
   }
 

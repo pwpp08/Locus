@@ -95,6 +95,10 @@ class Prefs {
   /// as a tile of its own. A list saved before that keeps the chart, first.
   static const String dashboardChartChosen = 'ui.dashboard_chart_chosen';
 
+  /// My Dashboard's metrics drawn as a full week chart rather than a row,
+  /// comma-separated keys. Empty = every one a row.
+  static const String dashboardExpanded = 'ui.dashboard_expanded';
+
   /// The day (local label) the user swiped the "Your first weeks" card away.
   /// It stays gone for the rest of that day and is back the next.
   static const String firstWeeksDismissedOn = 'ui.first_weeks_dismissed_on';

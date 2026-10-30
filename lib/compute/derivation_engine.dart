@@ -37,6 +37,7 @@ import 'package:flutter/foundation.dart';
 import 'findings.dart';
 import 'nap_overlap_cleanup.dart';
 import 'nap_edits.dart';
+import 'movement.dart' show movementBuckets;
 import 'package:openstrap_analytics/onehz.dart' as ana;
 import '../data/live_coverage_policy.dart' show CoverageSpan;
 import '../data/step_calibration.dart';
@@ -8360,30 +8361,14 @@ class DerivationEngine {
   /// honest 1 Hz movement signal (same basis as active-minutes) for the "Your
   /// day" Movement view. Sleep is NOT excluded — the curve naturally dips there.
   static List<Map<String, dynamic>> _activityCurve(Substrate s) {
-    final n = s.length;
-    if (n < 60) return const [];
-    final ang = List<double>.filled(n, 0);
-    for (var i = 0; i < n; i++) {
-      ang[i] = ana.zAngle(s.ax[i], s.ay[i], s.az[i]);
-    }
-    const bucketSec = 300; // 5 min
-    final move = <int, int>{}, tot = <int, int>{};
-    for (var i = 1; i < n; i++) {
-      // Absent accel is not stillness — see _activeMinutes.
-      if (!s.accelPresentAt(i) || !s.accelPresentAt(i - 1)) continue;
-      final b = s.tsSec[i] ~/ bucketSec;
-      tot[b] = (tot[b] ?? 0) + 1;
-      if ((ang[i] - ang[i - 1]).abs() > 5.0) move[b] = (move[b] ?? 0) + 1;
-    }
-    final out = <Map<String, dynamic>>[];
-    final keys = tot.keys.toList()..sort();
-    for (final b in keys) {
-      out.add({
-        't': b * bucketSec,
-        'v': double.parse(((move[b] ?? 0) / tot[b]!).toStringAsFixed(3)),
-      });
-    }
-    return out;
+    if (s.length < 60) return const [];
+    // [movementBuckets] is the one definition (compute/movement.dart); the
+    // per-minute lanes on the nap and day charts call it too. Rounded to three
+    // places as this curve always has been, so the stored output is unchanged.
+    return [
+      for (final b in movementBuckets(s.tsSec, s.ax, s.ay, s.az, bucketSec: 300))
+        {'t': b.t, 'v': double.parse(b.v.toStringAsFixed(3))},
+    ];
   }
 
   /// On/off-wrist segments over the day from RECORD PRESENCE — the runs,

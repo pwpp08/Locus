@@ -304,46 +304,13 @@ class _WeightTrendScreenState extends State<WeightTrendScreen> {
             ),
             const SizedBox(height: S.x3),
 
-            // Stepper
+            // The window and the steps either side of it.
             Align(
               alignment: Alignment.centerRight,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Pressable(
-                    onTap: () => _step(1),
-                    semanticLabel: 'Earlier',
-                    child: Padding(
-                      padding: const EdgeInsets.all(S.x2),
-                      child: Icon(
-                        LucideIcons.chevronLeft,
-                        size: I.sm,
-                        color: p.ink3,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    dateRangeStr.toUpperCase(),
-                    style: F.over.copyWith(
-                      color: p.ink,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Pressable(
-                    onTap: _back == 0 ? null : () => _step(-1),
-                    semanticLabel: 'Later',
-                    child: Padding(
-                      padding: const EdgeInsets.all(S.x2),
-                      child: Icon(
-                        LucideIcons.chevronRight,
-                        size: I.sm,
-                        color: _back == 0
-                            ? p.ink.withValues(alpha: .22)
-                            : p.ink3,
-                      ),
-                    ),
-                  ),
-                ],
+              child: WindowPager(
+                dateRangeStr,
+                onEarlier: () => _step(1),
+                onLater: _back == 0 ? null : () => _step(-1),
               ),
             ),
             const SizedBox(height: S.x4),

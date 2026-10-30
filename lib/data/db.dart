@@ -25,6 +25,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../compute/substrate.dart' show beatTimesMs;
+import '../compute/movement.dart' show movementPerMinuteOfRows;
 // The ONE thing this layer takes from compute/: the running build's algo
 // version, which every day_result read applies as a CEILING (see [dayResult]).
 // `show` keeps the rest of the engine out of this namespace.
@@ -2360,6 +2361,26 @@ class LocalDb {
       'GROUP BY rec_ts / 60 ORDER BY t ASC',
       [sinceEpochSec, untilEpochSec],
     );
+  }
+
+  /// The wrist's movement per minute between two epoch seconds, oldest
+  /// first ([movementPerMinuteOfRows]: the share of seconds the wrist turned).
+  /// Empty once the 1 Hz rows are pruned. Bucketed on another isolate: a whole
+  /// day is 86 400 rows of trigonometry.
+  static Future<List<({int t, double v})>> movementPerMinuteBetween(
+    int sinceEpochSec,
+    int untilEpochSec,
+  ) async {
+    final db = await instance;
+    final rows = await db.rawQuery(
+      'SELECT rec_ts, ax, ay, az FROM decoded_onehz '
+      'WHERE rec_ts >= ? AND rec_ts <= ? AND ax IS NOT NULL '
+      'AND ay IS NOT NULL AND az IS NOT NULL AND ${derivableSourceSql()} '
+      'ORDER BY rec_ts ASC',
+      [sinceEpochSec, untilEpochSec],
+    );
+    if (rows.length < 2) return const [];
+    return Isolate.run(() => movementPerMinuteOfRows(rows));
   }
 
   /// sleep_nap — the user's edits to a day's naps.

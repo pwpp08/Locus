@@ -2,8 +2,9 @@
 // to now, with the night and each activity marked over it — the night's
 // length and each activity's strain on top, their stretches shaded and drawn
 // in their own colour, the wake as a green line and the day's strain over the
-// last reading. Opened from My Day's expand button; pinch to zoom, drag to
-// move along a zoomed day, the magnifier to jump in and back out.
+// last reading. Under the trace, one column a minute for how much the wrist
+// moved (movement_lane.dart). Opened from My Day's expand button; pinch to
+// zoom, drag to move along a zoomed day, the magnifier to jump in and back out.
 
 import 'dart:math' as math;
 
@@ -14,6 +15,8 @@ import '../../data/db.dart';
 import '../../state/clock_format.dart';
 import '../activity/catalogue.dart';
 import '../ui2.dart';
+import 'home_screen.dart' show repoOf;
+import 'movement_lane.dart';
 import 'window_editor.dart' show HrPoint;
 
 /// One stretch marked on the day: the night, or an activity.
@@ -35,6 +38,10 @@ class DayHeartScreen extends StatefulWidget {
   /// Per-minute heart rate, for a test; the band's store when null.
   final Future<List<HrPoint>> Function(int from, int to)? hr;
 
+  /// Movement for the lane under the trace, for a test; [readMovement] when
+  /// null.
+  final Future<List<MovePoint>> Function(int from, int to)? movement;
+
   /// "Now", for a test.
   final DateTime? now;
 
@@ -46,6 +53,7 @@ class DayHeartScreen extends StatefulWidget {
     this.naps = const [],
     this.strain,
     this.hr,
+    this.movement,
     this.now,
   });
 
@@ -68,6 +76,7 @@ Future<List<HrPoint>> _readHr(int from, int to) async {
 
 class _DayHeartScreenState extends State<DayHeartScreen> {
   List<HrPoint> _hr = const [];
+  List<MovePoint> _move = const [];
   late final int _t0, _t1;
   late final List<DayMark> _marks;
   int? _wake;
@@ -140,6 +149,17 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
     _v1 = _t1;
     (widget.hr ?? _readHr)(_t0, _t1).then((pts) {
       if (mounted) setState(() => _hr = pts);
+    });
+    // After the first frame: the repository is read off the tree, which
+    // initState may not do.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final read = widget.movement ??
+          (int a, int b) =>
+              readMovement(a, b, repo: repoOf(context), day: widget.day);
+      read(_t0, _t1).then((m) {
+        if (mounted) setState(() => _move = m);
+      });
     });
   }
 
@@ -214,7 +234,8 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
         child: LayoutBuilder(builder: (c, box) {
           final w = box.maxWidth, h = box.maxHeight;
           final left = w * .115, right = w * .835;
-          final headH = math.min(S.x16 * 2, h * .3);
+          // A slim strip: an icon and a figure per mark, no more.
+          final headH = math.min(S.x16 + S.x2, h * .2);
           final span = math.max(1, _v1 - _v0);
           double xOf(int t) => left + (t - _v0) / span * (right - left);
           final end = _hr.isEmpty ? _t1 : _hr.last.t;
@@ -267,6 +288,7 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
                   size: Size.infinite,
                   painter: _DayPaint(
                     hr: _hr,
+                    move: _move,
                     marks: _marks,
                     v0: _v0,
                     v1: _v1,
@@ -289,6 +311,7 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
                 final dt = DateTime.fromMillisecondsSinceEpoch(_scrubTime! * 1000);
                 final timeStr = formatClock(dt.hour, dt.minute);
                 final hrStr = _scrubHr != null ? '${_scrubHr!.round()} BPM' : '-- BPM';
+                final mv = movementAt(_move, _scrubTime!);
                 return Stack(children: [
                   Positioned(
                     left: sx - 0.75,
@@ -329,6 +352,13 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
                             Text(hrStr,
                                 style: F.num(F.cap).copyWith(
                                     color: C.white, fontWeight: FontWeight.w700)),
+                            if (mv != null) ...[
+                              const SizedBox(width: S.x2),
+                              Text('${(mv * 100).round()}% MOVING',
+                                  style: F.num(F.cap).copyWith(
+                                      color: p.ink3,
+                                      fontWeight: FontWeight.w700)),
+                            ],
                           ],
                         ),
                       ),
@@ -344,15 +374,15 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
                 return Positioned(
                   left: x - S.x12,
                   width: S.x12 * 2,
-                  top: S.x3,
-                  height: headH - S.x3 * 2,
+                  top: S.x1,
+                  height: headH - S.x2,
                   child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                     one == null
-                        ? MarkCount(g.length, color: p.ink, size: I.lg)
-                        : Icon(one.icon, size: I.lg, color: p.ink),
-                    const SizedBox(height: S.x2),
+                        ? MarkCount(g.length, color: p.ink, size: I.md)
+                        : Icon(one.icon, size: I.md, color: p.ink),
+                    const SizedBox(height: S.x1),
                     Text(one?.value ?? '',
-                        style: F.num(F.n24).copyWith(
+                        style: F.num(F.head).copyWith(
                             color: p.ink, fontWeight: FontWeight.w700)),
                   ]),
                 );
@@ -372,17 +402,16 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
               Positioned(
                 left: endX - S.x12,
                 width: S.x12 * 2,
-                top: S.x3,
-                height: headH - S.x3 * 2,
-                child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+                top: S.x1,
+                height: headH - S.x2,
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Text('STRAIN',
-                      style: F.caps.copyWith(
-                          color: C.dialStrain, fontWeight: FontWeight.w800, letterSpacing: 1.4)),
-                  const SizedBox(height: S.x1),
+                      style: F.over.copyWith(
+                          color: C.dialStrain, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: S.half),
                   Text(strain == null ? '--' : strain.toStringAsFixed(1),
-                      style: F.num(F.n24).copyWith(
+                      style: F.num(F.head).copyWith(
                           color: C.dialStrain, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: S.x2),
                 ]),
               ),
             Positioned(
@@ -392,9 +421,9 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
                 onTap: () => Navigator.of(c).maybePop(),
                 semanticLabel: 'Close',
                 child: SizedBox(
-                  width: S.tap + S.x2,
-                  height: S.tap + S.x2,
-                  child: Icon(LucideIcons.x, size: I.xl, color: p.ink),
+                  width: S.tap,
+                  height: S.tap,
+                  child: Icon(LucideIcons.x, size: I.lg, color: p.ink),
                 ),
               ),
             ),
@@ -425,6 +454,7 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
 
 class _DayPaint extends CustomPainter {
   final List<HrPoint> hr;
+  final List<MovePoint> move;
   final List<DayMark> marks;
   final int v0, v1, end, first;
   final int? wake;
@@ -433,6 +463,7 @@ class _DayPaint extends CustomPainter {
 
   _DayPaint({
     required this.hr,
+    required this.move,
     required this.marks,
     required this.v0,
     required this.v1,
@@ -451,7 +482,11 @@ class _DayPaint extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     const foot = S.x10;
-    final plot = Rect.fromLTRB(left, 0, right, size.height - foot);
+    // The movement lane takes the room the slimmer strip gave back.
+    final laneH = move.isEmpty ? 0.0 : math.min(S.x12, size.height * .16);
+    final floor = size.height - foot;
+    final plot = Rect.fromLTRB(
+        left, 0, right, floor - (laneH > 0 ? laneH + S.x2 : 0));
     final span = math.max(1, v1 - v0);
     double xOf(num t) => left + (t - v0) / span * (right - left);
     double yOf(double v) =>
@@ -519,6 +554,14 @@ class _DayPaint extends CustomPainter {
       }
     }
 
+    // How much the wrist moved, a column a minute, on the trace's own clock.
+    if (laneH > 0) {
+      final lane = Rect.fromLTRB(left, floor - laneH, right, floor);
+      canvas.drawLine(Offset(left, floor), Offset(right, floor), gp);
+      paintMovement(canvas, lane, move, xOf, ink.withValues(alpha: .4));
+      _small(canvas, 'MOVE', Offset(left * .55, lane.center.dy), ink3);
+    }
+
     // The wake, and the last reading.
     if (wake != null) dashed(xOf(wake!), C.recGreen);
     dashed(xOf(end), C.dialStrain);
@@ -560,6 +603,16 @@ class _DayPaint extends CustomPainter {
     }
   }
 
+  void _small(Canvas canvas, String s, Offset at, Color color) {
+    final tp = TextPainter(
+      text: TextSpan(
+          text: s,
+          style: F.over.copyWith(color: color, fontWeight: FontWeight.w800)),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, at - Offset(tp.width / 2, tp.height / 2));
+  }
+
   void _text(Canvas canvas, String s, Offset at, Color color, {bool centre = false}) {
     final tp = TextPainter(
       text: TextSpan(
@@ -573,5 +626,10 @@ class _DayPaint extends CustomPainter {
 
   @override
   bool shouldRepaint(_DayPaint o) =>
-      o.hr != hr || o.v0 != v0 || o.v1 != v1 || o.end != end || o.ink != ink;
+      o.hr != hr ||
+      o.move != move ||
+      o.v0 != v0 ||
+      o.v1 != v1 ||
+      o.end != end ||
+      o.ink != ink;
 }

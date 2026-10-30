@@ -24,6 +24,7 @@ export 'naps.dart';
 export 'nutrition_screen.dart';
 export 'metric_detail.dart';
 export 'month_grid.dart';
+export 'movement_lane.dart';
 export 'readiness_detail.dart';
 export 'rough_night.dart';
 export 'sleep_detail.dart';

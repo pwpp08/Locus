@@ -191,6 +191,50 @@ void main() {
     expect(find.text('--'), findsWidgets);
   });
 
+  testWidgets('the strain the session built rides over its heart rate',
+      (t) async {
+    t.view.physicalSize = const Size(390 * 2, 2600 * 2);
+    t.view.devicePixelRatio = 2;
+    addTearDown(t.view.reset);
+    final base = _detail();
+    final curve = [
+      for (var m = 1; m <= 11; m++)
+        (t: base.start + m * 60, v: 5.6 * m / 11),
+    ];
+    final d = WorkoutDetail(
+      id: base.id,
+      type: base.type,
+      activity: base.activity,
+      start: base.start,
+      end: base.end,
+      strain: base.strain,
+      hr: base.hr,
+      strainCurve: curve,
+      from: base.from,
+      to: base.to,
+    );
+    await t.pumpWidget(MaterialApp(
+      theme: buildTheme(Brightness.dark),
+      home: WorkoutDetailScreen(session: const {}, data: d),
+    ));
+    await t.pumpAndSettle();
+    expect(find.text('STRAIN'), findsOneWidget);
+    expect(find.text('HEART RATE'), findsOneWidget);
+    // Half way through, the strain read off the curve, not the headline.
+    expect(d.strainAt(base.start + 330), closeTo(5.6 * 5 / 11, 1e-9));
+    expect(d.strainAt(base.start - 60), isNull,
+        reason: 'before the session there is no session strain');
+
+    // Without a curve there is no key promising one.
+    await t.pumpWidget(MaterialApp(
+      theme: buildTheme(Brightness.dark),
+      home: WorkoutDetailScreen(
+          key: UniqueKey(), session: const {}, data: _detail()),
+    ));
+    await t.pumpAndSettle();
+    expect(find.text('STRAIN'), findsNothing);
+  });
+
   testWidgets('activities too close together show as a count', (t) async {
     t.view.physicalSize = const Size(844 * 2, 390 * 2);
     t.view.devicePixelRatio = 2;

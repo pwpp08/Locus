@@ -404,6 +404,17 @@ List<String> dashboardTilesOf() {
       : saved;
 }
 
+/// The dashboard metrics the user chose to see as a week chart.
+Set<String> dashboardExpandedOf() {
+  final raw = Prefs.getString(Prefs.dashboardExpanded, '');
+  return raw.isEmpty
+      ? const {}
+      : {
+          for (final k in raw.split(','))
+            if (trendMetricOf(k) != null) k,
+        };
+}
+
 /// The metrics Trend View lists: the ones switched on in My Dashboard. Null
 /// while the dashboard has never been customized, which lists them all.
 Set<String>? dashboardMetricsOf() =>
@@ -1047,6 +1058,9 @@ class DashboardRows extends StatelessWidget {
   /// Tiles that are not a metric's row, by id: drawn in their place in [ids].
   final Map<String, Widget> tiles;
 
+  /// Metrics drawn as their week chart ([ExpandedTrendCard]), not a row.
+  final Set<String> expanded;
+
   const DashboardRows({
     super.key,
     required this.ids,
@@ -1055,6 +1069,7 @@ class DashboardRows extends StatelessWidget {
     this.firstDay,
     required this.onOpen,
     this.tiles = const {},
+    this.expanded = const {},
   });
 
   @override
@@ -1065,7 +1080,15 @@ class DashboardRows extends StatelessWidget {
         if (tiles[id] != null)
           tiles[id]!
         else if (trendMetricOf(id) case final m?)
-          _row(c, p, m),
+          expanded.contains(id) && m.absent == null
+              ? ExpandedTrendCard(
+                  m: m,
+                  daily: daily[m.id] ?? const {},
+                  today: today,
+                  firstDay: firstDay,
+                  onOpen: () => onOpen(m.id),
+                )
+              : _row(c, p, m),
     ];
     if (shown.isEmpty) {
       return Surface(
@@ -1158,6 +1181,171 @@ class DashboardRows extends StatelessWidget {
                 ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A dashboard metric drawn in full: its week, as Trend View draws it with the
+/// W range — the figure and its caption, the change against the week before
+/// with the dates beside it, and the week's chart under them, scrubbable. No
+/// range switch: on Home it is always this week. The header opens Trend View.
+class ExpandedTrendCard extends StatefulWidget {
+  final TrendMetric m;
+  final Map<String, double> daily;
+  final String today;
+  final String? firstDay;
+  final VoidCallback onOpen;
+
+  const ExpandedTrendCard({
+    super.key,
+    required this.m,
+    required this.daily,
+    required this.today,
+    this.firstDay,
+    required this.onOpen,
+  });
+
+  @override
+  State<ExpandedTrendCard> createState() => _ExpandedTrendCardState();
+}
+
+class _ExpandedTrendCardState extends State<ExpandedTrendCard> {
+  int? _at;
+
+  /// The week's figure, the way Trend View states it: a weekly metric's
+  /// total, anything else's average with the day still in progress left out.
+  double? _figure(String end, {String? skip}) {
+    final m = widget.m;
+    final bars = trendBars(m, widget.daily, TrendRange.week, end,
+        firstDay: widget.firstDay, skip: m.weekly ? null : skip);
+    if (!m.weekly) return trendAverage(bars);
+    final vs = [for (final b in bars) ?b.v];
+    return vs.isEmpty ? null : vs.fold<double>(0, (a, b) => a + b);
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final l = AppLocalizations.of(c);
+    final m = widget.m;
+    final end = widget.today;
+    final bars = trendBars(m, widget.daily, TrendRange.week, end,
+        firstDay: widget.firstDay);
+    final avg = _figure(end, skip: end);
+    final prev = _figure(shiftDay(end, -7));
+    final at = _at;
+    final sel = at != null && at < bars.length ? bars[at] : null;
+    final vs = [for (final b in bars) ?b.v];
+    final axis = trendAxis(m, vs, line: m.line);
+    final color = _TrendViewScreenState._colorOf(m);
+    final xs = [
+      for (final b in bars)
+        '${weekdayShortName(_dateOf(b.to).weekday, l)}\n${_dateOf(b.to).day}',
+    ];
+    final values = [for (final b in bars) b.v];
+    final labels = [for (final b in bars) b.v == null ? '' : trendFormat(m, b.v)];
+    final first = _dateOf(bars.first.from), last = _dateOf(end);
+    final range = '${monthShortName(first.month, l)} ${first.day} - '
+        '${monthShortName(last.month, l)} ${last.day}';
+
+    final chart = vs.isEmpty
+        ? SizedBox(
+            height: S.x16 * 2,
+            child: Center(
+              child: Text('Nothing recorded this week.',
+                  style: F.num(F.cap).copyWith(color: p.ink3)),
+            ),
+          )
+        : m.line
+            ? ScrubLine(
+                values: values,
+                xLabels: xs,
+                valueLabels: labels,
+                lo: axis.lo,
+                hi: axis.hi,
+                ticks: axis.ticks,
+                tickText: (t) => _TrendViewScreenState._tickText(m, t),
+                avg: m.weekly ? null : avg,
+                color: color,
+                markers: true,
+                gap: 1,
+                height: S.x16 * 3 + S.x4,
+                onScrub: (i) => setState(() => _at = i),
+              )
+            : ScrubColumns(
+                values: values,
+                xLabels: xs,
+                valueLabels: labels,
+                lo: axis.lo,
+                hi: axis.hi,
+                ticks: axis.ticks,
+                tickText: (t) => _TrendViewScreenState._tickText(m, t),
+                avg: m.weekly ? null : avg,
+                color: color,
+                colorOf: m.id == 'recovery' ? (i, v) => recoveryColor(v) : null,
+                height: S.x16 * 3 + S.x4,
+                onScrub: (i) => setState(() => _at = i),
+              );
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x4),
+      decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Pressable(
+            onTap: widget.onOpen,
+            semanticLabel: 'Open ${m.title} in Trend View',
+            child: SizedBox(
+              height: S.tap,
+              child: Row(
+                children: [
+                  Icon(m.icon, size: I.md, color: p.ink3),
+                  const SizedBox(width: S.x3),
+                  Expanded(
+                    child: Text(
+                      m.title.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: F.caps.copyWith(color: p.ink),
+                    ),
+                  ),
+                  BoldChevron(left: false, color: p.ink3, height: S.x3 + S.half),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: S.x1),
+          ScrubReadout(
+            caption: sel != null
+                ? '${weekdayShortName(_dateOf(sel.to).weekday, l)}, '
+                    '${monthShortName(_dateOf(sel.to).month, l)} ${_dateOf(sel.to).day}'
+                : (m.weekly ? 'Weekly total' : 'Average'),
+            value: trendFormat(m, sel != null ? sel.v : avg),
+            unit: (sel != null ? sel.v : avg) == null ? null : m.unit,
+          ),
+          const SizedBox(height: S.x2),
+          Row(
+            children: [
+              if (sel == null && avg != null && prev != null)
+                _DeltaChip(m: m, avg: avg, prev: prev, range: TrendRange.week),
+              const SizedBox(width: S.x2),
+              Expanded(
+                child: Text(range.toUpperCase(),
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: F.over.copyWith(
+                        color: p.ink2,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1)),
+              ),
+            ],
+          ),
+          const SizedBox(height: S.x3),
+          chart,
         ],
       ),
     );
@@ -1516,7 +1704,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     required bool line,
   }) => trendAxis(m, vs, line: line);
 
-  String _tickText(TrendMetric m, double t) {
+  static String _tickText(TrendMetric m, double t) {
     if (m.fmt == TrendFmt.hmm) {
       final h = t ~/ 60, mi = (t.abs() % 60).round();
       return mi == 0 ? '${h}h' : '$h:${mi.toString().padLeft(2, '0')}';
@@ -1830,13 +2018,14 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                 const SizedBox(height: S.x3),
                 // The change against the window before, and which window that
                 // is: one row, the chip left and the pager right.
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  runSpacing: S.x2,
+                Row(
                   children: [
-                    chip ?? const SizedBox.shrink(),
-                    WindowPager(
+                    ?chip,
+                    const SizedBox(width: S.x2),
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: WindowPager(
                       isDay
                           ? _dayName(_dayShown, l)
                           : '${_shortDate(bars.first.from, l)} - '
@@ -1844,6 +2033,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                               '${(_dateOf(end).year % 100).toString().padLeft(2, '0')}',
                       onEarlier: () => _stepBack(1),
                       onLater: _back == 0 ? null : () => _stepBack(-1),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -2179,7 +2370,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
 
   static const _lineBlue = C.dialStrain;
 
-  Color _colorOf(TrendMetric m) => m.line
+  static Color _colorOf(TrendMetric m) => m.line
       ? _lineBlue
       : switch (m.group) {
           TrendGroup.strain => C.dialStrain,
@@ -3305,7 +3496,13 @@ class _DeltaChip extends StatelessWidget {
       TrendRange.month => 'prior month',
       TrendRange.sixMonths => 'prior 6 months',
     };
-    return Container(
+    // The chip says only how much: the pager beside it already names the
+    // window, and "vs. prior week" pushed that pager onto a row of its own.
+    // A screen reader still hears what the figure is against.
+    return Semantics(
+      label: '$text ${up ? 'up' : 'down'} vs. $past',
+      excludeSemantics: true,
+      child: Container(
       padding: const EdgeInsets.symmetric(
           horizontal: S.x1 + S.half, vertical: S.half),
       decoration: BoxDecoration(
@@ -3324,14 +3521,16 @@ class _DeltaChip extends StatelessWidget {
           ],
           Flexible(
             child: Text(
-              '$text vs. $past',
+              text,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: F.over.copyWith(color: tone, fontWeight: FontWeight.w700),
+              style: F.num(F.over)
+                  .copyWith(color: tone, fontWeight: FontWeight.w700),
             ),
           ),
         ],
       ),
+    ),
     );
   }
 }

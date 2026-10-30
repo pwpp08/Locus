@@ -68,6 +68,13 @@ class WorkoutDetail {
 
   /// The heart rate over [from]…[to], a little wider than the session.
   final List<HrPoint> hr;
+
+  /// How this session's strain grew, minute by minute: the headline strain
+  /// re-scored over each growing stretch of the session, exactly what the live
+  /// gauge showed. Empty when it cannot be rebuilt (the band's seconds are
+  /// pruned, an anchor is missing) or when it would end anywhere but at
+  /// [strain] — two figures for one quantity is the worse answer.
+  final List<HrPoint> strainCurve;
   final int from, to;
 
   /// The five zones' lower edges in bpm, or null when no set was banked.
@@ -94,6 +101,7 @@ class WorkoutDetail {
     this.avgHr,
     this.maxHr,
     this.hr = const [],
+    this.strainCurve = const [],
     required this.from,
     required this.to,
     this.zoneLo,
@@ -105,6 +113,18 @@ class WorkoutDetail {
   });
 
   int get durationSec => end - start;
+
+  /// The strain built up by [t]: the last whole minute's, 0 before the
+  /// first one ends, null outside the session or with no curve.
+  double? strainAt(int t) {
+    if (strainCurve.isEmpty || t < start || t > end) return null;
+    double v = 0;
+    for (final e in strainCurve) {
+      if (e.t > t) break;
+      v = e.v;
+    }
+    return v;
+  }
 
   /// Which zone [bpm] is in, 0…4, or -1 under zone 1.
   int zoneOf(double bpm) {
@@ -301,17 +321,35 @@ class WorkoutDetail {
       count = await LocalDb.sessionCountOfType(type);
     } catch (_) {}
 
+    final strain = n('strain')?.toDouble();
+    var curve = <HrPoint>[];
+    try {
+      curve = [
+        for (final e in await repo.sessionStrainCurve({...s, ...w}))
+          (t: e.t, v: e.v),
+      ];
+    } catch (_) {}
+    // The curve has to end where the headline does. A live score the
+    // re-score did not reproduce (an incomplete window) would leave the line
+    // stopping at one figure under a headline saying another.
+    if (strain == null ||
+        curve.isEmpty ||
+        (curve.last.v - strain).abs() > .15) {
+      curve = const [];
+    }
+
     return WorkoutDetail(
       id: id,
       type: type,
       activity: a,
       start: start,
       end: end,
-      strain: n('strain')?.toDouble(),
+      strain: strain,
       calories: n('calories')?.round(),
       avgHr: n('avg_hr')?.round(),
       maxHr: n('max_hr')?.round(),
       hr: hr,
+      strainCurve: curve,
       from: from,
       to: math.max(to, end),
       zoneLo: lo,
@@ -567,6 +605,10 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                           _strain(c, p, d),
                           const SizedBox(height: S.x2),
                           _chart(c, p, d),
+                          if (d.strainCurve.isNotEmpty) ...[
+                            const SizedBox(height: S.x2),
+                            _chartKey(p),
+                          ],
                           const SizedBox(height: S.x6),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: S.x4),
@@ -780,10 +822,29 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                       ),
                     ],
                   ),
-                  Text(
-                    _clockAt(at.t),
-                    style: F.num(F.cap).copyWith(color: p.ink3),
-                  ),
+                  Row(children: [
+                    Text(
+                      _clockAt(at.t),
+                      style: F.num(F.cap).copyWith(color: p.ink3),
+                    ),
+                    if (d.strainAt(at.t) case final sv?) ...[
+                      const SizedBox(width: S.x3),
+                      Text(
+                        'STRAIN ',
+                        style: F.over.copyWith(
+                          color: p.ink3,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        sv.toStringAsFixed(1),
+                        style: F.num(F.cap).copyWith(
+                          color: p.ink,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ]),
                 ],
               )
             : Column(
@@ -873,6 +934,35 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
             ),
           ),
       ],
+    );
+  }
+
+  // ── what the chart's two lines are ─────────────────────────────────────
+  Widget _chartKey(P p) {
+    Widget key(Color c, String label, String scale) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: S.x4,
+              height: S.half,
+              decoration: BoxDecoration(color: c, borderRadius: R.rSm),
+            ),
+            const SizedBox(width: S.x2),
+            Text(label, style: F.over.copyWith(color: p.ink2)),
+            const SizedBox(width: S.x1),
+            Text(scale, style: F.num(F.over).copyWith(color: p.ink3)),
+          ],
+        );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: S.x4),
+      child: Wrap(
+        spacing: S.x5,
+        runSpacing: S.x1,
+        children: [
+          key(C.dialStrain, 'HEART RATE', 'bpm, left'),
+          key(p.ink, 'STRAIN', '0–21, right'),
+        ],
+      ),
     );
   }
 
@@ -1539,6 +1629,31 @@ class _ChartPaint extends CustomPainter {
         }
       }
     }
+    // The strain the session built, on the dial's own 0–21 scale: a line
+    // that only climbs, drawn over the heart rate that drove it.
+    final sc = d.strainCurve;
+    if (sc.isNotEmpty) {
+      double sy(double v) => plot.bottom - v.clamp(0, 21) / 21 * plot.height;
+      final path = Path()..moveTo(xOf(d.start), plot.bottom);
+      for (final e in sc) {
+        path.lineTo(xOf(e.t), sy(e.v));
+      }
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = ink
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..strokeJoin = StrokeJoin.round
+          ..strokeCap = StrokeCap.round,
+      );
+      // The figure it reached, at the end of the line.
+      final last = sc.last;
+      final ex = xOf(last.t);
+      if (ex >= 0 && ex <= size.width) {
+        canvas.drawCircle(Offset(ex, sy(last.v)), S.x1, Paint()..color = ink);
+      }
+    }
     canvas.restore();
 
     // Labels on the left, over the grid.
@@ -1550,6 +1665,22 @@ class _ChartPaint extends CustomPainter {
         ink3,
         F.num(F.cap),
       );
+    }
+
+    if (d.strainCurve.isNotEmpty) {
+      for (final v in const [7.0, 14.0, 21.0]) {
+        final tp = _layout(
+          v.round().toString(),
+          F.num(F.over).copyWith(color: ink3, fontWeight: FontWeight.w600),
+        );
+        tp.paint(
+          canvas,
+          Offset(
+            size.width - tp.width - S.x1,
+            plot.bottom - v / 21 * plot.height + S.half,
+          ),
+        );
+      }
     }
 
     // Where the session starts and ends: dashed lines, dots at the foot, and

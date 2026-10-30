@@ -1552,6 +1552,20 @@ Map<String, Widget> _stateCases() => {
         },
         onOpen: (_) {},
       ),
+      // A dashboard metric chosen to show in full: its week, the change against
+      // the week before, and a line chart (HRV) or columns (a weekly total).
+      'expanded_trend_card': ExpandedTrendCard(
+        m: trendMetricOf('hrv')!,
+        today: '2026-08-16',
+        daily: {for (var i = 0; i < 14; i++) shiftDay('2026-08-16', -i): 60.0 + i % 5 * 4},
+        onOpen: () {},
+      ),
+      'expanded_trend_card_columns': ExpandedTrendCard(
+        m: trendMetricOf('zones_13')!,
+        today: '2026-08-16',
+        daily: {for (var i = 0; i < 14; i++) shiftDay('2026-08-16', -i): 20.0 + i * 3},
+        onOpen: () {},
+      ),
       // The scrub chart: drag along it and the point under the finger is read
       // out big. A null day is a gap, not a zero.
       'scrub_columns': ScrubColumns(

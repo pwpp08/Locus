@@ -1,3 +1,9 @@
+// A nap is drawn from what was measured: its window, the minutes asleep in
+// it, the heart rate and the wrist's movement. The pipeline stores no nap
+// stages, so none are drawn — this screen used to script a 40 % deep / 10 %
+// REM split, invent a 16.4 rpm breathing rate and print "within 0:00-0:00 min"
+// ranges nothing had computed. These tests pin that none of it comes back.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/ui2/screens/nap_detail.dart';
@@ -6,187 +12,107 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/fonts.dart';
 
-NapDetailData _fixture() {
-  final start = DateTime(2025, 5, 7, 15, 12).millisecondsSinceEpoch ~/ 1000;
-  final end = DateTime(2025, 5, 7, 17, 19).millisecondsSinceEpoch ~/ 1000;
-  final from = start - 60;
-  final to = end + 60;
+final _start = DateTime(2025, 5, 7, 14, 0).millisecondsSinceEpoch ~/ 1000;
+final _end = _start + 62 * 60;
 
-  final hr = <({int t, double v})>[
-    for (var t = from; t <= to; t += 30)
-      (t: t, v: 62.0 + (t % 15)),
-  ];
+NapDetailData _fixture({
+  int? asleep = 52,
+  bool movement = true,
+  bool hr = true,
+}) =>
+    NapDetailData(
+      day: '2025-05-07',
+      start: _start,
+      end: _end,
+      asleepMin: asleep,
+      source: 'manual',
+      from: _start - 300,
+      to: _end + 300,
+      hr: hr
+          ? [for (var t = _start - 300; t <= _end + 300; t += 60) (t: t, v: 58.0 + (t ~/ 60) % 7)]
+          : const [],
+      avgHr: hr ? 61 : null,
+      lowHr: hr ? 55 : null,
+      movement: movement
+          ? [for (var t = _start; t < _end; t += 60) (t: t, span: 60, v: (t ~/ 60) % 5 / 10)]
+          : const [],
+    );
 
-  final runs = [
-    NapStageRun(start: start, end: start + 300, stage: SleepStage.awake),
-    NapStageRun(start: start + 300, end: start + 1740, stage: SleepStage.light),
-    NapStageRun(start: start + 1740, end: start + 3120, stage: SleepStage.deep),
-    NapStageRun(start: start + 3120, end: start + 3420, stage: SleepStage.rem),
-    NapStageRun(start: start + 3420, end: end, stage: SleepStage.awake),
-  ];
-
-  return NapDetailData(
-    day: '2025-05-07',
-    start: start,
-    end: end,
-    durationMin: 52,
-    inBedMin: 127,
-    efficiency: 41.0,
-    wakeEventsPerHour: 0.9,
-    respiratoryRate: 16.4,
-    latencyMin: 0.0,
-    source: 'manual',
-    from: from,
-    to: to,
-    hr: hr,
-    stageRuns: runs,
-    stageSec: const {
-      SleepStage.awake: 75 * 60,
-      SleepStage.light: 24 * 60,
-      SleepStage.deep: 23 * 60,
-      SleepStage.rem: 5 * 60,
-    },
-    typicalStage: const {
-      SleepStage.awake: (0.15, 0.40),
-      SleepStage.light: (0.20, 0.45),
-      SleepStage.deep: (0.20, 0.40),
-      SleepStage.rem: (0.02, 0.15),
-    },
-    avgDurationMin: 55,
-    avgRestorativeMin: 32,
-    avgWakeEvents: 1.2,
-    avgEfficiency: 53.0,
-    avgRespRate: 16.5,
-    avgLatency: 0.0,
-  );
+Future<void> _pump(WidgetTester t, NapDetailData d) async {
+  t.view.physicalSize = const Size(1080, 2400);
+  t.view.devicePixelRatio = 2.0;
+  addTearDown(t.view.reset);
+  await t.pumpWidget(MaterialApp(
+    theme: buildTheme(Brightness.dark),
+    home: NapDetailScreen(
+      nap: {'start': d.start, 'end': d.end, 'duration_min': d.asleepMin},
+      data: d,
+    ),
+  ));
+  await t.pumpAndSettle();
 }
 
 void main() {
   setUpAll(loadAppFonts);
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('NapDetailScreen renders all core sections and 4 nap metric cards',
-      (tester) async {
-    tester.view.physicalSize = const Size(1080, 2400);
-    tester.view.devicePixelRatio = 2.0;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    final d = _fixture();
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: ThemeData.dark(),
-        home: NapDetailScreen(
-          nap: {
-            'start': d.start,
-            'end': d.end,
-            'duration_min': d.durationMin,
-            'source': 'manual',
-          },
-          data: d,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    // 1. Header checks
+  testWidgets('the window, the time asleep and the measured statistics',
+      (t) async {
+    await _pump(t, _fixture());
     expect(find.text('NAP'), findsOneWidget);
     expect(find.textContaining('May 7, 2025'), findsOneWidget);
-
-    // 2. Readout metrics
-    expect(find.text('HOURS OF SLEEP'), findsOneWidget);
-    expect(find.text('RESTORATIVE SLEEP'), findsOneWidget);
-    expect(find.text('This nap reduced your sleep need by 52 minutes.'),
-        findsOneWidget);
-
-    // 3. Stage sections
-    expect(find.text('TYPICAL RANGE'), findsOneWidget);
-    expect(find.text('AWAKE'), findsOneWidget);
-    expect(find.text('LIGHT'), findsOneWidget);
-    expect(find.text('SWS (DEEP)'), findsOneWidget);
-    expect(find.text('REM'), findsOneWidget);
-
-    // 4. Nap Metrics section with the 4 cards on bottom
-    expect(find.text('NAP METRICS'), findsOneWidget);
-    expect(find.text('VS. 30 DAY RANGE'), findsOneWidget);
-
-    // Wake Events card
-    expect(find.text('WAKE EVENTS'), findsOneWidget);
-    expect(find.text('0.9'), findsOneWidget);
-    expect(find.text('per hour'), findsOneWidget);
-    expect(find.text('low < 1.2 per hour'), findsOneWidget);
-
-    // Efficiency card
-    expect(find.text('EFFICIENCY'), findsOneWidget);
-    expect(find.text('41'), findsOneWidget);
-    expect(find.text('low < 53 %'), findsOneWidget);
-
-    // Respiratory Rate card
-    expect(find.text('RESPIRATORY RATE'), findsOneWidget);
-    expect(find.text('16.4'), findsOneWidget);
-    expect(find.text('rpm'), findsOneWidget);
-    expect(find.text('low < 16.5 rpm'), findsOneWidget);
-
-    // Latency card
-    expect(find.text('LATENCY'), findsOneWidget);
-    expect(find.text('0:00'), findsOneWidget);
-    expect(find.text('within 0:00-0:00 min'), findsOneWidget);
+    expect(find.text('0:52'), findsWidgets);
+    expect(find.text('TIME ASLEEP'), findsOneWidget);
+    expect(find.text('KEY STATISTICS'), findsOneWidget);
+    expect(find.text('IN BED'), findsOneWidget);
+    expect(find.text('1:02'), findsOneWidget);
+    expect(find.text('AVG HR'), findsOneWidget);
+    expect(find.text('61'), findsOneWidget);
+    expect(find.text('LOWEST HR'), findsOneWidget);
+    expect(find.text('55'), findsOneWidget);
+    expect(find.text('MOVING'), findsOneWidget);
+    expect(t.takeException(), isNull);
   });
 
-  testWidgets('NapDetailScreen more menu shows Edit, Delete, Convert to Sleep',
-      (tester) async {
-    final d = _fixture();
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: ThemeData.dark(),
-        home: NapDetailScreen(
-          nap: {
-            'start': d.start,
-            'end': d.end,
-            'duration_min': d.durationMin,
-            'source': 'manual',
-          },
-          data: d,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+  testWidgets('nothing the pipeline does not measure is drawn', (t) async {
+    await _pump(t, _fixture());
+    for (final gone in [
+      'LIGHT', 'SWS (DEEP)', 'REM', 'RESTORATIVE SLEEP', 'TYPICAL RANGE',
+      'WAKE EVENTS', 'EFFICIENCY', 'RESPIRATORY RATE', 'LATENCY',
+      'VS. 30 DAY RANGE',
+    ]) {
+      expect(find.text(gone), findsNothing, reason: gone);
+    }
+    // The raw nap minutes are not the reduction the sleep coach takes.
+    expect(find.textContaining('reduced your sleep need'), findsNothing);
+  });
 
-    // Tap more button
-    await tester.tap(find.bySemanticsLabel('More'));
-    await tester.pumpAndSettle();
+  testWidgets('absent figures are a dash, never a stand-in', (t) async {
+    await _pump(t, _fixture(asleep: null, hr: false, movement: false));
+    // Time asleep (hero and card), avg HR and lowest HR.
+    expect(find.text('--'), findsNWidgets(4));
+    // No movement measured: no "moving" figure built from nothing.
+    expect(find.text('MOVING'), findsNothing);
+    expect(t.takeException(), isNull);
+  });
 
+  testWidgets('a finger reads the heart rate and the movement under it',
+      (t) async {
+    await _pump(t, _fixture());
+    final chart = find.byType(Scrubber);
+    await t.startGesture(t.getCenter(chart));
+    await t.pump(const Duration(milliseconds: 600));
+    expect(find.text('bpm'), findsWidgets);
+    expect(find.text('moving'), findsOneWidget);
+  });
+
+  testWidgets('the more menu shows Edit, Delete, Convert to Sleep',
+      (t) async {
+    await _pump(t, _fixture());
+    await t.tap(find.bySemanticsLabel('More'));
+    await t.pumpAndSettle();
     expect(find.text('EDIT NAP'), findsOneWidget);
     expect(find.text('DELETE NAP'), findsOneWidget);
     expect(find.text('CONVERT TO SLEEP'), findsOneWidget);
-  });
-
-  testWidgets('NapDetailScreen tapping stage highlights stage', (tester) async {
-    final d = _fixture();
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: ThemeData.dark(),
-        home: NapDetailScreen(
-          nap: {
-            'start': d.start,
-            'end': d.end,
-            'duration_min': d.durationMin,
-            'source': 'manual',
-          },
-          data: d,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    // Tap light stage card
-    await tester.tap(find.text('LIGHT'));
-    await tester.pumpAndSettle();
-
-    // Tap again to toggle off
-    await tester.tap(find.text('LIGHT'));
-    await tester.pumpAndSettle();
   });
 }

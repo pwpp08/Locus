@@ -235,7 +235,13 @@ void main() {
     // No minute data to open on, so the week is what it opens on.
     expect(find.text('100'), findsAtLeastNWidgets(1));
     expect(find.text('ms'), findsAtLeastNWidgets(1));
-    expect(find.text('25% vs. prior week'), findsOneWidget);
+    // The chip says only how much; the pager beside it names the window, and
+    // a screen reader hears what the figure is against.
+    expect(find.text('25%'), findsOneWidget);
+    expect(
+        find.byWidgetPredicate((w) =>
+            w is Semantics && w.properties.label == '25% up vs. prior week'),
+        findsOneWidget);
     expect(find.byType(ScrubLine), findsOneWidget);
   });
 
@@ -316,7 +322,7 @@ void main() {
     // 7 days × 30 minutes: 3:30. The week before was half that: up 100 %.
     expect(find.text('3:30'), findsOneWidget);
     expect(find.text('WEEKLY TOTAL'), findsWidgets);
-    expect(find.text('100% vs. prior week'), findsOneWidget);
+    expect(find.text('100%'), findsOneWidget);
     expect(find.textContaining('your previous 7-day total of 1:45'), findsOneWidget);
     // And the breakdown under the chart, a line per zone: 7 × 10 = 1:10 each.
     expect(find.textContaining('HR ZONES BREAKDOWN'), findsOneWidget);

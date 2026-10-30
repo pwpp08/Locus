@@ -3255,19 +3255,15 @@ class LocalRepositoryImpl extends LocalRepository {
       }
       await _stampSessionSensor(id, hrRows);
 
-      final profile = Profile.fromMap(getProfileMap());
       final hrBpm = [for (final e in hrRows) (e['hr'] as num).toInt()];
       // Hoisted (not just passed inline) so the submax VO2max estimate below
       // can reuse the SAME hrMax/restingHr this session's own zones/TRIMP
       // were scored against, instead of resolving its own answer that could
       // silently disagree with the strain the rest of this pass just wrote.
-      final hrMaxForSession =
-          _profileMaxHr(row['device_family'] as String?)?.toDouble();
-      final restingHrForSession =
-          await _recentRestingHr() ?? profile.restingHrManual?.toDouble();
-      // Same rule as the save path: the session's own local day's level.
-      final quiet = await personalQuietLevelBefore(
-          dayLabelOf(DateTime.fromMillisecondsSinceEpoch(startTs * 1000)));
+      final anchors = await _sessionAnchors(row, startTs);
+      final profile = anchors.profile;
+      final hrMaxForSession = anchors.hrMax;
+      final restingHrForSession = anchors.restingHr;
       final stats = computeManualSessionStats(
         hrTs: [for (final e in hrRows) (e['rec_ts'] as num).toInt()],
         hrBpm: hrBpm,
@@ -3276,8 +3272,8 @@ class LocalRepositoryImpl extends LocalRepository {
         restingHr: restingHrForSession,
         zoneSet: _zoneSetFor(
             row['device_family'] as String?, await _zoneAnchors()),
-        quietHrr: quiet.value?.hrr,
-        quietSettled: quiet.value?.settled ?? true,
+        quietHrr: anchors.quietHrr,
+        quietSettled: anchors.quietSettled,
       );
       // The peak is smoothed inside `computeManualSessionStats` now — one
       // definition for the manual save, this re-score and the workout list
@@ -3528,6 +3524,57 @@ class LocalRepositoryImpl extends LocalRepository {
 
   /// Most recent nightly resting HR from `metric_series`, or null. Bounded to
   /// the last week so a stale figure from a long gap can't anchor TRIMP.
+  /// What a stored session is priced on: the profile, the strap's ceiling,
+  /// the resting HR and the quiet level of the session's own local day. ONE
+  /// resolution, shared by the re-score and [sessionStrainCurve], so the curve
+  /// ends where the score it explains does.
+  Future<
+      ({
+        Profile profile,
+        double? hrMax,
+        double? restingHr,
+        double? quietHrr,
+        bool quietSettled,
+      })> _sessionAnchors(Map<String, dynamic> row, int startTs) async {
+    final profile = Profile.fromMap(getProfileMap());
+    final quiet = await personalQuietLevelBefore(
+        dayLabelOf(DateTime.fromMillisecondsSinceEpoch(startTs * 1000)));
+    return (
+      profile: profile,
+      hrMax: _profileMaxHr(row['device_family'] as String?)?.toDouble(),
+      restingHr:
+          await _recentRestingHr() ?? profile.restingHrManual?.toDouble(),
+      quietHrr: quiet.value?.hrr,
+      quietSettled: quiet.value?.settled ?? true,
+    );
+  }
+
+  @override
+  Future<List<({int t, double v})>> sessionStrainCurve(
+      Map<String, dynamic> session) async {
+    final startTs = (session['start_ts'] as num?)?.toInt();
+    final endTs = (session['end_ts'] as num?)?.toInt();
+    if (startTs == null || endTs == null || endTs <= startTs) return const [];
+    try {
+      final rows = await LocalDb.hrSamplesInRange(startTs, endTs);
+      if (rows.isEmpty) return const [];
+      final a = await _sessionAnchors(session, startTs);
+      return strainCurveOf(
+        hrPerMinuteStamped(
+          [for (final e in rows) (e['rec_ts'] as num).toInt()],
+          [for (final e in rows) (e['hr'] as num).toInt()],
+        ),
+        profile: a.profile,
+        restingHr: a.restingHr,
+        hrMax: a.hrMax,
+        quietHrr: a.quietHrr,
+        quietSettled: a.quietSettled,
+      );
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<double?> _recentRestingHr() async {
     try {
       // 'rhr' is the `metric_series` key the derivation engine writes nightly

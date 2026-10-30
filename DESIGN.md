@@ -828,7 +828,9 @@ Opened from a dashboard row, a week card chevron, or a detail screen. One metric
 
 ---
 
-**The readout row.** The figure and its caption sit left, `RangeSegments` right. The change against the window before (`_DeltaChip`, `F.over` in a `R.sm` chip) rides the **pager's** row, left of `WindowPager` — under the figure it wrapped to two lines and pushed the pager onto a row of its own. Both are in a `Wrap`, so only a far-up text scale drops the pager below the chip.
+**The readout row.** The figure and its caption sit left, `RangeSegments` right. The change against the window before (`_DeltaChip`) rides the **pager's** row, left of `WindowPager`, on ONE line always: the chip says only the percentage (`▼ 6%`, `F.num(F.over)` in an `R.sm` chip) — the pager beside it already names the window, so "vs. prior week" is spoken (its `Semantics` label) but not printed. The pager takes the rest of the row and ellipsizes its date before it ever wraps.
+
+**My Dashboard, expanded.** Customize sets each metric to a slim row or its week in full (`ExpandedTrendCard`, `Prefs.dashboardExpanded`). The card is Trend View's W range on Home with no range switch: caps title and a chevron (the door into Trend View), the readout, the chip with the week's dates, then the same `ScrubLine` / `ScrubColumns` the W range draws (value labels over each day, the average dashed). Strain & Recovery is always a chart.
 
 ## 14. Detail screens built on this language
 
@@ -911,7 +913,15 @@ Opened from ACTIVITIES ⤢. It **forces landscape** and restores the app's orien
 - `0.0` and `3.0` are written under the two ends.
 - `stressColor(score)` interpolates the four stops.
 
-### 14.6 Strength trainer
+### 14.6 Nap (`nap_detail.dart`)
+
+Laid out like a recorded activity: the header on the LEFT (back chevron, the lounger mark, "NAP", the window), TIME ASLEEP in `C.dialSleep` `F.n34`, the heart rate filled in `C.dialSleep` as an activity's is in strain blue, the movement lane under it, then KEY STATISTICS as compact cards (`F.num(F.head)`): in bed, asleep, average and lowest heart rate (lowest whole minute), moving %. **No stages.** The pipeline stores a nap as a window and its minutes asleep; a stage split, wake events, latency, efficiency bands and "typical ranges" would all be invented, and so would "this nap reduced your sleep need by N minutes" (the sleep coach's applied credit is not the raw nap minutes).
+
+**The movement lane** (`movement_lane.dart`) is one column a minute under a heart-rate chart, its height the share of the minute the wrist turned more than 5° (`compute/movement.dart`, the same measure as the day's stored five-minute curve). Ink 40–45 %, tops rounded `R.sm/3`, on the chart's own clock. Read from the band's seconds while they are kept, from the stored five-minute curve after; nothing measured is no column. It sits under the nap chart and under the day's sideways heart rate (§14.3), whose top strip is now slim (`S.x16 + S.x2`, `I.md` marks, `F.num(F.head)` figures) to make the room.
+
+**A recorded activity's strain** (§14.2) rides over its heart rate: the headline strain re-scored over each growing stretch of the session (`strainCurveOf`, the live gauge's own sequence), in ink, on the dial's 0–21 scale at the right edge, with a key under the chart. Drawn only when it ends at the headline figure.
+
+### 14.7 Strength trainer
 
 - Two tabs, PROGRESS and MY WORKOUTS.
 - **Progress:** total volume load with its own W / M / 6M segments and page chevrons, drawn with `ScrubColumns` at a fixed slim bar width. A Personal Records list with ADD; tapping a record shows its progress as a `ScrubLine` with the same readout, once there are at least two sessions.

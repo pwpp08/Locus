@@ -238,6 +238,13 @@ abstract class LocalRepository {
       throw UnimplementedError('re-layer: getWorkouts');
   Future<Map<String, dynamic>> getWorkout(String id) =>
       throw UnimplementedError('re-layer: getWorkout');
+
+  /// How a stored session's strain grew minute by minute ([strainCurveOf]),
+  /// priced on the anchors its re-score uses. Empty when the band's seconds
+  /// are gone or an anchor is missing — never a curve built on a default.
+  Future<List<({int t, double v})>> sessionStrainCurve(
+          Map<String, dynamic> session) async =>
+      const [];
   Future<void> deleteWorkout(String id) =>
       throw UnimplementedError('re-layer: deleteWorkout');
 

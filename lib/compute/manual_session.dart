@@ -174,16 +174,21 @@ class ManualSessionStats {
 /// as one minute, so feeding it raw 1 Hz samples would inflate TRIMP ~60x.
 /// Samples are assumed ascending by ts (the DB returns them ordered); a minute
 /// with no sample simply produces no entry rather than a zero.
-List<double> hrPerMinute(List<int> hrTs, List<int> hrBpm) {
+List<double> hrPerMinute(List<int> hrTs, List<int> hrBpm) =>
+    [for (final m in hrPerMinuteStamped(hrTs, hrBpm)) m.v];
+
+/// [hrPerMinute] with each minute's start (epoch seconds) kept beside its
+/// mean: the same buckets, for a caller that has to place them in time.
+List<({int t, double v})> hrPerMinuteStamped(List<int> hrTs, List<int> hrBpm) {
   if (hrTs.length != hrBpm.length || hrTs.isEmpty) return const [];
-  final out = <double>[];
+  final out = <({int t, double v})>[];
   var bucket = hrTs.first ~/ 60;
   var sum = 0.0;
   var n = 0;
   for (var i = 0; i < hrTs.length; i++) {
     final b = hrTs[i] ~/ 60;
     if (b != bucket) {
-      if (n > 0) out.add(sum / n);
+      if (n > 0) out.add((t: bucket * 60, v: sum / n));
       bucket = b;
       sum = 0;
       n = 0;
@@ -193,7 +198,35 @@ List<double> hrPerMinute(List<int> hrTs, List<int> hrBpm) {
       n++;
     }
   }
-  if (n > 0) out.add(sum / n);
+  if (n > 0) out.add((t: bucket * 60, v: sum / n));
+  return out;
+}
+
+/// How a session's strain grew: the headline strain re-scored over the first
+/// minute, the first two, and so on to the whole session — exactly what the
+/// live gauge showed as it went. `t` is the end of each minute. Empty when an
+/// anchor the formula needs is missing ([strainFromPerMinuteHr] abstains).
+List<({int t, double v})> strainCurveOf(
+  List<({int t, double v})> perMinute, {
+  required Profile profile,
+  required double? restingHr,
+  required double? hrMax,
+  required double? quietHrr,
+  bool quietSettled = true,
+}) {
+  final out = <({int t, double v})>[];
+  final hr = <double>[];
+  for (final m in perMinute) {
+    hr.add(m.v);
+    final v = strainFromPerMinuteHr(hr,
+        profile: profile,
+        restingHr: restingHr,
+        hrMax: hrMax,
+        quietHrr: quietHrr,
+        quietSettled: quietSettled);
+    if (v == null) return const [];
+    out.add((t: m.t + 60, v: v));
+  }
   return out;
 }
 
