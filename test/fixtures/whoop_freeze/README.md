@@ -12,6 +12,12 @@ means a WHOOP number moved. Fix the change, not the golden.
 
 ## History
 
+- v115: regenerated with the owner's approval, for the strain-never-falls
+  change (`compute/strain_peak.dart`). The only difference in any of the six
+  files is `algo_version` 114 → 115 (nine places each); no stored value moved,
+  because the synthetic days' strain only climbs. Generated on CI under UTC,
+  +05:30 and -04:00.
+
 - v114: regenerated (owner-requested test repair). Intended differences: the
   new `series.resp_timeline` (the overnight breathing line) and `algo_version`
   114 with the payload hashes that follow from them. One unrelated difference
