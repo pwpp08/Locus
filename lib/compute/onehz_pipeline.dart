@@ -42,6 +42,7 @@ import 'hr_max.dart'
         trainingZones;
 import 'profile.dart' show workoutSex;
 import 'step_cadence.dart' show cadenceSpmForMinutes;
+import 'strain_peak.dart' show keptStrainCurve, peakStrain;
 // Same argument: a pure `DateTime` lookup, no DB / IO / Flutter binding. It is
 // the ONE definition of "the UTC offset in effect at this instant" in the tree,
 // and a second copy here would be the exact drift SLP-09's timezone guard is
@@ -1160,14 +1161,35 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
           inputs_used: const ['hr_1hz', 'profile', 'quiet_waking_hrr_history'],
           note: strainAbsentNote ?? kUnknownAbsenceNote,
         )
-      : strainScoreFromSeries(
-          perMin,
-          restingHr: rhrForTrimp,
-          maxHr: hrMax,
-          quietHrr: quiet.value!.hrr,
-          sex: sexEnum,
-          quietSettled: quiet.value!.settled,
-        );
+      : () {
+          final m = strainScoreFromSeries(
+            perMin,
+            restingHr: rhrForTrimp,
+            maxHr: hrMax,
+            quietHrr: quiet.value!.hrr,
+            sex: sexEnum,
+            quietSettled: quiet.value!.settled,
+          );
+          // Strain never falls through a day: the headline is the highest the
+          // running score reached (strain_peak.dart), on the same envelope.
+          final peak = m.value == null
+              ? null
+              : peakStrain(perMin,
+                  restingHr: rhrForTrimp,
+                  maxHr: hrMax,
+                  quietHrr: quiet.value!.hrr,
+                  sex: sexEnum);
+          return peak == null
+              ? m
+              : Metric<double>(
+                  value: peak,
+                  confidence: m.confidence,
+                  tier: m.tier,
+                  inputs_used: m.inputs_used,
+                  drivers: m.drivers,
+                  note: m.note,
+                );
+        }();
 
   // ── curve series for the UI ────────────────────────────────────────────────
   final hrCurve = _downsampleHr(d.dayTsSec, d.dayHr);
@@ -2084,11 +2106,11 @@ List<Map<String, num>> _strainCurve(
   required double? quietHrr,
 }) {
   if (wakeHr.isEmpty || sex == null) return const [];
-  // The headline's own arithmetic, minute by minute (`strainCurveFromSeries`),
-  // so the last point IS the headline and exercise already banked never falls
-  // back out through a quiet afternoon. Null — no level, or bad anchors —
-  // leaves the curve empty, which the strain screen explains from the note.
-  final curve = strainCurveFromSeries(
+  // The headline's own arithmetic, minute by minute, held at its highest so far
+  // (strain_peak.dart), so the last point IS the headline and nothing earned
+  // falls back out through a quiet afternoon. Null — no level, or bad
+  // anchors — leaves the curve empty, which the strain screen explains.
+  final curve = keptStrainCurve(
     [for (final p in wakeHr) p.hr],
     restingHr: restingHr,
     maxHr: maxHr,

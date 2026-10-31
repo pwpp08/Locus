@@ -321,6 +321,8 @@ Nothing animates a gradient.
 | `MarkCount` | count in a 1.5 px ring | grouped activity marks on charts |
 | `clusterMarks` | groups marks whose centres are within `gap` of the group's mean; zooming spreads them apart again | day-heart and chart marks |
 
+**The Locus mark** (`logo.dart`, geometry in `logo_geometry.dart`): a cursive L, one continuous stroke with a loop at the top and one at the foot. The outline is the source artwork traced (99.3 % pixel overlap, counters as even-odd holes) in a 1000 × 1000 box, the artwork's own framing; never redraw it by hand. `LocusTint`: `ink` (the theme's ink: white on dark, char on light; the default everywhere), `strain`, `recovery`, `sleep`, `dials` (strain blue → optimal). The brand files are cut from the same outline (`assets/brand/`: white and black marks, dark, light and dial-colour icons, an animated SVG), and so is the launcher icon (white on black; `adaptive_icon_background` black).
+
 Chevron convention: `BoldChevron` where the chevron is part of a label (pager, dial name, monitor title). Lucide `chevronRight` (I.md ink3 or I.lg ink2) where the whole row or card is the door.
 
 ---
@@ -328,6 +330,8 @@ Chevron convention: `BoldChevron` where the chevron is part of a label (pager, d
 ## 8. Motion
 
 One gate: `motion(c, d)` returns zero under reduced motion, `animate(c, t)` returns 1, and `Motion.enabled(c)` lets code branch on it. Page transitions are the platform's own (Cupertino slide with swipe-back on iOS), gated by the theme. Sheets use `sheetMotion`. **No `.repeat(`**: a looping animation is an `AnimationController` that reverses itself from a status listener and stops when motion is off.
+
+**The mark is written, not faded** (`LocusMark`, `Motion.logo` 2.4 s). A pen runs the stroke's own route (`kLocusRoute`: in at the crossbar, up and clockwise round the top loop, down the stem, round the foot loop, out along the leg) at 1.3 × the stroke's typical half-width, and the ink is clipped to the exact outline, so the finished drawing is the mark itself. Once (`animate`): the pen takes the first 80 % with `easeInOutCubic` and the mark holds. Looping (`loop`, the boot cover and Home's loading state): written in the first half, held, then lifted back off from where it started. Reduced motion shows it still.
 
 | Token | Duration | Used for |
 |---|---|---|
@@ -830,9 +834,11 @@ Opened from a dashboard row, a week card chevron, or a detail screen. One metric
 
 **The readout row.** The figure and its caption sit left, `RangeSegments` right. The change against the window before (`_DeltaChip`) rides the **pager's** row, left of `WindowPager`, on ONE line always: the chip says only the percentage (`▼ 6%`, `F.num(F.over)` in an `R.sm` chip) — the pager beside it already names the window, so "vs. prior week" is spoken (its `Semantics` label) but not printed. The pager takes the rest of the row and ellipsizes its date before it ever wraps.
 
-**Logging a weight.** Saving turns the sheet into the result: the new figure rolls in from the last logged one like an odometer (`RollingNumber`, `Motion.roll`, eased out), a selection tick per turn of the last digit no closer than `Motion.tickGap`, a firmer tap as it settles, the change since last time under it (neutral triangle and ink: a gain is not good or bad), and the sheet closes after `Motion.linger`.
+**Logging a weight.** Saving turns the sheet into the result: the new figure rolls in from the last logged one like an odometer (`RollingNumber`, `Motion.roll`, eased out), a selection tick per turn of the last digit no closer than `Motion.tickGap`, one soft tap as it settles (the unit on the figure's baseline), the change since last time under it (neutral triangle and ink: a gain is not good or bad), and the sheet closes after `Motion.linger`.
 
 **My Dashboard, expanded.** Customize sets each metric to a slim row or its week in full (`ExpandedTrendCard`, `Prefs.dashboardExpanded`). The card is Trend View's W range on Home with no range switch: caps title and a chevron (the door into Trend View), the readout, the chip with the week's dates, then the chart the W range draws, by the same builder: nights floating on a clock for time in bed and consistency (`ScrubRanges`), need against achieved for hours vs. needed (`ScrubPair`), the layers stacked in their own colours for zones and restorative sleep, otherwise `ScrubLine` / `ScrubColumns` (value labels over each day, the average dashed). Home loads the layers and bed/wake spans for its tiles alongside the daily figures. Strain & Recovery is always a chart.
+
+**Compare metrics** (`compare_metrics.dart`, `kCompareTile`) is a tile and a Trend View entry of its own (the picker's top row), never a strip under another metric. Header `COMPARE METRICS` with `gitCompareArrows`; two chips (icon in the metric's colour, `compareChipName`, a chevron) open the metric list, and picking the other slot's metric swaps the two (`Prefs.comparePair`). A `WindowPager` steps back a week at a time; it is always one week. Under it, the two readouts (first on the left, second right-aligned): a dot, the name, the week's figure (`F.num(F.n24)`, average or a weekly metric's total) or the touched day's, and what it is. Then **one chart, two axes**: the first metric on the left axis, the second on the right, each axis's labels in its metric's colour, gridlines on the left one's ticks. Each metric keeps its Trend View shape: a line (2.5 px, ringed dots, a break on a missing day), columns, zones stacked in their colours, or nights as bed-to-wake ranges on a clock running down. Two column metrics stand side by side in each day's slot; a line runs over any columns. Two metrics of one hue family (within 30°) would read as one: the second takes the accent furthest round the wheel (`compareSecondColour`). One finger reads a day out for both. Under a hairline, one sentence on how the two moved together over the four weeks up to the one shown (Pearson r and the number of days, today left out), only with 10 paired days and neither series flat; otherwise it says which. "Moving together is not cause and effect." in ink3.
 
 ## 14. Detail screens built on this language
 
@@ -855,6 +861,7 @@ Opened from a dashboard row, a week card chevron, or a detail screen. One metric
 - **Weekly Trends:** one card per metric (strain, zones 1–3, zones 4–5, steps, calories).
   - Each card: radius 12, padding 16. The title in `F.caps` w700 with a chevron (I.lg ink2) that opens Trend View on that metric. A small readout for the touched or newest day. A legend of 10 swatches for stacks. A **192-tall column chart** with no gutter and no ticks, value labels in ink, and the newest day highlighted at rest. Each card scrubs on its own.
 - **Strain through the day** (`ChartFrame` with a 0–21 axis, `LineChart` in lavender) with its own readout.
+- **Strain never falls through a day.** The headline and the curve are the analytics' net curve held at its running peak (`compute/strain_peak.dart`, `kAlgoVersion` 115): effort once earned stays earned. Peak HR and Worn under the curve sit inset `S.x5`, under the plot rather than the axis.
 - **Time in zones** and **What this is made of** (`card2` panel, `F.cap` ink3).
 
 ### 14.2 Recorded activity (`workout_detail.dart`)
@@ -907,6 +914,7 @@ Opened from ACTIVITIES ⤢. It **forces landscape** and restores the app's orien
     - **Footer:** "A 14.0 Activity Strain represents strenuous cardiovascular exertion."
   - **Levels:** > 18 all-out, > 14 strenuous, > 10 moderate, otherwise light.
 - **Start bar:** char, 64 + 24 + safe area tall, holding the START ACTIVITY pill. A sleep or nap in progress shows a running clock (`F.n48`), `SLEEP · SINCE 23:10`, and END and DISCARD controls.
+- **Alarm countdown** (`AlarmCountdown`): the rest alarm card says how long until it rings ("Rings in 7 h 32 min", `F.cap`, rounded up to the minute, ticking each minute), and the same line sits centred in `F.num(F.head)` on top of My Schedule, the alarm page ("No alarm set" without one).
 
 ### 14.5 Stress Monitor gauge
 
@@ -929,6 +937,16 @@ Laid out like a recorded activity: the header on the LEFT (back chevron, the lou
 - **Progress:** total volume load with its own W / M / 6M segments and page chevrons, drawn with `ScrubColumns` at a fixed slim bar width. A Personal Records list with ADD; tapping a record shows its progress as a `ScrubLine` with the same readout, once there are at least two sessions.
 - **My Workouts:** Start a Workout (Quick Start), Generate with AI, Build a Workout, and saved workouts with a three-dot menu.
 - Exercise photos from the bundled Free Exercise DB are cover-cropped thumbnails. A placeholder dumbbell tile stands in when there is no photo.
+
+### 14.8 Macros (`nutrition_screen.dart`)
+
+One page, in the order it is used; no sub-tabs.
+- **Day strip** (`Surface`): a `WindowPager` with the week's dates over seven day cells. Each cell: the weekday letter (`F.over`, today in the food colour), the date inside a 40 ring of that day's energy against the target (stroke 3, `domFood`, empty without a target), the picked day on a `wash(domFood)` disc, and a 4 dot under a day with anything logged. Paging lands on the window's last day.
+- **The day** (`Surface`): `TODAY` or the date, and Edit / Set a target (target icon). A 128 ring of energy eaten against the target (stroke 12; red past it; a floor draws soft and says AT LEAST over the figure), the figure in `F.n34` with "of 2,400 kcal" under it. Beside it LEFT (or OVER), BURNED and BALANCE in `F.over` over `F.n24` + kcal. A floor's left is "≤", its balance "at least". Then **Protein, Carbs, Fat**: a dot, the name in `F.over`, "66 g / 140 g", a 6 bar in the macro's colour (red, orange, yellow; soft for a floor), and "74 g to go" / Target reached / At least under it. **More nutrients** folds out fibre, sugar, saturated fat and sodium, each "≥" when some occasion did not report it, "Not recorded" when none did.
+- **Log dock:** four equal tiles (`Surface`, a 40 `wash(domFood)` disc with the icon, the label in `F.cap` w600): **Photo** and **Describe** (AI estimate through the user's own key, `food_ai_sheet.dart`), **Barcode** (the log sheet opening straight onto the scanner), **Search**.
+- **Occasions**, **water**, the floor card, then **This week**: the daily mean of complete days in `F.n34` (or the touched day), `ScrubColumns` of energy with the picked day banded and the mean dashed, and protein, carbs, fat and fibre means, each with its own denominator and floors named.
+- **AI logging:** up to three photos (or none) and a note go to the model; every item comes back for review (name, grams ± a step, meal), numbers gated per 100 g like a label, and only what the person confirms is logged, badged "AI estimate". Without a key the sheet offers the AI setup.
+- **Barcodes:** Open Food Facts first, then USDA FoodData Central's branded foods for what it does not know (credited, public domain); the same consent gate and the same physical gates.
 
 ---
 

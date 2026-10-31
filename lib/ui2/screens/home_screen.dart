@@ -63,6 +63,7 @@ import 'start_activity.dart';
 import 'strain_recovery_card.dart';
 import 'strength_trainer.dart';
 import 'stress_monitor.dart';
+import 'compare_metrics.dart';
 import 'trend_view.dart';
 import 'workout_detail.dart';
 
@@ -454,6 +455,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     if (!mounted) return;
     _layers = layers;
     _spans = spans;
+    _loader = loader;
     _night = night;
     _sessions = sessions;
     _naps = naps;
@@ -468,6 +470,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   Map<String, Map<String, double>> _daily = const {};
   Map<String, List<Map<String, double>>> _layers = const {};
   Map<String, ({double bed, double wake})>? _spans;
+  TrendLoader? _loader;
   String? _firstDay;
 
   Widget _header(BuildContext c, String? dayId) {
@@ -505,7 +508,17 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         const SizedBox(height: S.x3),
         const DetectedActivitiesCard(),
         if (_loading)
-          const Center(child: CircularProgressIndicator())
+          // The mark drawing itself while the day is read (a long first read
+          // after an update runs the migrations and the re-derive).
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: S.x8),
+            child: Column(children: [
+              const LocusMark(loop: true, size: S.x16 + S.x8),
+              const SizedBox(height: S.x3),
+              Text('Getting your day ready',
+                  style: F.cap.copyWith(color: P.of(c).ink3)),
+            ]),
+          )
         else if (_failed)
           StatusCard(
             l?.homeLoadFailedTitle ?? 'Today could not be read',
@@ -757,6 +770,14 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         firstDay: _firstDay,
         onOpen: (k) => go(c, TrendViewScreen(initial: k)),
         tiles: {
+          if (_loader != null)
+            kCompareTile: CompareMetricsCard(
+              loader: _loader!,
+              today: d.dayId ?? todayLabel(widget.now),
+              firstDay: _firstDay,
+              onOpen: () =>
+                  go(c, const TrendViewScreen(initial: kCompareTile)),
+            ),
           kStrainRecoveryTile: StrainRecoveryCard(
             days: [
               for (var i = 6; i >= 0; i--)

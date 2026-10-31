@@ -710,11 +710,15 @@ class Motion {
   /// A figure rolling to its new value ([RollingNumber]), and how long the
   /// result then stays before the sheet that showed it closes.
   static const roll = Duration(milliseconds: 1100);
+
+  /// One writing of the Locus mark ([LocusMark]): the pen's run and a hold,
+  /// and when it loops, the ink lifting back off.
+  static const logo = Duration(milliseconds: 2400);
   static const linger = Duration(milliseconds: 1300);
 
   /// The least time between two haptic ticks of a rolling figure, so a long
   /// roll reads as a smooth run of taps and not a buzz.
-  static const tickGap = Duration(milliseconds: 45);
+  static const tickGap = Duration(milliseconds: 80);
 
   /// The session clock. A live workout counts REAL seconds, so this is the one
   /// duration that must NOT pass through [motion] — reduced motion silences

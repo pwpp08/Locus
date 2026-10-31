@@ -563,6 +563,12 @@ dependencies:
   # `useUnbundled` Gradle property.
   mobile_scanner: ^7.3.1
 
+  # Food photos for the Macros tab's AI estimate (lib/ui2/screens/food_ai_sheet.dart):
+  # the system camera and gallery, downscaled on pick so a photo fits the
+  # Coach's request ceiling. Android requests CAMERA itself when the manifest
+  # declares it (mobile_scanner already does).
+  image_picker: ^1.1.2
+
   # State + small settings persistence.
   provider: ^6.1.2
   shared_preferences: ^2.3.3
@@ -704,8 +710,8 @@ flutter_launcher_icons:
   android: "launcher_icon"
   image_path: "assets/images/icon.png"
   # The icon's own plate, so the ring the mask leaves around the artwork is the
-  # same colour as the artwork's edge rather than the old cream.
-  adaptive_icon_background: "#21351A"
+  # same black as the mark's own artwork.
+  adaptive_icon_background: "#000000"
   adaptive_icon_foreground: "assets/launcher/icon_adaptive.png"
 
 flutter:

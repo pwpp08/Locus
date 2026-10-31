@@ -328,7 +328,7 @@ const _notComponents = {
   'MilestonesScreen',
   // The two comparison cards need a TrendLoader (database reads) or a whole
   // WorkoutDetail; a gallery case would be a photograph of a fixture.
-  'TrendMetricComparisonCard', 'RunningWorkoutComparisonCard',
+  'RunningWorkoutComparisonCard',
   'MyDevices', 'MyDevicesView', 'DeviceDetail', 'DeviceDetailView', 'RePair',
   // The strap-buzz relay picker: a Scaffold route over a live
   // NotificationRelay, whose list is whatever the OS notification stream has
@@ -415,7 +415,7 @@ const _notComponents = {
   'AdvancedScreen',
   'Investigate',
   'JournalCompose', 'JournalFindings',
-  'LogFoodSheet', 'CalmBreathing',
+  'LogFoodSheet', 'FoodAiSheet', 'CalmBreathing',
   // Where the hydration notification lands: a Scaffold route that reads and
   // writes the day's journal metrics. The one control on it — FieldStepper —
   // IS in the gallery.

@@ -34,6 +34,7 @@ import 'package:openstrap_analytics/onehz.dart' as ana;
 
 import 'hr_max.dart' show smoothedMaxHr;
 import 'profile.dart';
+import 'strain_peak.dart' show peakStrain;
 
 /// Shortest window we accept. Below a minute the 1 Hz substrate cannot say
 /// anything useful and the entry is almost certainly a mis-tap.
@@ -310,15 +311,15 @@ double? strainFromPerMinuteHr(
   // Banister TRIMP above the quiet level over the window's own minutes, with
   // exercise minutes never offset by quiet ones — the same analytics call the
   // day headline makes, so "workout strain" and "daily strain" are one method.
-  final score = ana.strainScoreFromSeries(
+  // Held at its highest, as the day's is (strain_peak.dart): a cool-down
+  // never takes back what the set earned.
+  return peakStrain(
     perMinuteHr,
     restingHr: restingHr,
     maxHr: hrMax,
     quietHrr: quietHrr,
     sex: workoutSex(sex) == 'female' ? ana.Sex.female : ana.Sex.male,
-    quietSettled: quietSettled,
   );
-  return score.present ? score.value : null;
 }
 
 /// Score a manual window from its 1 Hz HR.

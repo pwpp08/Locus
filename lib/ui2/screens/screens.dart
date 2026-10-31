@@ -23,6 +23,8 @@ export 'log_food.dart';
 export 'naps.dart';
 export 'nutrition_screen.dart';
 export 'metric_detail.dart';
+export 'compare_metrics.dart';
+export 'food_ai_sheet.dart';
 export 'month_grid.dart';
 export 'movement_lane.dart';
 export 'readiness_detail.dart';

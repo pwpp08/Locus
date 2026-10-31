@@ -107,6 +107,10 @@ enum FoodSource {
   /// Identified from a photo. NEVER carries an energy total — see
   /// [FoodEntry.sanitised].
   photo,
+
+  /// Estimated by the user's AI from a description. Same rule as [photo]: no
+  /// numbers until the person has confirmed the portion.
+  estimate,
 }
 
 FoodSource _sourceOf(String s) => switch (s) {
@@ -114,8 +118,18 @@ FoodSource _sourceOf(String s) => switch (s) {
   'barcode' => FoodSource.barcode,
   'repeat' => FoodSource.repeat,
   'photo' => FoodSource.photo,
+  'estimate' => FoodSource.estimate,
   _ => FoodSource.manual,
 };
+
+/// The meal an occasion at [hour] most likely is: what a log opens on.
+String mealForHour(int hour) => hour < 11
+    ? 'breakfast'
+    : hour < 15
+        ? 'lunch'
+        : hour >= 17 && hour < 22
+            ? 'dinner'
+            : 'snack';
 
 /// Whether a source counts as manufacturer/USDA-backed. Search ranks on this,
 /// never on how often something was picked — popularity ranking quietly
@@ -189,7 +203,9 @@ class FoodEntry {
   /// a number that wrong is worse than an honest absence. Until the user
   /// confirms a portion, a photo entry keeps its identified label and nothing
   /// else.
-  FoodEntry get sanitised => (source == FoodSource.photo && !confirmed)
+  FoodEntry get sanitised =>
+      ((source == FoodSource.photo || source == FoodSource.estimate) &&
+              !confirmed)
       ? FoodEntry(
           id: id,
           date: date,
@@ -580,14 +596,17 @@ class NutritionDb {
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  /// The trailing [days] days ending today, oldest first, already rolled up.
+  /// The trailing [days] days ending [now] (today), oldest first, already
+  /// rolled up. A past week passes the real [today] too, or its last day would
+  /// be judged "in progress" when it is long over.
   static Future<NutritionWindow> window(
     Database db, {
     int days = 7,
     DateTime? now,
+    String? today,
   }) async {
     final end = now ?? DateTime.now();
-    final today = dayLabelOf(end);
+    today ??= dayLabelOf(end);
     final labels = [
       for (var i = days - 1; i >= 0; i--)
         dayLabelOf(DateTime(end.year, end.month, end.day - i)),

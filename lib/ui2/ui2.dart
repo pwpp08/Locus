@@ -10,6 +10,8 @@ export 'charts.dart';
 
 export 'grammar.dart';
 export 'live_hr.dart';
+export 'logo.dart';
+export 'logo_geometry.dart';
 export 'lucide.dart';
 export 'marks.dart';
 export 'ecg_widgets.dart';

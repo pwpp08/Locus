@@ -33,6 +33,7 @@ import '../../data/day_label.dart';
 import '../../data/journal_fields.dart' show formatMinuteOfDay;
 import '../../data/nutrition_store.dart';
 import '../../data/off_lookup.dart';
+import '../../data/usda_lookup.dart';
 import '../../l10n/app_localizations.dart';
 import '../profile/profile.dart' show SetRow;
 import '../ui2.dart';
@@ -41,10 +42,14 @@ import 'log_workout.dart' show dayLabel;
 import 'scan_barcode.dart';
 
 class LogFoodSheet extends StatefulWidget {
-  const LogFoodSheet({super.key, this.date, this.meal = 'snack', this.entry});
+  const LogFoodSheet(
+      {super.key, this.date, this.meal = 'snack', this.entry, this.scan = false});
 
   final String? date;
   final String meal;
+
+  /// Open straight onto the camera scanner: the Macros page's barcode tile.
+  final bool scan;
 
   /// An existing entry to EDIT instead of logging a new one. Same id on save,
   /// and the sheet can remove it.
@@ -57,8 +62,10 @@ class LogFoodSheet extends StatefulWidget {
     String? date,
     String meal = 'snack',
     FoodEntry? entry,
+    bool scan = false,
   }) => AppSheet.open<bool>(c,
-    builder: (_) => LogFoodSheet(date: date, meal: meal, entry: entry),
+    builder: (_) =>
+        LogFoodSheet(date: date, meal: meal, entry: entry, scan: scan),
     scroll: true,
   );
 
@@ -111,6 +118,10 @@ class _LogFoodSheetState extends State<LogFoodSheet> {
   OffOutcome? _outcome;
   bool _looking = false;
 
+  /// The last product came from USDA FoodData Central, not Open Food Facts:
+  /// credited as such.
+  bool _usda = false;
+
   @override
   void initState() {
     super.initState();
@@ -118,6 +129,7 @@ class _LogFoodSheetState extends State<LogFoodSheet> {
     if (e == null) {
       _loadRecent();
       _query.addListener(_loadRecent);
+      if (widget.scan) WidgetsBinding.instance.addPostFrameCallback((_) => _scan());
     } else {
       _label.text = e.label;
       _kcal.text = _plain(e.kcal);
@@ -313,12 +325,22 @@ class _LogFoodSheetState extends State<LogFoodSheet> {
     // Only a row this path wrote. Crediting Open Food Facts for a dictionary
     // entry that came from somewhere else would be an attribution in the
     // wrong direction, which is its own kind of licence problem.
-    if (cached != null && cached['source'] == 'barcode') {
+    if (cached != null &&
+        (cached['source'] == 'barcode' || cached['source'] == 'usda')) {
+      _usda = cached['source'] == 'usda';
       return OffResult(OffOutcome.ok, OffProduct.fromDefRow(cached));
     }
-    final res = await fetchOffProduct(code);
+    // Open Food Facts, then USDA FoodData Central for what it does not know.
+    final hit = await lookupBarcode(code);
+    final res = hit.result;
+    _usda = hit.usda;
     final p = res.product;
-    if (p != null) await NutritionDb.putFoodDef(db, p.toDefRow());
+    if (p != null) {
+      await NutritionDb.putFoodDef(db, {
+        ...p.toDefRow(),
+        if (hit.usda) 'source': 'usda',
+      });
+    }
     return res;
   }
 
@@ -669,7 +691,7 @@ class _LogFoodSheetState extends State<LogFoodSheet> {
               // are, and not only in the licences page.
               if (_scanned != null) ...[
                 const SizedBox(height: S.x3),
-                const _OffCredit(),
+                _usda ? const _UsdaCredit() : const _OffCredit(),
               ],
               const SizedBox(height: S.x4),
               BigButton(
@@ -831,6 +853,14 @@ Future<bool?> _askLookupConsent(BuildContext c) => AppSheet.open<bool>(c,
 /// The ODbL credit, wherever Open Food Facts numbers are shown. Both links
 /// are the licence's, not decoration — the notice names the source and the
 /// terms, and a user has to be able to reach both.
+class _UsdaCredit extends StatelessWidget {
+  const _UsdaCredit();
+
+  @override
+  Widget build(BuildContext c) => Text(kUsdaAttribution,
+      style: F.cap.copyWith(color: P.of(c).ink3, height: 1.45));
+}
+
 class _OffCredit extends StatelessWidget {
   const _OffCredit();
 
@@ -909,9 +939,12 @@ class FoodRow extends StatelessWidget {
     final l = AppLocalizations.of(c);
     final stacked = bigText(c);
     final badge = Pill(
-              entry.source == FoodSource.barcode
-                  ? (l?.logFoodPillOpenFoodFacts ?? 'Open Food Facts')
-                  : (l?.logFoodPillYours ?? 'Yours'),
+              switch (entry.source) {
+                FoodSource.barcode =>
+                  l?.logFoodPillOpenFoodFacts ?? 'Open Food Facts',
+                FoodSource.photo || FoodSource.estimate => 'AI estimate',
+                _ => l?.logFoodPillYours ?? 'Yours',
+              },
       C.n400,
       wrap: stacked,
     );
@@ -958,8 +991,6 @@ class FoodRow extends StatelessWidget {
   }
 
   static String _detail(BuildContext c, FoodEntry e) {
-    // No photo pipeline exists, so `FoodSource.photo` is never written and the
-    // branch that read it could never run.
     if (e.isBareOccasion) {
       return AppLocalizations.of(c)?.logFoodBareOccasion ??
           'LOGGED · ENERGY NOT RECORDED';

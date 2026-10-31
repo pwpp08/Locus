@@ -170,7 +170,7 @@ void main() {
     expect(dayLabelOf(at), todayLabel());
   });
 
-  testWidgets('an entry is edited from the Today tab, not just deleted',
+  testWidgets('an entry is edited from the Macros page, not just deleted',
       (t) async {
     final n = DateTime.now();
     final noon =
@@ -215,7 +215,7 @@ void main() {
     app.user = {'protein_target': 120};
     await _pump(t, const NutritionScreen(), app: app);
 
-    expect(find.text('PROTEIN TODAY'), findsOneWidget);
+    expect(find.text('PROTEIN'), findsOneWidget);
     expect(find.text('45 g'), findsOneWidget);
     expect(find.text('75 g to go'), findsOneWidget);
   });

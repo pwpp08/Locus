@@ -52,6 +52,7 @@ import '../activity/poster.dart'
     show PosterCard, PosterFormat, PosterStatRow, kPosterMapH, kPosterMapW;
 import '../activity/setup.dart' show ActivitySetup;
 import '../activity/tiles.dart';
+import 'alarm.dart' show AlarmCountdown;
 import '../activity/share.dart' show ShareSheet, shareOrigin;
 import '../activity/summary.dart';
 import '../onboarding/welcome.dart'
@@ -1555,10 +1556,23 @@ Map<String, Widget> _stateCases() => {
       // A dashboard metric chosen to show in full: its week, the change against
       // the week before, and a line chart (HRV) or columns (a weekly total).
       // A saved figure rolling in from the last one, digit by digit.
+      // How long until the next alarm rings, kept to the minute.
+      // The Locus mark, still; the boot cover draws it in and Home loops it.
+      'locus_mark': const LocusMark(size: S.x16 * 2),
+      'alarm_countdown': AlarmCountdown(
+        DateTime(2026, 10, 31, 7),
+        now: DateTime(2026, 10, 30, 23, 28),
+        style: F.num(F.head),
+      ),
       'rolling_number': RollingNumber(
         from: 71.8,
         value: 72.4,
         style: F.n48.copyWith(fontWeight: FontWeight.w700),
+      ),
+      // Two metrics' weeks side by side (nothing recorded in the gallery).
+      'compare_metrics': CompareMetricsCard(
+        loader: TrendLoader(null),
+        today: '2026-08-16',
       ),
       'expanded_trend_card': ExpandedTrendCard(
         m: trendMetricOf('hrv')!,

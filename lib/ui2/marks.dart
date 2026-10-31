@@ -414,6 +414,10 @@ class RollingNumber extends StatefulWidget {
   final TextStyle style;
   final VoidCallback? onTick, onDone;
 
+  /// A unit after the figure ("kg"), sat on the figure's baseline.
+  final String? unit;
+  final TextStyle? unitStyle;
+
   const RollingNumber({
     super.key,
     required this.from,
@@ -422,6 +426,8 @@ class RollingNumber extends StatefulWidget {
     this.decimals = 1,
     this.onTick,
     this.onDone,
+    this.unit,
+    this.unitStyle,
   });
 
   @override
@@ -439,9 +445,14 @@ class _RollingNumberState extends State<RollingNumber>
   int? _last;
   Duration _lastTickAt = Duration.zero;
 
-  double get _shown =>
-      widget.from +
-      (widget.value - widget.from) * Ease.standard.transform(_c.value);
+  /// The figure under way, in units of its last digit and rid of the float
+  /// noise that left 71.4 resting a hair under its 4.
+  double get _shown {
+    final v = widget.from +
+        (widget.value - widget.from) * Ease.standard.transform(_c.value);
+    final s = math.pow(10, widget.decimals);
+    return (v * s * 1e6).roundToDouble() / 1e6 / s;
+  }
 
   @override
   void didChangeDependencies() {
@@ -487,6 +498,18 @@ class _RollingNumberState extends State<RollingNumber>
       textScaler: MediaQuery.textScalerOf(c),
     )..layout();
     final w = tp.width, h = tp.height;
+    // How far the unit's baseline sits from its box's foot, against the
+    // figure's: the unit drops by the difference to share the baseline.
+    double foot(TextPainter t) =>
+        t.height - t.computeDistanceToActualBaseline(TextBaseline.alphabetic);
+    final unit = widget.unit;
+    final unitTp = unit == null
+        ? null
+        : (TextPainter(
+            text: TextSpan(text: unit, style: widget.unitStyle ?? style),
+            textDirection: TextDirection.ltr,
+            textScaler: MediaQuery.textScalerOf(c),
+          )..layout());
     final whole = math.max(widget.from.abs(), widget.value.abs()).floor();
     final places = '$whole'.length;
     return Semantics(
@@ -537,11 +560,23 @@ class _RollingNumberState extends State<RollingNumber>
               );
             }
 
-            return Row(mainAxisSize: MainAxisSize.min, children: [
-              for (var k = places - 1; k >= 0; k--) digit(k),
-              if (widget.decimals > 0) Text('.', style: style),
-              for (var k = -1; k >= -widget.decimals; k--) digit(k),
-            ]);
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (var k = places - 1; k >= 0; k--) digit(k),
+                if (widget.decimals > 0) Text('.', style: style),
+                for (var k = -1; k >= -widget.decimals; k--) digit(k),
+                if (unitTp != null) ...[
+                  const SizedBox(width: S.x1),
+                  Padding(
+                    padding: EdgeInsets.only(
+                        bottom: math.max(0.0, foot(tp) - foot(unitTp))),
+                    child: Text(unit!, style: widget.unitStyle ?? style),
+                  ),
+                ],
+              ],
+            );
           },
         ),
       ),

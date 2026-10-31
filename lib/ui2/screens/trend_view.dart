@@ -25,7 +25,7 @@ import '../../compute/profile.dart' show Profile;
 import '../../compute/vo2max_estimate.dart';
 import '../../state/prefs.dart';
 import '../activity/catalogue.dart' show Track, activityByName;
-import '../components/metric_comparison_card.dart';
+import 'compare_metrics.dart';
 import '../ui2.dart';
 import 'home_screen.dart'
     show
@@ -373,9 +373,13 @@ TrendMetric? trendMetricOf(String id) {
   return null;
 }
 
-/// My Dashboard's one tile that is not a metric: the week's strain and
-/// recovery on one chart.
+/// My Dashboard's tiles that are not a metric: the week's strain and
+/// recovery on one chart, and two metrics' weeks set side by side.
 const kStrainRecoveryTile = 'strain_recovery';
+const kCompareTile = 'compare_metrics';
+
+/// The colour [m]'s Trend View chart is drawn in.
+Color trendColorOf(TrendMetric m) => _TrendViewScreenState._colorOf(m);
 
 /// What My Dashboard shows until the user customizes it.
 const kDashboardDefault = [
@@ -394,7 +398,8 @@ List<String> dashboardTilesOf() {
   if (raw.isEmpty) return kDashboardDefault;
   final saved = [
     for (final k in raw.split(','))
-      if (k == kStrainRecoveryTile || trendMetricOf(k) != null) k,
+      if (k == kStrainRecoveryTile || k == kCompareTile || trendMetricOf(k) != null)
+        k,
   ];
   // The chart used to sit above the dashboard whatever was chosen: a list saved
   // before it was a tile keeps it, first, until the user decides.
@@ -1230,6 +1235,116 @@ class DashboardRows extends StatelessWidget {
   }
 }
 
+/// Trend View's own pieces, for a chart drawn outside it (Compare metrics):
+/// a layered metric's colours, its axis labels, and the clock axis nights
+/// are drawn on (minutes after noon, earliest at the top).
+List<Color> trendLayerColours(TrendMetric m) =>
+    _TrendViewScreenState._layerColours(m);
+String trendTickText(TrendMetric m, double t) =>
+    _TrendViewScreenState._tickText(m, t);
+({double lo, double hi, List<double> ticks}) trendClockAxis(
+        Iterable<({double from, double to})?> ranges) =>
+    _TrendViewScreenState._clockAxis(ranges);
+String trendClockText(double t) => _TrendViewScreenState._clockAfterNoon(t);
+
+/// [m]'s week ending [end] as Trend View's W range draws it: nights on a
+/// clock, need against achieved, layers stacked in their colours, otherwise a
+/// line or columns with each day's value over it. Shared by Home's expanded
+/// card and Compare metrics. [highlight] marks a day touched elsewhere (the
+/// other chart of a comparison).
+Widget trendWeekChart(
+  BuildContext c, {
+  required TrendMetric m,
+  required Map<String, double> daily,
+  required String end,
+  String? firstDay,
+  List<Map<String, double>>? layers,
+  Map<String, ({double bed, double wake})>? spans,
+  double? avg,
+  int? highlight,
+  required ValueChanged<int?> onScrub,
+  double height = S.x16 * 3 + S.x4,
+}) {
+  final p = P.of(c);
+  final l = AppLocalizations.of(c);
+  final bars = trendBars(m, daily, TrendRange.week, end, firstDay: firstDay);
+  final vs = [for (final b in bars) ?b.v];
+  if (vs.isEmpty) {
+    return SizedBox(
+      height: S.x16 * 2,
+      child: Center(
+        child: Text('Nothing recorded this week.',
+            style: F.num(F.cap).copyWith(color: p.ink3)),
+      ),
+    );
+  }
+  final axis = trendAxis(m, vs, line: m.line);
+  final color = _TrendViewScreenState._colorOf(m);
+  final xs = [
+    for (final b in bars)
+      '${weekdayShortName(_dateOf(b.to).weekday, l)}\n${_dateOf(b.to).day}',
+  ];
+  final values = [for (final b in bars) b.v];
+  final labels = [for (final b in bars) b.v == null ? '' : trendFormat(m, b.v)];
+  final layerBars = layers == null
+      ? null
+      : [
+          for (final lm in layers)
+            trendBars(m, lm, TrendRange.week, end, firstDay: firstDay),
+        ];
+  switch (m.kind) {
+    case TrendKind.floating when spans != null:
+      return _TrendViewScreenState.floatingChart(m, bars, spans,
+          xs: xs, week: true, onScrub: onScrub, height: S.x16 * 4);
+    case TrendKind.dual when layerBars?.length == 2:
+      return _TrendViewScreenState.dualChart(m, layerBars!,
+          xs: xs, week: true, onScrub: onScrub, height: height);
+    case TrendKind.stacked when layerBars != null && layerBars.isNotEmpty:
+      return _TrendViewScreenState.stackedChart(m, layerBars,
+          xs: xs,
+          week: true,
+          avg: m.weekly ? null : avg,
+          ink: p.ink,
+          highlight: highlight,
+          onScrub: onScrub,
+          height: height);
+    default:
+      break;
+  }
+  return m.line
+      ? ScrubLine(
+          values: values,
+          xLabels: xs,
+          valueLabels: labels,
+          lo: axis.lo,
+          hi: axis.hi,
+          ticks: axis.ticks,
+          tickText: (t) => _TrendViewScreenState._tickText(m, t),
+          avg: m.weekly ? null : avg,
+          color: color,
+          markers: true,
+          gap: 1,
+          highlight: highlight,
+          height: height,
+          onScrub: onScrub,
+        )
+      : ScrubColumns(
+          values: values,
+          xLabels: xs,
+          valueLabels: labels,
+          lo: axis.lo,
+          hi: axis.hi,
+          ticks: axis.ticks,
+          tickText: (t) => _TrendViewScreenState._tickText(m, t),
+          avg: m.weekly ? null : avg,
+          color: color,
+          colorOf: m.id == 'recovery' ? (i, v) => recoveryColor(v) : null,
+          highlight: highlight,
+          height: height,
+          onScrub: onScrub,
+        );
+}
+
 /// A dashboard metric drawn in full: its week, as Trend View draws it with the
 /// W range — the figure and its caption, the change against the week before
 /// with the dates beside it, and the week's chart under them, scrubbable. No
@@ -1289,85 +1404,20 @@ class _ExpandedTrendCardState extends State<ExpandedTrendCard> {
     final prev = _figure(shiftDay(end, -7));
     final at = _at;
     final sel = at != null && at < bars.length ? bars[at] : null;
-    final vs = [for (final b in bars) ?b.v];
-    final axis = trendAxis(m, vs, line: m.line);
-    final color = _TrendViewScreenState._colorOf(m);
-    final xs = [
-      for (final b in bars)
-        '${weekdayShortName(_dateOf(b.to).weekday, l)}\n${_dateOf(b.to).day}',
-    ];
-    final values = [for (final b in bars) b.v];
-    final labels = [for (final b in bars) b.v == null ? '' : trendFormat(m, b.v)];
     final first = _dateOf(bars.first.from), last = _dateOf(end);
     final range = '${monthShortName(first.month, l)} ${first.day} - '
         '${monthShortName(last.month, l)} ${last.day}';
-    void scrub(int? i) => setState(() => _at = i);
-    const height = S.x16 * 3 + S.x4;
-    final layerBars = widget.layers == null
-        ? null
-        : [
-            for (final lm in widget.layers!)
-              trendBars(m, lm, TrendRange.week, end, firstDay: widget.firstDay),
-          ];
-    // Trend View's own chart where the metric has a shape of its own.
-    final own = vs.isEmpty
-        ? null
-        : switch (m.kind) {
-            TrendKind.floating when widget.spans != null =>
-              _TrendViewScreenState.floatingChart(m, bars, widget.spans!,
-                  xs: xs, week: true, onScrub: scrub, height: S.x16 * 4),
-            TrendKind.dual when layerBars?.length == 2 =>
-              _TrendViewScreenState.dualChart(m, layerBars!,
-                  xs: xs, week: true, onScrub: scrub, height: height),
-            TrendKind.stacked when layerBars != null && layerBars.isNotEmpty =>
-              _TrendViewScreenState.stackedChart(m, layerBars,
-                  xs: xs,
-                  week: true,
-                  avg: m.weekly ? null : avg,
-                  ink: p.ink,
-                  onScrub: scrub,
-                  height: height),
-            _ => null,
-          };
-
-    final chart = own ?? (vs.isEmpty
-        ? SizedBox(
-            height: S.x16 * 2,
-            child: Center(
-              child: Text('Nothing recorded this week.',
-                  style: F.num(F.cap).copyWith(color: p.ink3)),
-            ),
-          )
-        : m.line
-            ? ScrubLine(
-                values: values,
-                xLabels: xs,
-                valueLabels: labels,
-                lo: axis.lo,
-                hi: axis.hi,
-                ticks: axis.ticks,
-                tickText: (t) => _TrendViewScreenState._tickText(m, t),
-                avg: m.weekly ? null : avg,
-                color: color,
-                markers: true,
-                gap: 1,
-                height: height,
-                onScrub: scrub,
-              )
-            : ScrubColumns(
-                values: values,
-                xLabels: xs,
-                valueLabels: labels,
-                lo: axis.lo,
-                hi: axis.hi,
-                ticks: axis.ticks,
-                tickText: (t) => _TrendViewScreenState._tickText(m, t),
-                avg: m.weekly ? null : avg,
-                color: color,
-                colorOf: m.id == 'recovery' ? (i, v) => recoveryColor(v) : null,
-                height: height,
-                onScrub: scrub,
-              ));
+    final chart = trendWeekChart(
+      c,
+      m: m,
+      daily: widget.daily,
+      end: end,
+      firstDay: widget.firstDay,
+      layers: widget.layers,
+      spans: widget.spans,
+      avg: avg,
+      onScrub: (i) => setState(() => _at = i),
+    );
 
     return Container(
       padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x4),
@@ -1569,6 +1619,9 @@ class TrendViewScreen extends StatefulWidget {
 
 class _TrendViewScreenState extends State<TrendViewScreen> {
   late TrendMetric _m = trendMetricOf(widget.initial) ?? kTrendCatalogue.first;
+
+  /// Compare metrics is on screen in place of one metric.
+  late bool _compare = widget.initial == kCompareTile;
   late TrendRange _range;
 
   /// True until the user picks a range. Only then may the screen fall back to
@@ -1715,6 +1768,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     setState(() {
       _m = m;
       _picking = false;
+      _compare = false;
       _resetZoom();
       _daily = null;
       _selected = null;
@@ -2067,12 +2121,40 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
             const SizedBox(height: S.x3),
             _MetricPill(
               m: m,
+              compare: _compare,
               open: _picking,
               onTap: () => setState(() => _picking = !_picking),
             ),
             if (_picking) ...[
               const SizedBox(height: S.x2),
-              _Picker(current: m, onPick: _pick, allowed: dashboardMetricsOf()),
+              _Picker(
+                current: _compare ? null : m,
+                onPick: _pick,
+                onCompare: () => setState(() {
+                  _compare = true;
+                  _picking = false;
+                }),
+                allowed: dashboardMetricsOf(),
+              ),
+            ] else if (_compare) ...[
+              const SizedBox(height: S.x6),
+              if (_loader != null)
+                CompareMetricsCard(
+                  loader: _loader!,
+                  today: _today,
+                  firstDay: _firstDay,
+                ),
+              const SizedBox(height: S.x8),
+              _AboutCard(
+                title: 'What is Compare metrics?',
+                body: 'Two of your metrics, week by week, each drawn the way '
+                    'its own chart draws it. Touch a day on either to read it '
+                    'on both, and step back through earlier weeks. The line '
+                    'under the charts says whether the two have risen and '
+                    'fallen together over the four weeks up to the one shown, '
+                    'once at least ten days have both.',
+              ),
+              const SizedBox(height: S.x6),
             ] else ...[
               const SizedBox(height: S.x6),
               if (m.absent != null)
@@ -2252,14 +2334,6 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                 if (m.id == 'vo2max' && _loader != null) ...[
                   const SizedBox(height: S.x6),
                   _Vo2Panel(loader: _loader!, onLab: _vo2Changed),
-                ],
-                // Toggleable correlation & comparison card
-                if (_loader != null) ...[
-                  const SizedBox(height: S.x8),
-                  TrendMetricComparisonCard(
-                    loader: _loader!,
-                    currentMetricId: m.id,
-                  ),
                 ],
                 // What the figure is, in a few plain sentences.
                 if (trendAbout(m.id) != null) ...[
@@ -2731,6 +2805,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     required Color ink,
     required ValueChanged<int?> onScrub,
     List<ColumnMark> Function(List<double?> totals)? marks,
+    int? highlight,
     double height = S.x16 * 4 + S.x8,
   }) {
     final n = xs.length;
@@ -2762,6 +2837,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       tickText: (t) => _tickText(m, t),
       avg: avg,
       marks: marks?.call(totals) ?? const [],
+      highlight: highlight,
       labelColor: ink,
       color: _colorOf(m),
       height: height,
@@ -3436,14 +3512,21 @@ class _MetricPill extends StatelessWidget {
   final TrendMetric m;
   final bool open;
   final VoidCallback onTap;
-  const _MetricPill({required this.m, required this.open, required this.onTap});
+
+  /// Compare metrics is shown, not [m].
+  final bool compare;
+  const _MetricPill(
+      {required this.m,
+      required this.open,
+      required this.onTap,
+      this.compare = false});
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
     return Pressable(
       onTap: onTap,
-      semanticLabel: 'Metric: ${m.title}. Change',
+      semanticLabel: 'Metric: ${compare ? 'Compare metrics' : m.title}. Change',
       child: Container(
         height: S.x16,
         padding: const EdgeInsets.symmetric(horizontal: S.x5),
@@ -3453,11 +3536,12 @@ class _MetricPill extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(m.icon, size: I.xl, color: p.ink),
+            Icon(compare ? LucideIcons.gitCompareArrows : m.icon,
+                size: I.xl, color: p.ink),
             const SizedBox(width: S.x5),
             Expanded(
               child: Text(
-                m.title.toUpperCase(),
+                compare ? 'COMPARE METRICS' : m.title.toUpperCase(),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: F.caps.copyWith(
@@ -3696,13 +3780,19 @@ class _TrianglePainter extends CustomPainter {
 
 /// The dropdown: every metric, under its group's heading.
 class _Picker extends StatelessWidget {
-  final TrendMetric current;
+  /// The metric on screen; null while Compare metrics is.
+  final TrendMetric? current;
   final ValueChanged<TrendMetric> onPick;
+  final VoidCallback onCompare;
 
   /// The metrics switched on in My Dashboard (null: all of them). The one on
   /// screen is always listed, so the picker never loses its own place.
   final Set<String>? allowed;
-  const _Picker({required this.current, required this.onPick, this.allowed});
+  const _Picker(
+      {required this.current,
+      required this.onPick,
+      required this.onCompare,
+      this.allowed});
 
   bool _listed(TrendMetric m) =>
       allowed == null || allowed!.contains(m.id) || m == current;
@@ -3716,6 +3806,30 @@ class _Picker extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Not a metric of its own: two of them, side by side.
+          Pressable(
+            onTap: onCompare,
+            semanticLabel: 'Compare metrics',
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: S.x2),
+              padding: const EdgeInsets.symmetric(
+                horizontal: S.x3,
+                vertical: S.x4,
+              ),
+              decoration: BoxDecoration(
+                color: current == null ? p.card2 : null,
+                borderRadius: R.rLg,
+              ),
+              child: Row(children: [
+                Icon(LucideIcons.gitCompareArrows, size: I.lg, color: p.ink2),
+                const SizedBox(width: S.x4),
+                Expanded(
+                  child: Text('COMPARE METRICS',
+                      style: F.caps.copyWith(color: p.ink)),
+                ),
+              ]),
+            ),
+          ),
           for (final g in TrendGroup.values)
             if (kTrendCatalogue.any((m) => m.group == g && _listed(m))) ...[
               Padding(

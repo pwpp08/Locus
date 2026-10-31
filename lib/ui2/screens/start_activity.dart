@@ -23,7 +23,7 @@ import '../../state/clock_format.dart';
 import '../../state/prefs.dart';
 import '../activity/catalogue.dart';
 import '../activity/live.dart';
-import '../profile/alarm.dart' show AlarmScreen;
+import '../profile/alarm.dart' show AlarmCountdown, AlarmScreen;
 import '../ui2.dart';
 import 'add_activity.dart' show chooseActivity, saveRestWindow;
 import 'home_screen.dart' show go, repoOf;
@@ -517,18 +517,26 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
             ),
             const SizedBox(width: S.x2),
             Expanded(
-              child: Text(
-                hasAlarm
-                    ? (isSleep
-                        ? 'Alarm set for ${formatClock(alarmTime!.hour, alarmTime.minute)}'
-                        : 'Nap alarm: ${formatClock(alarmTime!.hour, alarmTime.minute)} (${alarmTime.difference(now).inMinutes}m)')
-                    : (isSleep
-                        ? 'No alarm set for tomorrow'
-                        : 'No alarm set for this nap'),
-                style: F.body.copyWith(
-                  color: p.ink,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hasAlarm
+                        ? (isSleep
+                            ? 'Alarm set for ${formatClock(alarmTime!.hour, alarmTime.minute)}'
+                            : 'Nap alarm: ${formatClock(alarmTime!.hour, alarmTime.minute)}')
+                        : (isSleep
+                            ? 'No alarm set for tomorrow'
+                            : 'No alarm set for this nap'),
+                    style: F.body.copyWith(
+                      color: p.ink,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (hasAlarm)
+                    AlarmCountdown(alarmTime,
+                        style: F.cap.copyWith(color: p.ink2)),
+                ],
               ),
             ),
             Pressable(

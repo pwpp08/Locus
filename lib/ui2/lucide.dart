@@ -27,6 +27,7 @@ class LucideIcons {
   static const IconData audioWaveform = base.LucideIcons.audioWaveform300;
   static const IconData baby = base.LucideIcons.baby300;
   static const IconData badgeCheck = base.LucideIcons.badgeCheck300;
+  static const IconData barcode = base.LucideIcons.barcode300;
   static const IconData battery = base.LucideIcons.battery300;
   static const IconData batteryCharging = base.LucideIcons.batteryCharging300;
   static const IconData batteryFull = base.LucideIcons.batteryFull300;
@@ -104,6 +105,7 @@ class LucideIcons {
   static const IconData footprints = base.LucideIcons.footprints300;
   static const IconData frown = base.LucideIcons.frown300;
   static const IconData gauge = base.LucideIcons.gauge300;
+  static const IconData gitCompareArrows = base.LucideIcons.gitCompareArrows300;
   static const IconData glassWater = base.LucideIcons.glassWater300;
   static const IconData gripVertical = base.LucideIcons.gripVertical300;
   static const IconData hammer = base.LucideIcons.hammer300;
@@ -114,6 +116,7 @@ class LucideIcons {
   static const IconData heartHandshake = base.LucideIcons.heartHandshake300;
   static const IconData heartOff = base.LucideIcons.heartOff300;
   static const IconData heartPulse = base.LucideIcons.heartPulse300;
+  static const IconData history = base.LucideIcons.history300;
   static const IconData hourglass = base.LucideIcons.hourglass300;
   static const IconData house = base.LucideIcons.house300;
   static const IconData image = base.LucideIcons.image300;
@@ -222,6 +225,7 @@ class LucideIcons {
   static const IconData watch = base.LucideIcons.watch300;
   static const IconData waves = base.LucideIcons.waves300;
   static const IconData weight = base.LucideIcons.weight300;
+  static const IconData wheat = base.LucideIcons.wheat300;
   static const IconData wind = base.LucideIcons.wind300;
   static const IconData workflow = base.LucideIcons.workflow300;
   static const IconData x = base.LucideIcons.x300;

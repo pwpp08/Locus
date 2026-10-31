@@ -6,10 +6,10 @@
 // `loading`. Shown once per launch; it latches itself off afterwards so a later
 // rebuild never re-covers a running app.
 //
-// The cover is a glyph and a word on the page background — nothing to decode,
-// nothing to buffer, no frame the launch waits on. It used to be a bundled
-// video, which put an asset load and a codec on the critical path of the one
-// moment the app is already slowest.
+// The cover is the Locus mark drawing itself (logo.dart), then the wordmark —
+// painted on the canvas, nothing to decode, nothing to buffer, no frame the
+// launch waits on. It used to be a bundled video, which put an asset load and
+// a codec on the critical path of the one moment the app is already slowest.
 
 import 'package:flutter/material.dart';
 
@@ -68,8 +68,16 @@ class _BootSplashState extends State<BootSplash> {
   }
 }
 
-class _Cover extends StatelessWidget {
+class _Cover extends StatefulWidget {
   const _Cover();
+
+  @override
+  State<_Cover> createState() => _CoverState();
+}
+
+class _CoverState extends State<_Cover> {
+  /// The point has landed: the wordmark comes up under it.
+  bool _drawn = false;
 
   // Char in both themes, like the onboarding it opens onto.
   @override
@@ -85,9 +93,24 @@ class _Cover extends StatelessWidget {
       color: p.bg,
       child: Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(LucideIcons.activity, size: I.hero, color: p.on(C.green)),
-          const SizedBox(height: S.x4),
-          Text('Locus', style: F.t2.copyWith(color: p.ink)),
+          LocusMark(
+            size: S.x16 * 2,
+            loop: true,
+            onDrawn: () {
+              if (mounted) setState(() => _drawn = true);
+            },
+          ),
+          const SizedBox(height: S.x6),
+          AnimatedOpacity(
+            opacity: _drawn ? 1 : 0,
+            duration: motion(c, Motion.slow),
+            child: AnimatedSlide(
+              offset: _drawn ? Offset.zero : const Offset(0, .4),
+              duration: motion(c, Motion.slow),
+              curve: Ease.standard,
+              child: Text('LOCUS', style: F.wordmark.copyWith(color: p.ink)),
+            ),
+          ),
         ]),
       ),
     );

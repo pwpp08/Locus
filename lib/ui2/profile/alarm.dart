@@ -104,6 +104,81 @@ Widget alarmGlanceCard(BuildContext c, DateTime? at, AlarmArmState state,
       );
     });
 
+/// How long until [at] rings, read off [now]: "Rings in 7 h 32 min". Rounded
+/// up to the minute, so it never says "0 min" while a minute is left.
+String alarmCountdownText(DateTime at, DateTime now) {
+  final secs = at.difference(now).inSeconds;
+  if (secs <= 0) return 'Ringing now';
+  final m = (secs / 60).ceil();
+  if (m < 60) return 'Rings in $m min';
+  final h = m ~/ 60, r = m % 60;
+  return r == 0 ? 'Rings in $h h' : 'Rings in $h h $r min';
+}
+
+/// The time left until the next alarm, kept current to the minute; "No alarm
+/// set" without one. On top of My Schedule and on the start-sleep card.
+class AlarmCountdown extends StatefulWidget {
+  final DateTime? at;
+  final TextStyle style;
+  final TextAlign align;
+
+  /// The clock, for a test; the real one when null (and then it ticks).
+  final DateTime? now;
+
+  const AlarmCountdown(this.at,
+      {super.key, required this.style, this.align = TextAlign.start, this.now});
+
+  @override
+  State<AlarmCountdown> createState() => _AlarmCountdownState();
+}
+
+class _AlarmCountdownState extends State<AlarmCountdown> {
+  Timer? _t;
+
+  @override
+  void initState() {
+    super.initState();
+    _next();
+  }
+
+  /// Wake on the next whole minute, when the figure changes.
+  void _next() {
+    _t?.cancel();
+    if (widget.now != null || widget.at == null) return;
+    final now = clock.now();
+    final edge = DateTime(now.year, now.month, now.day, now.hour, now.minute + 1);
+    _t = Timer(edge.difference(now), () {
+      if (!mounted) return;
+      setState(() {});
+      _next();
+    });
+  }
+
+  @override
+  void didUpdateWidget(AlarmCountdown old) {
+    super.didUpdateWidget(old);
+    if (old.at != widget.at) _next();
+  }
+
+  @override
+  void dispose() {
+    _t?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final at = widget.at;
+    return Text(
+      at == null
+          ? 'No alarm set'
+          : alarmCountdownText(at, widget.now ?? clock.now()),
+      textAlign: widget.align,
+      style: widget.style,
+    );
+  }
+}
+
 class _AlarmTick extends StatefulWidget {
   final DateTime? at;
   final Widget Function(DateTime now) build;
@@ -760,7 +835,17 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                   semanticLabel: 'Schedule on',
                 ),
               ]),
-              const SizedBox(height: S.x8),
+              const SizedBox(height: S.x4),
+              // Always here: how long until the next alarm rings.
+              AlarmCountdown(
+                at != null && at.isAfter(now) ? at : null,
+                now: widget.now,
+                align: TextAlign.center,
+                style: F.num(F.head).copyWith(
+                    color: at != null && at.isAfter(now) ? p.ink : p.ink3,
+                    fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: S.x4),
               if (fired != null && calendarDaysBetween(fired, now) == 0) ...[
                 Center(
                   child: Pill(

@@ -703,16 +703,20 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
         strain: d.strain,
         title: l?.dayStrainChartTitle ?? 'Strain through the day',
         footnote: l?.dayStrainChartFootnote(drawn) ??
-            'Effort above your usual waking pace. It can ease later if you slow back toward that pace. From $drawn recorded waking minutes.',
+            'Effort above your usual waking pace. Once earned it stays for the day. From $drawn recorded waking minutes.',
       ),
       if (d.peakHr != null || d.wornMin != null) ...[
         const SizedBox(height: S.x4),
-        InlineMetrics([
-          if (d.peakHr != null)
-            (l?.dayStrainPeakHr ?? 'Peak HR', '${d.peakHr} bpm', C.red),
-          if (d.wornMin != null)
-            (l?.dayStrainWorn ?? 'Worn', '${d.wornMin} min', C.teal),
-        ]),
+        // In line with the card's own content above, not the card's edge.
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: S.x5),
+          child: InlineMetrics([
+            if (d.peakHr != null)
+              (l?.dayStrainPeakHr ?? 'Peak HR', '${d.peakHr} bpm', C.red),
+            if (d.wornMin != null)
+              (l?.dayStrainWorn ?? 'Worn', '${d.wornMin} min', C.teal),
+          ]),
+        ),
       ],
     ];
   }

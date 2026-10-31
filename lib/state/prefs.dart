@@ -99,6 +99,9 @@ class Prefs {
   /// comma-separated keys. Empty = every one a row.
   static const String dashboardExpanded = 'ui.dashboard_expanded';
 
+  /// The two metrics Compare metrics sets side by side, "a,b".
+  static const String comparePair = 'ui.compare_pair';
+
   /// The day (local label) the user swiped the "Your first weeks" card away.
   /// It stays gone for the rest of that day and is back the next.
   static const String firstWeeksDismissedOn = 'ui.first_weeks_dismissed_on';

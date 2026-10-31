@@ -72,6 +72,7 @@ import 'sleep_profile_policy.dart';
 import 'derive_prepare.dart';
 import 'onehz_pipeline.dart';
 import 'step_cadence.dart';
+import 'strain_peak.dart' show peakStrain;
 import 'profile.dart';
 import 'substrate.dart';
 import 'vendor_sleep.dart';
@@ -1819,7 +1820,12 @@ import 'vendor_sleep.dart';
 // temperature with a fixed 28500/350 line. Both are null again. The user's
 // own max heart rate (profile `max_hr`) now replaces the age estimate as the
 // ceiling for zones, TRIMP, strain and calories when set.
-const int kAlgoVersion = 114;
+// 114 → 115 (edge-only, the user's call): strain never falls through a day.
+// The headline, `series.strain_curve` and a session's strain are the highest
+// analytics' running NetTrimp score reached (`compute/strain_peak.dart`), not
+// where it ended: a quiet evening no longer nets a busy morning back out.
+// `trimp_net` is unchanged. Days derived before 115 keep their stored values.
+const int kAlgoVersion = 115;
 /// The sibling SHAs this version was derived against, asserted against
 /// pubspec.yaml in test/db_serve_version_and_reads_test.dart.
 ///
@@ -8147,7 +8153,17 @@ class DerivationEngine {
         // one pass, and the persisted `trimp_net` and `strain` cannot come
         // from two different accumulations. (The calibrating confidence lives
         // on the pipeline's envelope; this half writes a bare scalar.)
-        if (net != null) strain = ana.strainFromNetTrimp(net.net);
+        // The day's strain is the highest its running score reached
+        // (strain_peak.dart), as the pipeline's headline is.
+        if (net != null) {
+          strain = peakStrain(
+            perMin,
+            restingHr: rhrForTrimp,
+            maxHr: hrMax,
+            quietHrr: quiet.value!.hrr,
+            sex: sexEnum,
+          );
+        }
         // Every named input was there and the scorer still abstained. We do not
         // know why; saying so is the honest floor, and it is what the rule
         // "never a guessed cause" leaves when there is no cause to name.

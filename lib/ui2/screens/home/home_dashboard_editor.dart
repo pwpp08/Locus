@@ -5,7 +5,7 @@ import '../../grammar.dart' show AppSwitch, BigButton, Pressable;
 import '../../theme.dart' show C, F, I, P, R, S;
 import '../../ui2.dart' show LucideIcons;
 import '../trend_view.dart'
-    show kStrainRecoveryTile, kTrendCatalogue, trendMetricOf;
+    show kCompareTile, kStrainRecoveryTile, kTrendCatalogue, trendMetricOf;
 
 /// What the editor hands back: the tiles in order, and which metrics are drawn
 /// as their week chart instead of a row.
@@ -26,7 +26,11 @@ class HomeDashboardEditor extends StatefulWidget {
 class _HomeDashboardEditorState extends State<HomeDashboardEditor> {
   late final List<String> _order = [
     ...widget.selected,
-    for (final k in [kStrainRecoveryTile, for (final m in kTrendCatalogue) m.id])
+    for (final k in [
+      kStrainRecoveryTile,
+      kCompareTile,
+      for (final m in kTrendCatalogue) m.id,
+    ])
       if (!widget.selected.contains(k)) k,
   ];
   late final Set<String> _on = {...widget.selected};
@@ -57,7 +61,8 @@ class _HomeDashboardEditorState extends State<HomeDashboardEditor> {
               itemBuilder: (c, i) {
                 final k = _order[i];
                 final m = trendMetricOf(k);
-                final title = m?.title ?? 'Strain & Recovery';
+                final title = m?.title ??
+                    (k == kCompareTile ? 'Compare metrics' : 'Strain & Recovery');
                 return Padding(
                   key: ValueKey(k),
                   padding: const EdgeInsets.symmetric(vertical: S.x1),
@@ -71,13 +76,17 @@ class _HomeDashboardEditorState extends State<HomeDashboardEditor> {
                             size: I.md, color: p.ink3),
                       ),
                     ),
-                    Icon(m?.icon ?? LucideIcons.chartColumn,
+                    Icon(
+                        m?.icon ??
+                            (k == kCompareTile
+                                ? LucideIcons.gitCompareArrows
+                                : LucideIcons.chartColumn),
                         size: I.md, color: p.ink2),
                     const SizedBox(width: S.x3),
                     Expanded(
                       child: Text(title, style: F.body.copyWith(color: p.ink)),
                     ),
-                    // Row or week chart. Strain & Recovery is always a chart.
+                    // Row or week chart. The two tiles are always charts.
                     if (m != null)
                       _SizeToggle(
                         big: _big.contains(k),

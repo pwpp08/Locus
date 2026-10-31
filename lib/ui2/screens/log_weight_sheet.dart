@@ -103,7 +103,6 @@ class _LogWeightSheetState extends State<LogWeightSheet> {
       });
       app.insightsRevision.value++;
       if (!mounted) return;
-      HapticFeedback.lightImpact();
       setState(() => _saved = (
             before: before == null ? null : _units.weightValue(before),
             now: _units.weightValue(kg),
@@ -113,9 +112,9 @@ class _LogWeightSheetState extends State<LogWeightSheet> {
     }
   }
 
-  /// The roll has settled: a firmer tap, a moment to read it, then close.
+  /// The roll has settled: one soft tap, a moment to read it, then close.
   void _settled() {
-    HapticFeedback.mediumImpact();
+    HapticFeedback.lightImpact();
     Future.delayed(motion(context, Motion.linger), () {
       if (mounted) Navigator.of(context).pop(true);
     });
@@ -133,23 +132,15 @@ class _LogWeightSheetState extends State<LogWeightSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              RollingNumber(
-                from: before ?? 0,
-                value: s.now,
-                style: F.n48.copyWith(color: p.ink, fontWeight: FontWeight.w700),
-                onTick: HapticFeedback.selectionClick,
-                onDone: _settled,
-              ),
-              const SizedBox(width: S.x1),
-              Text(unit,
-                  style: F.head.copyWith(
-                      color: p.ink3, fontWeight: FontWeight.w600)),
-            ],
+          RollingNumber(
+            from: before ?? 0,
+            value: s.now,
+            style: F.n48.copyWith(color: p.ink, fontWeight: FontWeight.w700),
+            unit: unit,
+            unitStyle:
+                F.head.copyWith(color: p.ink3, fontWeight: FontWeight.w600),
+            onTick: HapticFeedback.selectionClick,
+            onDone: _settled,
           ),
           const SizedBox(height: S.x3),
           if (diff == null)
