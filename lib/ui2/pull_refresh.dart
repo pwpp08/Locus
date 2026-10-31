@@ -34,13 +34,18 @@ class LocusPullRefresh extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     // The write-on is never cut short by a fast refresh: the page waits for
-    // the mark to be drawn before it lets go.
-    final minimum = motion(c, Motion.write);
+    // the whole word to be white (plus a beat to see it) before it lets go,
+    // and never waits longer than [Motion.refreshCap] for the work itself, so the word
+    // always goes back up.
+    final minimum = motion(c, Motion.write + Motion.slow);
     return CupertinoSliverRefreshControl(
       refreshTriggerPullDistance: trigger,
       refreshIndicatorExtent: held,
       onRefresh: () async {
-        await Future.wait([onRefresh(), Future<void>.delayed(minimum)]);
+        await Future.wait([
+          onRefresh().timeout(Motion.refreshCap, onTimeout: () {}),
+          Future<void>.delayed(minimum),
+        ]);
       },
       builder: (c, mode, pulled, trigger, extent) =>
           _LocusPullMark(mode: mode, pulled: pulled, trigger: trigger),
@@ -67,6 +72,15 @@ class _LocusPullMarkState extends State<_LocusPullMark>
   void initState() {
     super.initState();
     _c = AnimationController(vsync: this, duration: Motion.write);
+    // A hard pull can build this already armed (or already refreshing), with
+    // no earlier state to change from: fill from here.
+    if (widget.mode == RefreshIndicatorMode.armed ||
+        widget.mode == RefreshIndicatorMode.refresh) {
+      _armed = widget.mode == RefreshIndicatorMode.armed;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _c.value == 0 && !_c.isAnimating) _fill();
+      });
+    }
   }
 
   @override
@@ -81,15 +95,27 @@ class _LocusPullMarkState extends State<_LocusPullMark>
     final m = widget.mode;
     // A tick under the finger the moment the pull is enough.
     final armed = m == RefreshIndicatorMode.armed;
-    if (armed && !_armed) HapticFeedback.selectionClick();
-    _armed = armed;
-    if (m == RefreshIndicatorMode.refresh &&
-        old.mode != RefreshIndicatorMode.refresh) {
-      _c.duration == Duration.zero ? _c.value = 1 : _c.forward(from: 0);
+    if (armed && !_armed) {
+      HapticFeedback.selectionClick();
+      // The white starts filling the moment the pull is enough, under the
+      // finger, not after it lets go: by release it is already under way.
+      _fill();
     }
+    // Let go in one flick, never having been seen armed: fill from the start.
+    if (m == RefreshIndicatorMode.refresh && _c.value == 0 && !_c.isAnimating) {
+      _fill();
+    }
+    // Pulled back under the line before letting go: gray again.
+    if (m == RefreshIndicatorMode.drag && old.mode == RefreshIndicatorMode.armed) {
+      _c.value = 0;
+    }
+    _armed = armed;
     // Back at rest: gray again for the next pull.
     if (m == RefreshIndicatorMode.inactive && old.mode != m) _c.value = 0;
   }
+
+  void _fill() =>
+      _c.duration == Duration.zero ? _c.value = 1 : _c.forward(from: 0);
 
   @override
   void dispose() {

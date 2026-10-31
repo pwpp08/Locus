@@ -8614,6 +8614,43 @@ class BleEngine {
   }
   Future<void> buzz() => buzzPattern(hapticShortPulse);
 
+  /// The strap's longer waveform effect, for a buzz that should read as
+  /// insistent (an incoming call) against the short pulse of an ordinary
+  /// notification. 4.0 takes the effect id; 5.0/MG's fixed waveform is
+  /// repeated instead (see [buzzPattern]).
+  static const int hapticLongPulse = 15;
+
+  /// [count] buzzes in a row, short or [long], with a gap between them that is
+  /// longer than the buzz itself so they read as separate (three long ones for
+  /// a call, two short ones for a reminder). Best-effort and abandoned if the
+  /// link drops part-way: a missed second buzz is not worth an error.
+  Future<void> buzzBeats({required int count, required bool long}) async {
+    final gap = long ? kLongBeatGap : kShortBeatGap;
+    for (var i = 0; i < count; i++) {
+      if (_session?.connected != true) return;
+      await _beat(long);
+      if (i < count - 1) await Future<void>.delayed(gap);
+    }
+  }
+
+  /// One buzz of a sequence. 4.0 plays the short or long waveform effect; the
+  /// 5.0/MG's only verified waveform is repeated instead (one loop is a short
+  /// pulse, three read as a long one; many more feel like a stuck vibrate).
+  Future<void> _beat(bool long) {
+    if (_session?.band.isGen5 ?? false) {
+      return _send(
+        Cmd.runHapticPatternMaverick,
+        AlarmPayloads.gen5MaverickBuzz(overallLoop: long ? 3 : 1),
+      );
+    }
+    return _send(Cmd.runHapticsPattern,
+        [long ? hapticLongPulse : hapticShortPulse, 0, 0, 0, 0]);
+  }
+
+  /// From one buzz starting to the next: the buzz itself, then a clear rest.
+  static const Duration kShortBeatGap = Duration(milliseconds: 450);
+  static const Duration kLongBeatGap = Duration(milliseconds: 1250);
+
   /// Play a haptic buzz. gen5 ("Maverick") has a DIFFERENT buzz opcode and
   /// payload shape than gen4 (`Cmd.runHapticPatternMaverick`, 12-byte body —
   /// see `cmdBuzzGen5Maverick` in protocol/commands.dart) — [pattern] is

@@ -8429,10 +8429,6 @@
   "@sleepDetailSetTimesMyself": {
     "description": "Button: set the sleep window times manually for the first time."
   },
-  "sleepDetailBackToAutomatic": "Back to automatic",
-  "@sleepDetailBackToAutomatic": {
-    "description": "Button: revert a manual sleep window override back to automatic staging."
-  },
   "sleepDetailNotSleep": "Not sleep",
   "@sleepDetailNotSleep": {
     "description": "Button: reject this window entirely — it was not sleep at all."

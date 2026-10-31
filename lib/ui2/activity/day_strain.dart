@@ -35,7 +35,7 @@ import '../../theme/theme_switcher.dart' show themedRoute;
 import '../screens/workout_detail.dart' show WorkoutDetailScreen;
 import '../ui2.dart';
 import 'catalogue.dart' show activityByName, zonesWhy;
-import 'zones.dart' show ZonesDetail;
+import '../screens/heart_rate_settings.dart' show HeartRateSettingsScreen;
 
 /// Below this the day is not comparable to a full one and the screen says so.
 /// Wear coverage is a percentage of the whole day, so a normal night off the
@@ -739,11 +739,12 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
             footnote: zonesWhy(d.zoneSource, d.zoneMaxHr, l),
           ),
         ),
-        // Progressive disclosure: the ceiling and the 28-day distribution are
-        // one tap behind this link, not rows on the day.
+        // Progressive disclosure: where the zones come from, and where they
+        // are set (the ceiling, resting heart rate), is one tap behind this
+        // link: the same Heart rate settings screen Settings opens.
         action: l?.dayStrainHowSet ?? 'How these are set',
-        onAction: () => Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => const ZonesDetail())),
+        onAction: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => const HeartRateSettingsScreen())),
       ),
     ];
   }

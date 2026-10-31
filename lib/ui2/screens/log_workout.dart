@@ -46,6 +46,7 @@ import '../../state/app_state.dart';
 import '../activity/catalogue.dart';
 import '../profile/profile.dart' show SetRow, settingsGroup;
 import '../ui2.dart';
+import 'add_activity.dart' show chooseActivity;
 import 'home_screen.dart' show monthShortName, repoOf, weekdayShortName;
 
 /// One detected bout, as this screen needs it. Built straight off a
@@ -231,9 +232,10 @@ class _LogWorkoutState extends State<LogWorkout> {
 
   Future<void> _pickTime({required bool isStart}) async {
     final at = isStart ? _start : _end;
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: at.hour, minute: at.minute),
+    final picked = await pickTime(
+      context,
+      initial: TimeOfDay(hour: at.hour, minute: at.minute),
+      title: isStart ? 'Start time' : 'End time',
     );
     if (picked == null || !mounted) return;
     setState(() {
@@ -264,10 +266,7 @@ class _LogWorkoutState extends State<LogWorkout> {
   }
 
   Future<void> _pickActivity() async {
-    final picked = await AppSheet.open<Activity>(context,
-      builder: (_) => const _TypeSheet(),
-      scroll: true,
-    );
+    final picked = (await chooseActivity(context, sleep: false))?.activity;
     if (picked != null) setState(() => _activity = picked);
   }
 
@@ -459,70 +458,6 @@ class _LogWorkoutState extends State<LogWorkout> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// The activity list, searchable. The picker proper (`ActivityPicker`) starts a
-/// LIVE session; this one only names a window that has already happened.
-class _TypeSheet extends StatefulWidget {
-  const _TypeSheet();
-  @override
-  State<_TypeSheet> createState() => _TypeSheetState();
-}
-
-class _TypeSheetState extends State<_TypeSheet> {
-  String _q = '';
-
-  @override
-  Widget build(BuildContext c) {
-    final l = AppLocalizations.of(c);
-    final q = _q.trim().toLowerCase();
-    final items = q.isEmpty
-        ? allActivities
-        : [
-            for (final a in allActivities)
-              if (a.displayName(c).toLowerCase().contains(q) ||
-                  a.name.toLowerCase().contains(q))
-                a,
-          ];
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(c).bottom),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x4, S.x2),
-            child: AppField(
-              autofocus: false,
-              onChanged: (v) => setState(() => _q = v),
-              hint: l?.logWorkoutSearchActivities ?? 'Search activities',
-            ),
-          ),
-          Flexible(
-            child: items.isEmpty
-                ? Padding(
-                    padding: const EdgeInsets.all(S.x6),
-                    child: NoData(
-                        message: l?.logWorkoutNoActivityByName ??
-                            'No activity by that name'),
-                  )
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x6),
-                      itemCount: items.length,
-                      itemBuilder: (_, i) {
-                        final a = items[i];
-                        return SetRow(
-                          a.icon,
-                          a.color,
-                          a.displayName(c),
-                          chevron: false,
-                          onTap: () => Navigator.of(c).pop(a));
-                    },
-                  ),
-          ),
-        ]),
       ),
     );
   }

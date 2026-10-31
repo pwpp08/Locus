@@ -548,8 +548,9 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
                       ? const TimeOfDay(hour: 7, minute: 0)
                       : TimeOfDay.fromDateTime(
                           now.add(const Duration(minutes: 30)));
-                  final picked =
-                      await showTimePicker(context: c, initialTime: initial);
+                  final picked = await pickTime(c,
+                      initial: initial,
+                      title: isSleep ? 'Wake time' : 'Alarm time');
                   if (picked != null) {
                     var target = DateTime(
                         now.year, now.month, now.day, picked.hour, picked.minute);

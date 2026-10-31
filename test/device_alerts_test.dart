@@ -617,6 +617,97 @@ void main() {
     });
   });
 
+  group('DeviceAlerts fully charged', () {
+    late _FakeSink sink;
+    late _FakeStore store;
+
+    setUp(() {
+      sink = _FakeSink();
+      store = _FakeStore();
+    });
+
+    DeviceAlerts alerts() => DeviceAlerts(sink: sink, store: store);
+    int full() => sink.countOf(NotificationService.idFullyCharged);
+
+    test('says so once when the band reaches 100% on the charger', () async {
+      final a = alerts();
+      a.onDeviceState(batteryPct: 96, charging: true, chargingTs: tsAged(2));
+      a.onDeviceState(batteryPct: 99, charging: true, chargingTs: tsAged(2));
+      await a.settled;
+      expect(full(), 0, reason: 'not full yet');
+      a.onDeviceState(batteryPct: 100, charging: true, chargingTs: tsAged(2));
+      a.onDeviceState(batteryPct: 100, charging: true, chargingTs: tsAged(2));
+      a.onDeviceState(batteryPct: 100, charging: true, chargingTs: tsAged(2));
+      await a.settled;
+      expect(full(), 1, reason: 'one card for one charge, however many updates');
+      expect(sink.events.last.title, 'Fully charged');
+    });
+
+    test('not when the band is at 100% but not on the charger', () async {
+      final a = alerts();
+      a.onDeviceState(batteryPct: 100, charging: false, chargingTs: tsAged(2));
+      a.onDeviceState(batteryPct: 100);
+      await a.settled;
+      expect(full(), 0);
+    });
+
+    test('a restart on the charger does not say it again', () async {
+      var a = alerts();
+      a.onDeviceState(batteryPct: 100, charging: true, chargingTs: tsAged(2));
+      await a.settled;
+      a = alerts();
+      a.onDeviceState(batteryPct: 100, charging: true, chargingTs: tsAged(2));
+      await a.settled;
+      expect(full(), 1);
+    });
+
+    test('a later charge says it again, once the battery has run down',
+        () async {
+      final a = alerts();
+      a.onDeviceState(batteryPct: 100, charging: true, chargingTs: tsAged(2));
+      await a.settled;
+      // Off the puck and down to 89%: armed again for the next charge.
+      a.onDeviceState(batteryPct: 89, charging: false, chargingTs: tsAged(2));
+      await a.settled;
+      a.onDeviceState(batteryPct: 100, charging: true, chargingTs: tsAged(2));
+      await a.settled;
+      expect(full(), 2);
+    });
+
+    test('a topping-up dip between 90 and 100 does not re-arm it', () async {
+      final a = alerts();
+      a.onDeviceState(batteryPct: 100, charging: true, chargingTs: tsAged(2));
+      await a.settled;
+      a.onDeviceState(batteryPct: 97, charging: true, chargingTs: tsAged(2));
+      a.onDeviceState(batteryPct: 100, charging: true, chargingTs: tsAged(2));
+      await a.settled;
+      expect(full(), 1);
+    });
+
+    test('a DROPPED alert does not spend the one chance a charge gets', () async {
+      final dropping = _DroppingSink();
+      var a = DeviceAlerts(sink: dropping, store: store);
+      a.onDeviceState(batteryPct: 100, charging: true, chargingTs: tsAged(2));
+      await a.settled;
+      // The "Charging" card and the "Fully charged" one, both refused.
+      expect(dropping.attempts, 2);
+      // Quiet hours end; the next update gets to say it.
+      a = DeviceAlerts(sink: sink, store: store);
+      a.onDeviceState(batteryPct: 100, charging: true, chargingTs: tsAged(2));
+      await a.settled;
+      expect(full(), 1);
+    });
+
+    test('taking it off the charger clears the card', () async {
+      final a = alerts();
+      a.onDeviceState(batteryPct: 100, charging: true, chargingTs: tsAged(2));
+      await a.settled;
+      a.onDeviceState(batteryPct: 100, charging: false, chargingTs: tsAged(1));
+      await a.settled;
+      expect(sink.cancelled, contains(NotificationService.idFullyCharged));
+    });
+  });
+
   // T-02: these used to go straight to the plugin via
   // NotificationService.showDevice, which consulted neither quiet hours nor the
   // user's category switch and passed no payload, so a 23:30 plug-in buzzed the

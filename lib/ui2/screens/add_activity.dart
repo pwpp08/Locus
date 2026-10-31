@@ -59,13 +59,15 @@ Future<bool?> openEditActivity(
 typedef ActivityChoice = ({Activity? activity, WindowKind? sleep});
 
 /// The activity list on a sheet of its own, for Start Activity: with the Sleep
-/// tab, since a sleep or a nap can be started and ended by hand there. Null
-/// when it was closed.
-Future<ActivityChoice?> chooseActivity(BuildContext c) =>
+/// tab, since a sleep or a nap can be started and ended by hand there. Where
+/// only an activity makes sense (naming a window, correcting a session's
+/// type) pass `sleep: false`. Null when it was closed.
+Future<ActivityChoice?> chooseActivity(BuildContext c, {bool sleep = true}) =>
     AppSheet.open<ActivityChoice>(
       c,
       builder: (sheet) => _SheetFrame(
         child: ActivityChooser(
+          sleep: sleep,
           close: true,
           onPick: (r) => Navigator.of(sheet).pop(r),
           onBack: () => Navigator.of(sheet).pop(),
@@ -78,14 +80,19 @@ Future<ActivityChoice?> chooseActivity(BuildContext c) =>
 /// A sleep is the night it ends on, re-derived from the window; a nap is a
 /// manual nap on the day it starts, and the day's naps re-read. The one write
 /// behind Add Activity's Sleep tab and the end of a started sleep or nap.
+///
+/// The write is durable when this returns; the re-analysis of the night or the
+/// day's naps is not waited for unless [wait] is set. A started sleep ends the
+/// moment the person says so, and Home catches up when the derive lands.
 Future<void> saveRestWindow(
   AppState? app,
   WindowKind k,
   DateTime start,
-  DateTime end,
-) async {
+  DateTime end, {
+  bool wait = false,
+}) async {
   if (k == WindowKind.sleep) {
-    await app?.setSleepOverride(dayLabelOf(end), start, end);
+    await app?.setSleepOverride(dayLabelOf(end), start, end, wait: wait);
   } else {
     await LocalDb.putNapEdit(
       dayId: dayLabelOf(start),
@@ -93,7 +100,8 @@ Future<void> saveRestWindow(
       endTs: end.millisecondsSinceEpoch ~/ 1000,
       source: 'manual',
     );
-    await app?.reanalyzeForNapEdit();
+    final rederive = app?.reanalyzeForNapEdit().catchError((Object _) {});
+    if (wait) await rederive;
   }
   app?.insightsRevision.value++;
 }
@@ -256,9 +264,10 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
 
   Future<void> _pickTime({required bool start}) async {
     final at = start ? _start : _end;
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: at.hour, minute: at.minute),
+    final picked = await pickTime(
+      context,
+      initial: TimeOfDay(hour: at.hour, minute: at.minute),
+      title: start ? 'Start time' : 'End time',
     );
     if (picked == null || !mounted) return;
     setState(() {
@@ -713,15 +722,20 @@ class _ActivityChooserState extends State<ActivityChooser> {
                     a.name.toLowerCase().contains(q))
                   a,
           ]..sort((x, y) => x.displayName(c).compareTo(y.displayName(c))));
+    // A sleep and a nap lead the list on All as well as filling the Sleep tab:
+    // they are what most people reach for first.
     final sleeps = [
       for (final (k, icon, name) in const [
         (WindowKind.sleep, LucideIcons.moon, 'Sleep'),
         (WindowKind.nap, LucideIcons.sun, 'Nap'),
       ])
-        if (sleepTab && (q.isEmpty || name.toLowerCase().contains(q)))
+        if (widget.sleep &&
+            (sleepTab || _tab == 0) &&
+            (q.isEmpty || name.toLowerCase().contains(q)))
           (k, icon, name),
     ];
-    final empty = sleepTab ? sleeps.isEmpty : items.isEmpty;
+    final pinned = sleepTab ? const [] : sleeps;
+    final empty = sleepTab ? sleeps.isEmpty : items.isEmpty && pinned.isEmpty;
     return Column(
       children: [
         _sheetHeader(
@@ -813,8 +827,14 @@ class _ActivityChooserState extends State<ActivityChooser> {
                 )
               : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x6),
-                  itemCount: items.length,
-                  itemBuilder: (_, i) {
+                  itemCount: pinned.length + items.length,
+                  itemBuilder: (_, n) {
+                    if (n < pinned.length) {
+                      final (k, icon, name) = pinned[n];
+                      return _row(c, p, icon, name,
+                          () => widget.onPick((activity: null, sleep: k)));
+                    }
+                    final i = n - pinned.length;
                     final a = items[i];
                     return _row(
                       c,

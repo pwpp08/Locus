@@ -33,7 +33,6 @@ const _gestureFile = 'lib/ui2/grammar.dart';
 /// per rule below, so every OTHER file is held to the rule today. The design
 /// overhaul should empty this set, not grow it.
 const _pendingOverhaul = {
-  'lib/ui2/components/update_dialog.dart',
   'lib/ui2/profile/account_screen.dart',
   'lib/ui2/profile/alarm.dart',
   'lib/ui2/screens/battery_detail_screen.dart',
@@ -407,7 +406,7 @@ const _notComponents = {
   // stream while it is open and reads the day bundle and five series.
   'HealthMonitorScreen',
   'DayStepsDetail',
-  'ZonesDetail',
+
   // Reads the day bundle AND the raw beat store to draw one night's Poincaré
   // cloud — a gallery case would have to mock 27 000 beat intervals.
   'Beats',
@@ -439,7 +438,7 @@ const _notComponents = {
   'LiveShell', 'LiveTick', 'LiveMeasured', 'LiveStrength', 'LiveSwim',
   'LiveFlow', 'LiveMatch', 'LiveInterval',
   // the activity flow: pick → set up → do → summarise → share
-  'ActivityPicker', 'ActivitySetup', 'ActivitySummary', 'ShareSheet',
+  'ActivitySetup', 'ActivitySummary', 'ShareSheet',
   // The two write routes for a session the band did not capture as it
   // happened. Both are Scaffolds that read `sessions` / `workout_suggestions`
   // and write through the repo; the second also asks the OS for a date and a

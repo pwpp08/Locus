@@ -223,12 +223,12 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
   /// The wake time, then the question the original asks: just the wake time,
   /// or an alarm too.
   Future<void> _pickWake(int? current) async {
-    final t = await showTimePicker(
-      context: context,
-      initialTime: current == null
+    final t = await pickTime(
+      context,
+      initial: current == null
           ? const TimeOfDay(hour: 7, minute: 0)
           : TimeOfDay(hour: current ~/ 60, minute: current % 60),
-      helpText: 'WAKE TIME',
+      title: 'Wake time',
     );
     if (t == null || !mounted) return;
     final min = t.hour * 60 + t.minute;

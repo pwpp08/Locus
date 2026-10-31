@@ -120,6 +120,19 @@ class DeviceAlerts {
   /// without somewhere to remember it.
   static const String _kLowArmed = 'device_alerts.low_armed';
 
+  /// The "fully charged" alert is latched the same way: it fires once when the
+  /// band reaches 100 % on the charger, and is not armed again until the charge
+  /// has fallen well below it, so a band sitting at 100 % on the puck (state
+  /// updates keep arriving) or a process restart cannot buzz twice for one
+  /// charge.
+  static const String _kFullArmed = 'device_alerts.full_armed';
+
+  /// The percentage that counts as full. The strap reports whole percent.
+  static const double _fullPct = 100;
+
+  /// The charge must drop under this before a full alert may fire again.
+  static const double _fullRearmBelowPct = 90;
+
   @visibleForTesting
   static const String debugLastChargeTsKey = _kLastChargeTs;
   @visibleForTesting
@@ -134,6 +147,7 @@ class DeviceAlerts {
   }
 
   bool _lowArmed = true; // may we raise a low-battery alert?
+  bool _fullArmed = true; // may we say "fully charged"?
   bool? _wasCharging; // previous charging state (null = not seen yet)
   bool _cancelledForOff = false; // already cleared the card for this off-state
   int? _lastAnnouncedEventTs; // strap ts of the last announced charge session
@@ -176,6 +190,7 @@ class DeviceAlerts {
       final eventTs = await _store.readInt(_kLastChargeTs);
       final wallSec = await _store.readInt(_kLastChargeWall);
       final armed = await _store.readInt(_kLowArmed);
+      final fullArmed = await _store.readInt(_kFullArmed);
       _chargeShownDay = await _store.readInt(_kChargeShownDay);
       // Assigned together so the identity pair is never half-applied by a read
       // that throws part-way. (With the read order above the dangerous
@@ -186,6 +201,7 @@ class DeviceAlerts {
       _lastAnnouncedEventTs = (eventTs != null && eventTs > 0) ? eventTs : null;
       _lastAnnouncedWallSec = wallSec;
       if (armed != null) _lowArmed = armed != 0;
+      if (fullArmed != null) _fullArmed = fullArmed != 0;
       // The user's threshold. Same key NotificationPrefs writes; clamped to
       // the same bounds, so a hand-edited or stale value can't push the alert
       // out of its sane range.
@@ -328,6 +344,20 @@ class DeviceAlerts {
     final armedBefore = _lowArmed;
     _lowArmed = lowArmed;
 
+    // Fully charged: the band is on the charger and has reached 100 %. A reading
+    // is current by construction (the percentage is the live state, not a
+    // replayed event), so no recency check is needed — the latch is what stops
+    // repeats. It re-arms once the charge has fallen under 90 %.
+    var fullArmed = _fullArmed;
+    if (batteryPct != null && batteryPct < _fullRearmBelowPct) fullArmed = true;
+    final fireFull = charging == true &&
+        batteryPct != null &&
+        batteryPct >= _fullPct &&
+        fullArmed;
+    if (fireFull) fullArmed = false;
+    final fullArmedBefore = _fullArmed;
+    _fullArmed = fullArmed;
+
     // ── ACT ───────────────────────────────────────────────────────────────────
     // Each step is isolated, because presentation and persistence must not be
     // able to take each other down. Sequencing them plainly forces a choice
@@ -371,6 +401,10 @@ class DeviceAlerts {
       // A real plug-in clears any stale low alert.
       await _io(() => _notes.cancel(NotificationService.idLowBattery));
     }
+    // Off the charger, the "fully charged" card has done its job.
+    if (cancelChargingCard) {
+      await _io(() => _notes.cancel(NotificationService.idFullyCharged));
+    }
     if (fireLow) {
       final dropped = await _showWasDropped(() => _notes.show(_event(
             osId: NotificationService.idLowBattery,
@@ -393,6 +427,25 @@ class DeviceAlerts {
         lowArmed = true;
         _lowArmed = true;
       }
+    }
+    if (fireFull) {
+      final dropped = await _showWasDropped(() => _notes.show(_event(
+            osId: NotificationService.idFullyCharged,
+            // One per charge: the latch above is the identity. The day prefix
+            // in the dedupe key lets the retention sweep reach it.
+            kind: 'band_full:${nowSec ~/ 3600}',
+            title: 'Fully charged',
+            body: 'Your band is at 100%. You can take it off the charger.',
+          )));
+      if (dropped) {
+        // Quiet hours or the category off: nothing was shown and nothing will
+        // be, so do not spend this charge's one chance on it.
+        fullArmed = true;
+        _fullArmed = true;
+      }
+    }
+    if (fullArmed != fullArmedBefore || (fireFull && !fullArmed)) {
+      await _io(() => _store.writeInt(_kFullArmed, fullArmed ? 1 : 0));
     }
     if (lowArmed != armedBefore) {
       await _io(() => _store.writeInt(_kLowArmed, lowArmed ? 1 : 0));

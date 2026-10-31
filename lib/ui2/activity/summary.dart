@@ -42,10 +42,10 @@ import '../grammar.dart';
 import '../paint_activity.dart';
 import '../profile/profile.dart';
 import '../screens/home_screen.dart' show unitsOf;
+import '../screens/add_activity.dart' show chooseActivity;
 import '../screens/log_workout.dart' show bumpInsights;
 import '../theme.dart';
 import 'catalogue.dart';
-import 'picker.dart';
 // The share card and this screen describe the same session, so they draw its
 // stats with the same widget and split its values with the same function.
 // poster.dart imports this file back for [ActivityResult]; that is the seam,
@@ -919,31 +919,24 @@ class _ActivitySummaryState extends State<ActivitySummary> {
   Future<void> _changeType(BuildContext c) async {
     final id = r.sessionId;
     if (id == null) return;
-    // Only true once a pick actually landed — pressing back out of the picker
-    // must return to this screen, not fall through and pop it too.
-    var picked = false;
-    await Navigator.of(c).push(MaterialPageRoute(
-      builder: (_) => ActivityPicker(onPick: (pc, newActivity) async {
-        // The stored key everywhere else uses — `startWorkout(type:
-        // a.typeKey)` is the live path's own write. `a.name` here would still
-        // resolve through `activityByName`'s normalized lookup, but it would
-        // store a different string than every other producer of this column.
-        try {
-          await LocalDb.setSessionType(id, newActivity.typeKey);
-        } catch (_) {
-          // Same rule as `_saveRpe`: the row is unchanged, so leave the
-          // picker open rather than close it over a write that never
-          // happened — `onPick` is a `void Function`, so there is no caller
-          // to hand this failure back to.
-          return;
-        }
-        picked = true;
-        if (!pc.mounted) return;
-        bumpInsights(pc);
-        Navigator.of(pc).pop();
-      }),
-    ));
-    if (c.mounted && picked) Navigator.of(c).pop();
+    final choice = await chooseActivity(c, sleep: false);
+    final newActivity = choice?.activity;
+    if (newActivity == null) return;
+    // The stored key everywhere else uses — `startWorkout(type: a.typeKey)` is
+    // the live path's own write. `a.name` would still resolve through
+    // `activityByName`'s normalized lookup, but it would store a different
+    // string than every other producer of this column.
+    try {
+      await LocalDb.setSessionType(id, newActivity.typeKey);
+    } catch (_) {
+      // The row is unchanged, so stay on this screen.
+      return;
+    }
+    if (!c.mounted) return;
+    bumpInsights(c);
+    // Archetype fields on this screen belong to the OLD type; hand back to
+    // the list that pushed it, which re-reads on the bump above.
+    Navigator.of(c).pop();
   }
 
   /// Guards against a double tap firing two competing native share sheets —

@@ -19,7 +19,11 @@ import 'package:notification_listener_service/notification_listener_service.dart
 import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificationRelay extends ChangeNotifier with WidgetsBindingObserver {
-  NotificationRelay({required this.buzz, required this.isConnected});
+  NotificationRelay({
+    required this.buzz,
+    required this.isConnected,
+    this.buzzBeats,
+  });
 
   // The plugin's own MethodChannel. v1.0.0's Dart API doesn't expose the native
   // rebind/health handlers, so we invoke them directly to self-heal when Android
@@ -41,6 +45,44 @@ class NotificationRelay extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Whether the band is currently connected (no point buzzing nothing).
   final bool Function() isConnected;
+
+  /// [count] buzzes in a row, [long] or short. Wired by AppState to the engine.
+  /// Null in a test that only cares about the plain buzz.
+  final Future<void> Function(int count, bool long)? buzzBeats;
+
+  /// The phone apps whose notification means an incoming call.
+  static const callPackages = {
+    'com.google.android.dialer',
+    'com.android.dialer',
+    'com.samsung.android.dialer',
+    'com.samsung.android.incallui',
+    'com.android.incallui',
+    'com.android.server.telecom',
+    'com.android.phone',
+    'com.oneplus.dialer',
+    'com.oppo.dialer',
+    'com.miui.voip',
+  };
+
+  /// Google Tasks: the app that posts a reminder synced with a Google task.
+  static const tasksPackages = {'com.google.android.apps.tasks'};
+
+  static const _kCalls = 'notif_relay_calls';
+  static const _kTasks = 'notif_relay_tasks';
+
+  /// A ringing call posts, updates, and then posts again when answered or
+  /// missed; one buzz sequence per call, not per post.
+  static const _callCooldownMs = 45000;
+  static const _tasksCooldownMs = 4000;
+
+  bool _calls = true, _tasks = true;
+
+  /// Three long buzzes for an incoming call. On by default: with the relay on
+  /// and permitted, a call is the one notification nobody wants to miss.
+  bool get callsEnabled => _calls;
+
+  /// Two short buzzes for a Google Tasks reminder.
+  bool get tasksEnabled => _tasks;
 
   static const _kEnabled = 'notif_relay_enabled';
   static const _kPackages = 'notif_relay_packages';
@@ -107,6 +149,8 @@ class NotificationRelay extends ChangeNotifier with WidgetsBindingObserver {
     if (!supported) return;
     final prefs = await SharedPreferences.getInstance();
     _enabled = prefs.getBool(_kEnabled) ?? false;
+    _calls = prefs.getBool(_kCalls) ?? true;
+    _tasks = prefs.getBool(_kTasks) ?? true;
     _packages
       ..clear()
       ..addAll(prefs.getStringList(_kPackages) ?? const []);
@@ -169,6 +213,20 @@ class NotificationRelay extends ChangeNotifier with WidgetsBindingObserver {
     await prefs.setBool(_kEnabled, on);
     _resync();
     notifyListeners();
+  }
+
+  Future<void> setCallsEnabled(bool on) async {
+    if (on == _calls) return;
+    _calls = on;
+    notifyListeners();
+    (await SharedPreferences.getInstance()).setBool(_kCalls, on);
+  }
+
+  Future<void> setTasksEnabled(bool on) async {
+    if (on == _tasks) return;
+    _tasks = on;
+    notifyListeners();
+    (await SharedPreferences.getInstance()).setBool(_kTasks, on);
   }
 
   Future<void> setAppEnabled(String pkg, bool on) async {
@@ -273,19 +331,50 @@ class NotificationRelay extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
-  void _onNotification(ServiceNotificationEvent e) {
-    // Only fresh, user-facing posts: skip removals and persistent/ongoing ones
-    // (media players, foreground-service notifications) — those aren't "a ping".
-    if (e.hasRemoved || e.onGoing) return;
-    final pkg = e.packageName;
-    if (pkg.isEmpty) return;
+  void _onNotification(ServiceNotificationEvent e) => handle(e.packageName,
+      hasRemoved: e.hasRemoved, onGoing: e.onGoing, icon: e.appIcon);
+
+  /// One posted notification, as the relay sees it. Calls and Google Tasks have
+  /// patterns of their own and need no app picked; everything else buzzes once
+  /// if its app is on the allow-list.
+  @visibleForTesting
+  void handle(String pkg,
+      {bool hasRemoved = false, bool onGoing = false, Uint8List? icon}) {
+    if (hasRemoved || pkg.isEmpty) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    // An incoming call is posted as an ONGOING notification on some phones, so
+    // it is looked at before the ongoing filter below; the cooldown keeps the
+    // ongoing-call update after it is answered from buzzing again.
+    if (_calls && callPackages.contains(pkg)) {
+      if (!isConnected() || now - (_lastBuzzMs['call'] ?? 0) < _callCooldownMs) {
+        return;
+      }
+      _lastBuzzMs['call'] = now;
+      _lastAnyBuzzMs = now;
+      _sequence(3, long: true);
+      return;
+    }
+    if (_tasks && tasksPackages.contains(pkg) && !onGoing) {
+      if (!isConnected() ||
+          now - (_lastBuzzMs['tasks'] ?? 0) < _tasksCooldownMs) {
+        return;
+      }
+      _lastBuzzMs['tasks'] = now;
+      _lastAnyBuzzMs = now;
+      _sequence(2, long: false);
+      return;
+    }
+
+    // Only fresh, user-facing posts: skip persistent/ongoing ones (media
+    // players, foreground-service notifications) — those aren't "a ping".
+    if (onGoing) return;
     // BEFORE the allow-list check: an app you have not chosen yet is exactly
     // the one the picker needs to be able to offer you.
-    noteSeen(pkg, e.appIcon);
+    noteSeen(pkg, icon);
     if (!_packages.contains(pkg)) return;
     if (!isConnected()) return;
 
-    final now = DateTime.now().millisecondsSinceEpoch;
     final lastForPkg = _lastBuzzMs[pkg] ?? 0;
     if (now - lastForPkg < _perAppCooldownMs) return;
     if (now - _lastAnyBuzzMs < _globalFloorMs) return;
@@ -293,6 +382,13 @@ class NotificationRelay extends ChangeNotifier with WidgetsBindingObserver {
     _lastAnyBuzzMs = now;
     // Fire-and-forget; never let a BLE hiccup throw into the system callback.
     unawaited(buzz().catchError((_) {}));
+  }
+
+  /// A run of buzzes through the engine; falls back to one plain buzz where the
+  /// run is not wired. Never throws into the system callback.
+  void _sequence(int count, {required bool long}) {
+    final run = buzzBeats;
+    unawaited((run == null ? buzz() : run(count, long)).catchError((_) {}));
   }
 
   @override

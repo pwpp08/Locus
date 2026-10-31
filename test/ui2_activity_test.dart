@@ -24,12 +24,10 @@ import 'package:openstrap_edge/state/units_controller.dart';
 import 'package:openstrap_edge/ui2/activity/catalogue.dart';
 import 'package:openstrap_edge/ui2/activity/day_strain.dart';
 import 'package:openstrap_edge/ui2/activity/live.dart';
-import 'package:openstrap_edge/ui2/activity/picker.dart';
 import 'package:openstrap_edge/ui2/activity/poster.dart';
 import 'package:openstrap_edge/ui2/activity/setup.dart';
 import 'package:openstrap_edge/ui2/activity/share.dart';
 import 'package:openstrap_edge/ui2/activity/summary.dart';
-import 'package:openstrap_edge/ui2/activity/zones.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -811,49 +809,6 @@ void main() {
       expect(find.textContaining('10.8'), findsWidgets);
     });
 
-    // The Zones screen offered "Add your age in Profile" on all three real
-    // databases. The age was set on all three, so following it did nothing.
-    testWidgets('zones never sends you after data it already has',
-        (tester) async {
-      tester.view.physicalSize = const Size(390 * 3, 1600 * 3);
-      tester.view.devicePixelRatio = 3;
-      addTearDown(tester.view.reset);
-
-      var n = 0;
-      Future<void> show(ZonesData d) async {
-        await tester.pumpWidget(_frame(
-            ZonesDetail(key: ValueKey(n++), data: d), Brightness.light, 1.0));
-        await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull);
-        expect(find.text('—'), findsNothing);
-      }
-
-      await show(const ZonesData(age: 30));
-      expect(find.textContaining('Add your age'), findsNothing);
-      expect(find.textContaining('Without your age'), findsNothing);
-      // Nor the claim that the (absent) zones below came off the age.
-      expect(find.textContaining('zones below come off your age'), findsNothing);
-
-      await show(const ZonesData(age: 30, note: 'need_input:name=wake_hr'));
-      expect(find.textContaining('No waking heart rate'), findsOneWidget);
-
-      // Age genuinely missing — now the button is a real promise.
-      await show(const ZonesData());
-      expect(find.textContaining('ADD YOUR AGE IN PROFILE'), findsOneWidget);
-
-      // The ceiling card had the same defect: it blamed a missing hard session
-      // on all three real databases, where the ceiling had actually refused for
-      // an unstamped strap. No hard session fixes that, so no button either.
-      await show(const ZonesData(
-          age: 30,
-          source: 'tanaka',
-          ceilingNote: 'unknown_device_family:id=none'));
-      expect(find.textContaining('HELD'), findsNothing);
-      expect(find.textContaining('Wear the band for your normal hard sessions'),
-          findsNothing);
-      expect(find.textContaining('which strap'), findsWidgets);
-    });
-
     for (final arch in Arch.values) {
       testWidgets('${arch.name} summary renders and never shows a bare dash',
           (tester) async {
@@ -1539,26 +1494,6 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('a collapsed group builds none of its rows', (tester) async {
-      tester.view.physicalSize = const Size(390 * 3, 1400 * 3);
-      tester.view.devicePixelRatio = 3;
-      addTearDown(tester.view.reset);
-
-      await tester.pumpWidget(
-          _frame(const ActivityPicker(weightKg: 72.4), Brightness.light, 1.0));
-      await tester.pumpAndSettle();
-
-      // AnimatedCrossFade builds both of its children whatever it is showing,
-      // so every group's rows used to exist while every group was shut.
-      expect(find.byType(ActivityRow), findsNothing);
-
-      await tester.tap(find.text(activityLibrary.first.name));
-      await tester.pumpAndSettle();
-      expect(find.byType(ActivityRow).evaluate().length,
-          activityLibrary.first.items.length,
-          reason: 'the open group, and only the open group');
-    });
-
     testWidgets('a location denial is named on the live screen',
         (tester) async {
       tester.view.physicalSize = const Size(390 * 3, 2200 * 3);
@@ -1733,25 +1668,6 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('the picker lists every activity and searches by name',
-        (tester) async {
-      tester.view.physicalSize = const Size(390 * 3, 1400 * 3);
-      tester.view.devicePixelRatio = 3;
-      addTearDown(tester.view.reset);
-
-      await tester.pumpWidget(
-          _frame(const ActivityPicker(weightKg: 72.4), Brightness.light, 1.0));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Search ${allActivities.length} activities'),
-          findsOneWidget);
-      await tester.enterText(find.byType(TextField), 'kayak');
-      await tester.pumpAndSettle();
-      expect(find.text('Kayaking'), findsOneWidget);
-      expect(find.text('Running'), findsNothing);
-      expect(tester.takeException(), isNull);
-    });
-
     testWidgets('setup offers no goal it cannot honour', (tester) async {
       tester.view.physicalSize = const Size(390 * 3, 1400 * 3);
       tester.view.devicePixelRatio = 3;
@@ -1782,19 +1698,6 @@ void main() {
       addTearDown(tester.view.reset);
 
       final general = activityByName('general_workout')!;
-
-      // THE PICKER ROW. Every other row ends in "N kcal / 30 min", or in its
-      // MET when there is no body weight. This one has neither to end in, and
-      // the point is that it ends in nothing rather than in a placeholder.
-      await tester.pumpWidget(
-          _frame(const ActivityPicker(weightKg: 72.4), Brightness.light, 1.0));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), 'general');
-      await tester.pumpAndSettle();
-      expect(find.text(general.name), findsOneWidget);
-      expect(find.textContaining('kcal / 30 min'), findsNothing);
-      expect(find.textContaining('MET'), findsNothing,
-          reason: 'a MET this row does not have must not be printed as one');
 
       // THE SETUP SCREEN. A weight IS set here, so "Calories need your
       // weight" would be a lie about which input is missing.

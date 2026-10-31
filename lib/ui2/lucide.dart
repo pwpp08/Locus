@@ -90,6 +90,7 @@ class LucideIcons {
   static const IconData dot = base.LucideIcons.dot300;
   static const IconData download = base.LucideIcons.download300;
   static const IconData downloadCloud = base.LucideIcons.downloadCloud300;
+  static const IconData externalLink = base.LucideIcons.externalLink300;
   static const IconData droplet = base.LucideIcons.droplet300;
   static const IconData dumbbell = base.LucideIcons.dumbbell300;
   static const IconData eggFried = base.LucideIcons.eggFried300;
@@ -188,6 +189,7 @@ class LucideIcons {
   static const IconData shoppingBag = base.LucideIcons.shoppingBag300;
   static const IconData skipForward = base.LucideIcons.skipForward300;
   static const IconData sliders = base.LucideIcons.sliders300;
+  static const IconData phoneIncoming = base.LucideIcons.phoneIncoming300;
   static const IconData smartphone = base.LucideIcons.smartphone300;
   static const IconData smile = base.LucideIcons.smile300;
   static const IconData snowflake = base.LucideIcons.snowflake300;

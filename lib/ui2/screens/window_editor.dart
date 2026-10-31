@@ -269,9 +269,10 @@ class _WindowEditorState extends State<WindowEditor> {
       lastDate: _now,
     );
     if (day == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(value),
+    final time = await pickTime(
+      context,
+      initial: TimeOfDay.fromDateTime(value),
+      title: start ? 'Start time' : 'End time',
     );
     if (time == null || !mounted) return;
     final picked = DateTime(
@@ -308,19 +309,7 @@ class _WindowEditorState extends State<WindowEditor> {
             const SizedBox(height: S.x2),
             Row(
               children: [
-                Expanded(
-                  child: Wrap(
-                    spacing: S.x1,
-                    runSpacing: S.x1,
-                    children: [
-                      _spanChip(c, '30M', 1800),
-                      _spanChip(c, '2H', 2 * _hour),
-                      _spanChip(c, '6H', 6 * _hour),
-                      _spanChip(c, '1D', _day),
-                      _spanChip(c, '2D', 2 * _day),
-                    ],
-                  ),
-                ),
+                const Spacer(),
                 Pressable(
                   onTap: () => _zoom(1 / 1.6),
                   semanticLabel: 'Zoom in',
@@ -404,23 +393,6 @@ class _WindowEditorState extends State<WindowEditor> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _spanChip(BuildContext c, String label, int span) {
-    final p = P.of(c);
-    final on = _span == span;
-    return Pressable(
-      onTap: () => setState(() => _frame(span)),
-      semanticLabel: label,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x2),
-        decoration: BoxDecoration(
-          color: on ? p.ink : p.card,
-          borderRadius: R.rSm,
-        ),
-        child: Text(label, style: F.caps.copyWith(color: on ? p.bg : p.ink2)),
       ),
     );
   }

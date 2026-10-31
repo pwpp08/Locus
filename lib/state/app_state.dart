@@ -375,6 +375,7 @@ class AppState extends ChangeNotifier {
   /// Exposed for the settings UI; buzzes via the live BLE engine when connected.
   late final NotificationRelay notificationRelay = NotificationRelay(
     buzz: () => engine.buzz(),
+    buzzBeats: (count, long) => engine.buzzBeats(count: count, long: long),
     isConnected: () => engine.isConnected,
   );
 
@@ -2400,11 +2401,18 @@ class AppState extends ChangeNotifier {
   /// Manual sleep entry (Approach 1): the user gives the in-bed window for [date]
   /// (local YYYY-MM-DD). Stored as the source of truth, then a force re-derive
   /// restages that day FROM the window — even if it was finalized/locked.
+  ///
+  /// With [wait] false the window is SAVED before this returns and the night is
+  /// re-derived afterwards on its own: the person who just pressed End sleep
+  /// should not watch a spinner for as long as a derive takes. The re-derive
+  /// catches its own failures, queues behind any pass already running, and
+  /// bumps the insights revision when it lands, so the screens re-read.
   Future<void> setSleepOverride(
     String date,
     DateTime onset,
     DateTime offset, {
     String source = 'manual',
+    bool wait = true,
   }) async {
     final onsetSec = onset.millisecondsSinceEpoch ~/ 1000;
     final offsetSec = offset.millisecondsSinceEpoch ~/ 1000;
@@ -2415,7 +2423,8 @@ class AppState extends ChangeNotifier {
       offsetTs: offsetSec,
       source: source,
     );
-    await _reanalyzeForOverride(date);
+    final rederive = _reanalyzeForOverride(date);
+    if (wait) await rederive;
   }
 
   /// Confirm the HR-led fallback's proposal for [date] (Approach 2): accept the

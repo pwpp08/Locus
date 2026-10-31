@@ -781,9 +781,9 @@ Future<MedSchedule?> pickMedSchedule(
               Pressable(
                 semanticLabel: l?.wellnessChangeTheTime ?? 'Change the time',
                 onTap: () async {
-                  final at = await showTimePicker(
-                    context: sheet,
-                    initialTime: TimeOfDay(
+                  final at = await pickTime(
+                    sheet,
+                    initial: TimeOfDay(
                       hour: (minute ~/ 60) % 24,
                       minute: minute % 60,
                     ),

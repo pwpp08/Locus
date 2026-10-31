@@ -24,7 +24,7 @@ import 'catalogue.dart';
 import 'live.dart';
 
 /// The window the calorie estimate is quoted over — the same one
-/// [ActivityRow] uses in the picker, so a row and this screen agree.
+/// the activity chooser uses, so a row and this screen agree.
 const _estimateMin = 30;
 
 class ActivitySetup extends StatefulWidget {

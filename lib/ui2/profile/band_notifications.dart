@@ -87,6 +87,10 @@ class _BandNotificationsState extends State<BandNotifications>
           for (final p in relay.seenPackages)
             RelayApp(p, icon: relay.iconFor(p), on: relay.isAppEnabled(p)),
         ],
+        callsOn: relay.callsEnabled,
+        tasksOn: relay.tasksEnabled,
+        onCalls: relay.setCallsEnabled,
+        onTasks: relay.setTasksEnabled,
         onEnabled: relay.setEnabled,
         onGrant: relay.requestPermission,
         onApp: relay.setAppEnabled,
@@ -103,12 +107,17 @@ class BandNotificationsView extends StatelessWidget {
     this.enabled = false,
     this.granted = false,
     this.apps = const [],
+    this.callsOn = true,
+    this.tasksOn = true,
+    this.onCalls,
+    this.onTasks,
     this.onEnabled,
     this.onGrant,
     this.onApp,
   });
 
-  final bool supported, enabled, granted;
+  final bool supported, enabled, granted, callsOn, tasksOn;
+  final ValueChanged<bool>? onCalls, onTasks;
   final List<RelayApp> apps;
   final ValueChanged<bool>? onEnabled;
   final VoidCallback? onGrant;
@@ -183,6 +192,27 @@ class BandNotificationsView extends StatelessWidget {
                     ),
                   ],
                   if (enabled && granted) ...[
+                    const SizedBox(height: S.x4),
+                    // Two moments with a buzz of their own, which need no app
+                    // picked below: a call is three long buzzes, a Google Tasks
+                    // reminder two short ones.
+                    settingsGroup(c, 'Patterns', [
+                      SetRow(LucideIcons.phoneIncoming, C.green, 'Incoming calls',
+                          sub: 'Three long buzzes while it rings',
+                          value: callsOn
+                              ? (l?.stateOn ?? 'On')
+                              : (l?.stateOff ?? 'Off'),
+                          chevron: false,
+                          onTap: () => onCalls?.call(!callsOn)),
+                      SetRow(LucideIcons.listChecks, C.blue, 'Google Tasks',
+                          sub: 'Two short buzzes for a reminder',
+                          value: tasksOn
+                              ? (l?.stateOn ?? 'On')
+                              : (l?.stateOff ?? 'Off'),
+                          chevron: false,
+                          onTap: () => onTasks?.call(!tasksOn)),
+                    ]),
+                    const SizedBox(height: S.x4),
                     if (apps.isEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: S.x4),

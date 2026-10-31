@@ -714,6 +714,10 @@ class Motion {
   /// White filling the word LOCUS on the pull to refresh ([WordmarkFill]).
   static const write = Duration(milliseconds: 1500);
 
+  /// The longest the pull to refresh holds the page open for the work itself,
+  /// so the word always goes back up ([LocusPullRefresh]).
+  static const refreshCap = Duration(seconds: 8);
+
   /// The least time between two haptic ticks of a rolling figure, so a long
   /// roll reads as a smooth run of taps and not a buzz.
   static const tickGap = Duration(milliseconds: 80);

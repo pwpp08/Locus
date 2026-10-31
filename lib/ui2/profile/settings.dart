@@ -691,21 +691,39 @@ class MoreSettingsView extends StatelessWidget {
                     SetRow(LucideIcons.info, C.n500,
                         l?.settingsVersionRowTitle ?? 'Version',
                         value: version, chevron: false, onTap: onVersionTap),
-                  SetRow(LucideIcons.downloadCloud, C.blue,
-                      'Check for updates',
-                      sub: 'Check GitHub releases for new versions',
-                      onTap: () => UpdateService.instance.check(c, manual: true)),
-                  StatefulBuilder(
-                    builder: (ctx, setSubState) {
-                      final auto = Prefs.getBool('auto_check_updates', true);
+                  // The updater (lib/updater): checks the project's releases,
+                  // downloads the APK inside the app and opens the installer.
+                  AnimatedBuilder(
+                    animation: UpdateService.instance,
+                    builder: (ctx, _) {
+                      final u = UpdateService.instance;
+                      return SetRow(LucideIcons.downloadCloud, C.blue,
+                          'Check for updates',
+                          sub: u.isChecking
+                              ? 'Checking…'
+                              : u.hasUpdate
+                                  ? '${u.latestRelease?.label ?? 'A newer build'} '
+                                      'is ready to install'
+                                  : (u.currentBuild.isEmpty
+                                      ? 'Look for a newer build'
+                                      : 'You have ${u.currentBuild}'),
+                          value: u.hasUpdate ? 'Update' : '',
+                          onTap: u.isChecking
+                              ? null
+                              : () => u.check(c, manual: true));
+                    },
+                  ),
+                  AnimatedBuilder(
+                    animation: UpdateService.instance,
+                    builder: (ctx, _) {
+                      final u = UpdateService.instance;
                       return SetRow(LucideIcons.refreshCw, C.green,
-                          'Auto-check on startup',
-                          value: auto ? on : off,
+                          'Check automatically',
+                          sub: 'When the app opens, at most every few hours',
+                          value: u.autoCheckEnabled ? on : off,
                           chevron: false,
-                          onTap: () {
-                            Prefs.setBool('auto_check_updates', !auto);
-                            setSubState(() {});
-                          });
+                          onTap: () =>
+                              u.setAutoCheckEnabled(!u.autoCheckEnabled));
                     },
                   ),
                   // Where the licences of what this app uses are written out
@@ -1191,9 +1209,9 @@ class NotificationSettingsView extends StatelessWidget {
   static String _hhmm(int minuteOfDay) => formatClockMinute(minuteOfDay);
 
   static Future<int?> _pickMinute(BuildContext c, int current) async {
-    final picked = await showTimePicker(
-      context: c,
-      initialTime: TimeOfDay(hour: (current ~/ 60) % 24, minute: current % 60),
+    final picked = await pickTime(
+      c,
+      initial: TimeOfDay(hour: (current ~/ 60) % 24, minute: current % 60),
     );
     return picked == null ? null : picked.hour * 60 + picked.minute;
   }

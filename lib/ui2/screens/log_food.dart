@@ -247,9 +247,10 @@ class _LogFoodSheetState extends State<LogFoodSheet> {
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _time ?? TimeOfDay.now(),
+    final picked = await pickTime(
+      context,
+      initial: _time ?? TimeOfDay.now(),
+      title: 'When did you eat?',
     );
     if (picked != null && mounted) setState(() => _time = picked);
   }

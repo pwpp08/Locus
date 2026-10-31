@@ -1134,7 +1134,7 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
           run();
         }
 
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Row(children: [
             Icon(mine ? LucideIcons.userCheck : LucideIcons.wandSparkles,
                 size: I.sm, color: p.ink3),
@@ -1180,25 +1180,36 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
               style: F.cap.copyWith(color: p.ink3),
             ),
           ],
+          const SizedBox(height: S.x5),
+          // Full-width answers, the first the one you most likely want: a window
+          // the detector doubted asks to be confirmed; any other offers its
+          // times for change. "Not sleep" is the quiet coral one at the foot.
+          if (fallback) ...[
+            BigButton(
+              l?.sleepDetailConfirmTimes ?? 'These times are right',
+              icon: LucideIcons.check,
+              onTap: () => then(() => _confirmWindow(day)),
+            ),
+            const SizedBox(height: S.x2),
+          ],
+          BigButton(
+            mine
+                ? (l?.sleepDetailChangeTimes ?? 'Change the times')
+                : (l?.sleepDetailSetTimesMyself ?? 'Set the times myself'),
+            icon: LucideIcons.pencil,
+            soft: fallback,
+            onTap: () => then(() => _editWindow(day, t0, t1)),
+          ),
           const SizedBox(height: S.x2),
-          Wrap(spacing: S.x2, children: [
-            if (fallback)
-              TextAction(l?.sleepDetailConfirmTimes ?? 'These times are right',
-                  () => then(() => _confirmWindow(day))),
-            TextAction(
-                mine
-                    ? (l?.sleepDetailChangeTimes ?? 'Change the times')
-                    : (l?.sleepDetailSetTimesMyself ?? 'Set the times myself'),
-                () => then(() => _editWindow(day, t0, t1))),
-            if (mine)
-              TextAction(l?.sleepDetailBackToAutomatic ?? 'Back to automatic',
-                  () => then(() => _clearWindow(day))),
-            // The missing third answer next to "Looks right"/"Edit": naps
-            // already have a reject action (sleep_nap source='rejected');
-            // a whole-night main-sleep session didn't (edge#248).
-            TextAction(l?.sleepDetailNotSleep ?? 'Not sleep',
-                () => then(() => _rejectWindow(day))),
-          ]),
+          // The missing third answer next to "Looks right"/"Edit": naps already
+          // have a reject action (sleep_nap source='rejected'); a whole-night
+          // main-sleep session didn't (edge#248).
+          BigButton(
+            l?.sleepDetailNotSleep ?? 'Not sleep',
+            icon: LucideIcons.moonStar,
+            tone: ButtonTone.danger,
+            onTap: () => then(() => _rejectWindow(day)),
+          ),
         ]);
       }),
     );
@@ -1208,9 +1219,6 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
         () => context.read<AppState>().confirmSleep(day),
         applied: (n) => n['sleep_source'] == 'confirmed',
       );
-
-  Future<void> _clearWindow(String day) => _runOverride(
-      day, () => context.read<AppState>().clearSleepOverride(day));
 
   Future<void> _rejectWindow(String day) => _runOverride(
         day,

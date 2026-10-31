@@ -55,6 +55,39 @@ void main() {
     expect(done, isTrue);
   });
 
+  test('ending a sleep returns at once; the night re-derives afterwards',
+      () async {
+    final app = AppState.forTesting();
+    addTearDown(app.dispose);
+    DerivationEngine.debugRunning = true; // a derive is already busy
+    addTearDown(() => DerivationEngine.debugRunning = false);
+
+    final day = todayLabel();
+    var returned = false;
+    final end = app
+        .setSleepOverride(
+          day,
+          DateTime(2026, 9, 30, 0, 30),
+          DateTime(2026, 9, 30, 7),
+          wait: false,
+        )
+        .then((_) => returned = true);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    expect(returned, isTrue,
+        reason: 'the person pressed End sleep: nothing to wait for');
+    // The window is saved even though the derive has not run.
+    expect(await LocalDb.getSleepOverride(day), isNotNull);
+    expect(app.reanalyzing, isTrue, reason: 'queued behind the busy pass');
+
+    // The busy pass finishes and the re-derive takes its turn.
+    DerivationEngine.debugRunning = false;
+    for (var i = 0; i < 80 && app.reanalyzing; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    expect(app.reanalyzing, isFalse);
+    await end;
+  });
+
   test('a pass already running when the edit lands can\'t re-pin the old night',
       () async {
     final app = AppState.forTesting();

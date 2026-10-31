@@ -143,7 +143,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: flutter build apk --release --target-platform android-arm64 --dart-define-from-file=.env
+        run: flutter build apk --release --target-platform android-arm64 --dart-define-from-file=.env --dart-define=GIT_SHA=${GITHUB_SHA::7} --dart-define=BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
       - name: Name the APK after the version
         id: rename
@@ -151,11 +151,6 @@ jobs:
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk dist/openstrap-edge-${GITHUB_REF_NAME}.apk
           echo "apk=dist/openstrap-edge-${GITHUB_REF_NAME}.apk" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: openstrap-edge-apk
-          path: ${{ steps.rename.outputs.apk }}
 
       # Publish a Release with the signed APK attached so people download a real
       # .apk, not a zipped CI artifact.

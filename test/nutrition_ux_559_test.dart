@@ -151,13 +151,16 @@ void main() {
     await _pump(t, const LogFoodSheet(meal: 'breakfast'));
     await t.tap(find.text('Time'));
     await t.pumpAndSettle();
-    await t.tap(find.byIcon(Icons.keyboard_outlined));
+    // The two columns: hours and minutes, each a wheel that can be set.
+    final wheels = find.byType(ListWheelScrollView);
+    (t.widget<ListWheelScrollView>(wheels.at(0)).controller
+            as FixedExtentScrollController)
+        .jumpToItem(7);
+    (t.widget<ListWheelScrollView>(wheels.at(1)).controller
+            as FixedExtentScrollController)
+        .jumpToItem(15);
     await t.pumpAndSettle();
-    final inputs = find.descendant(
-        of: find.byType(Dialog), matching: find.byType(TextField));
-    await t.enterText(inputs.at(0), '07');
-    await t.enterText(inputs.at(1), '15');
-    await t.tap(find.text('OK'));
+    await t.tap(find.text('SET TIME'));
     await t.pumpAndSettle();
     expect(find.text('07:15'), findsOneWidget);
 

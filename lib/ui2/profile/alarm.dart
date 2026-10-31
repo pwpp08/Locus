@@ -421,8 +421,8 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                   semanticLabel:
                       '${formatClock(picked.hour, picked.minute)}. Change the time',
                   onTap: () async {
-                    final t = await showTimePicker(
-                        context: ctx, initialTime: picked);
+                    final t = await pickTime(ctx,
+                        initial: picked, title: 'Alarm time');
                     if (t != null) setS(() => picked = t);
                   },
                   child: Container(

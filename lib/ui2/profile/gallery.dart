@@ -47,7 +47,6 @@ import '../activity/catalogue.dart';
 import '../activity/exercise_image.dart';
 import '../activity/live.dart';
 import '../screens/plus_menu.dart';
-import '../activity/picker.dart' show ActivityPicker, ActivityRow;
 import '../activity/poster.dart'
     show PosterCard, PosterFormat, PosterStatRow, kPosterMapH, kPosterMapW;
 import '../activity/setup.dart' show ActivitySetup;
@@ -1551,6 +1550,8 @@ Map<String, Widget> _stateCases() => {
       // How long until the next alarm rings, kept to the minute.
       // The Locus mark, still; the boot cover draws it in and Home loops it.
       'locus_mark': const LocusMark(size: S.x16 * 2),
+      'time_picker_sheet': const TimePickerSheet(
+          initial: TimeOfDay(hour: 7, minute: 30), title: 'Alarm time'),
       'wordmark': Builder(builder: (c) => Wordmark(color: P.of(c).ink)),
       'wordmark_fill': Builder(
           builder: (c) => WordmarkFill(
@@ -1956,20 +1957,6 @@ Map<String, Widget> _listCases() => {
         SizedBox(height: S.x3),
         TierRow(SourceTier.beatToBeat),
       ]),
-      'activity_row': Surface(
-        pad: const EdgeInsets.symmetric(horizontal: S.x4),
-        child: Column(children: [
-          const ActivityRow(
-              Activity('Trail running', LucideIcons.mountain, C.green,
-                  Track.distance, 10.5,
-                  gps: true),
-              weightKg: 78.4),
-          // No weight on file: the row falls back to the MET value rather
-          // than inventing a body to burn calories from.
-          const ActivityRow(Activity('Weight training', LucideIcons.dumbbell,
-              C.purple, Track.sets, 6.0)),
-        ]),
-      ),
       'legend': const Surface(
         child: Legend([
           ('Deep', C.indigo),
@@ -2708,7 +2695,7 @@ class _Flows extends StatelessWidget {
 
 /// One activity's flow, in the order the app walks it.
 ///
-/// Every row pushes the REAL screen — the same `ActivityPicker`,
+/// Every row pushes the REAL screen — the same
 /// `ActivitySetup`, `liveFor`, `ActivitySummary` and `ShareSheet` the app
 /// routes to — over [ActivityHost.none]. Nothing is persisted and nothing
 /// reads the database, which is the only reason a gallery can push them.
@@ -2726,8 +2713,6 @@ class _FlowScreen extends StatelessWidget {
     // root the same way the real one does — the Summary row below is the way
     // to see the end of a session without leaving.
     final stages = <(String, IconData, String, Widget)>[
-      ('Pick', LucideIcons.listChecks, 'The catalogue, as the app opens it',
-          const ActivityPicker()),
       ('Set up', LucideIcons.sliders, 'Goal, target and privacy',
           ActivitySetup(a)),
       ('Live', LucideIcons.circleDot, 'Runs for real, with no band behind it',

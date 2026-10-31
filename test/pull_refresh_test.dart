@@ -51,6 +51,43 @@ void main() {
     expect(runs, 1);
   });
 
+  testWidgets('the white starts filling under the finger, before release',
+      (t) async {
+    await pump(t, () async {});
+    final g = await t.startGesture(const Offset(200, 300));
+    await g.moveBy(const Offset(0, 300)); // well past the line
+    await t.pump(const Duration(milliseconds: 50)); // built, armed
+    await t.pump(const Duration(milliseconds: 50)); // the animation's first tick
+    await t.pump(const Duration(milliseconds: 400));
+    final fill = t.widget<WordmarkFill>(find.byType(WordmarkFill)).fill;
+    expect(fill, greaterThan(0), reason: 'filling while still held');
+    await g.up();
+    // Let the refresh run out its hold, so nothing is left pending.
+    for (var i = 0; i < 30; i++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    await t.pumpAndSettle();
+  });
+
+  testWidgets('the word always goes back up, even if the work never ends',
+      (t) async {
+    await pump(t, () => Completer<void>().future); // never completes
+    final rest = t.getTopLeft(find.text('row 0')).dy;
+    await t.drag(find.text('row 0'), const Offset(0, 300));
+    for (var i = 0; i < 20; i++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    expect(t.getTopLeft(find.text('row 0')).dy, greaterThan(rest),
+        reason: 'held down while it runs');
+    // Past the longest it will wait for the work itself.
+    for (var i = 0; i < 120; i++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    await t.pumpAndSettle();
+    expect(t.getTopLeft(find.text('row 0')).dy, rest,
+        reason: 'back where it started: the word is hidden again');
+  });
+
   testWidgets('a short pull does not refresh', (t) async {
     var runs = 0;
     await pump(t, () async => runs++);

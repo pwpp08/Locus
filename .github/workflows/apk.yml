@@ -2,11 +2,13 @@ name: apk
 
 # An installable Android APK on every push to main (and on demand).
 #
-# Two ways to get it:
-#   * the run's "locus-apk" artifact (Actions tab -> the run -> Artifacts), and
-#   * a rolling pre-release called `latest`, replaced on every successful build,
-#     so the newest APK is always one stable link:
+# Where it goes: a rolling pre-release called `latest`, replaced on every
+# successful build, so the newest APK is always one stable link, and it is the
+# plain .apk, not a zip:
 #     https://github.com/<owner>/<repo>/releases/tag/latest
+# The app's own updater (lib/updater) reads the same release. Each build is
+# stamped with its commit and time (GIT_SHA, BUILD_TIME) so the app can tell
+# whether the release is newer than what is installed.
 #
 # SIGNING. Android refuses to install an APK over an older one signed with a
 # different key, so for updates in place the key must be the same every build.
@@ -83,7 +85,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: flutter build apk --release --target-platform android-arm64 --dart-define-from-file=.env
+        run: flutter build apk --release --target-platform android-arm64 --dart-define-from-file=.env --dart-define=GIT_SHA=${GITHUB_SHA::7} --dart-define=BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
       - name: Name the APK after the commit
         id: name
@@ -93,12 +95,6 @@ jobs:
           apk="dist/locus-${ver%%+*}-${GITHUB_SHA::7}.apk"
           cp build/app/outputs/flutter-apk/app-release.apk "$apk"
           echo "apk=$apk" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: locus-apk
-          path: ${{ steps.name.outputs.apk }}
-          retention-days: 30
 
       # Replace the rolling pre-release so `latest` is always the newest build.
       - name: Update the rolling `latest` release

@@ -522,6 +522,9 @@ class _ShellState extends State<_Shell> {
       // never saw one.
       _markOnboarded();
       _consume();
+      // After an install this is the new build's first act: the downloaded APK
+      // is no longer needed. Then look for a newer one.
+      unawaited(UpdateService.instance.cleanupInstalled());
       UpdateService.instance.checkOnStartup(context);
     });
   }

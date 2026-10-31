@@ -159,15 +159,15 @@ class _JournalComposeState extends State<JournalCompose> {
     final cur = _values[key];
     if (cur == null) return;
     final l = AppLocalizations.of(context);
-    final at = await showTimePicker(
-      context: context,
-      initialTime: cur.atMinuteOfDay == null
+    final at = await pickTime(
+      context,
+      initial: cur.atMinuteOfDay == null
           ? TimeOfDay.now()
           : TimeOfDay(
               hour: cur.atMinuteOfDay! ~/ 60,
               minute: cur.atMinuteOfDay! % 60,
             ),
-      helpText: l?.journalComposeWhenWasLastOne ?? 'When was the last one?',
+      title: l?.journalComposeWhenWasLastOne ?? 'When was the last one?',
     );
     if (at == null || !mounted) return;
     setState(() {

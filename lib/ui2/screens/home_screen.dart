@@ -1012,9 +1012,14 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     final isToday = _day == null || _day == todayLabel();
     if (app != null && app.isPaired && isToday && widget.data == null) {
       _tapSync(() {});
-      try {
-        await app.syncNow().timeout(const Duration(seconds: 90));
-      } catch (_) {}
+      // The sync runs on in the background (its own indicator says so, and the
+      // page re-reads when it lands). The pull waits only for the quick read
+      // below, so the word always goes back up when its animation is done
+      // instead of hanging down for as long as a slow band takes.
+      unawaited(app
+          .syncNow()
+          .timeout(const Duration(seconds: 90))
+          .then<void>((_) {}, onError: (Object _) {}));
     }
     await _load();
   }

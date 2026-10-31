@@ -462,6 +462,7 @@ The workout screen uses its own header: `BoldChevron` 20, the activity icon at I
 
 - **`AppSheet`:** `card`, top radius 18, padding 20/12/20/(20 + safe area), a grab handle 40 × 4 in `p.line`, title `F.t2`, content scrolls, actions stacked with 12 between. `AppSheet.open(…, bare: true)` lets a sheet paint its own ground.
 - **`AppDialog`:** `card`, radius 14, inset 16/24, padding 24, title `F.t2`, body `F.body` ink2. Buttons are full-width `BigButton`s stacked with 8 between: primary, then destructive, then secondary.
+- **`pickTime` / `TimePickerSheet`** (`time_picker.dart`): every time of day in the app is chosen on this one sheet, never on Material's clock face. An `AppSheet` with the grab bar, the title in `F.t2` ("Alarm time", "Start time"), then **two columns that scroll up and down**: hours and minutes in `F.n34`, five rows high (48 each), each looping (23 → 00, 59 → 00) and snapping onto a value, a `card2` band (`R.lg`) behind the centre row, rows fading to the sheet's colour above and below, a colon between, and a `selectionClick` as each value passes under the band. Under a 12-hour clock the hours read "7 AM … 12 PM" in the same one column, so there are always exactly two. One full-width `BigButton` "Set time". Dates still use the platform date picker.
 - **Plus menu:** §11.6.
 - **Snackbar:** floating, `inverse` ground, `F.body` `onInverse`, radius 12.
 
@@ -583,7 +584,7 @@ As the page scrolls, the dials do not just scroll away. Each ring flies into a c
 
 ### 11.1a Pull to refresh (`pull_refresh.dart`)
 
-Home is a `CustomScrollView` with `kPullPhysics` (always scrollable, bouncing) and `LocusPullRefresh` first. Pulling the page down opens a gap at the top and the word LOCUS slides into it in step with the page, gray (ink3 at 45 %) and unfilled, growing from 1.05× to 1.3× and fading up as the pull nears the line. A tick (`selectionClick`) the moment the pull is enough (88). Let go and the page holds at 64 while the refresh runs, the word stays where it stopped, and white fills it from left to right over 1.5 s (`easeInOutCubic`). The refresh never ends before the fill does; when it is done the page rises and takes the word up with it, gray again for the next time. Reduced motion fills it at once.
+Home is a `CustomScrollView` with `kPullPhysics` (always scrollable, bouncing) and `LocusPullRefresh` first. Pulling the page down opens a gap at the top and the word LOCUS slides into it in step with the page, gray (ink3 at 45 %) and unfilled, growing from 1.05× to 1.3× and fading up as the pull nears the line. A tick (`selectionClick`) the moment the pull is enough (88). **The white starts filling the moment the pull is enough**, under the finger (`Motion.write`, 1.5 s, `easeInOutCubic`), not after letting go; pulled back under the line it empties. Let go and the page holds at 64 while the refresh runs. The page never lets go before the whole word is white plus a beat (`Motion.write + Motion.slow`) to see it, and never holds longer than 8 s for the work itself, so **the word always goes back up**: Home's pull waits only for its quick re-read, the band sync carries on in the background and the page re-reads when it lands. Then the page rises and takes the word up with it, gray again for the next time. Reduced motion fills it at once.
 
 ### 11.6 Plus menu
 
@@ -867,7 +868,7 @@ Opened from a dashboard row, a week card chevron, or a detail screen. One metric
   - Each card: radius 12, padding 16. The title in `F.caps` w700 with a chevron (I.lg ink2) that opens Trend View on that metric. A small readout for the touched or newest day. A legend of 10 swatches for stacks. A **192-tall column chart** with no gutter and no ticks, value labels in ink, and the newest day highlighted at rest. Each card scrubs on its own.
 - **Strain through the day** (`ChartFrame` with a 0–21 axis, `LineChart` in lavender) with its own readout.
 - **Strain never falls through a day.** The headline and the curve are the analytics' net curve held at its running peak (`compute/strain_peak.dart`, `kAlgoVersion` 115): effort once earned stays earned. Peak HR and Worn under the curve sit inset `S.x5`, under the plot rather than the axis.
-- **Time in zones** and **What this is made of** (`card2` panel, `F.cap` ink3).
+- **Time in zones** and **What this is made of** (`card2` panel, `F.cap` ink3). The zones card's link, "How these are set", opens **Heart rate settings** (the same screen Settings opens: personalized zones, resting and max HR). There is no second zones screen.
 
 ### 14.2 Recorded activity (`workout_detail.dart`)
 
@@ -930,9 +931,34 @@ A standard sheet (`AppSheet.open`, scrolling, the grab bar, `F.t2` title "Edit a
 - **Rows** in a `Surface` of `SetRow`s: Alarm on (the switch) and Alarm mode (its blurb, its name, a chevron into the mode sheet). For an exact alarm only, a second `Surface`: waves icon, "Smart wake" and what it does, over `RangeSegments` Off · 15 · 30 · 45 min.
 - **Save** is the sheet's one primary action (the ink `BigButton`, check icon); **Delete alarm** is a quiet coral `TextAction` under it. No trash can beside the title, no native dropdown.
 
+### 14.4c Set sleep, and the sleep window (`window_editor.dart`, `sleep_detail.dart`)
+
+- **Set sleep** (the window editor): the heart-rate chart with the two window lines, `+` / `−` at its top right to zoom (and two fingers); **no interval buttons** (30M, 2H, 6H, 1D, 2D are gone). Start and End tiles open the time picker (§10.7).
+- **The sleep-window sheet** (tapping the night's total): "You set this window" (or how it was found) with its length to asleep, then **full-width `BigButton`s**: the answer first (for a window the detector doubted: "These times are right", then "Set the times myself" soft), "Change the times" otherwise, and "Not sleep" in the coral tone at the foot. There is no "Back to automatic".
+- **Ending a started sleep or nap** is instant: the window is saved and the screen closes; the night re-derives in the background and Home re-reads when it lands.
+
+### 14.4d The activity chooser (`add_activity.dart`)
+
+One list names an activity everywhere the app asks: Add activity, Start activity, correcting a session's type, naming a window in Log workout. `ActivityChooser` / `chooseActivity(context, sleep: …)`: a search field, tabs ALL · STRAIN · RECOVERY · SLEEP, then rows (`ink` 9 % ground, `R.xl`, icon + caps name). **On ALL, Sleep and Nap are pinned above the A–Z list** (and filter with the search); the SLEEP tab holds them alone. Where only an activity makes sense, `sleep: false` removes the SLEEP tab and the pinned rows. The old full-screen picker and its collapsed groups are gone.
+
+### 14.4e Updates (`lib/updater`, `ui2/components/update_dialog.dart`)
+
+- **Settings → About:** *Check for updates* (its line says what you have, what is ready or that it is checking) and *Check automatically* (on launch, at most every four hours).
+- **How a build knows it is old.** CI stamps each build with its commit and time (`GIT_SHA`, `BUILD_TIME`) and names the APK `locus-<version>-<commit>.apk`. A release is an update when its commit is not the installed one **and** it was published after the installed build was made; a build with no stamp compares version numbers. The check reads GitHub's release *list* (the rolling `latest` build is a pre-release, which `/releases/latest` never returns).
+- **The sheet:** "Update available", `v0.11.3 · 18949887 → v0.11.4 · c07d50f`, the size, the release's notes, then **Update now**: the APK downloads inside the app (checked against the SHA-256 GitHub publishes), a progress bar, then Android's installer. A refusal is said plainly with **Try again** and **Open in browser**. The downloaded file is deleted the next time the app starts, which after an install is the new build's first act.
+- The workflows publish the plain `.apk` as a release asset; they no longer upload it as a zipped run artifact.
+
 ### 14.4b Sleep Planner (`screens/sleep_planner.dart`)
 
 Top to bottom on the slate-to-bg gradient: the nav row (back, `SLEEP PLANNER` and a 20 ring with `?`, and the schedule button: a 36 ring with a calendar and a moon in it, centred on the title's line, its ON/OFF tag hanging under it without taking any of the row's height); the Locus mark in a 44 ring; the headline in `F.head` w500, always three lines high so nothing under it moves; `TOMORROW I WANT TO` and the goal as a **full pill** (ink 1 px border, `F.body` caps); then the night: the suggested bedtime and the wake time in `F.n34` over two-line captions, dashed drops to the ends of a strip edged top and bottom with hairlines and hatched between two ink end caps; **TIME IN BED** over a pill (not a rectangle) with the length in `F.n24`; the OPTIMAL rule and note, or the recommended window's bracket. The dock: a card with `R.xl` top corners, the strap, `ALARM` and the switch, and two boxes 20 apart, `R.sm` corners and a darker edge.
+
+### 14.5a Band buzz patterns (`notify/notification_relay.dart`)
+
+With band notifications on and permitted, two phone events have a buzz pattern of their own and need no app picked: an **incoming call** (the dialer's notification) is **three long buzzes**, once per call (a 45 s cooldown keeps the ongoing-call update from buzzing again); a **Google Tasks reminder** is **two short buzzes**. Everything else is the one short buzz it always was. Each pattern has its own On/Off row under *Patterns* in Band notifications, on by default. 4.0 plays its short pulse or a longer waveform effect; the 5.0/MG's only known waveform is repeated (once short, three times long). Nothing buzzes while the band is disconnected.
+
+### 14.5b Band battery alerts (`notify/device_alerts.dart`)
+
+*Low battery* and *Charging* as before, and **Fully charged**: one card when the band reports 100 % on the charger ("Your band is at 100%. You can take it off the charger."), latched per charge (it re-arms only after the charge has fallen under 90 %, and survives a restart), cleared when the band comes off the charger, and, like the others, never spent on a card the quiet hours dropped.
 
 ### 14.5 Stress Monitor gauge
 
