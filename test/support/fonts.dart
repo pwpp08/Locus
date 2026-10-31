@@ -15,6 +15,7 @@ Future<void> loadAppFonts() async {
     (F.family, 'assets/fonts/Figtree'),
     (F.numerals, 'assets/fonts/DDINNums'),
     ('Manrope', 'assets/fonts/Manrope'),
+    ('SuperBubble', 'assets/fonts/SuperBubble'),
   ]) {
     final loader = FontLoader(family);
     for (final f in Directory(dir)

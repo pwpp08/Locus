@@ -351,10 +351,8 @@ class PosterCard extends StatelessWidget {
         // is the one string on the card that may never be truncated, and a
         // face wider than the one this was measured in is not a reason to
         // print 'OpenStr…'.
-        child: Text('Locus',
-            style: F.over.copyWith(
-                color: C.white.withValues(alpha: .72),
-                fontWeight: FontWeight.w700),
+        child: Text('LOCUS',
+            style: F.wordmark.copyWith(color: C.white.withValues(alpha: .72)),
             maxLines: 1),
       );
 

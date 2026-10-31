@@ -483,14 +483,14 @@ class F {
       fontWeight: FontWeight.w700,
       letterSpacing: .35);
 
-  /// The thin, spaced-out wordmark over the dials.
+  /// The LOCUS wordmark, in Super Bubble: the one place the app's words are
+  /// not Figtree. Only the word LOCUS is ever set in it, so no fallback.
   static const wordmark = TextStyle(
-      fontFamily: _f,
-      fontFamilyFallback: _fb,
-      fontSize: 22,
+      fontFamily: 'SuperBubble',
+      fontSize: 24,
       height: 1,
-      fontWeight: FontWeight.w300,
-      letterSpacing: 5);
+      fontWeight: FontWeight.w400,
+      letterSpacing: 1.5);
 
   // Numerals — a parallel display ramp. Tabular, so a live value never jitters
   // its own layout as digits change. Units sit beside them in cap/body, ink3.

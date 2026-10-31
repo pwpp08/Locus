@@ -321,6 +321,8 @@ Nothing animates a gradient.
 | `MarkCount` | count in a 1.5 px ring | grouped activity marks on charts |
 | `clusterMarks` | groups marks whose centres are within `gap` of the group's mean; zooming spreads them apart again | day-heart and chart marks |
 
+**The wordmark** is the one place the app's words are not Figtree: `F.wordmark` is `LOCUS` in Super Bubble (fsuarez913, dafont, free for personal and commercial use; `assets/fonts/SuperBubble/LICENSE.txt`), 24 px, tracking 1.5, never given a fallback because nothing else is ever set in it. Home's top bar, the boot cover, the strain ring and the share poster all use it. Another "free" display font is not a substitute until its licence allows a public repo and APK: Mochi Boom DEMO, for one, is personal-use only and may not be published.
+
 **The Locus mark** (`logo.dart`, geometry in `logo_geometry.dart`): a cursive L, one continuous stroke with a loop at the top and one at the foot. The outline is the source artwork traced (99.3 % pixel overlap, counters as even-odd holes) in a 1000 × 1000 box, the artwork's own framing; never redraw it by hand. `LocusTint`: `ink` (the theme's ink: white on dark, char on light; the default everywhere), `strain`, `recovery`, `sleep`, `dials` (strain blue → optimal). The brand files are cut from the same outline (`assets/brand/`: white and black marks, dark, light and dial-colour icons, an animated SVG), and so is the launcher icon (white on black; `adaptive_icon_background` black).
 
 Chevron convention: `BoldChevron` where the chevron is part of a label (pager, dial name, monitor title). Lucide `chevronRight` (I.md ink3 or I.lg ink2) where the whole row or card is the door.

@@ -1,0 +1,8 @@
+Super Bubble, by fsuarez913.
+
+Downloaded from https://www.dafont.com/super-bubble.font on 2026-10-31. The
+dafont page lists it as "Free for personal use & commercial use". The zip
+carries no licence text of its own; this note records what the page said, and
+the page should be re-checked if the font is ever redistributed on its own.
+
+Used for one thing only: the LOCUS wordmark (F.wordmark in lib/ui2/theme.dart).

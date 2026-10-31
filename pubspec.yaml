@@ -764,6 +764,12 @@ flutter:
           weight: 600
         - asset: assets/fonts/DDINNums/DDINNums-700.ttf
           weight: 700
+    # The LOCUS wordmark only (F.wordmark). Super Bubble by fsuarez913, free for
+    # personal and commercial use per its dafont page; see
+    # assets/fonts/SuperBubble/LICENSE.txt.
+    - family: SuperBubble
+      fonts:
+        - asset: assets/fonts/SuperBubble/SuperBubble-Regular.ttf
     # Figtree has no Cyrillic: Russian falls through to Manrope (F's
     # fontFamilyFallback, lib/ui2/theme.dart), so it stays bundled.
     - family: Manrope
