@@ -125,31 +125,7 @@ List<ChartPoint> _days(int n, double base, double amp) {
   ];
 }
 
-const _env = {'confidence': .8, 'tier': 'HIGH'};
-
 /// A month of history and every overview row present.
-HealthData _health() => HealthData(
-      daysWithData: 30,
-      today: {
-        'daily': {
-          'resting_hr': {'value': 52, ..._env},
-        },
-        'hrv': {'rmssd': 64, ..._env},
-        'sleep': {
-          'duration_min': {'value': 443, ..._env},
-        },
-        'stress': {'value': 31, 'score': 31, 'level': 'Low', ..._env},
-        'resp': {'value': 14.2, 'confidence': .6, 'tier': 'ESTIMATE'},
-      },
-      charts: {
-        'resting_hr': _days(24, 53, 6),
-        'hrv': _days(24, 62, 18),
-        'sleep': _days(24, 440, 60),
-        'stress': _days(24, 32, 20),
-        'resp_rate': _days(24, 14.2, 1.2),
-      },
-    );
-
 /// The screens, by name. A builder rather than a widget so every pump gets a
 /// fresh State.
 final Map<String, Widget Function()> rootCases = {
@@ -208,9 +184,6 @@ final Map<String, Widget Function()> rootCases = {
           consistency: 89,
         ),
       ),
-  'activity': () => ChangeNotifierProvider<AppState>.value(
-      value: _app, child: const WorkoutScreen()),
-  'health': () => HealthScreen(data: _health()),
   'metric_resting_hr': () => MetricDetail('resting_hr',
       data: MetricData(series: _days(30, 54, 6), daysAvailable: 30)),
   'breathing': () => const Center(

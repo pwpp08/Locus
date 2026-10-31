@@ -82,6 +82,17 @@ android {
         }
     }
 
+    packaging {
+        jniLibs {
+            // The native libraries are compressed inside the APK instead of
+            // stored raw for the system to map directly. They shrink to about
+            // 40 % of their size, which is most of an APK's weight; the phone
+            // unpacks them once, at install. This app is installed from a
+            // downloaded file, so the file's size is what people feel.
+            useLegacyPackaging = true
+        }
+    }
+
     signingConfigs {
         if (hasReleaseSigning) {
             create("release") {

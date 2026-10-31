@@ -399,14 +399,14 @@ class ExerciseDef {
   final bool bodyweight;
 
   /// The Free Exercise DB photos bundled for this lift
-  /// (assets/exercises/ID_N.jpg) and how many of the two there are.
+  /// (assets/exercises/ID_N.webp) and how many of the two there are.
   final String? imageId;
   final int imageFrames;
 
   /// The asset of [frame] (0 or 1), never past the last one there is.
   String? imagePath(int frame) => imageId == null
       ? null
-      : 'assets/exercises/${imageId}_${frame >= imageFrames ? imageFrames - 1 : frame}.jpg';
+      : 'assets/exercises/${imageId}_${frame >= imageFrames ? imageFrames - 1 : frame}.webp';
 
   const ExerciseDef(
     this.key,

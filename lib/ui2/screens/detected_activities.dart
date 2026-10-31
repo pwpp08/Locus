@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -66,6 +68,11 @@ class _DetectedActivitiesScreenState extends State<DetectedActivitiesScreen>
       }
     }
   }
+
+  /// Confirms [s] at the window its card shows; the detected one stays null,
+  /// so an untouched card confirms exactly as it did before it could be edited.
+  Future<void> _confirm(ActivitySuggestion s, int a, int b) => _act(s,
+      start: a == s.startTs ? null : a, end: b == s.endTs ? null : b);
 
   Future<void> _act(
     ActivitySuggestion s, {
@@ -164,7 +171,7 @@ class _DetectedActivitiesScreenState extends State<DetectedActivitiesScreen>
                         child: ActivityProposalCard(
                           suggestion: s,
                           highlighted: widget.focusId == s.id,
-                          onConfirm: _busy ? null : () => _act(s),
+                          onConfirm: _busy ? null : (a, b) => _confirm(s, a, b),
                           onEdit: _busy ? null : () => _edit(s),
                           onDiscard: _busy
                               ? null
@@ -185,7 +192,7 @@ class _DetectedActivitiesScreenState extends State<DetectedActivitiesScreen>
 Route<T> themedActivityRoute<T>(Widget child) =>
     themedRoute<T>((_) => child, name: child.runtimeType.toString());
 
-class ActivityProposalCard extends StatelessWidget {
+class ActivityProposalCard extends StatefulWidget {
   const ActivityProposalCard({
     super.key,
     required this.suggestion,
@@ -197,21 +204,41 @@ class ActivityProposalCard extends StatelessWidget {
   });
   final ActivitySuggestion suggestion;
   final bool highlighted;
-  final VoidCallback? onConfirm, onEdit, onDiscard;
+
+  /// Confirms the window as it stands on the card: what the detector found, or
+  /// where the person moved its lines to.
+  final void Function(int startTs, int endTs)? onConfirm;
+  final VoidCallback? onEdit, onDiscard;
 
   /// Where the preview's heart rate comes from; the band's store when null.
   final HrReader? hr;
 
   @override
+  State<ActivityProposalCard> createState() => _ActivityProposalCardState();
+}
+
+class _ActivityProposalCardState extends State<ActivityProposalCard> {
+  late int _start = widget.suggestion.startTs, _end = widget.suggestion.endTs;
+
+  @override
+  void didUpdateWidget(ActivityProposalCard old) {
+    super.didUpdateWidget(old);
+    // A different proposal in the same slot starts from its own window.
+    if (old.suggestion.id != widget.suggestion.id) {
+      _start = widget.suggestion.startTs;
+      _end = widget.suggestion.endTs;
+    }
+  }
+
+  @override
   Widget build(BuildContext c) {
     final l = AppLocalizations.of(c);
     final p = P.of(c);
+    final suggestion = widget.suggestion;
     final nap = suggestion.kind == ActivityKind.nap;
     final accent = nap ? C.domHealth : C.domMove;
-    final start = DateTime.fromMillisecondsSinceEpoch(
-      suggestion.startTs * 1000,
-    );
-    final end = DateTime.fromMillisecondsSinceEpoch(suggestion.endTs * 1000);
+    final start = DateTime.fromMillisecondsSinceEpoch(_start * 1000);
+    final end = DateTime.fromMillisecondsSinceEpoch(_end * 1000);
     final material = MaterialLocalizations.of(c);
     String clock(DateTime value) => material.formatTimeOfDay(
         TimeOfDay.fromDateTime(value),
@@ -220,6 +247,7 @@ class ActivityProposalCard extends StatelessWidget {
     final sameDay = start.year == end.year &&
         start.month == end.month &&
         start.day == end.day;
+    final minutes = math.max(0, (_end - _start) ~/ 60);
     final when = '${material.formatMediumDate(start)} · ${clock(start)} – '
         '${sameDay ? '' : '${material.formatMediumDate(end)} '}${clock(end)}';
     return Surface(
@@ -243,50 +271,70 @@ class ActivityProposalCard extends StatelessWidget {
                   style: F.caps.copyWith(color: p.ink),
                 ),
               ),
-              if (highlighted)
+              if (widget.highlighted)
                 Icon(LucideIcons.bell, color: p.on(accent), size: I.md),
             ],
           ),
           const SizedBox(height: S.x1),
           Text(
             '$when · '
-            '${l?.activityLengthMinutes(suggestion.durationMin) ?? '${suggestion.durationMin} min'}',
+            '${l?.activityLengthMinutes(minutes) ?? '$minutes min'}',
             style: F.cap.copyWith(color: p.ink2),
           ),
           const SizedBox(height: S.x3),
-          // The heart rate around it, the window drawn on it the way the
-          // editor draws it: what the detector saw, before it is confirmed.
+          // The heart rate and the wrist's movement around it, the window drawn
+          // on them the way the editor draws it. Its two lines can be dragged
+          // to where the nap or the session really began and ended; two
+          // fingers zoom.
           WindowPreview(
             start: suggestion.startTs,
             end: suggestion.endTs,
             kind: nap ? WindowKind.nap : WindowKind.workout,
-            hr: hr,
+            hr: widget.hr,
             zoomable: true,
-            height: S.x16 * 2,
+            height: S.x16 * 2 + S.x6,
+            onChanged: (a, b) => setState(() {
+              _start = a;
+              _end = b;
+            }),
           ),
-          const SizedBox(height: S.x3),
+          const SizedBox(height: S.x4),
           // The workout editor is where the sport is picked, so it says that;
           // a nap only has times to edit. A discard is kept by window and wins
           // over every re-detection; same words as the correction on a logged
-          // nap and a night.
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            runSpacing: S.x1,
+          // nap and a night. Three buttons of one width, the answer first.
+          Row(
             children: [
-              BigButton(l?.activityConfirm ?? 'Confirm',
-                  compact: true, onTap: onConfirm),
-              TextAction(
-                nap
-                    ? (l?.activityEdit ?? 'Edit')
-                    : (l?.activityChangeSport ?? 'Change sport'),
-                onEdit,
+              Expanded(
+                child: BigButton(
+                  l?.activityConfirm ?? 'Confirm',
+                  compact: true,
+                  onTap: widget.onConfirm == null
+                      ? null
+                      : () => widget.onConfirm!(_start, _end),
+                ),
               ),
-              TextAction(
-                nap
-                    ? (l?.napsNotANapLabel ?? 'Not a nap')
-                    : (l?.activityNotAWorkout ?? 'Not a workout'),
-                onDiscard,
+              const SizedBox(width: S.x2),
+              Expanded(
+                child: BigButton(
+                  nap
+                      ? (l?.activityEdit ?? 'Edit')
+                      : (l?.activityChangeSport ?? 'Change sport'),
+                  compact: true,
+                  soft: true,
+                  onTap: widget.onEdit,
+                ),
+              ),
+              const SizedBox(width: S.x2),
+              Expanded(
+                child: BigButton(
+                  nap
+                      ? (l?.napsNotANapLabel ?? 'Not a nap')
+                      : (l?.activityNotAWorkout ?? 'Not a workout'),
+                  compact: true,
+                  tone: ButtonTone.danger,
+                  onTap: widget.onDiscard,
+                ),
               ),
             ],
           ),
@@ -341,6 +389,11 @@ class _DetectedActivitiesCardState extends State<DetectedActivitiesCard>
       if (mounted) setState(() => _failed = true);
     }
   }
+
+  /// Confirms [s] at the window its card shows; the detected one stays null,
+  /// so an untouched card confirms exactly as it did before it could be edited.
+  Future<void> _confirm(ActivitySuggestion s, int a, int b) => _act(s,
+      start: a == s.startTs ? null : a, end: b == s.endTs ? null : b);
 
   Future<void> _act(ActivitySuggestion s,
       {bool discard = false, int? start, int? end}) async {
@@ -408,7 +461,7 @@ class _DetectedActivitiesCardState extends State<DetectedActivitiesCard>
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         ActivityProposalCard(
           suggestion: first,
-          onConfirm: _busy ? null : () => _act(first),
+          onConfirm: _busy ? null : (a, b) => _confirm(first, a, b),
           onEdit: _busy ? null : () => _edit(first),
           onDiscard: _busy ? null : () => _act(first, discard: true),
         ),

@@ -580,7 +580,7 @@ class WelcomeView extends StatelessWidget {
           children: [
             const OnboardingStep(1),
             const SizedBox(height: S.x5),
-            BandStage(Art.bandHero, height: 200),
+            BandStage(Art.watch, height: 200),
             const SizedBox(height: S.x5),
             Text(l?.welcomeHeadline ?? 'Your band, decoded here',
                 style: F.t1.copyWith(color: p.ink)),

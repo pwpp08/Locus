@@ -24,6 +24,7 @@ import '../../l10n/display_text.dart';
 // says what it is.
 
 import 'dart:convert' show jsonDecode;
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -1145,7 +1146,6 @@ class _ZoomState extends State<_DayGraphZoom> {
   @override
   Widget build(BuildContext c) {
     final l = AppLocalizations.of(c);
-    final p = P.of(c);
     final n = widget.graph.slots;
     final (lo, hi) = _bounds();
     final zoomed = lo > 0 || hi < n;
@@ -1161,46 +1161,81 @@ class _ZoomState extends State<_DayGraphZoom> {
               'for this stretch.';
     } else {
       note = l?.dayTimelineZoomPerMinute ??
-          '1-minute averages. Drag the handles to zoom; two hours or less '
+          '1-minute averages. Pinch to zoom; two hours or less '
               'shows every second while it is still kept.';
     }
     final card =
         dayGraphCard(c, g, zoomed: zoomed, fine: _fine, footnote: note);
     if (card == null || n < 2) return card ?? const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        card,
-        RangeBar(
-          values: RangeValues(lo.toDouble(), hi.toDouble()),
-          min: 0,
-          max: n.toDouble(),
-          // Quarter-hour steps: fine enough to land on a workout, coarse
-          // enough that a thumb can hit a two-hour window.
-          divisions: n ~/ 15 > 0 ? n ~/ 15 : null,
-          hue: p.on(C.dialStrain),
-          labels: widget.graph.dayStart == null
-              ? null
-              : RangeLabels(
-                  clockOfTs(widget.graph.dayStart! + lo * 60),
-                  clockOfTs(widget.graph.dayStart! + hi * 60),
-                ),
-          semanticFormatter: (v) => widget.graph.dayStart == null
-              ? '${v.round()}'
-              : clockOfTs(widget.graph.dayStart! + v.round() * 60),
-          onChanged: (r) {
-            if (r.end - r.start < 15) return;
-            _token++;
-            setState(() {
-              _range = r;
-              _fine = null;
-              _fineMissing = false;
-            });
-          },
-          onChangeEnd: (_) => _readFine(),
-        ),
-      ],
+    // Two fingers zoom the chart; once zoomed, one finger slides it along.
+    return Scrubber(
+      value: null,
+      onChanged: _slide,
+      onLift: _lift,
+      yieldToScroll: true,
+      onPinch: _pinch,
+      label: 'Heart rate across the day. Pinch to zoom',
+      describe: (f) => widget.graph.dayStart == null
+          ? '${((lo + f * (hi - lo))).round()}'
+          : clockOfTs(widget.graph.dayStart! + ((lo + f * (hi - lo)) * 60).round()),
+      child: card,
     );
+  }
+
+  /// Where the view began when a finger or a pinch did, in minutes.
+  int _fromLo = 0, _fromHi = 0;
+  double? _slideAt;
+
+  void _setRange(int lo, int hi) {
+    _token++;
+    setState(() {
+      _range = RangeValues(lo.toDouble(), hi.toDouble());
+      _fine = null;
+      _fineMissing = false;
+    });
+  }
+
+  void _pinch(PinchPhase phase, double scale, double focal, double pan) {
+    final n = widget.graph.slots;
+    switch (phase) {
+      case PinchPhase.start:
+        final b = _bounds();
+        _fromLo = b.$1;
+        _fromHi = b.$2;
+      case PinchPhase.update:
+        final span0 = _fromHi - _fromLo;
+        final span = (span0 / math.max(scale, .01)).round().clamp(15, n).toInt();
+        final at = _fromLo + focal * span0;
+        final from = (at - (focal + pan) * span)
+            .round()
+            .clamp(0, math.max(0, n - span))
+            .toInt();
+        _setRange(from, from + span);
+      case PinchPhase.end:
+        _readFine();
+    }
+  }
+
+  void _slide(double f) {
+    final n = widget.graph.slots;
+    if (_range == null) return;
+    if (_slideAt == null) {
+      _slideAt = f;
+      final b = _bounds();
+      _fromLo = b.$1;
+      _fromHi = b.$2;
+    }
+    final span = _fromHi - _fromLo;
+    final from = (_fromLo - ((f - _slideAt!) * span).round())
+        .clamp(0, math.max(0, n - span))
+        .toInt();
+    _setRange(from, from + span);
+  }
+
+  void _lift() {
+    final slid = _slideAt != null;
+    _slideAt = null;
+    if (slid) _readFine();
   }
 }
 

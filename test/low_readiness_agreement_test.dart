@@ -19,7 +19,6 @@ import 'package:openstrap_edge/data/day_label.dart';
 import 'package:openstrap_edge/data/db.dart';
 import 'package:openstrap_edge/data/local_repository_impl.dart';
 import 'package:openstrap_edge/models/payloads.dart';
-import 'package:openstrap_edge/ui2/screens/health_screen.dart' show HealthData;
 
 /// The frozen headline as the engine hands it to the planner: only a pin taken
 /// on [day]'s own night (`LocalDb.headlinePinFor`).
@@ -124,13 +123,6 @@ void main() {
             (pt['t'] as num).toInt() * 1000)) ==
         today);
     expect(todayPoint.single['v'], 22, reason: 'chart');
-
-    // Log, through the Health loader the Observations screen uses.
-    final log = (await HealthData.load(repo))
-        .findings
-        .where((f) => f.kind == FindingKind.lowReadiness);
-    expect(log.single.date, today, reason: 'log');
-    expect(log.single.score, 22, reason: 'log');
   }
 
   test('with no stored readiness row for the pinned day', () async {
@@ -172,11 +164,6 @@ void main() {
                 (pt['t'] as num).toInt() * 1000)) ==
             day);
     expect(points, isEmpty, reason: 'chart');
-
-    final log = (await HealthData.load(repo))
-        .findings
-        .where((f) => f.kind == FindingKind.lowReadiness);
-    expect(log, isEmpty, reason: 'log');
   }
 
   test('deleting the pinned day takes its pin with it, across a reopen',

@@ -1,6 +1,8 @@
 // "Generate with AI": the reply is read leniently, nothing is invented from
 // it, and a lift the library does not know is left out rather than guessed.
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/ai/workout_ai.dart';
 import 'package:openstrap_edge/coach/coach_config.dart';
@@ -93,7 +95,15 @@ void main() {
       expect(withPhotos.length, greaterThan(500));
       final e = withPhotos.first;
       expect(e.imagePath(0), startsWith('assets/exercises/'));
-      expect(e.imagePath(0), endsWith('_0.jpg'));
+      expect(e.imagePath(0), endsWith('_0.webp'));
+      // Every photo the catalogue points at is really bundled: a path with no
+      // file behind it draws nothing, and nothing says so.
+      for (final x in withPhotos) {
+        for (var f = 0; f < x.imageFrames; f++) {
+          expect(File(x.imagePath(f)!).existsSync(), isTrue,
+              reason: x.imagePath(f));
+        }
+      }
       // A single-photo exercise never points past it.
       final single = withPhotos.where((x) => x.imageFrames == 1);
       for (final s in single) {

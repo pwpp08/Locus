@@ -617,16 +617,11 @@ class I {
 /// ── ART ── the bundled imagery slots ───────────────────────────────
 ///
 /// The ONLY way a screen names an image: no screen writes an asset path. Files
-/// are transparent PNGs/WebP under assets/images/ (with 2.0x / 3.0x variants
-/// Flutter picks by itself); see DESIGN.md §18. A slot whose
+/// are SVGs under assets/images/; see DESIGN.md §18. A slot whose
 /// file has not landed yet draws NOTHING — never a broken-image icon — so
 /// code can ship before art does.
 enum Art {
-  // The band: pictures of the device, WebP with 2.0x and 3.0x siblings.
-  bandHero('art_band_hero', 'webp'),
-  bandSide('art_band_side', 'webp'),
-  bandTop('art_band_top', 'webp'),
-  // Everything else is drawn: flat, hand-cut silhouettes in one cream and one
+  // Everything is drawn: flat, hand-cut silhouettes in one cream and one
   // data hue, as SVG — a few hundred bytes each, sharp at any size, and the
   // same on every platform. 400 x 400 viewBox, centred.
   ring('art_ring', 'svg'),
@@ -715,6 +710,9 @@ class Motion {
   /// and when it loops, the ink lifting back off.
   static const logo = Duration(milliseconds: 2400);
   static const linger = Duration(milliseconds: 1300);
+
+  /// White filling the word LOCUS on the pull to refresh ([WordmarkFill]).
+  static const write = Duration(milliseconds: 1500);
 
   /// The least time between two haptic ticks of a rolling figure, so a long
   /// roll reads as a smooth run of taps and not a buzz.

@@ -99,16 +99,6 @@ Widget syncedThroughLine(BuildContext c, String? todayId,
   );
 }
 
-class HomeWordmark extends StatelessWidget {
-  const HomeWordmark({super.key});
-
-  @override
-  Widget build(BuildContext c) => Center(
-        child: Text('LOCUS',
-            style: F.wordmark.copyWith(color: P.of(c).ink2)),
-      );
-}
-
 class DetailDayPager extends StatelessWidget {
   final String? day;
   final List<String> days;

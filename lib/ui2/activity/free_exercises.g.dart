@@ -2,7 +2,7 @@
 // Refresh with: python3 tool/gen_free_exercises.py <dir>
 // Source: https://github.com/yuhonas/free-exercise-db (Unlicense: public
 // domain, photos included). Strength work only; two photos each, bundled as
-// assets/exercises/<id>_0.jpg and _1.jpg.
+// assets/exercises/<id>_0.webp and _1.webp.
 
 part of 'catalogue.dart';
 

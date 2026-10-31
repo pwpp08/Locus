@@ -84,7 +84,6 @@ typedef _SectionHead = HomeSectionHead;
 typedef _MyDay = HomeMyDay;
 typedef _TonightsSleep = HomeTonightsSleep;
 typedef _Monitors = HomeMonitors;
-typedef _Wordmark = HomeWordmark;
 typedef _DeviceStatus = HomeDeviceStatus;
 
 // ═══════════════════ shared plumbing ═══════════════════
@@ -501,9 +500,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     final d = _d;
 
     if (d == null) {
-      return _refreshable(ListView(padding: pad.copyWith(bottom: S.navClear(c)), children: [
+      return _scrolling(padding: pad.copyWith(bottom: S.navClear(c)), children: [
         _header(c, null),
-        const _Wordmark(),
         const SizedBox(height: S.x5),
         const SizedBox(height: S.x3),
         const DetectedActivitiesCard(),
@@ -554,7 +552,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             const SizedBox(height: S.x3),
             alarmDoor(c, a.$1, a.$2),
           ],
-      ]));
+      ]);
     }
 
     final bare = d.readiness.isEmpty &&
@@ -593,14 +591,13 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _measureDials());
     return Stack(key: _stackKey, children: [
-     _refreshable(ListView(
+     _scrolling(
         controller: _scroll,
         padding: pad.copyWith(bottom: S.navClear(c)),
         children: [
       _header(c, d.dayId),
       if (rebuilt != null) ...[rebuilt, const SizedBox(height: S.x3)],
       ...?_bodyWatch(c, d, todayLabel(widget.now)),
-      const _Wordmark(),
       const SizedBox(height: S.x5),
 
       if (!bare && isToday)
@@ -788,7 +785,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           ),
         },
       ),
-    ])),
+    ]),
       if (dialsShown) _foldedDials(c, d, openDial),
     ]);
   }
@@ -989,8 +986,23 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     ];
   }
 
-  Widget _refreshable(Widget list) =>
-      RefreshIndicator(onRefresh: _pullToSync, child: list);
+  /// The page: the pull-down mark first ([LocusPullRefresh]), then the list.
+  Widget _scrolling({
+    ScrollController? controller,
+    required EdgeInsets padding,
+    required List<Widget> children,
+  }) =>
+      CustomScrollView(
+        controller: controller,
+        physics: kPullPhysics,
+        slivers: [
+          LocusPullRefresh(onRefresh: _pullToSync),
+          SliverPadding(
+            padding: padding,
+            sliver: SliverList(delegate: SliverChildListDelegate(children)),
+          ),
+        ],
+      );
 
   Future<void> _pullToSync() async {
     AppState? app;

@@ -41,6 +41,7 @@ import '../../l10n/date_text.dart';
 import '../../state/clock_format.dart' show formatClockOf;
 import '../../state/units_controller.dart';
 import '../screens/home_screen.dart' show unitsOf;
+import '../logo.dart' show Wordmark;
 import '../theme.dart';
 import 'share.dart' show shareHero, shareStats, localizedExportCaption;
 import 'summary.dart';
@@ -351,9 +352,7 @@ class PosterCard extends StatelessWidget {
         // is the one string on the card that may never be truncated, and a
         // face wider than the one this was measured in is not a reason to
         // print 'OpenStr…'.
-        child: Text('LOCUS',
-            style: F.wordmark.copyWith(color: C.white.withValues(alpha: .72)),
-            maxLines: 1),
+        child: Wordmark(color: C.white.withValues(alpha: .72)),
       );
 
   /// The activity, set large. It is the card's subject — what this picture is

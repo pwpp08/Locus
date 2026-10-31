@@ -1,4 +1,4 @@
-// Data-integrity regressions for the three import paths.
+// Data-integrity regressions for the import paths.
 //
 //  • WHOOP CSV must NEVER overwrite a day the device derived from real 1 Hz
 //    (putDayResult is INSERT-OR-REPLACE on day_result AND metric_series, and
@@ -17,7 +17,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:openstrap_edge/cloud/cloud_import.dart';
 import 'package:openstrap_edge/compute/derivation_engine.dart' show kAlgoVersion;
 import 'package:openstrap_edge/compute/substrate.dart' show localDateLabel;
 import 'package:openstrap_edge/data/db.dart';
@@ -366,69 +365,6 @@ void main() {
               'Sleep performance %,Asleep duration (min),In bed duration (min)',
               '68,400,500'),
           closeTo(80.0, 1e-9));
-    });
-  });
-
-  group('CloudImporter session rows', () {
-    test('skips a session with no start_ts instead of filing it at epoch 0',
-        () async {
-      final wrote = await CloudImporter.debugWriteSession({
-        'id': 'malformed-1',
-        'end_ts': 1780000000,
-        'type': 'run',
-      });
-      expect(wrote, isFalse);
-      final db = await LocalDb.instance;
-      final rows = await db
-          .query('sessions', where: 'start_ts <= ?', whereArgs: [0]);
-      expect(rows, isEmpty, reason: 'a 1970-01-01 phantom workout was written');
-      final byId =
-          await db.query('sessions', where: 'id = ?', whereArgs: ['malformed-1']);
-      expect(byId, isEmpty);
-    });
-
-    test('writes a well-formed session', () async {
-      final wrote = await CloudImporter.debugWriteSession({
-        'id': 'good-1',
-        'start_ts': 1780000000,
-        'end_ts': 1780003600,
-        'type': 'run',
-      });
-      expect(wrote, isTrue);
-      final db = await LocalDb.instance;
-      final rows =
-          await db.query('sessions', where: 'id = ?', whereArgs: ['good-1']);
-      expect(rows.length, 1);
-      expect((rows.first['start_ts'] as num).toInt(), 1780000000);
-      expect((rows.first['duration_min'] as num).toInt(), 60);
-    });
-  });
-
-  group('CloudImporter._writeDay return value (dayCount accuracy)', () {
-    test('returns false and does not write when the band already measured '
-        'this date', () async {
-      const day = '2026-06-01';
-      await LocalDb.putDayResult(
-        dayId: day,
-        algoVersion: kAlgoVersion,
-        payloadJson: jsonEncode({'date': day, 'source': 'onehz', 'real': true}),
-        windowJson: '{}',
-        rhr: 50.0,
-        series: {'rhr': 50.0},
-      );
-      final wrote =
-          await CloudImporter.debugWriteDay(day, {'resting_hr': 99}, null);
-      expect(wrote, isFalse,
-          reason: 'a measured day must not be overwritten or counted');
-      expect(await _metric(day, 'rhr'), 50.0);
-    });
-
-    test('returns true when it actually writes an unmeasured date', () async {
-      const day = '2026-06-02';
-      final wrote =
-          await CloudImporter.debugWriteDay(day, {'resting_hr': 55}, null);
-      expect(wrote, isTrue);
-      expect(await _metric(day, 'rhr'), 55.0);
     });
   });
 

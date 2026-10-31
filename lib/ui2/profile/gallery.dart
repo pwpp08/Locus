@@ -396,14 +396,6 @@ Map<String, Widget> componentCases() => {
       'range_segments': RangeSegments(const ['D', 'W', 'M', '6M'], 1, (_) {}),
       'window_pager':
           WindowPager('Oct 24 - Oct 30, 26', onEarlier: () {}, onLater: null),
-      // The selector under a zoomable chart.
-      'range_bar': RangeBar(
-        values: const RangeValues(20, 70),
-        min: 0,
-        max: 100,
-        hue: C.dialStrain,
-        onChanged: (_) {},
-      ),
       // Glass, as the tab bar draws it.
       'glass': Builder(builder: (c) => Glass(
             radius: R.rPill,
@@ -460,7 +452,7 @@ Map<String, Widget> componentCases() => {
       'onboarding_step': const AlwaysChar(child: OnboardingStep(2)),
       // The band's picture on its card (draws only the card until the art
       // file is bundled).
-      'band_stage': const AlwaysChar(child: BandStage(Art.bandHero, height: 160)),
+      'band_stage': const AlwaysChar(child: BandStage(Art.watch, height: 160)),
       // The one theme override: a card inside it is Char whatever the app is.
       'always_char': AlwaysChar(
         child: Builder(
@@ -961,13 +953,13 @@ Map<String, Widget> extraCases() => {
           startTs: 1787157000, endTs: 1787160600, revision: 0,
           status: ActivityReviewStatus.pending, details: const {}),
         hr: _galleryHr,
-        highlighted: true, onConfirm: () {}, onEdit: () {}, onDiscard: () {}),
+        highlighted: true, onConfirm: (a, b) {}, onEdit: () {}, onDiscard: () {}),
       'activity_proposal_workout': ActivityProposalCard(
         suggestion: ActivitySuggestion(id: 'workout-fixture', kind: ActivityKind.workout,
           startTs: 1787157000, endTs: 1787164200, revision: 0,
           status: ActivityReviewStatus.pending, details: const {}),
         hr: _galleryHr,
-        onConfirm: () {}, onEdit: () {}, onDiscard: () {}),
+        onConfirm: (a, b) {}, onEdit: () {}, onDiscard: () {}),
       // The window editor's chart: a night drawn on its heart rate.
       'window_chart': SizedBox(
         height: S.x16 * 2,
@@ -1559,6 +1551,21 @@ Map<String, Widget> _stateCases() => {
       // How long until the next alarm rings, kept to the minute.
       // The Locus mark, still; the boot cover draws it in and Home loops it.
       'locus_mark': const LocusMark(size: S.x16 * 2),
+      'wordmark': Builder(builder: (c) => Wordmark(color: P.of(c).ink)),
+      'wordmark_fill': Builder(
+          builder: (c) => WordmarkFill(
+              fill: .55, base: P.of(c).ink3.withValues(alpha: .45), ink: P.of(c).ink)),
+      // The pull-down: a sliver, so it needs a scroll view to sit in.
+      'locus_pull_refresh': SizedBox(
+        height: S.x16 * 2,
+        child: CustomScrollView(
+          physics: kPullPhysics,
+          slivers: [
+            LocusPullRefresh(onRefresh: () async {}),
+            const SliverToBoxAdapter(child: Text('Pull down')),
+          ],
+        ),
+      ),
       'alarm_countdown': AlarmCountdown(
         DateTime(2026, 10, 31, 7),
         now: DateTime(2026, 10, 30, 23, 28),
@@ -1949,11 +1956,6 @@ Map<String, Widget> _listCases() => {
         SizedBox(height: S.x3),
         TierRow(SourceTier.beatToBeat),
       ]),
-      'workout_quick_tile': WorkoutQuickTile(
-        const Activity('Weight training', LucideIcons.dumbbell,
-            C.purple, Track.sets, 6.0),
-        () {},
-      ),
       'activity_row': Surface(
         pad: const EdgeInsets.symmetric(horizontal: S.x4),
         child: Column(children: [

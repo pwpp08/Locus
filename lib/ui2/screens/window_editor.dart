@@ -5,6 +5,8 @@
 // band's per-minute heart rate, with the window drawn on it as two lines and
 // the stretch between them shaded. A finger drags the nearer line, two fingers
 // zoom; the two pickers under the chart set the same moments to the minute.
+// Under the heart rate, the wrist's movement minute by minute, on the same
+// clock: a still stretch is what a nap looks like.
 
 import 'dart:math' as math;
 
@@ -15,6 +17,7 @@ import '../../state/clock_format.dart';
 import '../../theme/theme_switcher.dart' show themedRoute;
 import '../ui2.dart';
 import 'home_screen.dart' show pad;
+import 'movement_lane.dart';
 
 /// What the window is: its colour, its limits and its words.
 enum WindowKind { sleep, nap, workout }
@@ -128,6 +131,7 @@ class _WindowEditorState extends State<WindowEditor> {
   int _span = _day;
 
   List<HrPoint> _hr = const [];
+  List<MovePoint> _move = const [];
   int? _loadedFrom, _loadedTo;
   bool _loading = false;
 
@@ -171,9 +175,13 @@ class _WindowEditorState extends State<WindowEditor> {
     _loading = true;
     final a = from - _day, b = math.min(to + _day, _nowSec);
     final pts = await (widget.hr ?? _readHr)(a, b);
+    // The band's own seconds; a test that hands in its own heart rate gets no
+    // movement rather than a read of whatever database is open.
+    final mv = widget.hr == null ? await readMovement(a, b) : const <MovePoint>[];
     if (!mounted) return;
     setState(() {
       _hr = pts;
+      _move = mv;
       _loadedFrom = a;
       _loadedTo = b;
       _loading = false;
@@ -494,6 +502,7 @@ class _WindowEditorState extends State<WindowEditor> {
             },
             child: WindowChart(
               hr: _hr,
+              movement: _move,
               from: from,
               span: _span,
               start: s,
@@ -513,6 +522,10 @@ class _WindowEditorState extends State<WindowEditor> {
 /// a sleep. Draws only; the editor puts the gestures over it.
 class WindowChart extends StatelessWidget {
   final List<HrPoint> hr;
+
+  /// The wrist's movement, one column a minute, drawn in a lane under the
+  /// heart rate; empty draws no lane.
+  final List<MovePoint> movement;
   final int from, span, start, end;
   final WindowKind kind;
 
@@ -522,6 +535,7 @@ class WindowChart extends StatelessWidget {
   const WindowChart({
     super.key,
     required this.hr,
+    this.movement = const [],
     required this.from,
     required this.span,
     required this.start,
@@ -546,6 +560,7 @@ class WindowChart extends StatelessWidget {
               child: CustomPaint(
                 painter: _WindowChartPainter(
                   hr: hr,
+                  movement: movement,
                   from: from,
                   span: span,
                   start: start,
@@ -591,10 +606,14 @@ class WindowPreview extends StatefulWidget {
   final void Function(int start, int end)? onChanged;
   final VoidCallback? onExpand;
 
-  /// Read-only, but the view is the reader's: pinch to zoom, drag to pan, and
-  /// a [RangeBar] under the chart for the stretch in view. The window stays
-  /// where it was detected.
+  /// The proposal's own chart: pinch to zoom, drag to pan. With [onChanged]
+  /// too, a finger that lands on the start or end line moves that line and
+  /// anywhere else pans, so the window can be put right where it is shown.
   final bool zoomable;
+
+  /// Where the movement lane's columns come from; the band's own store when
+  /// null (and none when [hr] is a test's).
+  final Future<List<MovePoint>> Function(int from, int to)? movement;
 
   const WindowPreview({
     super.key,
@@ -606,6 +625,7 @@ class WindowPreview extends StatefulWidget {
     this.onChanged,
     this.onExpand,
     this.zoomable = false,
+    this.movement,
   });
 
   @override
@@ -614,6 +634,7 @@ class WindowPreview extends StatefulWidget {
 
 class _WindowPreviewState extends State<WindowPreview> {
   List<HrPoint>? _hr;
+  List<MovePoint> _move = const [];
   int? _loadedFrom, _loadedTo;
   bool _loading = false;
 
@@ -685,6 +706,14 @@ class _WindowPreviewState extends State<WindowPreview> {
     }
   }
 
+  /// The movement for the same stretch: the caller's reader, else the band's
+  /// own store; none where the heart rate was handed in (a test's).
+  Future<List<MovePoint>> _readMove(int from, int to) async {
+    final r = widget.movement;
+    if (r != null) return r(from, to);
+    return widget.hr == null ? readMovement(from, to) : const <MovePoint>[];
+  }
+
   Future<void> _loadHr() async {
     final reader = widget.hr ?? _readHr;
     final from = _viewFrom - _hour;
@@ -696,9 +725,11 @@ class _WindowPreviewState extends State<WindowPreview> {
     _loading = true;
     try {
       final pts = await reader(from, to);
+      final mv = await _readMove(from, to);
       if (mounted) {
         setState(() {
           _hr = pts;
+          _move = mv;
           _loadedFrom = from;
           _loadedTo = to;
           _loading = false;
@@ -722,7 +753,9 @@ class _WindowPreviewState extends State<WindowPreview> {
   void _drag(double f) {
     final t = _viewFrom + (f * _viewSpan).round();
     final snapSec = _viewSpan <= 2 * 3600 ? 60 : 300;
-    final snapped = (t / snapSec).round() * snapSec;
+    var snapped = (t / snapSec).round() * snapSec;
+    // A proposal's lines stay inside the stretch its chart can show.
+    if (widget.zoomable) snapped = snapped.clamp(_domFrom, _domTo);
     final s = _curStart;
     final e = _curEnd;
     final threshold = math.max(snapSec * 2, (_viewSpan * 0.08).round());
@@ -764,6 +797,20 @@ class _WindowPreviewState extends State<WindowPreview> {
       });
       widget.onChanged?.call(newS, newE);
     }
+  }
+
+  /// A finger on the proposal's chart. A touch that lands near the start or end
+  /// line takes that line for the whole drag; any other touch pans the view.
+  /// Read-only (no [WindowPreview.onChanged]) it only ever pans.
+  void _touch(double f) {
+    if (widget.onChanged == null) return _pan(f);
+    if (_dragMode == null) {
+      final t = _viewFrom + (f * _viewSpan).round();
+      final reach = math.max(300, (_viewSpan * 0.08).round());
+      final ds = (t - _curStart).abs(), de = (t - _curEnd).abs();
+      _dragMode = math.min(ds, de) > reach ? 4 : (ds <= de ? 1 : 2);
+    }
+    _dragMode == 4 ? _pan(f) : _drag(f);
   }
 
   void _onLift() {
@@ -810,10 +857,9 @@ class _WindowPreviewState extends State<WindowPreview> {
   }
 
   /// The chart as the day's breakdown draws it: caps title and unit above,
-  /// the chart under a finger (pinch zooms, a drag pans), the stretch in view
-  /// on a range bar below.
+  /// the chart under a finger. Two fingers zoom it; one pans it, or, where the
+  /// window can be edited, takes the start or end line it lands on.
   Widget _zoomable(BuildContext c, P p, Widget chart) {
-    final tint = widget.kind == WindowKind.workout ? C.dialStrain : C.dialSleep;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -834,38 +880,16 @@ class _WindowPreviewState extends State<WindowPreview> {
           height: widget.height,
           child: Scrubber(
             value: null,
-            onChanged: _pan,
+            onChanged: _touch,
             onLift: _onLift,
             yieldToScroll: true,
             onPinch: _pinch,
-            label: 'Heart rate around the detected window',
+            label: widget.onChanged == null
+                ? 'Heart rate around the detected window'
+                : 'Heart rate and the window; drag a line to move it',
             describe: (f) => _clock(_viewFrom + f * _viewSpan),
             child: chart,
           ),
-        ),
-        RangeBar(
-          values: RangeValues(
-            _viewFrom.toDouble(),
-            (_viewFrom + _viewSpan).toDouble(),
-          ),
-          min: _domFrom.toDouble(),
-          max: _domTo.toDouble(),
-          divisions: math.max(1, (_domTo - _domFrom) ~/ 900),
-          hue: tint,
-          labels: RangeLabels(
-            _clock(_viewFrom),
-            _clock(_viewFrom + _viewSpan),
-          ),
-          semanticFormatter: _clock,
-          onChanged: (r) {
-            if (r.end - r.start < 15 * 60) return;
-            _setView(r.start.round(), (r.end - r.start).round());
-          },
-          onChangeEnd: (_) => _loadHr(),
-        ),
-        Text(
-          'Pinch or drag the handles to zoom.',
-          style: F.cap.copyWith(color: p.ink3),
         ),
       ],
     );
@@ -878,6 +902,7 @@ class _WindowPreviewState extends State<WindowPreview> {
 
     final chartWidget = WindowChart(
       hr: _hr ?? const [],
+      movement: _move,
       from: _viewFrom,
       span: _viewSpan,
       start: _curStart,
@@ -886,7 +911,7 @@ class _WindowPreviewState extends State<WindowPreview> {
       empty: _hr != null && _hr!.isEmpty,
     );
 
-    if (widget.zoomable && !isInteractive) return _zoomable(c, p, chartWidget);
+    if (widget.zoomable) return _zoomable(c, p, chartWidget);
     if (!isInteractive && widget.onExpand == null) {
       return SizedBox(height: widget.height, child: chartWidget);
     }
@@ -1059,11 +1084,13 @@ class _WindowPreviewState extends State<WindowPreview> {
 
 class _WindowChartPainter extends CustomPainter {
   final List<HrPoint> hr;
+  final List<MovePoint> movement;
   final int from, span, start, end;
   final Color tint, line, ink, ink3, grid;
 
   _WindowChartPainter({
     required this.hr,
+    required this.movement,
     required this.from,
     required this.span,
     required this.start,
@@ -1075,12 +1102,16 @@ class _WindowChartPainter extends CustomPainter {
     required this.grid,
   });
 
-  static const _top = S.x8, _bottom = S.x6;
+  static const _top = S.x8, _bottom = S.x6, _laneH = S.x6;
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
-    final plot = Rect.fromLTRB(0, _top, w, size.height - _bottom);
+    // The movement lane takes its height from the foot of the plot, above the
+    // clock times; no movement, no lane, and the plot keeps the room.
+    final lane = movement.any((m) => m.v > 0) ? _laneH : 0.0;
+    final plot =
+        Rect.fromLTRB(0, _top, w, size.height - _bottom - lane - (lane > 0 ? S.x1 : 0));
     double xOf(int t) => (t - from) / span * w;
     final to = from + span;
     final shown = [
@@ -1142,6 +1173,16 @@ class _WindowChartPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round,
     );
 
+    // The movement lane, on the same clock as the line above it.
+    final laneRect = Rect.fromLTRB(
+        0, plot.bottom + S.x1, w, plot.bottom + S.x1 + lane);
+    if (lane > 0) {
+      canvas.drawLine(Offset(0, laneRect.bottom), Offset(w, laneRect.bottom), gp);
+      paintMovement(canvas, laneRect, movement, (t) => xOf(t.round()),
+          ink.withValues(alpha: .45));
+    }
+    final floor = lane > 0 ? laneRect.bottom : plot.bottom;
+
     // The two lines, each with a handle at its foot and mid-height grab grip.
     for (final t in [start, end]) {
       final x = xOf(t);
@@ -1149,10 +1190,10 @@ class _WindowChartPainter extends CustomPainter {
       final lp = Paint()
         ..color = ink
         ..strokeWidth = S.half;
-      canvas.drawLine(Offset(x, plot.top - S.x2), Offset(x, plot.bottom), lp);
+      canvas.drawLine(Offset(x, plot.top - S.x2), Offset(x, floor), lp);
       // Foot circle
       canvas.drawCircle(
-        Offset(x, plot.bottom),
+        Offset(x, floor),
         S.x1 + S.half,
         Paint()..color = ink,
       );
@@ -1219,6 +1260,7 @@ class _WindowChartPainter extends CustomPainter {
   @override
   bool shouldRepaint(_WindowChartPainter o) =>
       o.hr != hr ||
+      o.movement != movement ||
       o.from != from ||
       o.span != span ||
       o.start != start ||

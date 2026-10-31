@@ -171,7 +171,7 @@ Two bundled faces (SIL OFL, `assets/fonts`), the same on every platform:
 | `F.cap` | 13/18 | 600 | −0.15 | captions, notes, units, info rows, delta-chip text (w700) |
 | `F.over` | 11/14 | 700 | +0.3 | tiny labels, uppercased by the caller: pager date, readout captions, x/y chart labels (via `F.num`) |
 | `F.caps` | 12/16 | 700 | +0.35 | **the card-title voice**: dial names, card titles, row titles, buttons, legends, segments. Always uppercased by the caller. |
-| `F.wordmark` | 22/1 | 300 | +5 | "LOCUS" over the dials (ink2) and inside the strain ring (ink3) |
+| `F.wordmark` | 24/1 | 400 | +1.5 | LOCUS in Super Bubble, drawn through `Wordmark` (never a bare `Text`): the pull-down, the boot cover, the strain ring (ink3), the share poster |
 
 **Tracking overrides used across the redesign** (letterSpacing on caps text):
 - `.6`: ACTIVITIES, activity names, day buttons
@@ -321,7 +321,7 @@ Nothing animates a gradient.
 | `MarkCount` | count in a 1.5 px ring | grouped activity marks on charts |
 | `clusterMarks` | groups marks whose centres are within `gap` of the group's mean; zooming spreads them apart again | day-heart and chart marks |
 
-**The wordmark** is the one place the app's words are not Figtree: `F.wordmark` is `LOCUS` in Super Bubble (fsuarez913, dafont, free for personal and commercial use; `assets/fonts/SuperBubble/LICENSE.txt`), 24 px, tracking 1.5, never given a fallback because nothing else is ever set in it. Home's top bar, the boot cover, the strain ring and the share poster all use it. Another "free" display font is not a substitute until its licence allows a public repo and APK: Mochi Boom DEMO, for one, is personal-use only and may not be published.
+**The wordmark** is the one place the app's words are not Figtree: `F.wordmark` is `LOCUS` in Super Bubble (fsuarez913, dafont, free for personal and commercial use; `assets/fonts/SuperBubble/LICENSE.txt`), 24 px, tracking 1.5, never given a fallback because nothing else is ever set in it. The pull-down on Home, the boot cover, the strain ring and the share poster all use it. `Wordmark` is a lighter cut of the font than the file draws: the word is painted into its own layer under an erode filter of `kWordmarkThin` (1.2 px across a stroke), which eats the letters in from every edge and opens the heavy face's tiny counters (the O's hole, the U's slit); it works on the pixels, so it holds on gradients, and the font file itself is untouched. `WordmarkFill` is the gray word with white written into it from left to right (a soft edge): the refresh. Another "free" display font is not a substitute until its licence allows a public repo and APK: Mochi Boom DEMO, for one, is personal-use only and may not be published.
 
 **The Locus mark** (`logo.dart`, geometry in `logo_geometry.dart`): a cursive L, one continuous stroke with a loop at the top and one at the foot. The outline is the source artwork traced (99.3 % pixel overlap, counters as even-odd holes) in a 1000 × 1000 box, the artwork's own framing; never redraw it by hand. `LocusTint`: `ink` (the theme's ink: white on dark, char on light; the default everywhere), `strain`, `recovery`, `sleep`, `dials` (strain blue → optimal). The brand files are cut from the same outline (`assets/brand/`: white and black marks, dark, light and dial-colour icons, an animated SVG), and so is the launcher icon (white on black; `adaptive_icon_background` black).
 
@@ -367,11 +367,10 @@ Gestures are built only from `lib/ui2/grammar.dart`. The token test fails on a r
 | `Scrubber(hold)` | press and hold instead, for a chart inside a tappable card: a tap opens the card and a hold reads a value. |
 | `RangeSegments` | the D / W / M / 6M switch over a `char` 50 % track (`R.xl`), the chosen one lifted onto a `card` tile (`R.lg`). Trend View, the strength trainer and the weight screen all wear this one; no screen rolls its own. |
 | `WindowPager` | "‹ OCT 24 - OCT 30, 26 ›": which window the chart below shows. `BoldChevron` in a 36 × 44 target, dead at ink 22 %, the date `F.over` w800 at +1. |
-| `RangeBar` | the selector under a zoomable chart: an 8 pt pill track with the stretch in view lit in the chart's hue (`dialStrain` for activity, `dialSleep` for sleep), round ink thumbs, labels on drag. Never red. The chart's pinch and the bar move the same values. |
 | `DialScrubber` | a drag round a ring. The angle is measured clockwise from 12 o'clock. It never wraps: carried past 12, the value holds at the end it came from. A touch that starts inside 55 % of the radius (where the dial's own buttons sit) is ignored. Slider role. |
 | `SwipeHandle` | a vertical swipe of 24 px or more fires once (up or down). A tap that moves less than 8 px toggles. |
 | `Dismissible` | swiping the "Your first weeks" card away hides it until tomorrow. |
-| `RefreshIndicator` | pull to sync on Home (today only, with a paired band). The spinner releases after 90 s; the sync carries on in the background. |
+| `LocusPullRefresh` | pull to sync on Home (today only, with a paired band): §11.1a. The page waits at most 90 s; the sync carries on in the background. |
 
 **Navigation:**
 - `go(c, screen)` pushes through `themedRoute`, which keeps the platform transition and iOS swipe-back.
@@ -504,12 +503,12 @@ My Dashboard                CUSTOMIZE ✎
 1. **Header** (§10.2).
 2. A **database-rebuilt** `StatusCard` (only after a rebuild; it outranks everything else).
 3. The **illness watch** `Observation`: only at amber or red, and only for a recent night. On ordinary days it does not appear.
-4. The **wordmark**, then 20.
+4. 20 of air. The wordmark is not on the page: it lives above the top and comes down only on a pull (§11.1a).
 5. Sync and phase status card (today, only while connecting, syncing or analysing).
 6. **Either** a bare-day card (nothing measured; while a workout runs this becomes "A workout is still running") **or** the **dials** plus the **monitors**. If no dial has anything to draw, a single "Recovery is not scored today" card replaces them.
 7. Stale-insights card, then "Your first weeks" (swipeable).
 8. Wearable cells (only for non-WHOOP devices), then detected activities.
-    - **Detected activity card** (`ActivityProposalCard`): caps title with a bare `ink3` icon, the dates, then a `WindowPreview(zoomable: true)`: caps `HEART RATE` and `bpm` above, the chart (pinch to zoom, one finger to pan, the detected window shaded with its two lines), a `RangeBar` below, then `CONFIRM` as the ink `BigButton` and the other two answers as `TextAction`s. No colour on the answers; the destructive one is not red.
+    - **Detected activity card** (`ActivityProposalCard`): caps title with a bare `ink3` icon, the dates, then a `WindowPreview(zoomable: true, onChanged:)`: caps `HEART RATE` and `bpm` above, the chart with the detected window shaded and its two lines, and under the heart rate the wrist's **movement lane** (one column a minute on the same clock, `paintMovement`, ink 45 %; none where nothing was measured). **Two fingers zoom; one finger on the start or end line moves that line (snapped to the minute, kept inside what the chart can show, start before end), one finger anywhere else pans.** There is no range bar and no drag handles to zoom, here or anywhere (the day breakdown's heart rate zooms by pinch and pans by one finger too). The dates and the length above follow the lines as they move, and CONFIRM saves the window as it is shown. Three buttons of one width in a row, 8 apart, the compact `BigButton`: `CONFIRM` (ink), the edit (soft), and the discard (`ButtonTone.danger`).
 9. **My Day:** a section head with the plus button, the ACTIVITIES card, then TONIGHT'S SLEEP (today only).
 10. **My Dashboard:** a section head with CUSTOMIZE, then the chosen tiles in the user's order.
 
@@ -581,6 +580,10 @@ As the page scrolls, the dials do not just scroll away. Each ring flies into a c
     - Left: `RECOMMENDED\nBEDTIME` in `F.over` w700 ink2.
     - Right: an 8 px status dot and its word: `ALARM ON` (green), `SENDING TO BAND` or `NOT CONFIRMED` (yellow), `ALARM OFF` (ink3, with the word in ink2).
   - Then 16, and the SET / EDIT ALARM button.
+
+### 11.1a Pull to refresh (`pull_refresh.dart`)
+
+Home is a `CustomScrollView` with `kPullPhysics` (always scrollable, bouncing) and `LocusPullRefresh` first. Pulling the page down opens a gap at the top and the word LOCUS slides into it in step with the page, gray (ink3 at 45 %) and unfilled, growing from 1.05× to 1.3× and fading up as the pull nears the line. A tick (`selectionClick`) the moment the pull is enough (88). Let go and the page holds at 64 while the refresh runs, the word stays where it stopped, and white fills it from left to right over 1.5 s (`easeInOutCubic`). The refresh never ends before the fill does; when it is done the page rises and takes the word up with it, gray again for the next time. Reduced motion fills it at once.
 
 ### 11.6 Plus menu
 
@@ -918,6 +921,19 @@ Opened from ACTIVITIES ⤢. It **forces landscape** and restores the app's orien
 - **Start bar:** char, 64 + 24 + safe area tall, holding the START ACTIVITY pill. A sleep or nap in progress shows a running clock (`F.n48`), `SLEEP · SINCE 23:10`, and END and DISCARD controls.
 - **Alarm countdown** (`AlarmCountdown`): the rest alarm card says how long until it rings ("Rings in 7 h 32 min", `F.cap`, rounded up to the minute, ticking each minute), and the same line sits centred in `F.num(F.head)` on top of My Schedule, the alarm page ("No alarm set" without one).
 
+### 14.4a Edit alarm (`profile/alarm.dart`)
+
+A standard sheet (`AppSheet.open`, scrolling, the grab bar, `F.t2` title "Edit alarm"), padded to the gutter.
+- **The time:** a `card2` panel (radius `R.xl`, 20 above and below) with the time in `F.n80`, and under it, in `F.cap` ink3, how long until it rings ("Rings in 7 h 32 min", read from the time and days as edited). Tapping it opens the time picker.
+- **REPEAT** (`F.over` ink3): `RangeSegments` of three, Once · Weekdays · Every day, stretched to the width (none lit when the days are custom), and under it seven equal day circles (S M T W T F S, 40 across, `card2`, lit in `dialStrain` when on). The presets and the circles are one state.
+- **Label:** `OsTextField`.
+- **Rows** in a `Surface` of `SetRow`s: Alarm on (the switch) and Alarm mode (its blurb, its name, a chevron into the mode sheet). For an exact alarm only, a second `Surface`: waves icon, "Smart wake" and what it does, over `RangeSegments` Off · 15 · 30 · 45 min.
+- **Save** is the sheet's one primary action (the ink `BigButton`, check icon); **Delete alarm** is a quiet coral `TextAction` under it. No trash can beside the title, no native dropdown.
+
+### 14.4b Sleep Planner (`screens/sleep_planner.dart`)
+
+Top to bottom on the slate-to-bg gradient: the nav row (back, `SLEEP PLANNER` and a 20 ring with `?`, and the schedule button: a 36 ring with a calendar and a moon in it, centred on the title's line, its ON/OFF tag hanging under it without taking any of the row's height); the Locus mark in a 44 ring; the headline in `F.head` w500, always three lines high so nothing under it moves; `TOMORROW I WANT TO` and the goal as a **full pill** (ink 1 px border, `F.body` caps); then the night: the suggested bedtime and the wake time in `F.n34` over two-line captions, dashed drops to the ends of a strip edged top and bottom with hairlines and hatched between two ink end caps; **TIME IN BED** over a pill (not a rectangle) with the length in `F.n24`; the OPTIMAL rule and note, or the recommended window's bracket. The dock: a card with `R.xl` top corners, the strap, `ALARM` and the switch, and two boxes 20 apart, `R.sm` corners and a darker edge.
+
 ### 14.5 Stress Monitor gauge
 
 - The arc opens at the bottom, starting at 146° and sweeping 248°. Radius 44 % and stroke 3.5 % of its box.
@@ -1025,7 +1041,7 @@ Every new public widget needs a case in `lib/ui2/profile/gallery.dart` (or an en
 ## 18. Imagery
 
 - Images are bundled and offline; nothing is fetched at runtime. A screen never writes an asset path: it uses `Art.<slot>.image()` (`theme.dart`), which draws nothing, never a broken-image icon, when a file is missing.
-- Device pictures (`bandHero`, `bandSide`, `bandTop`) are WebP with 2.0x and 3.0x siblings. Everything else (ring, watch, chest strap, workout, wellness, sleep, food, heart) is a flat, hand-cut SVG silhouette in one cream and one data hue, on a 400 × 400 viewBox, centred.
+- All imagery is a flat, hand-cut SVG silhouette (ring, watch, chest strap, workout, wellness, sleep, food, heart) in one cream and one data hue, on a 400 × 400 viewBox, centred. There are no bitmap device photographs: the band on the welcome and pairing screens is the watch silhouette.
 - Art is decorative unless given a `semanticLabel`. It never carries another maker's logo or name: devices are generic.
 - Exercise photos come from the bundled Free Exercise DB (public domain, credited in `NOTICE.md`), cover-cropped 192 × 128 JPEG thumbnails, with a dumbbell tile as the placeholder.
 - The `AuroraTile` grain is `assets/images/grain.png` tiled at 4 % opacity, painted once behind a `RepaintBoundary`.

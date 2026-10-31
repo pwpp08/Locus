@@ -2,6 +2,7 @@
 // system alarm sync, and instant strap confirmation.
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
@@ -20,6 +21,7 @@ import '../screens/alarm_mode_sheet.dart' show openAlarmModeSheet;
 import '../screens/journal_compose.dart' show OsTextField;
 import '../screens/metric_detail.dart' show detailLinkRow;
 import '../ui2.dart';
+import 'profile.dart' show SetRow;
 
 /// What we actually know about the armed alarm.
 enum AlarmArmState {
@@ -347,303 +349,281 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
   /// The options under the schedule: phone clock, shake, test and cancel.
   bool _options = false;
 
+  /// The alarm's own sheet: the time as the page's one big number (tap to
+  /// change it) with how long until it rings, how often it repeats, then its
+  /// label, what it waits for and whether it is on, grouped as the settings
+  /// rows are. Save is the sheet's one primary action; deleting is a quiet
+  /// coral action under it, never a trash can beside the title.
   Future<void> _editAlarm(BuildContext context, AlarmItem alarm) async {
     final mgr = widget.alarmManager;
     if (mgr == null) return;
 
-    TimeOfDay pickedTime = TimeOfDay(hour: alarm.hour, minute: alarm.minute);
-    Set<int> selectedDays = Set.from(alarm.days);
+    var picked = TimeOfDay(hour: alarm.hour, minute: alarm.minute);
+    var days = Set<int>.from(alarm.days);
     final labelCtrl = TextEditingController(text: alarm.label);
-    int smartMin = alarm.smartWindowMinutes;
+    var smartMin = alarm.smartWindowMinutes;
     var mode = alarm.mode;
     var on = alarm.enabled;
+    const early = [0, 15, 30, 45];
 
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    await AppSheet.open<void>(
+      context,
+      scroll: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) {
+        builder: (ctx, setS) {
           final p = P.of(ctx);
-          return Container(
-            decoration: BoxDecoration(
-              color: p.card,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(R.xxl)),
-            ),
+          final l = AppLocalizations.of(ctx);
+          // Rings in…, for what is on screen now: the next time this time and
+          // these days come round, read as the alarm itself would.
+          final next = AlarmItem(
+            id: alarm.id,
+            hour: picked.hour,
+            minute: picked.minute,
+            label: '',
+            enabled: true,
+            days: days,
+          ).nextOccurrence(clock.now());
+          final preset = days.isEmpty
+              ? 0
+              : (days.length == 5 && !days.contains(6) && !days.contains(7))
+                  ? 1
+                  : days.length == 7
+                      ? 2
+                      : -1;
+          return Padding(
             padding: EdgeInsets.fromLTRB(
-              S.x4,
-              S.x4,
-              S.x4,
-              MediaQuery.of(ctx).viewInsets.bottom + S.x6,
+              S.gutter,
+              S.x3,
+              S.gutter,
+              MediaQuery.viewInsetsOf(ctx).bottom +
+                  MediaQuery.paddingOf(ctx).bottom +
+                  S.x5,
             ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: p.ink3.withValues(alpha: 0.3),
-                        borderRadius: R.rPill,
-                      ),
-                    ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: S.x10,
+                    height: S.x1,
+                    decoration:
+                        BoxDecoration(color: p.line, borderRadius: R.rPill),
                   ),
-                  const SizedBox(height: S.x4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('EDIT ALARM', style: F.caps.copyWith(color: p.ink)),
-                      Pressable(
-                        semanticLabel: 'Delete this alarm',
-                        onTap: () async {
-                          Navigator.pop(ctx);
-                          await mgr.deleteAlarm(alarm.id);
-                        },
-                        child: Icon(LucideIcons.trash2,
-                            size: I.lg, color: p.on(C.red)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: S.x3),
-                  // Time Picker Display
-                  Center(
-                    child: Pressable(
-                      onTap: () async {
-                        final t = await showTimePicker(
-                          context: ctx,
-                          initialTime: pickedTime,
-                        );
-                        if (t != null) {
-                          setSheetState(() => pickedTime = t);
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: S.x6, vertical: S.x4),
-                        decoration: BoxDecoration(
-                          color: p.wash(C.blue),
-                          borderRadius: R.rMd,
-                        ),
-                        child: Text(
-                          formatClock(pickedTime.hour, pickedTime.minute),
-                          style: F.n48.copyWith(
-                            color: C.blue,
-                            fontWeight: FontWeight.bold,
+                ),
+                const SizedBox(height: S.x5),
+                Semantics(
+                  header: true,
+                  child: Text('Edit alarm', style: F.t2.copyWith(color: p.ink)),
+                ),
+                const SizedBox(height: S.x4),
+                Pressable(
+                  semanticLabel:
+                      '${formatClock(picked.hour, picked.minute)}. Change the time',
+                  onTap: () async {
+                    final t = await showTimePicker(
+                        context: ctx, initialTime: picked);
+                    if (t != null) setS(() => picked = t);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: S.x5),
+                    decoration:
+                        BoxDecoration(color: p.card2, borderRadius: R.rXl),
+                    child: Column(
+                      children: [
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            formatClock(picked.hour, picked.minute),
+                            style: F.n80.copyWith(color: p.ink),
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: S.x4),
-                  // Recurrence preset chips
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildPresetChip(
-                          'Ring once',
-                          selectedDays.isEmpty,
-                          () => setSheetState(() => selectedDays.clear()),
-                          p,
-                        ),
-                        const SizedBox(width: S.x2),
-                        _buildPresetChip(
-                          'Weekdays',
-                          selectedDays.length == 5 &&
-                              !selectedDays.contains(6) &&
-                              !selectedDays.contains(7),
-                          () => setSheetState(
-                              () => selectedDays = {1, 2, 3, 4, 5}),
-                          p,
-                        ),
-                        const SizedBox(width: S.x2),
-                        _buildPresetChip(
-                          'Every day',
-                          selectedDays.length == 7,
-                          () => setSheetState(
-                              () => selectedDays = {1, 2, 3, 4, 5, 6, 7}),
-                          p,
-                        ),
-                        const SizedBox(width: S.x2),
-                        _buildPresetChip(
-                          'Custom',
-                          selectedDays.isNotEmpty &&
-                              selectedDays.length != 5 &&
-                              selectedDays.length != 7,
-                          null,
-                          p,
+                        const SizedBox(height: S.x1),
+                        Text(
+                          next == null
+                              ? 'Not scheduled'
+                              : alarmCountdownText(next, clock.now()),
+                          style: F.cap.copyWith(color: p.ink3),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: S.x4),
-                  // Day circles row: S M T W T F S
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildDayCircle(7, 'S', selectedDays, setSheetState, p),
-                      _buildDayCircle(1, 'M', selectedDays, setSheetState, p),
-                      _buildDayCircle(2, 'T', selectedDays, setSheetState, p),
-                      _buildDayCircle(3, 'W', selectedDays, setSheetState, p),
-                      _buildDayCircle(4, 'T', selectedDays, setSheetState, p),
-                      _buildDayCircle(5, 'F', selectedDays, setSheetState, p),
-                      _buildDayCircle(6, 'S', selectedDays, setSheetState, p),
-                    ],
-                  ),
-                  const SizedBox(height: S.x4),
-                  OsTextField(
-                    controller: labelCtrl,
-                    label: 'Alarm Label',
-                    hint: 'Wake up',
-                  ),
-                  const SizedBox(height: S.x4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Alarm on',
-                          style: F.body.copyWith(
-                              fontWeight: FontWeight.w600, color: p.ink)),
-                      AppSwitch(on, (v) => setSheetState(() => on = v),
-                          semanticLabel: 'Alarm on'),
-                    ],
-                  ),
-                  const SizedBox(height: S.x4),
-                  // What the alarm waits for.
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Alarm mode',
-                              style: F.body.copyWith(
-                                  fontWeight: FontWeight.w600, color: p.ink)),
-                          Text(mode.blurb, style: F.cap.copyWith(color: p.ink3)),
-                        ],
-                      ),
-                      TextAction(mode.title, () async {
-                        final m = await openAlarmModeSheet(ctx, current: mode);
-                        if (m != null) setSheetState(() => mode = m);
+                ),
+                const SizedBox(height: S.x5),
+                Text('REPEAT', style: F.over.copyWith(color: p.ink3)),
+                const SizedBox(height: S.x2),
+                RangeSegments(
+                  const ['Once', 'Weekdays', 'Every day'],
+                  preset,
+                  (i) => setS(() => days = switch (i) {
+                        0 => <int>{},
+                        1 => {1, 2, 3, 4, 5},
+                        _ => {1, 2, 3, 4, 5, 6, 7},
                       }),
-                    ],
-                  ),
-                  const SizedBox(height: S.x4),
-                  // Smart wake option: for an exact alarm only; the goal
-                  // modes have a window of their own.
-                  if (mode == AlarmMode.exact)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Smart wake early window',
-                              style: F.body.copyWith(
-                                  fontWeight: FontWeight.w600, color: p.ink)),
-                          Text('Buzzes during light sleep',
-                              style: F.cap.copyWith(color: p.ink3)),
-                        ],
+                  width: null,
+                ),
+                const SizedBox(height: S.x3),
+                Row(
+                  children: [
+                    for (final (n, d) in const [
+                      (7, 'S'),
+                      (1, 'M'),
+                      (2, 'T'),
+                      (3, 'W'),
+                      (4, 'T'),
+                      (5, 'F'),
+                      (6, 'S'),
+                    ])
+                      Expanded(
+                        child: Pressable(
+                          semanticLabel: const {
+                            1: 'Monday',
+                            2: 'Tuesday',
+                            3: 'Wednesday',
+                            4: 'Thursday',
+                            5: 'Friday',
+                            6: 'Saturday',
+                            7: 'Sunday',
+                          }[n]!,
+                          onTap: () => setS(() {
+                            days.contains(n) ? days.remove(n) : days.add(n);
+                          }),
+                          child: Center(
+                            child: Container(
+                              width: S.x10,
+                              height: S.x10,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: days.contains(n)
+                                    ? p.fill(C.dialStrain)
+                                    : p.card2,
+                              ),
+                              child: Text(
+                                d,
+                                style: F.cap.copyWith(
+                                  color: days.contains(n)
+                                      ? p.inkOn(p.fill(C.dialStrain))
+                                      : p.ink2,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                      DropdownButton<int>(
-                        value: smartMin,
-                        underline: const SizedBox.shrink(),
-                        items: const [
-                          DropdownMenuItem(value: 0, child: Text('Off')),
-                          DropdownMenuItem(value: 15, child: Text('15 min early')),
-                          DropdownMenuItem(value: 30, child: Text('30 min early')),
-                          DropdownMenuItem(value: 45, child: Text('45 min early')),
-                        ],
-                        onChanged: (v) {
-                          if (v != null) setSheetState(() => smartMin = v);
+                  ],
+                ),
+                const SizedBox(height: S.x5),
+                OsTextField(
+                  controller: labelCtrl,
+                  label: 'Alarm label',
+                  hint: 'Wake up',
+                ),
+                const SizedBox(height: S.x3),
+                Surface(
+                  pad: const EdgeInsets.symmetric(horizontal: S.x4),
+                  child: Column(
+                    children: [
+                      SetRow(
+                        LucideIcons.power,
+                        C.dialStrain,
+                        'Alarm on',
+                        chevron: false,
+                        trailing: AppSwitch(
+                            on, (v) => setS(() => on = v),
+                            semanticLabel: 'Alarm on'),
+                      ),
+                      SetRow(
+                        LucideIcons.alarmClock,
+                        C.dialStrain,
+                        'Alarm mode',
+                        sub: mode.blurb,
+                        value: mode.title,
+                        onTap: () async {
+                          final m =
+                              await openAlarmModeSheet(ctx, current: mode);
+                          if (m != null) setS(() => mode = m);
                         },
                       ),
                     ],
                   ),
-                  const SizedBox(height: S.x4),
-                  const SizedBox(height: S.x6),
-                  BigButton(
-                    'Save Alarm',
-                    icon: LucideIcons.check,
-                    color: C.blue,
-                    onTap: () async {
-                      Navigator.pop(ctx);
-                      final updated = alarm.copyWith(
-                        hour: pickedTime.hour,
-                        minute: pickedTime.minute,
-                        label: labelCtrl.text.trim().isNotEmpty
-                            ? labelCtrl.text.trim()
-                            : 'Alarm',
-                        days: selectedDays,
-                        smartWindowMinutes: smartMin,
-                        mode: mode,
-                        enabled: on,
-                      );
-                      await mgr.updateAlarm(updated);
-                    },
+                ),
+                // Smart wake is for an exact alarm only; the goal modes have a
+                // window of their own.
+                if (mode == AlarmMode.exact) ...[
+                  const SizedBox(height: S.x3),
+                  Surface(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(LucideIcons.waves, size: I.md, color: p.ink3),
+                            const SizedBox(width: S.x3),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Smart wake',
+                                      style: F.body.copyWith(color: p.ink)),
+                                  Text('Buzzes during light sleep, up to this '
+                                      'long before the time',
+                                      style: F.cap.copyWith(color: p.ink3)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: S.x3),
+                        RangeSegments(
+                          const ['Off', '15 min', '30 min', '45 min'],
+                          math.max(0, early.indexOf(smartMin)),
+                          (i) => setS(() => smartMin = early[i]),
+                          width: null,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
-              ),
+                const SizedBox(height: S.x5),
+                BigButton(
+                  l?.actionSave ?? 'Save alarm',
+                  icon: LucideIcons.check,
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    await mgr.updateAlarm(alarm.copyWith(
+                      hour: picked.hour,
+                      minute: picked.minute,
+                      label: labelCtrl.text.trim().isNotEmpty
+                          ? labelCtrl.text.trim()
+                          : 'Alarm',
+                      days: days,
+                      smartWindowMinutes: smartMin,
+                      mode: mode,
+                      enabled: on,
+                    ));
+                  },
+                ),
+                const SizedBox(height: S.x2),
+                Center(
+                  child: TextAction(
+                    'Delete alarm',
+                    () async {
+                      Navigator.pop(ctx);
+                      await mgr.deleteAlarm(alarm.id);
+                    },
+                    icon: LucideIcons.trash2,
+                    tone: ButtonTone.danger,
+                  ),
+                ),
+              ],
             ),
           );
         },
       ),
     );
-  }
-
-  Widget _buildPresetChip(
-      String label, bool selected, VoidCallback? onTap, P p) {
-    return Pressable(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x2),
-        decoration: BoxDecoration(
-          color: selected ? C.blue : p.wash(p.ink3),
-          borderRadius: R.rMd,
-        ),
-        child: Text(
-          label,
-          style: F.cap.copyWith(
-            color: selected ? p.inkOn(C.blue) : p.ink,
-            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDayCircle(
-      int dayNumber, String label, Set<int> days, StateSetter setSheetState, P p) {
-    final active = days.contains(dayNumber);
-    return Pressable(
-      onTap: () {
-        setSheetState(() {
-          if (active) {
-            days.remove(dayNumber);
-          } else {
-            days.add(dayNumber);
-          }
-        });
-      },
-      child: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: active ? C.blue : p.wash(p.ink3),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: F.cap.copyWith(
-            color: active ? p.inkOn(C.blue) : p.ink2,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
+    labelCtrl.dispose();
   }
 
   Future<void> _createNewAlarm(BuildContext context) async {

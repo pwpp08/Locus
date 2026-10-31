@@ -83,7 +83,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: flutter build apk --release --dart-define-from-file=.env
+        run: flutter build apk --release --target-platform android-arm64 --dart-define-from-file=.env
 
       - name: Name the APK after the commit
         id: name

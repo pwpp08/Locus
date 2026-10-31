@@ -47,25 +47,16 @@ class _FakeRepo extends LocalRepository {
   /// day id -> the night `getDaySleepV2` serves for it.
   final Map<String, Map<String, dynamic>> nights;
 
-  /// The `baselines` block `getDayHeart` serves for today.
-  final Map<String, dynamic>? baselines;
-
-  /// metric -> the stored points `getChart` serves for it.
-  final Map<String, List<Map<String, num>>> charts;
-
   _FakeRepo(
       {this.insights = const {},
       this.days = const [],
       this.today = const {},
       this.daytimeHrv = const {},
-      this.nights = const {},
-      this.baselines,
-      this.charts = const {}});
+      this.nights = const {}});
 
   @override
   Future<Map<String, dynamic>> getDayHeart(String date) async => {
         'daytime_hrv': ?daytimeHrv[date],
-        if (date == _day(0)) 'baselines': ?baselines,
       };
   @override
   Future<Map<String, dynamic>> getDaySleepV2(String date) async =>
@@ -82,7 +73,7 @@ class _FakeRepo extends LocalRepository {
   @override
   Future<Map<String, dynamic>> getChart(String metric,
           {int? from, int? to, Set<String> signals = const {}}) async =>
-      {'points': charts[metric] ?? const []};
+      {'points': const []};
   // Health reads the wear block for the night's off-wrist stretches and the
   // day's naps. Absent here on purpose: an empty map is "we never looked",
   // which is what a fake with no fixture is.
@@ -230,139 +221,6 @@ void main() {
     });
   });
 
-  // ── the last thirty CALENDAR days ──
-  group('HealthData.load', () {
-    test('consistency counts the last 30 calendar days, not all history', () async {
-      final repo = _FakeRepo(
-        // 45 derived days, but only 10 of them inside the last month.
-        days: [
-          for (var i = 0; i < 10; i++) _day(i),
-          for (var i = 40; i < 75; i++) _day(i),
-        ],
-      );
-      expect((await HealthData.load(repo)).daysWithData, 10);
-    });
-
-    test('a withheld rollup arrives as a reason, not as silence', () async {
-      final d = await HealthData.load(_FakeRepo(insights: const {
-        'stale': {'kind': 'algo_version'},
-      }));
-      expect(d.insightsStale?['kind'], 'algo_version');
-      expect(d.need.value, isNull);
-    });
-
-    // The HRV and resting HR cards take their band from the pipeline's own
-    // baseline, read off getDayHeart, never from the chart. The chart below
-    // is flat at 50, so a priorTo band would say "Normal"; only the baseline
-    // (centre 60, spread 4: 55.0-65.0) says tonight's 50 is below usual.
-    testWidgets('HRV and resting HR are judged against the pipeline baseline',
-        (t) async {
-      List<Map<String, num>> flat(num v) => [
-            for (var i = 20; i >= 0; i--) {'t': _noon(i), 'v': v},
-          ];
-      final d = await t.runAsync(() => HealthData.load(_FakeRepo(
-            charts: {'hrv': flat(50), 'resting_hr': flat(50)},
-            baselines: const {
-              'hrv': {'baseline': 60, 'spread': 4, 'n_valid': 30},
-              'resting_hr': {'baseline': 60, 'spread': 4, 'n_valid': 30},
-            },
-          )));
-      expect(d!.baselines?['hrv'], isNotNull);
-      t.view.physicalSize = const Size(390 * 3, 2400 * 3);
-      t.view.devicePixelRatio = 3;
-      addTearDown(t.view.reset);
-      await t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
-        home: Scaffold(body: HealthScreen(data: d, tab: 2)),
-      ));
-      await t.pumpAndSettle();
-      // Both cards read below: bad news for HRV, good news for resting HR.
-      expect(find.text('Below usual'), findsNWidgets(2));
-      expect(find.text('· −10 ms from your usual 60 ms'), findsOneWidget);
-      expect(find.text('· −10 bpm from your usual 60 bpm'), findsOneWidget);
-    });
-  });
-
-  // ── the caption and the number have to be the same subtraction ──
-  group('Health · Trends', () {
-    HealthData sleepFixture({Metric need = Metric.empty}) => HealthData(
-          today: const {
-            'sleep': {
-              'duration_min': {
-                'value': 420,
-                'confidence': .8,
-                'tier': 'ESTIMATE',
-              },
-            },
-          },
-          charts: {
-            'sleep': [
-              for (var i = 29; i >= 1; i--) (t: _noon(i), v: 400.0),
-              (t: _noon(0), v: 420.0),
-            ],
-          },
-          need: need,
-        );
-
-    Future<void> pump(WidgetTester t, HealthData d) async {
-      t.view.physicalSize = const Size(390 * 3, 2400 * 3);
-      t.view.devicePixelRatio = 3;
-      addTearDown(t.view.reset);
-      await t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
-        // Trends. Explore was inserted at index 1, so Trends moved to 2.
-        home: Scaffold(body: HealthScreen(data: d, tab: 2)),
-      ));
-      await t.pumpAndSettle();
-    }
-
-    testWidgets('with no sleep need, the verdict is against your usual range',
-        (t) async {
-      // 28 nights alternating 6h 30m / 6h 50m: usual 6h 40m, and tonight's
-      // 7h is above the band. Same subtraction as the words under it.
-      await pump(
-          t,
-          HealthData(charts: {
-            'sleep': [
-              for (var i = 28; i >= 1; i--)
-                (t: _noon(i), v: i.isEven ? 390.0 : 410.0),
-              (t: _noon(0), v: 420.0),
-            ],
-          }));
-      expect(find.text('Above usual'), findsOneWidget);
-      expect(find.text('· +20m from your usual 6h 40m'), findsOneWidget);
-    });
-
-    testWidgets('captioned "vs your need", the delta IS vs the need',
-        (t) async {
-      // The bug: the caption changed and the subtraction did not, so the user
-      // read 20m — the distance from their own average — under the words "vs
-      // your 7h 42m need". The real shortfall is 42m.
-      await pump(
-          t,
-          sleepFixture(
-              need: const Metric(
-                  value: 462, unit: 'min', confidence: .7, tier: MetricTier.estimate)));
-      expect(find.text('42m'), findsOneWidget);
-      expect(find.text('20m'), findsNothing);
-      expect(find.text('vs your 7h 42m need'), findsOneWidget);
-    });
-
-    testWidgets('under two weeks it abstains and says how many days it has',
-        (t) async {
-      // "vs your 28-day average" used to be printed from the SECOND stored
-      // value. Now there is no comparison at all until the range exists.
-      await pump(
-          t,
-          HealthData(charts: {
-            'sleep': [(t: _noon(1), v: 400.0), (t: _noon(0), v: 420.0)],
-          }));
-      expect(
-          find.text('Your usual range appears after 14 days. 2 so far.'),
-          findsOneWidget);
-      expect(find.text('Above usual'), findsNothing);
-    });
-  });
 
   // ── an older night is not today's number ──
   //
@@ -544,64 +402,6 @@ void main() {
           now: DateTime(2026, 5, 21, 9)));
       expect(find.textContaining('20 May sat outside'), findsOneWidget);
       expect(find.textContaining('Last night'), findsNothing);
-    });
-  });
-
-  // Health's copy of the watch takes the same freshness rule as Home and the
-  // push, judged against the day the payload was built for.
-  group('illness watch on Health', () {
-    Future<void> pump(WidgetTester t, String? illnessDay,
-        {DateTime? now, String state = 'red'}) async {
-      t.view.physicalSize = const Size(390 * 3, 2400 * 3);
-      t.view.devicePixelRatio = 3;
-      addTearDown(t.view.reset);
-      await t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
-        home: Scaffold(
-          body: HealthScreen(
-            now: now ?? DateTime(2026, 5, 20, 9),
-            data: HealthData(today: {
-              'status': {'today_day': '2026-05-20'},
-              'illness': {'state': state, 'date': illnessDay, 'z': 3.1},
-            }),
-          ),
-        ),
-      ));
-      await t.pumpAndSettle();
-    }
-
-    testWidgets('a red night yesterday shows', (t) async {
-      await pump(t, '2026-05-19');
-      expect(find.textContaining('add up to a raised resting heart rate'), findsOneWidget);
-      expect(find.textContaining('in a row'), findsNothing);
-      expect(find.textContaining('running above'), findsNothing);
-    });
-
-    testWidgets('a red night four days back does not', (t) async {
-      await pump(t, '2026-05-16');
-      expect(find.textContaining('add up to a raised resting heart rate'), findsNothing);
-    });
-
-    testWidgets('an undated verdict renders nothing', (t) async {
-      await pump(t, null);
-      expect(find.textContaining('add up to a raised resting heart rate'), findsNothing);
-    });
-
-    testWidgets('the card expires when the calendar moves on', (t) async {
-      // Same cached payload (built for the 20th), but it is now the 21st.
-      await pump(t, '2026-05-19', now: DateTime(2026, 5, 21, 9));
-      expect(find.textContaining('add up to a raised resting heart rate'), findsNothing);
-    });
-
-    // "Last night" and the gate read the same clock: an amber verdict about
-    // the clock's own day is last night, one about the day before is named.
-    testWidgets('amber names the night by the same clock the gate uses',
-        (t) async {
-      await pump(t, '2026-05-20', state: 'amber');
-      expect(find.textContaining('Last night sat outside'), findsOneWidget);
-      await pump(t, '2026-05-20', state: 'amber', now: DateTime(2026, 5, 21, 9));
-      expect(find.textContaining('Last night sat outside'), findsNothing);
-      expect(find.textContaining('20 May sat outside'), findsOneWidget);
     });
   });
 

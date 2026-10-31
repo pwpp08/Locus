@@ -37,7 +37,7 @@ void main() {
                 label: 'START A SESSION',
                 count: 71,
                 noun: 'activities',
-                art: Art.bandHero,
+                art: Art.watch,
                 accent: C.domMove,
               ),
             ),
@@ -95,7 +95,7 @@ void main() {
           label: 'START A SITTING',
           count: 3,
           noun: 'exercises',
-          art: Art.bandTop,
+          art: Art.watch,
           accent: C.domMind,
 
         ),

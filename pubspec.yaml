@@ -19,7 +19,6 @@ dependencies:
   # Pinned to what flutter_localizations (this SDK) requires — see its own
   # pubspec.lock entry, don't drift it independently.
   intl: ^0.20.2
-  cupertino_icons: ^1.0.8
 
   # The single icon family behind lib/ui2. One pack, one stroke weight, one
   # optical size — replacing the five-pack mix the old design system blended
@@ -573,20 +572,10 @@ dependencies:
   provider: ^6.1.2
   shared_preferences: ^2.3.3
 
-  # Charts (for the future server-analytics view).
-  fl_chart: ^0.69.2
-
-  # Interactive maps for GPS workout routes (run/ride/walk). Raster tiles are
-  # fetched on demand from CARTO (basemaps.cartocdn.com) — OSM data, but served
-  # by CARTO rather than tile.openstreetmap.org, whose tile-usage policy does
-  # not permit app traffic. No cloud API keys, no Google/Mapbox. The
-  # "© OpenStreetMap contributors" attribution is rendered on every map.
-  # Recorded GPS points are stored on-device only (workout_route table) and are
-  # never uploaded — but the tile requests do tell CARTO which area is on
-  # screen, which PRIVACY.md states.
-  # flutter_map_tile_caching (offline tile cache) is a documented follow-up — it
-  # pulls heavier native storage deps, so v1 uses live CARTO tiles only.
-  flutter_map: ^7.0.2
+  # Route maps (lib/ui2/activity/tiles.dart) draw their own CARTO raster tiles;
+  # latlong2 is just the coordinate maths. No cloud API keys, no Google/Mapbox.
+  # The "© OpenStreetMap contributors" attribution is rendered on every map, and
+  # the tile requests tell CARTO which area is on screen (PRIVACY.md says so).
   latlong2: ^0.9.1
   geolocator: ^13.0.2
 
@@ -719,8 +708,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    - assets/images/2.0x/
-    - assets/images/3.0x/
     # The Free Exercise DB photos and steps (public domain), bundled so no
     # exercise picture is ever fetched. tool/gen_free_exercises.py writes them.
     - assets/exercises/

@@ -401,7 +401,7 @@ const _notComponents = {
   // HomeScreen sub-sections (screen subcomponents reading AppState,
   // repository data, or executing home navigation drill-downs)
   'HomeSwipeAway', 'HomeDashboardEditor', 'HomeDials', 'HomeScoreDial',
-  'HomeWordmark', 'HomeDeviceStatus', 'HomeSyncArrow', 'HomeMonitors',
+  'HomeDeviceStatus', 'HomeSyncArrow', 'HomeMonitors',
   'HomeSectionHead', 'HomeMyDay', 'HomeActivityRow', 'HomeTonightsSleep',
   // The live heart rate and the five overnight vitals: owns the realtime-HR
   // stream while it is open and reads the day bundle and five series.

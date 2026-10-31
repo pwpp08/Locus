@@ -9,7 +9,7 @@ exercise cropped to 3:2 and shrunk; see the fetch script in this header's
 history). Writes:
 
   lib/ui2/activity/free_exercises.g.dart   the const catalogue rows
-  assets/exercises/<id>_<n>.jpg            the photos
+  assets/exercises/<id>_<n>.webp           the photos, re-encoded as WebP (needs Pillow)
   assets/exercises/instructions.json       id -> [steps], read on demand
 
 Only strength work is kept: stretching and cardio entries are left out, since
@@ -19,6 +19,8 @@ import json
 import os
 import shutil
 import sys
+
+from PIL import Image
 
 src = sys.argv[1]
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -65,7 +67,11 @@ for e in kept:
     for i in (0, 1):
         f = os.path.join(src, 'thumbs', f"{e['id']}_{i}.jpg")
         if os.path.exists(f):
-            shutil.copy(f, os.path.join(out_assets, f"{e['id']}_{i}.jpg"))
+            # WebP at quality 75 is about 40 % of the JPEG and looks the same
+            # at the size the app draws it.
+            Image.open(f).convert('RGB').save(
+                os.path.join(out_assets, f"{e['id']}_{i}.webp"),
+                'WEBP', quality=75, method=6)
             frames += 1
     if frames == 0:
         continue
@@ -99,7 +105,7 @@ with open(os.path.join(root, 'lib', 'ui2', 'activity', 'free_exercises.g.dart'),
 // Refresh with: python3 tool/gen_free_exercises.py <dir>
 // Source: https://github.com/yuhonas/free-exercise-db (Unlicense: public
 // domain, photos included). Strength work only; two photos each, bundled as
-// assets/exercises/<id>_0.jpg and _1.jpg.
+// assets/exercises/<id>_0.webp and _1.webp.
 
 part of 'catalogue.dart';
 

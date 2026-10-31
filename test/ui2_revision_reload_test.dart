@@ -218,13 +218,11 @@ void main() {
   });
 
   test('the screens the shell keeps alive re-read', () {
-    // Home, Health, Nutrition, Workout, Wellness are the five tabs; Cycle
-    // lives inside Wellness and shares its lifetime.
+    // Home, Nutrition and Wellness are the screens kept alive; Cycle lives
+    // inside Wellness and shares its lifetime.
     for (final f in const [
       'home_screen',
-      'health_screen',
       'nutrition_screen',
-      'workout_screen',
       'wellness_screen',
       'cycle_screen',
     ]) {

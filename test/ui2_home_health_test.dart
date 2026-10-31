@@ -6,7 +6,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openstrap_edge/models/metric.dart';
 import 'package:openstrap_edge/ui2/screens/screens.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
@@ -46,110 +45,6 @@ List<ChartPoint> _points(int n, double base, double amp) {
 }
 
 // ── fixtures ──
-
-/// A first-week user: the band is on, nothing has a baseline yet.
-const _homeCold = HomeData(
-  name: 'Alex',
-  dayId: '2026-05-20',
-  readiness: Metric(note: 'need_baseline:have=3,need=14'),
-);
-
-const _healthCold = HealthData(daysWithData: 2);
-
-const _readinessCold = ReadinessData(
-  readiness: Metric(note: 'need_baseline:have=5,need=14'),
-);
-
-/// Onset as a LOCAL wall-clock instant, not a fixed epoch. The screen formats
-/// timestamps in the device zone, so anchoring the fixture the same way is what
-/// makes the rendered text identical on a machine in another timezone.
-final _onsetTs = DateTime(2026, 5, 19, 23, 7).millisecondsSinceEpoch ~/ 1000;
-
-/// One night, built as segments the way the repo emits them.
-List<Map<String, dynamic>> _hypno() {
-  final t0 = _onsetTs;
-  const plan = [
-    ('light', 40),
-    ('deep', 55),
-    ('light', 30),
-    ('rem', 25),
-    ('awake', 8),
-    ('light', 45),
-    ('deep', 30),
-    ('rem', 40),
-    ('light', 35),
-    ('rem', 30),
-    ('awake', 12),
-    ('light', 20),
-  ];
-  final out = <Map<String, dynamic>>[];
-  var t = t0;
-  for (final (stage, mins) in plan) {
-    out.add({'t': t, 'stage': stage});
-    t += mins * 60;
-  }
-  out.add({'t': t, 'stage': 'awake'});
-  return out;
-}
-
-/// One night's map. [elevated] drives the nocturnal-heart-rate detection, which
-/// is the one "unusual" item that comes from the night itself rather than from
-/// a comparison against history.
-Map<String, dynamic> _night({bool elevated = false}) => {
-  'duration_min': 443,
-  'in_bed_min': 486,
-  'awake_min': 20,
-  'efficiency': .91,
-  'onset_ts': _onsetTs,
-  'wake_ts': _onsetTs + 486 * 60,
-  'light_min': 170,
-  'deep_min': 85,
-  'rem_min': 95,
-  'hypnogram': _hypno(),
-  'cycle_count': 5,
-  'cycles_mean_min': 92,
-  'advanced': const {'sol_s': 780},
-  'nocturnal': {
-    'sleeping_hr_avg': 52,
-    'sleeping_hr_min': 46,
-    'day_hr_avg': 68,
-    'vs_baseline_bpm': elevated ? 4.6 : 0.4,
-    'dip_pct': .24,
-    'elevated': elevated,
-  },
-  'resp': const {'value': 14.2, 'confidence': .6},
-};
-
-final _timeline = {
-  'hr': [
-    for (var i = 0; i < 120; i++)
-      {'t': _onsetTs + i * 240, 'v': 52 + (i % 11) - 5},
-  ],
-  'hrv': [
-    for (var i = 0; i < 120; i++)
-      {'t': _onsetTs + i * 240, 'v': 62 + (i % 17) - 8},
-  ],
-  'resp': [
-    for (var i = 0; i < 120; i++)
-      {'t': _onsetTs + i * 240, 'v': 14 + (i % 5) / 2},
-  ],
-  // Relative skin temperature — the fourth lane, in deviation units, never °C.
-  'skin_temp': [
-    for (var i = 0; i < 60; i++)
-      {'t': _onsetTs + i * 480, 'v': -0.2 + (i % 7) / 20},
-  ],
-};
-
-/// A first-week user: a real night, and no history to judge it against. This is
-/// what the screen looks like for a fortnight, and it must not pretend.
-final _sleepNew = SleepData(
-  day: '2026-05-20',
-  night: _night(),
-  timeline: _timeline,
-  tstHistory: const [430, 465, 410],
-);
-
-const _sleepCold = SleepData();
 
 /// A cycle with four logged starts — three measured gaps, so the prediction
 /// can state a width — plus a partial current cycle of derived nights behind
@@ -194,10 +89,6 @@ final _cycle = CycleData(
     '2026-05-12': ['cramps', 'fatigue'],
   },
 );
-
-/// Tracking on, nothing logged: the state a user lands in the moment they
-/// enable it, and the only one with no numbers in it.
-const _cycleEmpty = CycleData(enabled: true);
 
 Widget _scroll(Widget child) => ListView(
   padding: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x4, S.x16),
@@ -316,85 +207,7 @@ void main() {
     );
   });
 
-  testWidgets('an absent metric never renders a bare em-dash', (tester) async {
-    tester.view.physicalSize = const Size(390 * 3, 1400 * 3);
-    tester.view.devicePixelRatio = 3;
-    addTearDown(tester.view.reset);
 
-    for (final w in <Widget>[
-      const HomeScreen(data: _homeCold),
-      const HealthScreen(data: _healthCold),
-      const ReadinessDetail(data: _readinessCold),
-      const SleepDetail(data: _sleepCold),
-      SleepDetail(data: _sleepNew),
-      const CircadianDetail(data: CircadianData()),
-      const MetricDetail('resting_hr', data: MetricData()),
-      const MetricDetail('skin_temp', data: MetricData()),
-      const Investigate('hrv', data: InvestigateData()),
-      const Investigate('steps', data: InvestigateData()),
-      const HealthScreen(data: _healthCold, vitals: VitalsData(), tab: 3),
-      const HealthScreen(data: _healthCold, labs: LabsData(), tab: 4),
-      const HealthScreen(data: _healthCold, explore: ExploreData(), tab: 1),
-      _scroll(const CycleTab(data: CycleData())),
-      _scroll(const CycleTab(data: _cycleEmpty)),
-      const JournalFindings(rows: [], weekday: {}),
-      // The readiness row that used to hold the app's one reachable em-dash:
-      // a driver marked used whose weighted contribution never arrived.
-      const ReadinessDetail(
-        data: ReadinessData(
-          readiness: Metric(value: 74, confidence: .8, tier: MetricTier.high),
-          breakdown: [
-            {'label': 'hrv', 'weight': .4, 'used': true, 'past_mdc': true},
-          ],
-          inputsUsed: 1,
-        ),
-      ),
-    ]) {
-      await tester.pumpWidget(_frame(w, Brightness.light, 1));
-      await tester.pumpAndSettle();
-      final dashes = tester
-          .widgetList<Text>(find.byType(Text))
-          .where((t) => (t.data ?? '').trim() == '—');
-      expect(
-        dashes,
-        isEmpty,
-        reason:
-            '${w.runtimeType} rendered a bare em-dash. An absent value '
-            'is a StatusCard: what is missing, why, what fixes it.',
-      );
-    }
-  });
-
-  testWidgets("a ring's provisional skin deviation says so on the Vitals row",
-      (tester) async {
-    tester.view.physicalSize = const Size(390 * 3, 1400 * 3);
-    tester.view.devicePixelRatio = 3;
-    addTearDown(tester.view.reset);
-    Future<void> show(bool provisional) async {
-      await tester.pumpWidget(_frame(
-        HealthScreen(
-          key: ValueKey(provisional),
-          data: HealthData(daysWithData: 30, today: {
-            'skin_temp': {
-              'value': 0.4,
-              'confidence': 0.25,
-              if (provisional) 'provisional': true,
-            },
-          }),
-          vitals: const VitalsData(),
-          tab: 3,
-        ),
-        Brightness.light,
-        1,
-      ));
-      await tester.pumpAndSettle();
-    }
-
-    await show(true);
-    expect(find.textContaining('Provisional'), findsOneWidget);
-    await show(false);
-    expect(find.textContaining('Provisional'), findsNothing);
-  });
 
   // ── MIND-01 / MIND-04 / MT-06 / MT-07 ────────────────────────────────────
   testWidgets(

@@ -21,7 +21,6 @@ import 'package:openstrap_edge/data/day_label.dart';
 import 'package:openstrap_edge/data/db.dart';
 import 'package:openstrap_edge/data/local_repository_impl.dart';
 import 'package:openstrap_edge/models/payloads.dart';
-import 'package:openstrap_edge/ui2/screens/health_screen.dart' show HealthData;
 import 'package:openstrap_edge/widget/widget_service.dart';
 
 /// A pre-change bundle: rmssd fell back to the NREM median because the
@@ -131,11 +130,6 @@ void main() {
     expect(t.hrv!.rmssd, 48.3);
     expect(t.hrv!.confidence, 0.62,
         reason: 'not the absent session envelope\'s 0');
-
-    // Health: the HRV row honours confidence, so 0 blanked it.
-    final health = await HealthData.load(repo);
-    expect(health.hrv.isEmpty, isFalse);
-    expect(health.hrv.value, 48.3);
 
     // Widget / Watch: the same number.
     await WidgetService.push(t);

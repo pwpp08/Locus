@@ -11137,23 +11137,6 @@
   "@settingsBarcodeSaveFailed": {
     "description": "Snackbar shown when the barcode-lookup preference fails to save"
   },
-  "settingsIconRowTitle": "Icon",
-  "@settingsIconRowTitle": {
-    "description": "Row title for the home-screen app icon picker"
-  },
-  "settingsIconRowConfirmHint": "iPhone will ask you to confirm",
-  "@settingsIconRowConfirmHint": {
-    "description": "Hint under the app icon row noting iOS confirms every icon change"
-  },
-  "settingsIconChoiceLabel": "{label} icon.",
-  "@settingsIconChoiceLabel": {
-    "description": "Accessibility label for one app-icon choice",
-    "placeholders": {
-      "label": {
-        "type": "String"
-      }
-    }
-  },
   "settingsSelectedSuffix": " Selected.",
   "@settingsSelectedSuffix": {
     "description": "Accessibility suffix appended when an option is the current selection"
@@ -14931,7 +14914,7 @@
   "@dayTimelineZoomNoHr": {
     "description": "Shown in place of the zoomed day chart when the chosen window has no heart rate."
   },
-  "dayTimelineZoomPerMinute": "1-minute averages. Drag the handles to zoom; two hours or less shows every second while it is still kept.",
+  "dayTimelineZoomPerMinute": "1-minute averages. Pinch to zoom; two hours or less shows every second while it is still kept.",
   "@dayTimelineZoomPerMinute": {
     "description": "Footnote under the day heart-rate chart at per-minute resolution."
   },

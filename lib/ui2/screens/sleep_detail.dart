@@ -41,7 +41,7 @@ import '../ui2.dart';
 import 'home_screen.dart';
 import 'investigate.dart';
 import 'metric_detail.dart';
-import 'naps.dart';
+import 'nap_detail.dart' show NapDetailScreen;
 import 'rough_night.dart';
 import 'stress_monitor.dart' show StressSource;
 import 'window_editor.dart';
@@ -775,7 +775,7 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text('LOCUS', style: F.wordmark.copyWith(color: p.ink3)),
+                    Wordmark(color: p.ink3),
                     const SizedBox(height: S.x2),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.baseline,

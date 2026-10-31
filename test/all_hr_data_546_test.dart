@@ -86,7 +86,7 @@ void main() {
     });
   });
 
-  testWidgets('the day chart carries a zoom control and a resolution note',
+  testWidgets('the day chart zooms by pinch, with no handles, and says its resolution',
       (t) async {
     final start = DateTime(2026, 8, 14).millisecondsSinceEpoch ~/ 1000;
     final g = DayGraph(
@@ -101,7 +101,10 @@ void main() {
               body: ListView(
                   children: timelineBody(c, TimelineData(day: '2026-08-14', graph: g))))),
     ));
-    expect(find.byType(RangeSlider), findsOneWidget);
+    // Two fingers zoom it: no range bar with thumbs to drag.
+    expect(find.byType(RangeSlider), findsNothing);
+    expect(find.byType(Scrubber), findsOneWidget);
+    expect(find.textContaining('Pinch to zoom'), findsOneWidget);
     expect(find.textContaining('1-minute averages'), findsOneWidget);
   });
 }

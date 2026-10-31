@@ -3457,63 +3457,6 @@ class Glass extends StatelessWidget {
   }
 }
 
-/// The range selector under a zoomable chart: a pill track, the stretch in
-/// view lit in [hue], two round ink thumbs. Drag a thumb to narrow or widen
-/// what the chart shows; the chart's own pinch moves the same values.
-class RangeBar extends StatelessWidget {
-  final RangeValues values;
-  final double min, max;
-  final int? divisions;
-  final Color hue;
-  final RangeLabels? labels;
-  final String Function(double)? semanticFormatter;
-  final ValueChanged<RangeValues> onChanged;
-  final ValueChanged<RangeValues>? onChangeEnd;
-
-  const RangeBar({
-    super.key,
-    required this.values,
-    required this.min,
-    required this.max,
-    required this.hue,
-    required this.onChanged,
-    this.divisions,
-    this.labels,
-    this.semanticFormatter,
-    this.onChangeEnd,
-  });
-
-  @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    return SliderTheme(
-      data: SliderTheme.of(c).copyWith(
-        trackHeight: S.x1 + S.half,
-        rangeTrackShape: const RoundedRectRangeSliderTrackShape(),
-        activeTrackColor: hue,
-        inactiveTrackColor: p.ink.withValues(alpha: .12),
-        overlayColor: hue.withValues(alpha: .12),
-        rangeThumbShape: const RoundRangeSliderThumbShape(
-            enabledThumbRadius: S.x2),
-        thumbColor: p.ink,
-        showValueIndicator: ShowValueIndicator.onDrag,
-        valueIndicatorColor: p.card2,
-        valueIndicatorTextStyle: F.num(F.cap).copyWith(color: p.ink),
-      ),
-      child: RangeSlider(
-        values: values,
-        min: min,
-        max: max,
-        divisions: divisions,
-        labels: labels,
-        semanticFormatterCallback: semanticFormatter,
-        onChanged: onChanged,
-        onChangeEnd: onChangeEnd,
-      ),
-    );
-  }
-}
-
 /// The range segment: D / W / M / 6M over a dark track, the chosen one lifted
 /// onto a [P.card] tile. The one switch for "which window am I looking at",
 /// on Trend View, the strength trainer and every screen that pages a window.

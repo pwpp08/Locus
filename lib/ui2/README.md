@@ -102,7 +102,7 @@ Scrubber({required double? value, required ValueChanged<double> onChanged,
 it used to drop the constraint entirely and the doc comment claimed a hit slop
 that did not exist.
 
-`RangeBar({values, min, max, hue, onChanged})` is the range selector under a zoomable chart (`WindowPreview(zoomable: true)`, the day breakdown).
+There is no range selector under a zoomable chart: zoom is two fingers on the chart (`Scrubber(onPinch:)`), one finger pans it (`WindowPreview(zoomable: true)`, the day breakdown), and nothing draws drag handles for it.
 
 `Scrubber` is the only drag: it carries the slider role, so increase/decrease
 reach it without a pointer, and `describe` is what those steps say out loud.
@@ -446,12 +446,6 @@ Progressive disclosure hid the app from its own owner: 25 written `MetricSpec`s
 existed and `MetricDetail` was constructed with **seven** keys anywhere in the
 tree, so 16 finished drill-downs — title, unit, colour, method, citation, all
 written — had no navigation edge at all.
-
-`_catalogue` in `health_screen.dart` is the routing, and it is the one place a
-metric becomes browsable. A row is `(spec key, metric_series key, one line)`;
-its icon, colour and title come off the spec, never a second copy. **Add a
-`MetricSpec` and add its catalogue row in the same commit** — a spec with no row
-is a screen nobody can open, which is the bug this fixed.
 
 Three rules the tab keeps:
 

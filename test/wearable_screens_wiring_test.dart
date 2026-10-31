@@ -145,33 +145,7 @@ void main() {
     expect(find.byType(WearableCells), findsNothing);
   });
 
-  testWidgets("Health draws the wearable's heart rows", (t) async {
-    // A tall phone: the rows sit under the monitors and the watch section,
-    // and a lazy list builds only what is on screen.
-    t.view.physicalSize = const Size(800, 4000);
-    t.view.devicePixelRatio = 1;
-    addTearDown(t.view.reset);
-    await _settle(
-        t,
-        MaterialApp(
-        theme: buildTheme(Brightness.light),
-        home: const Scaffold(body: HealthScreen())));
-    expect(find.byType(WearableCells), findsOneWidget);
-    expect(
-        [for (final w in t.widgetList<WearableCell>(find.byType(WearableCell)))
-          w.row],
-        kHealthWearableRows);
-    expect(_rhr(t), 58);
-  });
 
-  testWidgets('Health handed its data draws no wearable card', (t) async {
-    await _settle(
-        t,
-        MaterialApp(
-        theme: buildTheme(Brightness.light),
-        home: const Scaffold(body: HealthScreen(data: HealthData()))));
-    expect(find.byType(WearableCells), findsNothing);
-  });
 
   testWidgets("a band-covered day never wears the wearable's name",
       (t) async {

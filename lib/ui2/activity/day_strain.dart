@@ -429,7 +429,7 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Text('LOCUS', style: F.wordmark.copyWith(color: p.ink3)),
+                  Wordmark(color: p.ink3),
                   const SizedBox(height: S.x1),
                   Text(s == null ? '--' : s.toStringAsFixed(1),
                       style: F.n80.copyWith(

@@ -30,26 +30,6 @@ void main() {
     await t.pumpAndSettle();
   }
 
-  testWidgets('Health vitals opens the Advanced screen, and it opens both '
-      'research views', (t) async {
-    t.view.physicalSize = const Size(390 * 3, 4000 * 3);
-    t.view.devicePixelRatio = 3;
-    addTearDown(t.view.reset);
-    await t.pumpWidget(_nav(const HealthScreen(
-        data: HealthData(daysWithData: 2), vitals: VitalsData(), tab: 3)));
-    await t.pumpAndSettle();
-    await tapLink(t, 'Advanced charts');
-    expect(find.byType(AdvancedScreen), findsOneWidget);
-
-    await tapLink(t, 'Beat to beat');
-    expect(find.byType(Beats), findsOneWidget);
-    t.state<NavigatorState>(find.byType(Navigator)).pop();
-    await t.pumpAndSettle();
-
-    await tapLink(t, 'Sleep timing and daily rhythm');
-    expect(
-        t.widget<CircadianDetail>(find.byType(CircadianDetail)).advanced, isTrue);
-  });
 
   testWidgets('HRV detail has the same door to Advanced', (t) async {
     t.view.physicalSize = const Size(390 * 3, 4000 * 3);

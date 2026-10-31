@@ -1,6 +1,5 @@
 // Imported WHOOP blood oxygen: the importer writes the `spo2` series with
 // WHOOP provenance, and the metric screen loads and charts it.
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/compute/substrate.dart' show localDateLabel;
 import 'package:openstrap_edge/data/db.dart';
@@ -8,9 +7,6 @@ import 'package:openstrap_edge/import/whoop_import.dart';
 import 'package:openstrap_edge/data/local_repository_impl.dart';
 import 'package:openstrap_edge/ui2/screens/metric_detail.dart'
     show MetricData, specOf;
-import 'package:openstrap_edge/ui2/screens/screens.dart'
-    show ExploreData, HealthData, HealthScreen;
-import 'package:openstrap_edge/ui2/ui2.dart' show buildTheme;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'dart:io';
 import 'dart:convert';
@@ -124,29 +120,4 @@ void main() {
     expect((await LocalDb.metricSeriesCounts(['spo2']))['spo2'], dates.length);
   });
 
-  testWidgets('a device with no imported spo2 lists no blood oxygen row',
-      (tester) async {
-    // tall enough that the lazy list builds the Breathing family
-    tester.view.physicalSize = const Size(390 * 3, 4000 * 3);
-    tester.view.devicePixelRatio = 3;
-    addTearDown(tester.view.reset);
-    Future<void> pump(Map<String, int> counts) async {
-      await tester.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
-        home: Scaffold(
-          body: HealthScreen(
-              key: UniqueKey(),
-              data: const HealthData(daysWithData: 2),
-              explore: ExploreData(counts: counts),
-              tab: 1),
-        ),
-      ));
-      await tester.pumpAndSettle();
-    }
-
-    await pump({'resp_rate': 3});
-    expect(find.textContaining('BLOOD OXYGEN'), findsNothing);
-    await pump({'resp_rate': 3, 'spo2': 2});
-    expect(find.textContaining('BLOOD OXYGEN'), findsOneWidget);
-  });
 }

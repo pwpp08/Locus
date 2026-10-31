@@ -108,7 +108,7 @@ class _CoverState extends State<_Cover> {
               offset: _drawn ? Offset.zero : const Offset(0, .4),
               duration: motion(c, Motion.slow),
               curve: Ease.standard,
-              child: Text('LOCUS', style: F.wordmark.copyWith(color: p.ink)),
+              child: Wordmark(color: p.ink),
             ),
           ),
         ]),
