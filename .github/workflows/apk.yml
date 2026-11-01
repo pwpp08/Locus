@@ -2,9 +2,9 @@ name: apk
 
 # An installable Android APK on every push to main (and on demand).
 #
-# Where it goes: a rolling pre-release called `latest`, replaced on every
-# successful build, so the newest APK is always one stable link, and it is the
-# plain .apk, not a zip:
+# Where it goes: the run's Artifacts (the plain .apk, not a zip), and a rolling
+# pre-release called `latest`, replaced on every successful build, so the
+# newest APK is always one stable link, also the plain .apk:
 #     https://github.com/<owner>/<repo>/releases/tag/latest
 # The app's own updater (lib/updater) reads the same release. Each build is
 # stamped with its commit and time (GIT_SHA, BUILD_TIME) so the app can tell
@@ -95,6 +95,14 @@ jobs:
           apk="dist/locus-${ver%%+*}-${GITHUB_SHA::7}.apk"
           cp build/app/outputs/flutter-apk/app-release.apk "$apk"
           echo "apk=$apk" >> "$GITHUB_OUTPUT"
+
+      # The plain .apk on the run page, not a zip: `archive: false` uploads the
+      # single file as it is and names the artifact after it.
+      - uses: actions/upload-artifact@v7
+        with:
+          path: ${{ steps.name.outputs.apk }}
+          archive: false
+          retention-days: 30
 
       # Replace the rolling pre-release so `latest` is always the newest build.
       - name: Update the rolling `latest` release

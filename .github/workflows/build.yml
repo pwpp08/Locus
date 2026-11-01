@@ -152,6 +152,14 @@ jobs:
           cp build/app/outputs/flutter-apk/app-release.apk dist/openstrap-edge-${GITHUB_REF_NAME}.apk
           echo "apk=dist/openstrap-edge-${GITHUB_REF_NAME}.apk" >> "$GITHUB_OUTPUT"
 
+      # The plain .apk on the run page, not a zip: `archive: false` uploads the
+      # single file as it is and names the artifact after it.
+      - uses: actions/upload-artifact@v7
+        with:
+          path: ${{ steps.rename.outputs.apk }}
+          archive: false
+          retention-days: 30
+
       # Publish a Release with the signed APK attached so people download a real
       # .apk, not a zipped CI artifact.
       - name: Publish release
