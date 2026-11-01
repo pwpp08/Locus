@@ -30,7 +30,9 @@ import '../screens/milestones_screen.dart' show MilestonesScreen;
 import '../screens/watch_compare_screen.dart' show WatchCompareScreen;
 import '../screens/weight_trend_screen.dart' show WeightTrendScreen;
 import '../screens/wellness_screen.dart' show WellnessScreen;
+import '../../updater/update_service.dart';
 import 'alarm.dart' show AlarmScreen;
+import 'band_notifications.dart' show BandNotifications;
 import 'data.dart';
 import 'account_screen.dart';
 import 'devices.dart';
@@ -483,6 +485,12 @@ class _ProfileHomeState extends State<ProfileHome> {
       stats: snap.data,
       onDevices: () => _open(c, const MyDevices()),
       onSettings: () => _open(c, const MoreSettings()),
+      onUpdates: () => UpdateService.instance.check(c, manual: true),
+      // Reading which app notified is an Android capability; elsewhere the
+      // row is not drawn.
+      onBuzz: Platform.isAndroid
+          ? () => _open(c, const BandNotifications())
+          : null,
       onExport: () => _open(c, const DataScreen()),
       onEdit: () => _open(c, const EditProfile()),
       onCoach: () => _open(c, const CoachSetup()),
@@ -496,6 +504,12 @@ class ProfileHomeView extends StatelessWidget {
   final ProfileStats? stats;
   final VoidCallback? onDevices, onSettings, onExport, onEdit, onCoach;
 
+  /// Look for a newer build now; null hides the row.
+  final VoidCallback? onUpdates;
+
+  /// Open what makes the strap buzz; null hides the row (not Android).
+  final VoidCallback? onBuzz;
+
   /// The More tab: a tab title instead of a back bar, and the app settings.
   final bool tab;
 
@@ -506,6 +520,8 @@ class ProfileHomeView extends StatelessWidget {
     this.onDevices,
     this.onCoach,
     this.onSettings,
+    this.onUpdates,
+    this.onBuzz,
     this.onExport,
     this.onEdit,
   });
@@ -609,6 +625,47 @@ class ProfileHomeView extends StatelessWidget {
             sub: l?.profileEditProfileSub ?? 'Sex, age, height, weight',
             onTap: onEdit,
           ),
+        ]),
+        // The app itself. Settings has been reachable from nowhere on this tab
+        // since the menu was redesigned; its two most-wanted corners (a newer
+        // build, and what makes the strap buzz) are on this page as well.
+        settingsGroup(c, 'App', [
+          SetRow(
+            LucideIcons.settings,
+            C.n500,
+            'Settings',
+            sub: 'Notifications, units, privacy, quiet hours and more',
+            onTap: onSettings,
+          ),
+          if (onUpdates != null)
+            AnimatedBuilder(
+              animation: UpdateService.instance,
+              builder: (c, _) {
+                final u = UpdateService.instance;
+                return SetRow(
+                  LucideIcons.downloadCloud,
+                  C.blue,
+                  'App updates',
+                  sub: u.isChecking
+                      ? 'Checking\u2026'
+                      : u.hasUpdate
+                          ? '${u.latestRelease?.label ?? 'A newer build'} is ready to install'
+                          : (u.currentBuild.isEmpty
+                              ? 'Look for a newer build'
+                              : 'You have ${u.currentBuild}'),
+                  value: u.hasUpdate ? 'Update' : '',
+                  onTap: u.isChecking ? null : onUpdates,
+                );
+              },
+            ),
+          if (onBuzz != null)
+            SetRow(
+              LucideIcons.bellRing,
+              C.purple,
+              'Band buzzes',
+              sub: 'Calls, Google Tasks and the apps that make the strap buzz',
+              onTap: onBuzz,
+            ),
         ]),
         settingsGroup(c, l?.profileYourDataGroup ?? 'Your data', [
           SetRow(

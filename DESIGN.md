@@ -396,6 +396,7 @@ Bar order: **Home · Health · (+) · AI · More**. The (+) and AI buttons are a
 - **(+):** a 40 circle in `card2` with a `plus` icon at I.lg.
 - **AI:** the coach orb (40): a sweep ring round a `card` disc with `sparkles` at I.md.
 - **Banner:** a minimised workout floats as its own `Glass` pill 8 above the bar.
+- **More tab** (`ProfileHomeView`): the photo header, *Insights & coaching*, *Quick access* (weight, devices, alarm, profile), then **App**: *Settings* (notifications, units, privacy, quiet hours), *App updates* (its line reads what you have, what is ready or that it is checking; tapping checks now), and, on Android only, *Band buzzes* (calls, Google Tasks, the apps that make the strap buzz); then *Your data*. Settings and the two shortcuts must stay reachable from this tab: everything configurable lives behind them.
 
 ### 10.2 Home header
 
