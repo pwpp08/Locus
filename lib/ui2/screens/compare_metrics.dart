@@ -97,7 +97,7 @@ Color compareSecondColour(Color a, Color b) {
   }
 
   if (apart(a, b) >= 30) return b;
-  const accents = [C.orange, C.purple, C.teal, C.yellow, C.red];
+  const accents = [C.orange, C.purple, C.teal, C.yellow, C.lavender];
   return accents.reduce((x, y) => apart(a, x) >= apart(a, y) ? x : y);
 }
 

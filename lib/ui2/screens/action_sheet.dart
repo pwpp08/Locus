@@ -45,7 +45,7 @@ Future<void> openActionSheet(BuildContext c) {
         ),
         _ActionRow(
           LucideIcons.utensils,
-          C.amber,
+          C.domFood,
           'Log macros',
           'Record meals, snacks or scan food barcode',
           () => then(() => LogFoodSheet.show(c)),

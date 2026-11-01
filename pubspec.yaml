@@ -568,6 +568,15 @@ dependencies:
   # declares it (mobile_scanner already does).
   image_picker: ^1.1.2
 
+  # The Macros tab's own camera (lib/ui2/screens/food_camera.dart): a live
+  # preview in a sheet, one shutter that decides barcode or plate, instead of
+  # handing the phone to the system camera app. CameraX on Android, no Play
+  # Services; audio is never opened (RECORD_AUDIO is removed in the manifest).
+  # `image` shrinks the still before it goes anywhere (already in the tree via
+  # other packages; now named because this code imports it).
+  camera: ^0.12.0+2
+  image: ^4.9.2
+
   # State + small settings persistence.
   provider: ^6.1.2
   shared_preferences: ^2.3.3

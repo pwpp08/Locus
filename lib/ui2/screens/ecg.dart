@@ -1006,7 +1006,7 @@ class _EcgDetailScreenState extends State<EcgDetailScreen> {
               child: Text(
                 l?.ecgDelete ?? 'Delete reading',
                 textAlign: TextAlign.center,
-                style: F.body.copyWith(color: C.red),
+                style: F.body.copyWith(color: P.of(c).ink),
               ),
             ),
           ),

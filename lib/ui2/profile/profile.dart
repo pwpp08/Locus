@@ -23,7 +23,7 @@ import '../../state/prefs.dart';
 import '../../state/units_controller.dart';
 import '../ui2.dart';
 import '../screens/action_sheet.dart' show openCoach;
-import '../screens/coach.dart' show CoachSetup, coachSubtitle;
+import '../screens/coach.dart' show coachSubtitle;
 import '../screens/healthspan_screen.dart' show HealthspanScreen;
 import '../screens/home_screen.dart' show deviceBatteryOf;
 import '../screens/milestones_screen.dart' show MilestonesScreen;
@@ -493,7 +493,6 @@ class _ProfileHomeState extends State<ProfileHome> {
           : null,
       onExport: () => _open(c, const DataScreen()),
       onEdit: () => _open(c, const EditProfile()),
-      onCoach: () => _open(c, const CoachSetup()),
     ),
   );
 }
@@ -502,7 +501,7 @@ class ProfileHomeView extends StatelessWidget {
   /// Null while the counts are still being read — the numbers are absent, not
   /// zero, and a zero rendered during a load is a wrong number on screen.
   final ProfileStats? stats;
-  final VoidCallback? onDevices, onSettings, onExport, onEdit, onCoach;
+  final VoidCallback? onDevices, onSettings, onExport, onEdit;
 
   /// Look for a newer build now; null hides the row.
   final VoidCallback? onUpdates;
@@ -518,7 +517,6 @@ class ProfileHomeView extends StatelessWidget {
     this.tab = false,
     this.stats,
     this.onDevices,
-    this.onCoach,
     this.onSettings,
     this.onUpdates,
     this.onBuzz,
@@ -578,7 +576,17 @@ class ProfileHomeView extends StatelessWidget {
             ),
           ]),
         ],
-        settingsGroup(c, l?.profileQuickAccessGroup ?? 'Quick access', [
+        // Each thing is on this tab or in Settings, never both. This tab is
+        // what you open to look at or use (you, your band, your data, the
+        // app); Settings is the switches and preferences behind them.
+        settingsGroup(c, 'You and your band', [
+          SetRow(
+            LucideIcons.userPen,
+            C.purple,
+            l?.profileEditProfile ?? 'Edit profile',
+            sub: l?.profileEditProfileSub ?? 'Sex, age, height, weight',
+            onTap: onEdit,
+          ),
           SetRow(
             LucideIcons.scale,
             C.dialStrain,
@@ -618,25 +626,43 @@ class ProfileHomeView extends StatelessWidget {
                 'Buzzes on your wrist, on the band’s own clock',
             onTap: () => goto(c, const AlarmScreen()),
           ),
+          if (onBuzz != null)
+            SetRow(
+              LucideIcons.bellRing,
+              C.purple,
+              'Band buzzes',
+              sub: 'Calls, Google Tasks and the apps that make the strap buzz',
+              onTap: onBuzz,
+            ),
+        ]),
+        settingsGroup(c, l?.profileYourDataGroup ?? 'Your data', [
           SetRow(
-            LucideIcons.userPen,
-            C.purple,
-            l?.profileEditProfile ?? 'Edit profile',
-            sub: l?.profileEditProfileSub ?? 'Sex, age, height, weight',
-            onTap: onEdit,
+            LucideIcons.cloud,
+            C.blue,
+            'Cloud account',
+            sub: 'Sign in to sync, back up and restore',
+            onTap: () => goto(c, const AccountScreen()),
+          ),
+          SetRow(
+            LucideIcons.database,
+            C.green,
+            l?.profileStorage ?? 'Storage',
+            value: s?.storageBytes == null ? '' : formatBytes(s!.storageBytes!),
+            chevron: false,
+          ),
+          // Export straight from here: it used to be five taps deep,
+          // behind a row named for its position ("More settings").
+          SetRow(
+            LucideIcons.download,
+            C.green,
+            l?.profileExportRow ?? 'Export and backup',
+            sub:
+                l?.profileExportRowSub ??
+                'Spreadsheets, a full copy, and bringing history in',
+            onTap: onExport,
           ),
         ]),
-        // The app itself. Settings has been reachable from nowhere on this tab
-        // since the menu was redesigned; its two most-wanted corners (a newer
-        // build, and what makes the strap buzz) are on this page as well.
         settingsGroup(c, 'App', [
-          SetRow(
-            LucideIcons.settings,
-            C.n500,
-            'Settings',
-            sub: 'Notifications, units, privacy, quiet hours and more',
-            onTap: onSettings,
-          ),
           if (onUpdates != null)
             AnimatedBuilder(
               animation: UpdateService.instance,
@@ -658,40 +684,30 @@ class ProfileHomeView extends StatelessWidget {
                 );
               },
             ),
-          if (onBuzz != null)
-            SetRow(
-              LucideIcons.bellRing,
-              C.purple,
-              'Band buzzes',
-              sub: 'Calls, Google Tasks and the apps that make the strap buzz',
-              onTap: onBuzz,
+          if (onUpdates != null)
+            AnimatedBuilder(
+              animation: UpdateService.instance,
+              builder: (c, _) {
+                final u = UpdateService.instance;
+                return SetRow(
+                  LucideIcons.refreshCw,
+                  C.green,
+                  'Check automatically',
+                  sub: 'When the app opens, at most every few hours',
+                  value: u.autoCheckEnabled
+                      ? (l?.stateOn ?? 'On')
+                      : (l?.stateOff ?? 'Off'),
+                  chevron: false,
+                  onTap: () => u.setAutoCheckEnabled(!u.autoCheckEnabled),
+                );
+              },
             ),
-        ]),
-        settingsGroup(c, l?.profileYourDataGroup ?? 'Your data', [
           SetRow(
-            LucideIcons.cloud,
-            C.blue,
-            'Cloud account',
-            sub: 'Online backup and data sync',
-            onTap: () => goto(c, const AccountScreen()),
-          ),
-          SetRow(
-            LucideIcons.database,
-            C.green,
-            l?.profileStorage ?? 'Storage',
-            value: s?.storageBytes == null ? '' : formatBytes(s!.storageBytes!),
-            chevron: false,
-          ),
-          // Export straight from here: it used to be five taps deep,
-          // behind a row named for its position ("More settings").
-          SetRow(
-            LucideIcons.download,
-            C.green,
-            l?.profileExportRow ?? 'Export and backup',
-            sub:
-                l?.profileExportRowSub ??
-                'Spreadsheets, a full copy, and bringing history in',
-            onTap: onExport,
+            LucideIcons.settings,
+            C.n500,
+            'Settings',
+            sub: 'Notifications, units, privacy, quiet hours and more',
+            onTap: onSettings,
           ),
         ]),
       ],

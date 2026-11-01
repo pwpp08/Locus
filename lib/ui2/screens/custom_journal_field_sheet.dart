@@ -257,7 +257,7 @@ class _CustomFieldSheetState extends State<_CustomFieldSheet> {
                       ],
                       if (_error != null) ...[
                         const SizedBox(height: S.x3),
-                        Text(_error!, style: F.cap.copyWith(color: C.red)),
+                        ErrorLine(_error!),
                       ],
                     ],
                   ),

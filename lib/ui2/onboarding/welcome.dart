@@ -223,7 +223,7 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
         ],
         if (_error != null) ...[
           const SizedBox(height: S.x3),
-          Text(_error!, style: F.cap.copyWith(color: P.of(c).on(C.red))),
+          ErrorLine(_error!),
         ],
       ]),
       actions: [

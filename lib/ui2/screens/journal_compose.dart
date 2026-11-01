@@ -1136,7 +1136,7 @@ class _JournalAiSheetState extends State<_JournalAiSheet> {
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x2),
-                  child: Text(_error!, style: F.over.copyWith(color: C.red)),
+                  child: ErrorLine(_error!),
                 ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x2),

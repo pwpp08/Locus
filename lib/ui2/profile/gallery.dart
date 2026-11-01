@@ -501,6 +501,7 @@ Map<String, Widget> componentCases() => {
       // this one, and saying so beats a live arrow that does nothing.
       'day_nav_today': DayNav(
           day: _navDays.first, days: _navDays, onDay: (_) {}),
+      'error_line': const ErrorLine('That did not work. Try again.'),
       'section': const Section('Recovery', StatusCard('Nothing yet today',
           'The first sync of the day has not landed.'),
           action: 'History'),

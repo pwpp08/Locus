@@ -182,6 +182,7 @@ Future<List<FoodGuess>> analyzeFood({
   final raw = await CoachEngine.chatOnce(
     config: config,
     temperature: 0.2,
+    model: config.foodModelOrCoach,
     messages: [
       {'role': 'system', 'content': kFoodAiSystem},
       {

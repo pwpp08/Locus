@@ -835,6 +835,7 @@ class _CoachSetupState extends State<CoachSetup> {
   late final TextEditingController _timeout;
   late CoachApi _api;
   String _model = '';
+  late final TextEditingController _foodModel;
   List<String> _models = const [];
   bool _loading = false;
   String? _msg;
@@ -866,6 +867,7 @@ class _CoachSetupState extends State<CoachSetup> {
     _timeout = TextEditingController(text: cfg.timeoutSeconds.toString());
     _api = cfg.api;
     _model = cfg.model;
+    _foodModel = TextEditingController(text: cfg.foodModel);
     _keyOrigin = coachEndpointOrigin(cfg.baseUrl);
     // The base URL decides which preset is lit and whether a key is needed, and
     // the search box filters the list — both are read during build, so both
@@ -883,6 +885,7 @@ class _CoachSetupState extends State<CoachSetup> {
     // checking the trimmed text itself; _pendingKeyDelete only needs to say
     // whether the endpoint changed, not track the field's history.
     _search.addListener(redraw);
+    _foodModel.addListener(redraw);
   }
 
   /// Clears a carried-over key rather than letting Save silently send it to a
@@ -907,6 +910,7 @@ class _CoachSetupState extends State<CoachSetup> {
     _base.dispose();
     _key.dispose();
     _search.dispose();
+    _foodModel.dispose();
     _timeout.dispose();
     super.dispose();
   }
@@ -974,6 +978,7 @@ class _CoachSetupState extends State<CoachSetup> {
           pendingKeyDelete: _pendingKeyDelete,
         ),
         model: chosen,
+        foodModel: _foodModel.text,
         api: _api,
         timeoutSeconds: timeoutSeconds,
       );
@@ -1223,6 +1228,53 @@ class _CoachSetupState extends State<CoachSetup> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: S.x5),
+                  OsTextField(
+                    controller: _foodModel,
+                    label: 'Model for food photos',
+                    hint: 'Empty uses the coach model above',
+                  ),
+                  const SizedBox(height: S.x2),
+                  Text(
+                    'Logging food from a photo or a sentence can use a different '
+                    'model from the coach. It must be able to read pictures.',
+                    style: F.cap.copyWith(color: p.ink3, height: 1.5),
+                  ),
+                  if (_models.isNotEmpty) ...[
+                    const SizedBox(height: S.x2),
+                    Wrap(
+                      spacing: S.x2,
+                      runSpacing: S.x2,
+                      children: [
+                        for (final m in _models
+                            .where((m) => m
+                                .toLowerCase()
+                                .contains(_foodModel.text.trim().toLowerCase()))
+                            .take(6))
+                          Pressable(
+                            semanticLabel: m,
+                            onTap: () => setState(() => _foodModel.text = m),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: S.x3, vertical: S.x2),
+                              decoration: BoxDecoration(
+                                color: m == _foodModel.text.trim()
+                                    ? p.fill(kCoachAccent)
+                                    : p.card2,
+                                borderRadius: R.rPill,
+                              ),
+                              child: Text(
+                                m,
+                                style: F.cap.copyWith(
+                                    color: m == _foodModel.text.trim()
+                                        ? p.inkOn(p.fill(kCoachAccent))
+                                        : p.ink2),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                   if (_isLocal) ...[
                     const SizedBox(height: S.x4),
                     OsTextField(

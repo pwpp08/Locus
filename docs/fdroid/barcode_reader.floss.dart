@@ -12,6 +12,11 @@ class BarcodeReaderError {
   final bool permissionDenied;
 }
 
+/// A barcode in a still photo. The FLOSS build does not decode stills, so the
+/// in-app camera's shutter always files a photo; its Barcode button still reads
+/// live through [BarcodeReaderWidget].
+Future<String?> readBarcodeInImage(String path, List<BarcodeFormat> formats) async => null;
+
 typedef BarcodeReaderErrorBuilder = Widget Function(BuildContext, BarcodeReaderError);
 
 class BarcodeReaderWidget extends StatefulWidget {

@@ -14,6 +14,17 @@ import '../../l10n/app_localizations.dart';
 import '../../scan/barcode_reader.dart';
 import '../ui2.dart';
 
+/// The formats printed on packaged food. `all` would also read QR codes,
+/// which are not products. The in-app camera reads stills with the same list.
+const kProductFormats = [
+  BarcodeFormat.ean13,
+  BarcodeFormat.ean8,
+  BarcodeFormat.upcA,
+  BarcodeFormat.upcE,
+  BarcodeFormat.dataBar,
+  BarcodeFormat.dataBarExpanded,
+];
+
 /// Read one barcode. Resolves the digits, or null if the sheet was closed,
 /// the camera was refused, or there is no camera at all.
 Future<String?> scanBarcode(BuildContext c) => AppSheet.open<String>(c,
@@ -23,17 +34,6 @@ Future<String?> scanBarcode(BuildContext c) => AppSheet.open<String>(c,
 
 class _ScanSheet extends StatelessWidget {
   const _ScanSheet();
-
-  /// The formats printed on packaged food. `all` would also read QR codes,
-  /// which are not products.
-  static const _formats = [
-    BarcodeFormat.ean13,
-    BarcodeFormat.ean8,
-    BarcodeFormat.upcA,
-    BarcodeFormat.upcE,
-    BarcodeFormat.dataBar,
-    BarcodeFormat.dataBarExpanded,
-  ];
 
   @override
   Widget build(BuildContext c) {
@@ -65,7 +65,7 @@ class _ScanSheet extends StatelessWidget {
               child: AspectRatio(
                 aspectRatio: 1,
                 child: BarcodeReaderWidget(
-                  formats: _formats,
+                  formats: kProductFormats,
                   onDetect: (code) => Navigator.of(c).pop(code),
                   errorBuilder: (_, e) => _CameraProblem(e),
                 ),

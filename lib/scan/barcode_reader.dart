@@ -16,6 +16,26 @@ class BarcodeReaderError {
   final bool permissionDenied;
 }
 
+/// A product barcode in a still photo (the in-app camera's shutter, or a
+/// picture from the gallery), or null when there is none. The picture is read
+/// on the device and goes nowhere else.
+Future<String?> readBarcodeInImage(String path, List<BarcodeFormat> formats) async {
+  final c = ms.MobileScannerController();
+  try {
+    final cap = await c.analyzeImage(path,
+        formats: formats.map(_BarcodeFormatX.map).toList());
+    for (final b in cap?.barcodes ?? const <ms.Barcode>[]) {
+      final v = b.rawValue?.trim();
+      if (v != null && v.isNotEmpty) return v;
+    }
+  } catch (_) {
+    // A photo it cannot read is a photo of a plate, not an error.
+  } finally {
+    await c.dispose();
+  }
+  return null;
+}
+
 typedef BarcodeReaderErrorBuilder = Widget Function(BuildContext, BarcodeReaderError);
 
 /// Camera preview that reports the first detected code and stops. Callers
@@ -41,14 +61,7 @@ class _BarcodeReaderWidgetState extends State<BarcodeReaderWidget> {
       ms.MobileScannerController(formats: widget.formats.map(_map).toList());
   bool _done = false;
 
-  static ms.BarcodeFormat _map(BarcodeFormat f) => switch (f) {
-        BarcodeFormat.ean13 => ms.BarcodeFormat.ean13,
-        BarcodeFormat.ean8 => ms.BarcodeFormat.ean8,
-        BarcodeFormat.upcA => ms.BarcodeFormat.upcA,
-        BarcodeFormat.upcE => ms.BarcodeFormat.upcE,
-        BarcodeFormat.dataBar => ms.BarcodeFormat.dataBar,
-        BarcodeFormat.dataBarExpanded => ms.BarcodeFormat.dataBarExpanded,
-      };
+  static ms.BarcodeFormat _map(BarcodeFormat f) => _BarcodeFormatX.map(f);
 
   @override
   void dispose() {
@@ -77,4 +90,15 @@ class _BarcodeReaderWidgetState extends State<BarcodeReaderWidget> {
           ),
         ),
       );
+}
+
+abstract final class _BarcodeFormatX {
+  static ms.BarcodeFormat map(BarcodeFormat f) => switch (f) {
+        BarcodeFormat.ean13 => ms.BarcodeFormat.ean13,
+        BarcodeFormat.ean8 => ms.BarcodeFormat.ean8,
+        BarcodeFormat.upcA => ms.BarcodeFormat.upcA,
+        BarcodeFormat.upcE => ms.BarcodeFormat.upcE,
+        BarcodeFormat.dataBar => ms.BarcodeFormat.dataBar,
+        BarcodeFormat.dataBarExpanded => ms.BarcodeFormat.dataBarExpanded,
+      };
 }

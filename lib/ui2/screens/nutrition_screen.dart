@@ -33,6 +33,7 @@ import '../../data/journal_fields.dart';
 import '../../state/app_state.dart';
 import '../ui2.dart';
 import 'food_ai_sheet.dart';
+import 'food_camera.dart';
 import 'home/home_data.dart' show monthShortName, weekdayShortName;
 import 'journal_compose.dart' show OsTextField;
 import 'log_food.dart';
@@ -182,14 +183,31 @@ class _NutritionScreenState extends State<NutritionScreen> with RevisionReload {
   String get _defaultMeal =>
       _isToday ? mealForHour(DateTime.now().hour) : 'snack';
 
-  Future<void> _logFood({String? meal, bool scan = false}) async {
+  Future<void> _logFood({String? meal, bool scan = false, String? code}) async {
     final ok = await LogFoodSheet.show(
       context,
       date: _date,
       meal: meal ?? _defaultMeal,
       scan: scan,
+      code: code,
     );
     if (ok == true) await _load();
+  }
+
+  /// The dock's Photo tile: the in-app camera, then wherever what it saw goes.
+  Future<void> _photo() async {
+    final shot = await openFoodCamera(context);
+    if (shot == null || !mounted) return;
+    switch (shot.kind) {
+      case FoodShotKind.barcode:
+        await _logFood(code: shot.code);
+      case FoodShotKind.photo:
+        final ok = await openFoodAi(context,
+            date: _date, meal: _defaultMeal, photos: [shot.photo!]);
+        if (ok == true) await _load();
+      case FoodShotKind.scan:
+        await _logFood(scan: true);
+    }
   }
 
   Future<void> _logAi({required bool camera}) async {
@@ -341,7 +359,7 @@ class _NutritionScreenState extends State<NutritionScreen> with RevisionReload {
       ),
       const SizedBox(height: S.x3),
       _LogDock(
-        onPhoto: () => _logAi(camera: true),
+        onPhoto: _photo,
         onBarcode: () => _logFood(scan: true),
         onDescribe: () => _logAi(camera: false),
         onSearch: _logFood,
@@ -540,7 +558,7 @@ class _NutritionScreenState extends State<NutritionScreen> with RevisionReload {
             l?.nutritionLabelProtein ?? 'Protein',
             w.meanProtein,
             'g',
-            C.red,
+            C.blue,
           ),
           _Mean(l?.nutritionLabelCarbs ?? 'Carbs', w.meanCarbs, 'g', C.orange),
           _Mean(l?.nutritionLabelFat ?? 'Fat', w.meanFat, 'g', C.yellow),
@@ -567,7 +585,7 @@ class _NutritionScreenState extends State<NutritionScreen> with RevisionReload {
         'protein_target',
         l?.nutritionDailyProtein ?? 'Daily protein',
         'g',
-        C.red,
+        C.blue,
       ),
       ('carbs_target', 'Daily carbs', 'g', C.orange),
       ('fat_target', 'Daily fat', 'g', C.yellow),
@@ -897,7 +915,7 @@ class _EnergyCard extends StatelessWidget {
           left >= 0 ? 'LEFT' : 'OVER',
           // A floor's "left" is at most this: more may have been eaten.
           '${floor && left >= 0 ? '≤ ' : ''}${_grouped(left.abs())}',
-          left >= 0 ? C.domFood : C.red,
+          left >= 0 ? C.domFood : C.orange,
         ),
       (
         l?.nutritionLabelBurned ?? 'BURNED',
@@ -971,7 +989,7 @@ class _EnergyCard extends StatelessWidget {
                             ? 0
                             : (eaten / kt).clamp(0, 1).toDouble(),
                         eaten != null && kt != null && eaten > kt
-                            ? p.fill(C.red)
+                            ? p.fill(C.orange)
                             : p.fill(C.domFood),
                         p.track,
                         stroke: S.x3,
@@ -1025,7 +1043,7 @@ class _EnergyCard extends StatelessWidget {
             l?.nutritionLabelProtein ?? 'Protein',
             d?.protein,
             target('protein_target'),
-            C.red,
+            C.blue,
             logged: logged,
           ),
           const SizedBox(height: S.x3),

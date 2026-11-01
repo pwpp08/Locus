@@ -136,6 +136,7 @@ bool _isDuplicateItemError(Object e) {
 class CoachConfig extends ChangeNotifier {
   static const _kBaseUrl = 'coach_base_url';
   static const _kModel = 'coach_model';
+  static const _kFoodModel = 'coach_food_model';
   static const _kApi = 'coach_api';
   static const _kKey = 'coach_api_key'; // secure storage
   static const _kTimeoutSeconds = 'coach_timeout_seconds';
@@ -192,6 +193,7 @@ class CoachConfig extends ChangeNotifier {
   String _baseUrl = defaultBaseUrl;
   CoachApi _api = CoachApi.defaultFor(defaultBaseUrl);
   String _model = '';
+  String _foodModel = '';
   String? _key; // cached in-memory after load
   int _timeoutSeconds = defaultTimeoutSeconds;
 
@@ -257,6 +259,14 @@ class CoachConfig extends ChangeNotifier {
   String get baseUrl => _baseUrl;
   CoachApi get api => _api;
   String get model => _model;
+
+  /// The model for food photos and descriptions, when it is not the coach's.
+  /// A coach can want a big model for its answers while a plate is better read
+  /// by one that sees pictures, or by a cheaper one; empty means "the same".
+  String get foodModel => _foodModel;
+
+  /// The model a food estimate actually uses.
+  String get foodModelOrCoach => _foodModel.isEmpty ? _model : _foodModel;
   /// The saved, user-configurable timeout — meaningful only for a local
   /// endpoint (see [requestTimeout]), but kept intact and readable regardless
   /// of the endpoint currently configured so a UI can show/restore it as the
@@ -308,6 +318,7 @@ class CoachConfig extends ChangeNotifier {
       _ => CoachApi.defaultFor(_baseUrl),
     };
     _model = prefs.getString(_kModel) ?? '';
+    _foodModel = prefs.getString(_kFoodModel) ?? '';
     _timeoutSeconds = prefs.getInt(_kTimeoutSeconds) ?? defaultTimeoutSeconds;
     final marker = prefs.getBool(_kKeyPresent); // null = undetermined
     final generation = _generation;
@@ -407,6 +418,7 @@ class CoachConfig extends ChangeNotifier {
     String? baseUrl,
     CoachApi? api,
     String? model,
+    String? foodModel,
     String? apiKey,
     int? timeoutSeconds,
   }) async {
@@ -426,6 +438,10 @@ class CoachConfig extends ChangeNotifier {
     if (model != null) {
       _model = model.trim();
       await prefs.setString(_kModel, _model);
+    }
+    if (foodModel != null) {
+      _foodModel = foodModel.trim();
+      await prefs.setString(_kFoodModel, _foodModel);
     }
     // A non-positive value would fail every request instantly, so it is
     // rejected in favour of whatever was already in effect rather than

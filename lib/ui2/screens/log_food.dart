@@ -39,17 +39,27 @@ import '../profile/profile.dart' show SetRow;
 import '../ui2.dart';
 import 'journal_compose.dart' show OsTextField;
 import 'log_workout.dart' show dayLabel;
+import 'food_ai_sheet.dart' show openFoodAi;
+import 'food_camera.dart';
 import 'scan_barcode.dart';
 
 class LogFoodSheet extends StatefulWidget {
   const LogFoodSheet(
-      {super.key, this.date, this.meal = 'snack', this.entry, this.scan = false});
+      {super.key,
+      this.date,
+      this.meal = 'snack',
+      this.entry,
+      this.scan = false,
+      this.code});
 
   final String? date;
   final String meal;
 
   /// Open straight onto the camera scanner: the Macros page's barcode tile.
   final bool scan;
+
+  /// A barcode the camera already read: look it up on opening.
+  final String? code;
 
   /// An existing entry to EDIT instead of logging a new one. Same id on save,
   /// and the sheet can remove it.
@@ -63,9 +73,10 @@ class LogFoodSheet extends StatefulWidget {
     String meal = 'snack',
     FoodEntry? entry,
     bool scan = false,
+    String? code,
   }) => AppSheet.open<bool>(c,
-    builder: (_) =>
-        LogFoodSheet(date: date, meal: meal, entry: entry, scan: scan),
+    builder: (_) => LogFoodSheet(
+        date: date, meal: meal, entry: entry, scan: scan, code: code),
     scroll: true,
   );
 
@@ -130,6 +141,10 @@ class _LogFoodSheetState extends State<LogFoodSheet> {
       _loadRecent();
       _query.addListener(_loadRecent);
       if (widget.scan) WidgetsBinding.instance.addPostFrameCallback((_) => _scan());
+      final code = widget.code;
+      if (code != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _readCode(code));
+      }
     } else {
       _label.text = e.label;
       _kcal.text = _plain(e.kcal);
@@ -282,18 +297,46 @@ class _LogFoodSheetState extends State<LogFoodSheet> {
   /// BEFORE the camera opens, not after — someone who would decline should not
   /// have pointed their phone at a packet first.
   Future<void> _scan() async {
-    if (!offLookupAllowed) {
-      final agreed = await _askLookupConsent(context);
-      if (agreed != true || !mounted) return;
-      // Awaited so the consent is on disk before the camera opens. A write
-      // that fails only means being asked again next launch — the direction
-      // that cannot hurt anyone.
-      await setOffLookupAllowed(true);
-      if (!mounted) return;
-    }
+    if (!await _allowLookup() || !mounted) return;
     final code = await scanBarcode(context);
     if (code == null || !mounted) return;
+    await _readCode(code);
+  }
+
+  /// True once looking a pack up online is agreed to (now or earlier).
+  Future<bool> _allowLookup() async {
+    if (offLookupAllowed) return true;
+    final agreed = await _askLookupConsent(context);
+    if (agreed != true || !mounted) return false;
+    // Awaited so the consent is on disk before the camera opens. A write
+    // that fails only means being asked again next launch — the direction
+    // that cannot hurt anyone.
+    await setOffLookupAllowed(true);
+    return mounted;
+  }
+
+  /// The in-app camera: a barcode in the picture is looked up, a plate goes to
+  /// the AI estimate, and the scan button opens the live scanner.
+  Future<void> _camera() async {
+    final shot = await openFoodCamera(context);
+    if (shot == null || !mounted) return;
+    switch (shot.kind) {
+      case FoodShotKind.barcode:
+        if (await _allowLookup()) await _readCode(shot.code!);
+      case FoodShotKind.photo:
+        final ok = await openFoodAi(context,
+            date: _date, meal: _meal, photos: [shot.photo!]);
+        if (ok == true && mounted) Navigator.of(context).pop(true);
+      case FoodShotKind.scan:
+        await _scan();
+    }
+  }
+
+  /// Look a code up and fill the boxes with what came back. The numbers section
+  /// opens, because that is where the answer is.
+  Future<void> _readCode(String code) async {
     setState(() {
+      _detail = true;
       _looking = true;
       _outcome = null;
     });
@@ -528,12 +571,26 @@ class _LogFoodSheetState extends State<LogFoodSheet> {
             ),
             if (_editing == null) ...[
             const SizedBox(height: S.x5),
-            BigButton(
-              l?.logFoodIAte(_mealLabel(c, _meal)) ??
-                  'I ate ${_mealLabel(c, _meal).toLowerCase()}',
-              icon: LucideIcons.check,
-              color: C.domFood,
-              onTap: () => _write(_base(label: _mealLabel(c, _meal))),
+            Row(
+              children: [
+                Expanded(
+                  child: BigButton(
+                    l?.logFoodIAte(_mealLabel(c, _meal)) ??
+                        'I ate ${_mealLabel(c, _meal).toLowerCase()}',
+                    icon: LucideIcons.check,
+                    color: C.domFood,
+                    onTap: () => _write(_base(label: _mealLabel(c, _meal))),
+                  ),
+                ),
+                const SizedBox(width: S.x3),
+                BigButton(
+                  'Log with the camera',
+                  icon: LucideIcons.camera,
+                  soft: true,
+                  round: true,
+                  onTap: _looking ? null : _camera,
+                ),
+              ],
             ),
             if (_hasHistory)
               Section(

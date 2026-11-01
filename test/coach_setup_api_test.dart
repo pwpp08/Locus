@@ -63,17 +63,29 @@ Future<void> _preset(WidgetTester tester, String name) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _enter(WidgetTester tester, String label, String value) async {
-  await tester.ensureVisible(_textField(label));
+/// The page is a long list built lazily, so a finder can find nothing simply
+/// because its row is far off screen: look where it is, then the top, then the
+/// bottom, and only then bring it fully into view.
+Future<void> _reveal(WidgetTester tester, Finder f) async {
+  final s = tester.state<ScrollableState>(find.byType(Scrollable).first);
+  for (final to in [s.position.pixels, 0.0, s.position.maxScrollExtent]) {
+    s.position.jumpTo(to);
+    await tester.pumpAndSettle();
+    if (f.evaluate().isNotEmpty) break;
+  }
+  await tester.ensureVisible(f);
   await tester.pumpAndSettle();
+}
+
+Future<void> _enter(WidgetTester tester, String label, String value) async {
+  await _reveal(tester, _textField(label));
   await tester.enterText(_textField(label), value);
   await tester.pumpAndSettle();
 }
 
 Future<void> _save(WidgetTester tester) async {
   tester.testTextInput.hide();
-  await tester.ensureVisible(find.text('SAVE'));
-  await tester.pumpAndSettle();
+  await _reveal(tester, find.text('SAVE'));
   await tester.tap(find.text('SAVE'));
   await tester.pumpAndSettle();
 }

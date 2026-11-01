@@ -1,9 +1,11 @@
-// The More tab has to reach Settings, the updater and the band buzzes. Settings
-// was once reachable from nowhere on it, which stranded everything inside it.
+// The More tab has to reach Settings, the updater and the band buzzes, and
+// every one of them has to be in exactly ONE place: here or in Settings, never
+// both. They were once in both, which left people unsure which was the real one.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/ui2/profile/profile.dart';
+import 'package:openstrap_edge/ui2/profile/settings.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
 import 'support/fonts.dart';
@@ -11,13 +13,13 @@ import 'support/fonts.dart';
 void main() {
   setUpAll(loadAppFonts);
 
-  Future<void> pump(WidgetTester t, ProfileHomeView v) async {
-    t.view.physicalSize = const Size(390 * 3, 2600 * 3);
+  Future<void> pump(WidgetTester t, Widget w) async {
+    t.view.physicalSize = const Size(390 * 3, 3200 * 3);
     t.view.devicePixelRatio = 3;
     addTearDown(t.view.reset);
     await t.pumpWidget(MaterialApp(
       theme: buildTheme(Brightness.dark),
-      home: Scaffold(body: v),
+      home: Scaffold(body: w),
     ));
     await t.pumpAndSettle();
   }
@@ -36,6 +38,7 @@ void main() {
     );
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('App updates'), findsOneWidget);
+    expect(find.text('Check automatically'), findsOneWidget);
     expect(find.text('Band buzzes'), findsOneWidget);
 
     for (final row in ['Settings', 'App updates', 'Band buzzes']) {
@@ -54,5 +57,22 @@ void main() {
     );
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('Band buzzes'), findsNothing);
+  });
+
+  testWidgets('what lives on More is not repeated in Settings', (t) async {
+    await pump(t, const MoreSettingsView(version: '0.11.4', devMode: false));
+    for (final moved in [
+      'Alarm',
+      'Cloud account & sync',
+      'Export, backup, import',
+      'Compare with another watch',
+      'Check for updates',
+      'Check automatically',
+    ]) {
+      expect(find.text(moved), findsNothing, reason: '$moved moved to More');
+    }
+    // Settings keeps what is a preference, not a destination.
+    expect(find.text('Units'), findsOneWidget);
+    expect(find.text('Heart rate settings'), findsOneWidget);
   });
 }

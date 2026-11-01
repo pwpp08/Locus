@@ -33,15 +33,9 @@ import '../../state/units_controller.dart';
 import '../../telemetry/health_uploader.dart';
 import '../../theme/theme_controller.dart';
 import '../ui2.dart';
-import 'alarm.dart';
 import '../screens/coach.dart';
 import '../screens/heart_rate_settings.dart';
 import '../screens/step_calibration_screen.dart';
-import '../screens/watch_compare_screen.dart';
-import '../../updater/update_service.dart';
-import 'account_screen.dart';
-import 'band_notifications.dart';
-import 'data.dart';
 import 'gallery.dart';
 import 'gestures.dart';
 import 'profile.dart';
@@ -168,9 +162,7 @@ class _MoreSettingsState extends State<MoreSettings> {
       updateAvailable: app.updateAvailable,
       updateMandatory: app.updateMandatory,
       onEditProfile: () => goto(c, const EditProfile()),
-      onAlarm: () => goto(c, const AlarmScreen()),
       onNotifications: () => goto(c, const NotificationSettings()),
-      onData: () => goto(c, const DataScreen()),
       onAutomation: () => goto(c, const AutomationSettings()),
       onCycleUnits: () => units.setSystem(units.isImperial
           ? UnitSystem.metric
@@ -424,9 +416,7 @@ class MoreSettingsView extends StatelessWidget {
   final VoidCallback? onVersionTap, onToggleDev, onGallery;
 
   final VoidCallback? onEditProfile,
-      onAlarm,
       onNotifications,
-      onData,
       onAutomation,
       onCycleUnits,
       onCycleAppearance,
@@ -468,9 +458,7 @@ class MoreSettingsView extends StatelessWidget {
     this.onToggleDev,
     this.onGallery,
     this.onEditProfile,
-    this.onAlarm,
     this.onNotifications,
-    this.onData,
     this.onAutomation,
     this.onCycleUnits,
     this.onCycleAppearance,
@@ -505,23 +493,15 @@ class MoreSettingsView extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
               children: [
-                // No "Edit profile" here. It lives in one place — Quick access
-                // on the Profile screen — because two doors to one form is how
-                // a user ends up unsure which one is the real setting.
+                // Alarm, Cloud account, Export, Band buzzes, Compare with watch,
+                // Edit profile and the app update check are NOT here: each
+                // lives in one place, the More tab, because two doors to one
+                // thing is how a user ends up unsure which is the real one.
                 settingsGroup(c, l?.settingsGroupTheBand ?? 'The band', [
-                  SetRow(LucideIcons.alarmClock, C.orange,
-                      l?.settingsAlarmRowTitle ?? 'Alarm',
-                      sub: l?.settingsAlarmRowSub ??
-                          'Buzzes on your wrist, on the band’s own clock',
-                      onTap: onAlarm),
                   SetRow(LucideIcons.footprints, C.teal,
                       'Step counter calibration',
                       sub: 'Calibrate Whoop step algorithm with a guided walk test',
                       onTap: () => goto(c, const StepCalibrationScreen())),
-                  SetRow(LucideIcons.watch, C.blue,
-                      'Compare with another watch',
-                      sub: 'Galaxy Watch and others, via Health Connect',
-                      onTap: () => goto(c, const WatchCompareScreen())),
                   SetRow(LucideIcons.heart, C.red,
                       'Heart rate settings',
                       sub: 'Personalized zones, resting HR and max HR',
@@ -593,16 +573,6 @@ class MoreSettingsView extends StatelessWidget {
 
                 ]),
                 settingsGroup(c, l?.settingsGroupData ?? 'Data', [
-                  SetRow(LucideIcons.cloud, C.blue,
-                      'Cloud account & sync',
-                      sub: 'Sign in to sync, backup, and restore your Whoop data',
-                      onTap: () => goto(c, const AccountScreen())),
-                  SetRow(LucideIcons.download, C.green,
-                      l?.settingsExportBackupImportRowTitle ??
-                          'Export, backup, import',
-                      sub: l?.settingsExportBackupImportRowSub ??
-                          'Spreadsheets, a full copy, and bringing history in',
-                      onTap: onData),
                   // The row P1 was missing. Everything behind it — the
                   // permission request, the retry/backoff, the four gates —
                   // was already written and simply had no way to be switched
@@ -691,41 +661,6 @@ class MoreSettingsView extends StatelessWidget {
                     SetRow(LucideIcons.info, C.n500,
                         l?.settingsVersionRowTitle ?? 'Version',
                         value: version, chevron: false, onTap: onVersionTap),
-                  // The updater (lib/updater): checks the project's releases,
-                  // downloads the APK inside the app and opens the installer.
-                  AnimatedBuilder(
-                    animation: UpdateService.instance,
-                    builder: (ctx, _) {
-                      final u = UpdateService.instance;
-                      return SetRow(LucideIcons.downloadCloud, C.blue,
-                          'Check for updates',
-                          sub: u.isChecking
-                              ? 'Checking…'
-                              : u.hasUpdate
-                                  ? '${u.latestRelease?.label ?? 'A newer build'} '
-                                      'is ready to install'
-                                  : (u.currentBuild.isEmpty
-                                      ? 'Look for a newer build'
-                                      : 'You have ${u.currentBuild}'),
-                          value: u.hasUpdate ? 'Update' : '',
-                          onTap: u.isChecking
-                              ? null
-                              : () => u.check(c, manual: true));
-                    },
-                  ),
-                  AnimatedBuilder(
-                    animation: UpdateService.instance,
-                    builder: (ctx, _) {
-                      final u = UpdateService.instance;
-                      return SetRow(LucideIcons.refreshCw, C.green,
-                          'Check automatically',
-                          sub: 'When the app opens, at most every few hours',
-                          value: u.autoCheckEnabled ? on : off,
-                          chevron: false,
-                          onTap: () =>
-                              u.setAutoCheckEnabled(!u.autoCheckEnabled));
-                    },
-                  ),
                   // Where the licences of what this app uses are written out
                   // in full. Open Food Facts' ODbL asks for the notice to be
                   // reachable, not only for the credit beside the numbers.
@@ -816,12 +751,6 @@ class _NotificationSettingsState extends State<NotificationSettings> {
     });
   }
 
-  /// Whether the strap-buzz relay exists on this platform. Android only —
-  /// iOS gives no app access to another app's notifications — and the row is
-  /// absent rather than disabled there, so there is nothing to explain.
-  bool get _relaySupported =>
-      defaultTargetPlatform == TargetPlatform.android;
-
   Future<void> _apply(NotificationPrefs next) async {
     setState(() => _prefs = next);
     await next.save();
@@ -859,7 +788,6 @@ class _NotificationSettingsState extends State<NotificationSettings> {
       prefs: p ?? const NotificationPrefs(),
       loaded: p != null,
       granted: _granted,
-      relaySupported: _relaySupported,
       onChanged: _apply,
       onRequestPermission: _requestPermission,
     );
@@ -870,10 +798,6 @@ class NotificationSettingsView extends StatelessWidget {
   final NotificationPrefs prefs;
   final bool loaded, granted;
 
-  /// Android only. False hides the strap-buzz relay row entirely rather than
-  /// showing a control that cannot work.
-  final bool relaySupported;
-
   final Future<void> Function(NotificationPrefs next)? onChanged;
   final VoidCallback? onRequestPermission;
 
@@ -882,7 +806,6 @@ class NotificationSettingsView extends StatelessWidget {
     this.prefs = const NotificationPrefs(),
     this.loaded = true,
     this.granted = true,
-    this.relaySupported = false,
     this.onChanged,
     this.onRequestPermission,
   });
@@ -1111,19 +1034,6 @@ class NotificationSettingsView extends StatelessWidget {
                               waterIntervalMin:
                                   _nextEvery(prefs.waterIntervalMin)))),
                   ]),
-                  if (relaySupported)
-                    settingsGroup(c, l?.settingsGroupTheStrap ?? 'The strap', [
-                      // The other direction: not what this app sends you, but
-                      // what your phone's apps make the band do. The permission
-                      // for it has been in the manifest all along with nothing
-                      // in the app that could reach it.
-                      SetRow(LucideIcons.bellRing, C.purple,
-                          l?.settingsBuzzOnAppNotificationsRowTitle ??
-                              'Buzz on app notifications',
-                          sub: l?.settingsBuzzOnAppNotificationsRowSub ??
-                              'Pick which phone apps make the strap buzz',
-                          onTap: () => goto(c, const BandNotifications())),
-                    ]),
                   settingsGroup(c, l?.settingsGroupQuietHours ?? 'Quiet hours', [
                     SetRow(LucideIcons.moon, C.indigo,
                         l?.settingsQuietHoursRowTitle ?? 'Quiet hours',
@@ -1576,11 +1486,13 @@ class _EditProfileViewState extends State<EditProfileView> {
           ),
           if (_importNote != null && _importNote!.isNotEmpty) ...[
             const SizedBox(height: S.x3),
-            Text(
-              _importNote!,
-              style: F.cap.copyWith(
-                  color: _importFailed ? p.on(C.red) : p.ink2, height: 1.5),
-            ),
+            if (_importFailed)
+              ErrorLine(_importNote!)
+            else
+              Text(
+                _importNote!,
+                style: F.cap.copyWith(color: p.ink2, height: 1.5),
+              ),
           ],
         ]),
       ),

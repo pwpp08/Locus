@@ -2291,7 +2291,7 @@ Future<bool> confirmRemove(
             BigButton(
               uiText(s, remove),
               icon: LucideIcons.trash2,
-              color: C.red,
+              tone: ButtonTone.danger,
               onTap: () => Navigator.of(s).pop(true),
             ),
             const SizedBox(height: S.x3),
@@ -2572,7 +2572,7 @@ class BigButton extends StatelessWidget {
     final faint = p.ink.withValues(alpha: .09);
     final (Color ground, Color ink) = switch (tone) {
       ButtonTone.inverse => (p.inverse, p.onInverse),
-      ButtonTone.danger => (faint, p.on(C.coral)),
+      ButtonTone.danger => (C.danger, C.white),
       _ when soft => (faint, p.ink),
       _ when primary => (p.ink, p.bg),
       _ => (p.fill(hue), p.inkOn(p.fill(hue))),
@@ -2616,14 +2616,17 @@ class BigButton extends StatelessWidget {
           children: [
             if (glyph != null) ...[glyph, const SizedBox(width: S.x2)],
             Flexible(
-              child: Text(
-                label.toUpperCase(),
-                style: (compact ? F.caps : F.body).copyWith(
-                    color: ink,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: compact ? .8 : 1.4),
-                textAlign: TextAlign.center,
-                maxLines: 2,
+              child: _fitLabel(
+                compact,
+                Text(
+                  label.toUpperCase(),
+                  style: (compact ? F.caps : F.body).copyWith(
+                      color: ink,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: compact ? .8 : 1.4),
+                  textAlign: TextAlign.center,
+                  maxLines: compact ? 1 : 2,
+                ),
               ),
             ),
           ],
@@ -2632,6 +2635,37 @@ class BigButton extends StatelessWidget {
     );
   }
 }
+
+/// A message that something went wrong: a small red mark and the words in
+/// plain ink. The words are never red (see [C.danger]).
+class ErrorLine extends StatelessWidget {
+  final String text;
+  const ErrorLine(this.text, {super.key});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: S.half),
+          child: Icon(LucideIcons.circleAlert, size: I.sm, color: C.danger),
+        ),
+        const SizedBox(width: S.x2),
+        Expanded(
+          child: Text(text, style: F.cap.copyWith(color: p.ink, height: 1.4)),
+        ),
+      ],
+    );
+  }
+}
+
+/// A compact button sits beside others in a space that is not its own, and a
+/// label that does not fit used to break MID-WORD ("CONFIR / M"). One line,
+/// scaled down to fit, never broken.
+Widget _fitLabel(bool compact, Text label) =>
+    compact ? FittedBox(fit: BoxFit.scaleDown, child: label) : label;
 
 // ══════════════════ CHART FRAME ══════════════════
 /// Everything a chart needs in order to be read: what it is, what it is
@@ -3355,7 +3389,7 @@ class TextAction extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    final ink = tone == ButtonTone.danger ? p.on(C.coral) : p.ink;
+    final ink = p.ink;
     return Pressable(
       onTap: onTap,
       child: Padding(
@@ -3673,7 +3707,7 @@ class AppField extends StatelessWidget {
                 hintText: hint,
                 hintStyle: style.copyWith(color: p.ink3),
                 errorText: errorText,
-                errorStyle: F.cap.copyWith(color: p.on(C.coral)),
+                errorStyle: F.cap.copyWith(color: p.ink),
                 helperText: helperText,
                 helperStyle: F.cap.copyWith(color: p.ink3),
                 counterText: maxLength == null ? null : '',
@@ -3686,8 +3720,8 @@ class AppField extends StatelessWidget {
                 enabledBorder: ring(p.ink, 0),
                 disabledBorder: ring(p.ink, 0),
                 focusedBorder: ring(p.ink, 2),
-                errorBorder: ring(p.on(C.coral), 2),
-                focusedErrorBorder: ring(p.on(C.coral), 2),
+                errorBorder: ring(C.danger, 2),
+                focusedErrorBorder: ring(C.danger, 2),
               ),
     );
     final field = named == null

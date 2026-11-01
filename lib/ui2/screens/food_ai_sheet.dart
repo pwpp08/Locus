@@ -25,6 +25,7 @@ import '../../data/nutrition_store.dart';
 import '../ui2.dart';
 import 'coach.dart' show CoachSetup, coachReadyNow;
 import 'home_screen.dart' show go;
+import 'food_camera.dart';
 import 'journal_compose.dart' show OsTextField;
 
 /// The most photos one estimate takes: each is downscaled to about 100 KB so
@@ -32,9 +33,13 @@ import 'journal_compose.dart' show OsTextField;
 const kFoodAiMaxPhotos = 3;
 
 /// Opens the AI logger. [camera] starts on taking a photo, otherwise on the
-/// description. Resolves true when something was logged.
+/// description; [photos] are pictures already taken (the in-app camera's).
+/// Resolves true when something was logged.
 Future<bool?> openFoodAi(BuildContext c,
-    {required String date, String? meal, bool camera = false}) async {
+    {required String date,
+    String? meal,
+    bool camera = false,
+    List<Uint8List> photos = const []}) async {
   if (!coachReadyNow(c)) {
     return AppSheet.show<bool>(c,
         title: 'LOG WITH AI', child: const _NeedsKey());
@@ -47,6 +52,7 @@ Future<bool?> openFoodAi(BuildContext c,
             date: date,
             meal: meal,
             camera: camera,
+            photos: photos,
           ));
 }
 
@@ -84,6 +90,7 @@ class FoodAiSheet extends StatefulWidget {
   final String date;
   final String? meal;
   final bool camera;
+  final List<Uint8List> photos;
 
   const FoodAiSheet({
     super.key,
@@ -91,6 +98,7 @@ class FoodAiSheet extends StatefulWidget {
     required this.date,
     this.meal,
     this.camera = false,
+    this.photos = const [],
   });
 
   @override
@@ -110,8 +118,9 @@ class _FoodAiSheetState extends State<FoodAiSheet> {
   @override
   void initState() {
     super.initState();
+    _photos.addAll(widget.photos.take(kFoodAiMaxPhotos));
     if (widget.camera) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _add(ImageSource.camera));
+      WidgetsBinding.instance.addPostFrameCallback((_) => _shoot());
     }
   }
 
@@ -121,25 +130,38 @@ class _FoodAiSheetState extends State<FoodAiSheet> {
     super.dispose();
   }
 
-  Future<void> _add(ImageSource from) async {
+  /// The app's own camera, photo only: this sheet reads plates and labels, a
+  /// barcode has its own door.
+  Future<void> _shoot() async {
+    if (_photos.length >= kFoodAiMaxPhotos) return;
+    final shot = await openFoodCamera(context, barcodes: false);
+    final photo = shot?.photo;
+    if (photo == null || !mounted) return;
+    setState(() => _photos.add(photo));
+  }
+
+  Future<void> _gallery() async {
     final picker = ImagePicker();
     try {
       final room = kFoodAiMaxPhotos - _photos.length;
       if (room <= 0) return;
       final List<XFile> files;
-      if (from == ImageSource.gallery && room > 1) {
+      if (room > 1) {
         files = await picker.pickMultiImage(
             maxWidth: 1024, maxHeight: 1024, imageQuality: 70, limit: room);
       } else {
         final f = await picker.pickImage(
-            source: from, maxWidth: 1024, maxHeight: 1024, imageQuality: 70);
+            source: ImageSource.gallery,
+            maxWidth: 1024,
+            maxHeight: 1024,
+            imageQuality: 70);
         files = [?f];
       }
       final bytes = [for (final f in files.take(room)) await f.readAsBytes()];
       if (!mounted) return;
       setState(() => _photos.addAll(bytes));
     } catch (_) {
-      if (mounted) setState(() => _error = 'The camera or gallery could not be opened.');
+      if (mounted) setState(() => _error = 'The gallery could not be opened.');
     }
   }
 
@@ -240,7 +262,7 @@ class _FoodAiSheetState extends State<FoodAiSheet> {
           if (items == null) ..._capture(c, p) else ..._review(c, p, items),
           if (_error != null) ...[
             const SizedBox(height: S.x3),
-            Text(_error!, style: F.cap.copyWith(color: C.recRed)),
+            ErrorLine(_error!),
           ],
         ],
       ),
@@ -279,11 +301,9 @@ class _FoodAiSheetState extends State<FoodAiSheet> {
                 const SizedBox(width: S.x2),
               ],
               if (_photos.length < kFoodAiMaxPhotos) ...[
-                _AddTile(LucideIcons.camera, 'Camera',
-                    () => _add(ImageSource.camera)),
+                _AddTile(LucideIcons.camera, 'Camera', _shoot),
                 const SizedBox(width: S.x2),
-                _AddTile(LucideIcons.image, 'Gallery',
-                    () => _add(ImageSource.gallery)),
+                _AddTile(LucideIcons.image, 'Gallery', _gallery),
               ],
             ],
           ),

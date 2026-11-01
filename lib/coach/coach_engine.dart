@@ -838,9 +838,13 @@ class CoachEngine {
           )
           .timeout(config.requestTimeout);
       if (resp.statusCode != 200) {
-        throw CoachException(
-          'Provider error (${resp.statusCode}): ${_briefErr(resp.body)}',
-        );
+        throw CoachException(providerErrorText(
+          status: resp.statusCode,
+          body: resp.body,
+          reason: resp.reasonPhrase,
+          uri: uri,
+          model: model,
+        ));
       }
       final Object? j;
       try {
@@ -871,9 +875,12 @@ class CoachEngine {
     required CoachConfig config,
     required List<Map<String, dynamic>> messages,
     double temperature = 0.4,
+
+    /// A model other than the coach's (the food estimate has its own).
+    String? model,
   }) async {
     final msg = await postChat(config, {
-      'model': config.model,
+      'model': model ?? config.model,
       'messages': messages,
       'temperature': temperature,
     });
@@ -892,10 +899,42 @@ class CoachEngine {
         {'role': 'user', 'content': user},
       ]);
 
+  /// What a refused request says, on one line. Providers answer a wrong model
+  /// name or a wrong base URL with a bare 404 and no body, so the line also
+  /// names what was asked: the host and path it went to and the model it
+  /// named, which is the whole diagnosis in that case.
+  @visibleForTesting
+  static String providerErrorText({
+    required int status,
+    required String body,
+    String? reason,
+    required Uri uri,
+    required String model,
+  }) {
+    var detail = _briefErr(body).trim();
+    if (detail.isEmpty) {
+      detail = reason == null || reason.isEmpty ? 'no details' : reason;
+    }
+    final hint = status == 404
+        ? ' Usually the model name is not one this provider has, or the API '
+            'base URL is wrong.'
+        : status == 401 || status == 403
+            ? ' Usually the API key is missing, wrong or not allowed to use '
+                'this model.'
+            : status == 429
+                ? ' Usually the free quota for this model is used up; try '
+                    'again later or pick another model.'
+                : '';
+    return 'Provider error ($status): $detail '
+        '(${uri.host}${uri.path}, model "${model.isEmpty ? '(none)' : model}").$hint';
+  }
+
   static String _briefErr(String body) {
     try {
+      // Google's OpenAI-compatible endpoint wraps its errors in a list.
       final j = jsonDecode(body);
-      return (j['error']?['message'] ?? body).toString();
+      final e = j is List && j.isNotEmpty ? j.first : j;
+      return (e['error']?['message'] ?? body).toString();
     } catch (_) {
       return body.length > 300 ? body.substring(0, 300) : body;
     }

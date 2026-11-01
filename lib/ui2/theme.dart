@@ -41,9 +41,10 @@ class C {
   // One action colour. Replaced neon lime/volt with clean white to fit the design system.
   static const volt = Color(0xFFFFFFFF);
 
-  /// Signal, not brand: low, attention, destructive. Now the recovery red, so
-  /// "low" reads the same everywhere.
-  static const coral = recRed;
+  /// Signal, not brand. NOT a red any more: red text and red lines on a dark
+  /// card were lightened to a salmon pink nobody wanted. Destructive actions
+  /// are a solid [danger] fill; the only other red is the recovery dial's.
+  static const coral = dialStrain;
 
   /// Secondary dark chips and inactive controls on cream.
   static const slate = Color(0xFF3A444B);
@@ -64,8 +65,17 @@ class C {
   /// Cycle tracking's own hue.
   static const rose = Color(0xFFFF7A9A);
 
-  /// Food, and the sync arrow.
+  /// The sync arrow.
   static const amber = Color(0xFFFFB547);
+
+  /// Food: the Macros tab's one accent, and every control on it.
+  static const foodRed = Color(0xFFE61C24);
+
+  /// The one red for destructive actions and errors: a SOLID fill under white
+  /// ink (4.6:1) or a small mark, never text. Red text on a dark card has to be
+  /// lightened to stay readable, and lightened it is salmon pink, which is why
+  /// nothing sets words in red any more.
+  static const danger = foodRed;
 
   // Former Volt domain hues, now the redesign's.
   static const sky = dialStrain;
@@ -89,11 +99,11 @@ class C {
   //
   // Hundreds of call sites name these, so they stay, but each resolves to a
   // hue of the redesign palette (DESIGN.md §2.4) by what it was used FOR:
-  // "good" is the optimal green, "low / destructive" the recovery red, the
+  // "good" is the optimal green, "low / destructive" the strain blue (heart rate's hue), the
   // blues are strain and activity, indigo is sleep, calm is the stress-low
   // blue, a warning is the "worse" orange. No off-palette colour survives.
   static const green = optimal;
-  static const red = recRed;
+  static const red = dialStrain;
   static const blue = dialStrain;
   static const purple = dialStrain;
   static const indigo = dialSleep;
@@ -152,11 +162,11 @@ class C {
   /// What each domain's accent resolves to. The active tab is always volt;
   /// these are the redesign hues (DESIGN.md §2.4): today, activity and heart
   /// are the strain blue, sleep the sleep blue, mind the calm stress-low
-  /// blue, food amber.
+  /// blue, food red.
   static const domHome = dialStrain;
   static const domSleep = dialSleep;
   static const domHealth = dialStrain;
-  static const domFood = amber;
+  static const domFood = foodRed;
   static const domMove = dialStrain;
   static const domMind = stressLow;
 
@@ -214,7 +224,7 @@ class C {
   /// Every accent the contrast test sweeps. Adding a colour above without
   /// adding it here means it ships unverified.
   static const all = <Color>[
-    volt, coral, slate, lavender, sky, rose, sage, amber, aqua, blueSoft,
+    volt, coral, slate, lavender, sky, rose, sage, amber, foodRed, aqua, blueSoft,
     sleepAwake, sleepRem, sleepDeep,
     green, blue, purple, orange, red, teal, yellow, pink, indigo,
     domHome, domSleep, domHealth, domFood, domMove, domMind,

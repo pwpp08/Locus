@@ -302,19 +302,17 @@ class _ActivityProposalCardState extends State<ActivityProposalCard> {
           // The workout editor is where the sport is picked, so it says that;
           // a nap only has times to edit. A discard is kept by window and wins
           // over every re-detection; same words as the correction on a logged
-          // nap and a night. Three buttons of one width, the answer first.
+          // nap and a night. The answer first, on its own line: three pills
+          // abreast left no word room to fit its label.
+          BigButton(
+            l?.activityConfirm ?? 'Confirm',
+            onTap: widget.onConfirm == null
+                ? null
+                : () => widget.onConfirm!(_start, _end),
+          ),
+          const SizedBox(height: S.x2),
           Row(
             children: [
-              Expanded(
-                child: BigButton(
-                  l?.activityConfirm ?? 'Confirm',
-                  compact: true,
-                  onTap: widget.onConfirm == null
-                      ? null
-                      : () => widget.onConfirm!(_start, _end),
-                ),
-              ),
-              const SizedBox(width: S.x2),
               Expanded(
                 child: BigButton(
                   nap

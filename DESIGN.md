@@ -124,21 +124,22 @@ Contributor tiers are `[C.poor, p.ink3, C.optimal]` = poor / sufficient / optima
 
 **Sleep stacks:** deep/SWS `C.trendSws #FA96F9`, REM `C.trendRem #AC5AED`. Unfocused floating bars are `C.barGrey #63676A`.
 
-**Other:** sync arrow (amber `#FFB547`); coach orb ring `#7E57C2 → #3FA7B5 → #7E57C2` (sweep), also the edge of the strength trainer's AI card; sleep-plan panel `C.mint #DFF8EF` with char ink; cycle tracking `C.rose #FF7A9A`; food `C.amber #FFB547`; `C.lavender #A99BFF` only on the Total sleep hero's aurora, the hypnogram's light-sleep lane and the strength milestone ring. Volt `#B1F002` is spent only on the active tab pill, the `AppSwitch` on-track and Material `primary` in dark: never a button, a dot, a chip or a chart.
+**Other:** sync arrow (amber `#FFB547`); coach orb ring `#7E57C2 → #3FA7B5 → #7E57C2` (sweep), also the edge of the strength trainer's AI card; sleep-plan panel `C.mint #DFF8EF` with char ink; cycle tracking `C.rose #FF7A9A`; food `C.foodRed #E61C24` (`C.domFood`: the Macros tab's one accent; protein is the strain blue and "over" the warning orange so neither can be mistaken for it); `C.lavender #A99BFF` only on the Total sleep hero's aurora, the hypnogram's light-sleep lane and the strength milestone ring. Volt `#B1F002` is spent only on the active tab pill, the `AppSwitch` on-track and Material `primary` in dark: never a button, a dot, a chip or a chart.
 
 **Legacy names.** Older code still names the pre-redesign accents. Each resolves in `theme.dart` to a redesign hue by what it was used for, so writing one is never off-palette, but new code names the redesign token directly:
 
 | Legacy name | Resolves to | Meaning |
 |---|---|---|
 | `C.green` | `C.optimal` | good |
-| `C.red`, `C.coral` | `C.recRed` | low, attention, destructive |
+| `C.red`, `C.coral` | `C.dialStrain` | the old red names, **no longer red**: red words and red lines on a dark card are lightened by `P.on` until they read as salmon pink, which the product rejected. Heart-rate marks and icon chips are the strain blue. |
+| `C.danger` | `C.foodRed` `#E61C24` | **the one red for destructive actions and errors**: a SOLID fill under white ink (`ButtonTone.danger`, 4.6:1), the 2 px error ring on a field, and the mark in `ErrorLine`. Never the colour of words. The recovery dial's low band (`C.recRed`) is the only other red. |
 | `C.blue`, `C.sky`, `C.purple`, `C.domMove`, `C.domHealth`, `C.domHome` | `C.dialStrain` | strain, activity, heart |
 | `C.indigo`, `C.domSleep` | `C.dialSleep` | sleep |
 | `C.teal`, `C.aqua`, `C.sage`, `C.domMind` | `C.stressLow` | calm, mind |
 | `C.orange` | `C.strainDown` | warning, worse |
 | `C.yellow` | `C.recYellow` | middle, pending |
 | `C.pink` | `C.rose` | cycle |
-| `C.domFood` | `C.amber` | food |
+| `C.domFood` | `C.foodRed` | food |
 
 Every activity in the catalogue is `C.dialStrain`; the HR-zone ramp everywhere (`ZoneRows`, zone cards, stacks) is `refZone1…5`.
 
@@ -396,7 +397,7 @@ Bar order: **Home · Health · (+) · AI · More**. The (+) and AI buttons are a
 - **(+):** a 40 circle in `card2` with a `plus` icon at I.lg.
 - **AI:** the coach orb (40): a sweep ring round a `card` disc with `sparkles` at I.md.
 - **Banner:** a minimised workout floats as its own `Glass` pill 8 above the bar.
-- **More tab** (`ProfileHomeView`): the photo header, *Insights & coaching*, *Quick access* (weight, devices, alarm, profile), then **App**: *Settings* (notifications, units, privacy, quiet hours), *App updates* (its line reads what you have, what is ready or that it is checking; tapping checks now), and, on Android only, *Band buzzes* (calls, Google Tasks, the apps that make the strap buzz); then *Your data*. Settings and the two shortcuts must stay reachable from this tab: everything configurable lives behind them.
+- **More tab** (`ProfileHomeView`): the photo header, then four groups, **each thing in exactly one place** (here, or in Settings, never both). *Insights & coaching*: AI coach, Habit tracker, Healthspan, Compare with watch, Milestones. *You and your band*: Edit profile, Weight, My devices, Alarm and, on Android only, Band buzzes. *Your data*: Cloud account, Storage, Export and backup. *App*: App updates (its line reads what you have, what is ready or that it is checking; tapping checks now), Check automatically (On/Off), and Settings. This tab is what you open to look at or use; **Settings is only switches and preferences** (notifications and quiet hours, units, time format, the band's step calibration, heart-rate settings, zone alert and double-tap, health-store sync, phone steps, privacy, automation, AI model setup, About). Nothing on this tab is repeated there.
 
 ### 10.2 Home header
 
@@ -445,16 +446,16 @@ The workout screen uses its own header: `BoldChevron` 20, the activity icon at I
 
 | Control | Spec |
 |---|---|
-| `BigButton` | minimum height 56 (`S.x12 + S.x2`), full width, pill, padding 20/12, label **uppercased** in `F.body` w800 tracking 1.4 (2 lines max), optional icon I.md + 8. **Primary is the ink pill**: `p.ink` ground with `p.bg` type (white with dark type on the dark page). A `color` other than the legacy green makes it a hue fill under `inkOn` (the strain-blue pill). `soft` is ink 9 % with ink type. `inverse` is the `p.inverse` pill. `danger` is red type on ink 9 %. `round` is a 56 circle. `busy` swaps the icon for a 16 spinner. |
+| `BigButton` | minimum height 56 (`S.x12 + S.x2`), full width, pill, padding 20/12, label **uppercased** in `F.body` w800 tracking 1.4 (2 lines max), optional icon I.md + 8. **Primary is the ink pill**: `p.ink` ground with `p.bg` type (white with dark type on the dark page). A `color` other than the legacy green makes it a hue fill under `inkOn` (the strain-blue pill). `soft` is ink 9 % with ink type. `inverse` is the `p.inverse` pill. `danger` is red type on ink 9 %. `round` is a 56 circle. `busy` swaps the icon for a 16 spinner. | A `compact` button is one line, scaled down to fit and never broken mid-word; where three answers would not fit abreast, the primary one takes its own line and the others share the next. `ButtonTone.danger` is a solid `C.danger` pill with white ink.
 | Home day buttons (ADD / START ACTIVITY) | height 52, ink 9 %, radius 12, icon I.md + 8 + `F.caps` tracking .6, `FittedBox` |
 | Alarm button | `card2`, radius 8, 16 vertical padding, pencil I.md + 12 + `F.caps` |
 | `PlusButton` | 44 square (`S.x10 + S.x1`), radius 8, ink fill with a `plus` at I.md in `bg` colour. Open state: ink 12 % with an `x` at I.lg in ink. |
 | RESET chip | height 32, horizontal padding 12, ink 12 %, pill, `zoomOut` I.sm + 4 + `RESET` in `F.over` w800 |
 | START pill (Start Activity) | `dialStrain`, pill, fills a 64 bar, `F.body` w800 tracking 1.6 white (50 % alpha while starting) |
-| `TextAction` | the "CUSTOMIZE" voice: label uppercased in `F.caps` ink (red for danger), optional trailing icon I.md 8 after it |
+| `TextAction` | the "CUSTOMIZE" voice: label uppercased in `F.caps` ink, optional trailing icon I.md 8 after it |
 | `RoundIconButton` | a bare glyph at I.lg in a 48 target, no disc (like the reference close and back marks). `inverse` keeps a `p.inverse` disc and `glass` a frosted one, for a control over imagery. Label required |
 | `AppSwitch` | Material switch: on is a volt track with a char thumb, off is `track` with an ink3 thumb, no outline |
-| `AppField` | label `F.cap` ink2 above, a gap of 8, then a field filled `card2` with radius 8 and padding 16/12, no border. Focused: a 2 px ink ring (never volt). Error: a 2 px coral ring. `bare` drops the box. |
+| `AppField` | label `F.cap` ink2 above, a gap of 8, then a field filled `card2` with radius 8 and padding 16/12, no border. Focused: a 2 px ink ring (never volt). Error: a 2 px `C.danger` ring and the message in ink. `bare` drops the box. |
 | `SubTabs` | Trend View's range segments, scrolling: a track of char 50 % over `bg`, radius 14, padding 4, 44 + 8 tall (scaled with text); items padding 16, no gap. The chosen one is lifted out as a `card` fill, radius 12, label uppercased in `F.caps` ink; the rest ink3; a disabled one ink3 at 45 %. A scroll hint replaces the chevron. |
 | `Pill` | a chip: padding 8/4, radius 6, `p.wash(hue)` with `p.on(hue)` text, `F.cap` w700 |
 | Selection chips (sex, weekdays, step targets) | radius 12, uppercased `F.caps`. Selected: `p.ink` ground with `p.bg` type. Unselected: ink 9 % with ink2 type. No borders |
@@ -510,7 +511,7 @@ My Dashboard                CUSTOMIZE ✎
 6. **Either** a bare-day card (nothing measured; while a workout runs this becomes "A workout is still running") **or** the **dials** plus the **monitors**. If no dial has anything to draw, a single "Recovery is not scored today" card replaces them.
 7. Stale-insights card, then "Your first weeks" (swipeable).
 8. Wearable cells (only for non-WHOOP devices), then detected activities.
-    - **Detected activity card** (`ActivityProposalCard`): caps title with a bare `ink3` icon, the dates, then a `WindowPreview(zoomable: true, onChanged:)`: caps `HEART RATE` and `bpm` above, the chart with the detected window shaded and its two lines, and under the heart rate the wrist's **movement lane** (one column a minute on the same clock, `paintMovement`, ink 45 %; none where nothing was measured). **Two fingers zoom; one finger on the start or end line moves that line (snapped to the minute, kept inside what the chart can show, start before end), one finger anywhere else pans.** There is no range bar and no drag handles to zoom, here or anywhere (the day breakdown's heart rate zooms by pinch and pans by one finger too). The dates and the length above follow the lines as they move, and CONFIRM saves the window as it is shown. Three buttons of one width in a row, 8 apart, the compact `BigButton`: `CONFIRM` (ink), the edit (soft), and the discard (`ButtonTone.danger`).
+    - **Detected activity card** (`ActivityProposalCard`): caps title with a bare `ink3` icon, the dates, then a `WindowPreview(zoomable: true, onChanged:)`: caps `HEART RATE` and `bpm` above, the chart with the detected window shaded and its two lines, and under the heart rate the wrist's **movement lane** (one column a minute on the same clock, `paintMovement`, ink 45 %; none where nothing was measured). **Two fingers zoom; one finger on the start or end line moves that line (snapped to the minute, kept inside what the chart can show, start before end), one finger anywhere else pans.** There is no range bar and no drag handles to zoom, here or anywhere (the day breakdown's heart rate zooms by pinch and pans by one finger too). The dates and the length above follow the lines as they move, and CONFIRM saves the window as it is shown. `CONFIRM` is a full-width ink `BigButton` on its own line; under it, 8 apart and of one width, the edit (compact, soft) and the discard (compact, `ButtonTone.danger`, a solid red pill). Three across left no room for the words and broke them ("CONFIR / M").
 9. **My Day:** a section head with the plus button, the ACTIVITIES card, then TONIGHT'S SLEEP (today only).
 10. **My Dashboard:** a section head with CUSTOMIZE, then the chosen tiles in the user's order.
 
@@ -930,7 +931,7 @@ A standard sheet (`AppSheet.open`, scrolling, the grab bar, `F.t2` title "Edit a
 - **REPEAT** (`F.over` ink3): `RangeSegments` of three, Once · Weekdays · Every day, stretched to the width (none lit when the days are custom), and under it seven equal day circles (S M T W T F S, 40 across, `card2`, lit in `dialStrain` when on). The presets and the circles are one state.
 - **Label:** `OsTextField`.
 - **Rows** in a `Surface` of `SetRow`s: Alarm on (the switch) and Alarm mode (its blurb, its name, a chevron into the mode sheet). For an exact alarm only, a second `Surface`: waves icon, "Smart wake" and what it does, over `RangeSegments` Off · 15 · 30 · 45 min.
-- **Save** is the sheet's one primary action (the ink `BigButton`, check icon); **Delete alarm** is a quiet coral `TextAction` under it. No trash can beside the title, no native dropdown.
+- **Save** is the sheet's one primary action (the ink `BigButton`, check icon); **Delete alarm** is a `ButtonTone.danger` pill under it. No trash can beside the title, no native dropdown.
 
 ### 14.4c Set sleep, and the sleep window (`window_editor.dart`, `sleep_detail.dart`)
 
@@ -944,7 +945,7 @@ One list names an activity everywhere the app asks: Add activity, Start activity
 
 ### 14.4e Updates (`lib/updater`, `ui2/components/update_dialog.dart`)
 
-- **Settings → About:** *Check for updates* (its line says what you have, what is ready or that it is checking) and *Check automatically* (on launch, at most every four hours).
+- **More → App:** *App updates* (its line says what you have, what is ready or that it is checking) and *Check automatically* (on launch, at most every four hours). They are not repeated in Settings.
 - **How a build knows it is old.** CI stamps each build with its commit and time (`GIT_SHA`, `BUILD_TIME`) and names the APK `locus-<version>-<commit>.apk`. A release is an update when its commit is not the installed one **and** it was published after the installed build was made; a build with no stamp compares version numbers. The check reads GitHub's release *list* (the rolling `latest` build is a pre-release, which `/releases/latest` never returns).
 - **The sheet:** "Update available", `v0.11.3 · 18949887 → v0.11.4 · c07d50f`, the size, the release's notes, then **Update now**: the APK downloads inside the app (checked against the SHA-256 GitHub publishes), a progress bar, then Android's installer. A refusal is said plainly with **Try again** and **Open in browser**. The downloaded file is deleted the next time the app starts, which after an install is the new build's first act.
 - The workflows publish the plain `.apk` as a release asset; they no longer upload it as a zipped run artifact.
@@ -988,7 +989,10 @@ Laid out like a recorded activity: the header on the LEFT (back chevron, the lou
 One page, in the order it is used; no sub-tabs.
 - **Day strip** (`Surface`): a `WindowPager` with the week's dates over seven day cells. Each cell: the weekday letter (`F.over`, today in the food colour), the date inside a 40 ring of that day's energy against the target (stroke 3, `domFood`, empty without a target), the picked day on a `wash(domFood)` disc, and a 4 dot under a day with anything logged. Paging lands on the window's last day.
 - **The day** (`Surface`): `TODAY` or the date, and Edit / Set a target (target icon). A 128 ring of energy eaten against the target (stroke 12; red past it; a floor draws soft and says AT LEAST over the figure), the figure in `F.n34` with "of 2,400 kcal" under it. Beside it LEFT (or OVER), BURNED and BALANCE in `F.over` over `F.n24` + kcal. A floor's left is "≤", its balance "at least". Then **Protein, Carbs, Fat**: a dot, the name in `F.over`, "66 g / 140 g", a 6 bar in the macro's colour (red, orange, yellow; soft for a floor), and "74 g to go" / Target reached / At least under it. **More nutrients** folds out fibre, sugar, saturated fat and sodium, each "≥" when some occasion did not report it, "Not recorded" when none did.
-- **Log dock:** four equal tiles (`Surface`, a 40 `wash(domFood)` disc with the icon, the label in `F.cap` w600): **Photo** and **Describe** (AI estimate through the user's own key, `food_ai_sheet.dart`), **Barcode** (the log sheet opening straight onto the scanner), **Search**.
+- **Log dock:** four equal tiles (`Surface`, a 40 `wash(domFood)` disc with the icon, the label in `F.cap` w600): **Photo** (the in-app camera, below) and **Describe** (AI estimate through the user's own key, `food_ai_sheet.dart`), **Barcode** (the log sheet opening straight onto the live scanner), **Search**.
+- **The log sheet's buttons:** "I ate lunch" (a `domFood` pill, the whole point of the sheet) with a round soft **camera** button beside it (`BigButton` round, `LucideIcons.camera`).
+- **The food camera** (`food_camera.dart`, a 90 %-height `AppSheet`): the title, a line saying what it reads, a live preview in `R.xl` on char, and under it three round controls: the **gallery** (left, a 56 `card2` disc), the **shutter** (centre: a 72 ring and a 60 disc in `p.ink`, a spinner while it works) and **live barcode scan** (right, 56 `card2`). The app never opens the system camera. The shutter takes a still and decides what it is: a product barcode in it is looked up, anything else is a photo for the AI estimate (shrunk to 1024 px, JPEG 70, before it goes anywhere; the file is deleted). A gallery picture goes through the same decision. The right button hands over to the live scanner for a small or curved code. The AI sheet opens it photo-only (no barcode, no scan button). No camera or no permission says so on a `StatusCard` with the gallery as the way out.
+- **Models:** the coach and the food estimate each have their own model (AI coach setup: *Model* and *Model for food photos*; empty means the coach's). A refused request reads `Provider error (404): <reason> (host/path, model "x"). <usual cause>` on one line: a bare 404 is almost always a model name the provider does not have, or a wrong base URL.
 - **Occasions**, **water**, the floor card, then **This week**: the daily mean of complete days in `F.n34` (or the touched day), `ScrubColumns` of energy with the picked day banded and the mean dashed, and protein, carbs, fat and fibre means, each with its own denominator and floors named.
 - **AI logging:** up to three photos (or none) and a note go to the model; every item comes back for review (name, grams ± a step, meal), numbers gated per 100 g like a label, and only what the person confirms is logged, badged "AI estimate". Without a key the sheet offers the AI setup.
 - **Barcodes:** Open Food Facts first, then USDA FoodData Central's branded foods for what it does not know (credited, public domain); the same consent gate and the same physical gates.
