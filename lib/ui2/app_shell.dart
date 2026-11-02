@@ -11,6 +11,12 @@
 // tab's scroll view ends in `S.navClear(context)` of padding so its last row
 // can be lifted clear of it.
 //
+// The bar is the user's: a long press on a tab opens a sheet to reorder the
+// tabs and hide the ones they never use (Home and More always stay: Home is the
+// way back into the app, More is where Settings and the way to undo this live).
+// The choice is kept in [Prefs.navTabs]; a hidden tab is still built and kept
+// alive the same way, it just has no button.
+//
 // There is no fourth tab, and the type system is what says so — [ShellDomain]
 // is a closed enum and [AppShell] takes a builder keyed by it, so "just add a
 // tab for X" is a change to this file with a reviewer attached, not something
@@ -22,6 +28,7 @@ import 'package:flutter/material.dart';
 import 'lucide.dart';
 
 import '../l10n/app_localizations.dart';
+import '../state/prefs.dart';
 import 'grammar.dart';
 import 'theme.dart';
 
@@ -58,6 +65,35 @@ enum ShellDomain {
 
 // There is no `Domain` InheritedWidget. Screens take their accent as a
 // parameter, which is honest about where it comes from.
+
+/// The bar as it ships, and as "Reset" restores it.
+const List<ShellDomain> kDefaultTabs = [
+  ShellDomain.today,
+  ShellDomain.strength,
+  ShellDomain.macros,
+  ShellDomain.more,
+];
+
+/// Tabs that cannot be hidden.
+const Set<ShellDomain> kPinnedTabs = {ShellDomain.today, ShellDomain.more};
+
+/// The bar a saved string describes. Anything unreadable, empty or repeated
+/// falls back toward the default, and a pinned tab missing from a stored list
+/// is put back: a bar with no More has no way to be undone.
+List<ShellDomain> tabsFromPref(String raw) {
+  final out = <ShellDomain>[];
+  for (final name in raw.split(',')) {
+    for (final d in ShellDomain.values) {
+      if (d.name == name.trim() && !out.contains(d)) out.add(d);
+    }
+  }
+  if (out.isEmpty) return [...kDefaultTabs];
+  if (!out.contains(ShellDomain.today)) out.insert(0, ShellDomain.today);
+  if (!out.contains(ShellDomain.more)) out.add(ShellDomain.more);
+  return out;
+}
+
+String tabsToPref(List<ShellDomain> tabs) => tabs.map((d) => d.name).join(',');
 
 class AppShell extends StatefulWidget {
   /// Builds the body of one domain. Called lazily — a tab is not built until
@@ -97,6 +133,9 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
+  /// The tabs on the bar, in order. A tab that is not here is hidden.
+  late List<ShellDomain> _tabs =
+      tabsFromPref(Prefs.getString(Prefs.navTabs, ''));
   late ShellDomain _current = widget.initial;
   late final Set<ShellDomain> _built = {widget.initial};
   // Tabs are kept alive, not pushed onto the Navigator. Keep their history
@@ -126,6 +165,17 @@ class _AppShellState extends State<AppShell> {
       _built.add(d);
     });
     widget.onSelect?.call(d);
+  }
+
+  /// The sheet behind a long press on any tab.
+  Future<void> _customise(BuildContext c) async {
+    final next = await AppSheet.open<List<ShellDomain>>(c,
+        scroll: true, builder: (_) => NavBarEditor(tabs: _tabs));
+    if (next == null || !mounted) return;
+    setState(() => _tabs = next);
+    Prefs.setString(Prefs.navTabs, tabsToPref(next));
+    // Hiding the tab you are standing on would leave the bar with nothing lit.
+    if (!next.contains(_current)) _select(ShellDomain.today);
   }
 
   void _back() {
@@ -191,8 +241,10 @@ class _AppShellState extends State<AppShell> {
                     const SizedBox(height: S.x2),
                   ],
                   _TabBar(
+                    tabs: _tabs,
                     current: _current,
                     onTap: _select,
+                    onLongPress: () => _customise(c),
                     onAction: widget.onAction == null
                         ? null
                         : () => widget.onAction!(c),
@@ -209,20 +261,50 @@ class _AppShellState extends State<AppShell> {
 }
 
 class _TabBar extends StatelessWidget {
+  final List<ShellDomain> tabs;
   final ShellDomain current;
   final ValueChanged<ShellDomain> onTap;
-  final VoidCallback? onAction, onAi;
+  final VoidCallback? onAction, onAi, onLongPress;
 
   const _TabBar(
-      {required this.current, required this.onTap, this.onAction, this.onAi});
+      {required this.tabs,
+      required this.current,
+      required this.onTap,
+      this.onLongPress,
+      this.onAction,
+      this.onAi});
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
     Widget tab(ShellDomain d) => Expanded(
-          child: _Tab(domain: d, on: d == current, onTap: () => onTap(d)),
+          child: _Tab(
+              domain: d,
+              on: d == current,
+              onTap: () => onTap(d),
+              onLongPress: onLongPress),
         );
+    // The (+) sits in the middle of whatever is left.
+    final plusAt = (tabs.length + 1) ~/ 2;
+    final plus = onAction == null
+        ? null
+        : Expanded(
+            child: Center(
+              child: Pressable(
+                onTap: onAction,
+                onLongPress: onLongPress,
+                semanticLabel: l?.workoutStartWorkoutFix ?? 'Actions',
+                child: Container(
+                  width: S.x10,
+                  height: S.x10,
+                  decoration:
+                      BoxDecoration(color: p.card2, shape: BoxShape.circle),
+                  child: Icon(LucideIcons.plus, size: I.lg, color: p.ink),
+                ),
+              ),
+            ),
+          );
     // A dark rounded rectangle floating over the tabs. Its only decoration is
     // the rim: a hairline lit at the top-left corner and gone by a third of
     // the way round, as if one light sat above and to the left. No glow, no
@@ -258,28 +340,10 @@ class _TabBar extends StatelessWidget {
                     horizontal: S.x2, vertical: S.x1),
                 child: Row(
                   children: [
-                    tab(ShellDomain.today),
-                    tab(ShellDomain.strength),
-                    if (onAction != null)
-                      Expanded(
-                        child: Center(
-                          child: Pressable(
-                            onTap: onAction,
-                            semanticLabel:
-                                l?.workoutStartWorkoutFix ?? 'Actions',
-                            child: Container(
-                              width: S.x10,
-                              height: S.x10,
-                              decoration: BoxDecoration(
-                                  color: p.card2, shape: BoxShape.circle),
-                              child: Icon(LucideIcons.plus,
-                                  size: I.lg, color: p.ink),
-                            ),
-                          ),
-                        ),
-                      ),
-                    tab(ShellDomain.macros),
-                    tab(ShellDomain.more),
+                    for (var i = 0; i < tabs.length; i++) ...[
+                      if (i == plusAt) ?plus,
+                      tab(tabs[i]),
+                    ],
                   ],
                 ),
               ),
@@ -311,7 +375,8 @@ class AiOrb extends StatelessWidget {
       ),
       child: Container(
         decoration: BoxDecoration(shape: BoxShape.circle, color: p.card),
-        child: Icon(LucideIcons.sparkles, size: I.md, color: p.ink),
+        child: Icon(LucideIcons.sparkles,
+            size: size == S.x12 ? I.md : size * .42, color: p.ink),
       ),
     );
   }
@@ -323,8 +388,13 @@ class _Tab extends StatelessWidget {
   final ShellDomain domain;
   final bool on;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
-  const _Tab({required this.domain, required this.on, required this.onTap});
+  const _Tab(
+      {required this.domain,
+      required this.on,
+      required this.onTap,
+      this.onLongPress});
 
   @override
   Widget build(BuildContext c) {
@@ -335,6 +405,7 @@ class _Tab extends StatelessWidget {
       selected: on,
       child: Pressable(
         onTap: onTap,
+        onLongPress: onLongPress,
         semanticLabel: label,
         child: SizedBox(
           height: S.navBar - S.x2,
@@ -397,6 +468,106 @@ class _Tab extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The sheet a long press on the bar opens: drag to reorder, switch a tab off
+/// to hide it. Home and More cannot be switched off. Pops the new bar.
+class NavBarEditor extends StatefulWidget {
+  final List<ShellDomain> tabs;
+  const NavBarEditor({super.key, required this.tabs});
+
+  @override
+  State<NavBarEditor> createState() => _NavBarEditorState();
+}
+
+class _NavBarEditorState extends State<NavBarEditor> {
+  // Hidden tabs ride along at the foot, in their usual order, so switching one
+  // back on puts it somewhere sensible.
+  late final List<ShellDomain> _order = [
+    ...widget.tabs,
+    for (final d in kDefaultTabs)
+      if (!widget.tabs.contains(d)) d,
+  ];
+  late final Set<ShellDomain> _on = {...widget.tabs};
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final l = AppLocalizations.of(c);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(S.gutter, S.x5, S.gutter, S.x4),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('CUSTOMISE TABS', style: F.caps.copyWith(color: p.ink)),
+          const SizedBox(height: S.x1),
+          Text('Drag to reorder. Switch off the ones you do not use.',
+              textAlign: TextAlign.center,
+              style: F.cap.copyWith(color: p.ink3)),
+          const SizedBox(height: S.x3),
+          ReorderableListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            buildDefaultDragHandles: false,
+            itemCount: _order.length,
+            onReorder: (from, to) => setState(() {
+              if (to > from) to--;
+              _order.insert(to, _order.removeAt(from));
+            }),
+            itemBuilder: (c, i) {
+              final d = _order[i];
+              final pinned = kPinnedTabs.contains(d);
+              return Padding(
+                key: ValueKey(d),
+                padding: const EdgeInsets.symmetric(vertical: S.x1),
+                child: Row(children: [
+                  ReorderableDragStartListener(
+                    index: i,
+                    child: SizedBox(
+                      width: S.tap,
+                      height: S.tap,
+                      child: Icon(LucideIcons.gripVertical,
+                          size: I.md, color: p.ink3),
+                    ),
+                  ),
+                  Icon(d.icon, size: I.md, color: p.ink2),
+                  const SizedBox(width: S.x3),
+                  Expanded(
+                    child: Text(d.title(c),
+                        style: F.body.copyWith(
+                            color: _on.contains(d) ? p.ink : p.ink3)),
+                  ),
+                  if (pinned)
+                    Text('Always on', style: F.cap.copyWith(color: p.ink3))
+                  else
+                    AppSwitch(
+                      _on.contains(d),
+                      (v) => setState(() => v ? _on.add(d) : _on.remove(d)),
+                      semanticLabel: d.title(c),
+                    ),
+                ]),
+              );
+            },
+          ),
+          const SizedBox(height: S.x3),
+          BigButton(
+            l?.actionSave ?? 'Save',
+            color: C.white,
+            onTap: () => Navigator.of(c).pop<List<ShellDomain>>([
+              for (final d in _order)
+                if (_on.contains(d)) d,
+            ]),
+          ),
+          const SizedBox(height: S.x2),
+          BigButton(
+            'Reset to default',
+            soft: true,
+            onTap: () =>
+                Navigator.of(c).pop<List<ShellDomain>>([...kDefaultTabs]),
+          ),
+        ]),
       ),
     );
   }

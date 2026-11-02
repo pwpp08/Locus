@@ -57,6 +57,10 @@ class Pressable extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
 
+  /// Held press. Never the only way to something: the thing it opens is a
+  /// shortcut, and a tap still does its own job.
+  final VoidCallback? onLongPress;
+
   /// Screen-reader label. Required for anything whose child is not plain text
   /// (an icon-only control), optional otherwise.
   final String? semanticLabel;
@@ -73,6 +77,7 @@ class Pressable extends StatefulWidget {
     super.key,
     required this.child,
     this.onTap,
+    this.onLongPress,
     this.semanticLabel,
   });
 
@@ -106,9 +111,11 @@ class _PressableState extends State<Pressable> {
     return Semantics(
       button: true,
       label: widget.semanticLabel,
+      onLongPress: widget.onLongPress,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
+        onLongPress: widget.onLongPress,
         onTapDown: (_) => setState(() => _down = true),
         onTapUp: (_) => setState(() => _down = false),
         onTapCancel: () => setState(() => _down = false),

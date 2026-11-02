@@ -86,6 +86,10 @@ class Prefs {
   /// The current bar's index (Home, Health, More).
   static const String shellTabV3 = 'ui.shell_tab.v3';
 
+  /// The tab bar's tabs, in order, as comma-separated `ShellDomain` names.
+  /// Empty = the default four. A tab missing from the list is hidden.
+  static const String navTabs = 'ui.nav_tabs';
+
   /// My Dashboard's tiles, in order, comma-separated keys. Empty = default.
   // v2: the Trend View catalogue. The old tile keys are a different list, so
   // a saved v1 order is not carried over.

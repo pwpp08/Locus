@@ -36,7 +36,10 @@ import '../profile/profile.dart' show ProfileAvatar;
 import '../profile/wearable_numbers.dart'
     show WearableCells, kHomeWearableRows;
 import '../ui2.dart';
+import '../../ai/briefing.dart' show BriefingPeriod, currentBriefingPeriod;
+import 'action_sheet.dart' show openCoach;
 import 'add_activity.dart' show openAddActivity;
+import 'ai_briefing.dart' show AiBriefingScreen;
 import 'day_heart.dart';
 import 'detected_activities.dart';
 import 'health_monitor.dart'
@@ -697,6 +700,15 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           });
         }),
       ),
+      if (isToday)
+        Builder(builder: (c) {
+          final period = currentBriefingPeriod(DateTime.now());
+          return DailyOutlookRow(
+            evening: period == BriefingPeriod.evening,
+            onCoach: () => openCoach(c),
+            onOutlook: () => go(c, AiBriefingScreen(period: period)),
+          );
+        }),
       _MyDay(
         day: d.dayId ?? _day ?? todayLabel(),
         night: _night,

@@ -6,7 +6,7 @@
 // `loading`. Shown once per launch; it latches itself off afterwards so a later
 // rebuild never re-covers a running app.
 //
-// The cover is the Locus mark drawing itself (logo.dart), then the wordmark —
+// The cover is the Locus mark writing itself once (logo.dart), then the wordmark —
 // painted on the canvas, nothing to decode, nothing to buffer, no frame the
 // launch waits on. It used to be a bundled video, which put an asset load and
 // a codec on the critical path of the one moment the app is already slowest.
@@ -31,6 +31,10 @@ class _BootSplashState extends State<BootSplash> {
   /// that will come back at the worst possible moment.
   bool _gone = false;
 
+  /// The mark has finished writing itself. It plays once and holds; the cover
+  /// waits for it, so a fast start still shows the whole stroke.
+  bool _landed = false;
+
   @override
   Widget build(BuildContext c) {
     if (_gone) return widget.child;
@@ -52,14 +56,22 @@ class _BootSplashState extends State<BootSplash> {
         // underneath it. `BlockSemantics` is the half that was missing.
         child: BlockSemantics(
           child: IgnorePointer(
-            ignoring: widget.ready,
+            ignoring: widget.ready && _landed,
             child: AnimatedOpacity(
-              opacity: widget.ready ? 0 : 1,
+              opacity: widget.ready && _landed ? 0 : 1,
               duration: motion(c, Motion.slow),
               onEnd: () {
-                if (widget.ready && mounted) setState(() => _gone = true);
+                if (widget.ready && _landed && mounted) {
+                  setState(() => _gone = true);
+                }
               },
-              child: const _Cover(),
+              // Post-frame: with motion off the mark reports in the middle of
+              // its own first build, and a parent cannot be dirtied then.
+              child: _Cover(onDrawn: () {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted && !_landed) setState(() => _landed = true);
+                });
+              }),
             ),
           ),
         ),
@@ -69,7 +81,8 @@ class _BootSplashState extends State<BootSplash> {
 }
 
 class _Cover extends StatefulWidget {
-  const _Cover();
+  final VoidCallback onDrawn;
+  const _Cover({required this.onDrawn});
 
   @override
   State<_Cover> createState() => _CoverState();
@@ -95,9 +108,11 @@ class _CoverState extends State<_Cover> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           LocusMark(
             size: S.x16 * 2,
-            loop: true,
+            animate: true,
             onDrawn: () {
-              if (mounted) setState(() => _drawn = true);
+              if (!mounted) return;
+              setState(() => _drawn = true);
+              widget.onDrawn();
             },
           ),
           const SizedBox(height: S.x6),

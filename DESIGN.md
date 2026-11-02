@@ -389,13 +389,14 @@ Gestures are built only from `lib/ui2/grammar.dart`. The token test fails on a r
 
 ### 10.1 Shell (`app_shell.dart`)
 
-Bar order: **Home · Health · (+) · AI · More**. The (+) and AI buttons are actions, not destinations.
+Bar order, by default: **Home · Strength · (+) · Macros · More**, and the user can reorder it or hide Strength and Macros (below). The (+) is an action, not a destination.
 
 - **Bar:** a floating `Glass` pill, inset 16 from the sides and from the bottom safe area, minimum height 64, inner padding 4, `p.line` border.
 - **Tabs:** icon `I.lg` above a label in `F.over` (w700 active, w600 inactive). Text scale is clamped at 1.3 inside the bar.
 - **Active tab:** a volt pill (`p.fill(C.volt)`) with char ink, animated over `Motion.base` with `Ease.standard`. Inactive tabs are bare ink3.
 - **(+):** a 40 circle in `card2` with a `plus` icon at I.lg.
-- **AI:** the coach orb (40): a sweep ring round a `card` disc with `sparkles` at I.md.
+- **AI:** the coach orb (`AiOrb`): a sweep ring round a `card` disc with `sparkles`, the glyph scaled to the disc (I.md at 48). It is the coach's mark everywhere: the round button under My Day (56), the chat header (24) and the gutter beside each answer (24).
+- **Customising the bar:** a long press on any tab (or the (+)) opens the **Customise tabs** sheet (`NavBarEditor`): drag to reorder, switch a tab off to hide it, Save, or Reset to default. **Home and More always stay** (they read "Always on"): Home is the way back into the app, More is where Settings live. The (+) sits in the middle of whatever tabs are left. The order is stored in `Prefs.navTabs` (comma-separated `ShellDomain` names; empty means the default; `tabsFromPref` repairs anything unreadable and puts a missing Home or More back). A hidden tab is still built the same way, it just has no button; hiding the tab you are on drops you back on Home.
 - **Banner:** a minimised workout floats as its own `Glass` pill 8 above the bar.
 - **More tab** (`ProfileHomeView`): the photo header, then four groups, **each thing in exactly one place** (here, or in Settings, never both). *Insights & coaching*: AI coach, Habit tracker, Healthspan, Compare with watch, Milestones. *You and your band*: Edit profile, Weight, My devices, Alarm and, on Android only, Band buzzes. *Your data*: Cloud account, Storage, Export and backup. *App*: App updates (its line reads what you have, what is ready or that it is checking; tapping checks now), Check automatically (On/Off), and Settings. This tab is what you open to look at or use; **Settings is only switches and preferences** (notifications and quiet hours, units, time format, the band's step calibration, heart-rate settings, zone alert and double-tap, health-store sync, phone steps, privacy, automation, AI model setup, About). Nothing on this tab is repeated there.
 
@@ -567,6 +568,7 @@ As the page scrolls, the dials do not just scroll away. Each ring flies into a c
 ### 11.5 My Day
 
 - **Section head:** "My Day" in `F.t1`. The trailing `PlusButton` opens the plus menu (§11.6).
+- **Daily Outlook row** (today only), directly under the head: the coach orb (56, opens the coach, or its setup) and a `Surface` card with a sunrise (sunset from 17:00) glyph in `p.on(C.orange)`, "Daily Outlook" in `F.body` w600 and a chevron. It opens today's briefing (`AiBriefingScreen`, the morning one before 17:00, the nightly one after).
 - **ACTIVITIES card:** a `Surface` with padding 16/8/16/16.
   - **Header:** `ACTIVITIES` in `F.caps` tracking .6 (indented 4). On the right, a `maximize2` icon (I.md ink3) in a 44 box opens the sideways day-HR screen (§14.3).
   - **Rows:** last night's sleep first, then the day's sessions oldest first, 12 apart. The empty state is "Nothing recorded for this day yet." in `F.body` ink3.
@@ -1086,3 +1088,16 @@ Every new public widget needs a case in `lib/ui2/profile/gallery.dart` (or an en
 - Art is decorative unless given a `semanticLabel`. It never carries another maker's logo or name: devices are generic.
 - Exercise photos come from the bundled Free Exercise DB (public domain, credited in `NOTICE.md`), cover-cropped 192 × 128 JPEG thumbnails, with a dumbbell tile as the placeholder.
 - The `AuroraTile` grain is `assets/images/grain.png` tiled at 4 % opacity, painted once behind a `RepaintBoundary`.
+
+### 14.9 My sources and the band's page (`profile/devices.dart`)
+
+- **My sources** lists LIVE sources, each a `SourceRow`. Under the band's row sits `BandStats`, one `Surface` of three rows, so nobody has to open the band to read them: **Battery** (the percentage, and under it only how long is left: "about 3 days left", or "Charging"), **Last data**, and **Calibration** (the band generation, value only). The band's percentage is therefore not repeated on its `SourceRow`. There is **no quality ladder** on this screen; the tier is still named by the pill on each row and by the tier card on a source's own page.
+- **The band's page** keeps Name, Worn on, Battery (same line as above: no charge history, no millivolts), Last data, Calibration (value only, no explanation), Buzz the band and Forget. **No heart-rate row**: the live heart rate is on Home and the monitors, and the page no longer holds the live stream open.
+
+### 14.10 The coach (`screens/coach.dart`)
+
+A chat in the app's own grammar, not a settings page. **Header:** a back button, the coach orb (24) with "Coach", the model under it, and the menu (`RoundIconButton`s). **Empty:** a large orb, "How can I help?", the intro line, and the starters as full-width cards (a glyph in a tinted disc, the question, an arrow). **Thread:** the user's turn is a right-aligned `card2` bubble (`R.xxl`, tight bottom-right corner); the coach answers on the page beside its orb, which marks the first item of a run and leaves a blank gutter after (figures and charts use the same gutter). **Waiting:** three pulsing dots (still under reduced motion) in the coach's row, with what it is doing if it says ("Reading your sleep…"); there is no spinner row above the composer. **Composer:** one `p.card` pill with a hairline border, the field inside it and a round send button (`p.fill(kCoachAccent)`, `card2` while busy).
+
+### 14.11 App start
+
+The Locus mark writes itself **once** on the cold-start cover (`BootSplash`, then the wordmark under it) and holds; the cover leaves when the app is ready and the stroke has finished. It never loops. Reduced motion shows it still and drops the cover the moment the app is ready.

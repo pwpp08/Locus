@@ -1,6 +1,7 @@
-// The two screens that show the live BPM own the realtime-HR stream while
-// mounted and release it on dispose (discussion #287): the resting-HR detail
-// screen's live card host and the band's device page.
+// The screen that shows the live BPM owns the realtime-HR stream while mounted
+// and releases it on dispose (discussion #287): the resting-HR detail screen's
+// live card host. The band's device page no longer shows a heart rate, so it
+// owns nothing.
 //
 // No database is opened here on purpose: both screens tolerate a missing one
 // (the live resting-HR screen has no repo to load from under a test AppState;
@@ -65,7 +66,7 @@ void main() {
     await pumpOut(t, app);
   });
 
-  testWidgets('the band device page owns HR while mounted; a sensor page does not',
+  testWidgets('neither the band page nor a sensor page holds the HR stream',
       (t) async {
     t.view.physicalSize = const Size(390 * 3, 2400 * 3);
     t.view.devicePixelRatio = 3;
@@ -81,9 +82,8 @@ void main() {
     );
     await t.pumpWidget(host(app, const DeviceDetail(band)));
     await t.pump();
-    expect(app.debugLiveOwners.visibleLiveHrView, isTrue);
-    await pumpOut(t, app);
     expect(app.debugLiveOwners.visibleLiveHrView, isFalse);
+    await pumpOut(t, app);
 
     const sensor = HealthSource(
       name: 'Chest strap',

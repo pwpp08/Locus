@@ -1953,6 +1953,22 @@ Map<String, Widget> _listCases() => {
           icon: LucideIcons.smartphone,
         )),
       ]),
+      'band_stats': BandStats(
+        HealthSource(
+          name: 'Abdul’s WHOOP band',
+          kind: 'WHOOP 4 · wrist optical',
+          tier: SourceTier.wristOptical,
+          icon: LucideIcons.watch,
+          connected: true,
+          batteryPct: 67,
+          lastData: DateTime(2026, 8, 16, 4, 12),
+          family: 'gen4',
+          isBand: true,
+        ),
+      ),
+      'daily_outlook_row': DailyOutlookRow(
+          evening: false, onCoach: () {}, onOutlook: () {}),
+      'nav_bar_editor': const NavBarEditor(tabs: kDefaultTabs),
       'tier_row': const Column(children: [
         TierRow(SourceTier.wristOptical, filled: true),
         SizedBox(height: S.x3),

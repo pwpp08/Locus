@@ -130,6 +130,16 @@ class _CoachScreenState extends State<CoachScreen> {
     ];
   }
 
+  /// One glyph per entry of [_starters], in the same order.
+  static const _starterIcons = [
+    LucideIcons.heartPulse,
+    LucideIcons.chartLine,
+    LucideIcons.moon,
+    LucideIcons.utensils,
+    LucideIcons.droplet,
+    LucideIcons.activity,
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -421,55 +431,50 @@ class _CoachScreenState extends State<CoachScreen> {
     );
   }
 
+  /// Back, the coach and the model it is talking through, and the menu.
+  Widget _header(BuildContext c, P p, CoachConfig cfg) {
+    final l = AppLocalizations.of(c);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x2),
+      child: Row(children: [
+        RoundIconButton(LucideIcons.chevronLeft, () => Navigator.maybePop(c),
+            l?.supplementNavBack ?? 'Back'),
+        Expanded(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              const AiOrb(size: S.x6),
+              const SizedBox(width: S.x2),
+              Text(l?.coachNavTitle ?? 'Coach',
+                  style: F.t2.copyWith(color: p.ink)),
+            ]),
+            const SizedBox(height: S.half),
+            Text(
+              cfg.configured
+                  ? cfg.model
+                  : (l?.coachNotSetUp ?? 'Not set up'),
+              style: F.cap.copyWith(color: p.ink3),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ]),
+        ),
+        RoundIconButton(LucideIcons.ellipsis, _menu,
+            l?.coachMenuSemantic ?? 'Chats and AI settings'),
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    final l = AppLocalizations.of(c);
     final cfg = c.watch<CoachConfig>();
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: S.x4),
-              child: NavBar(
-                l?.coachNavTitle ?? 'Coach',
-                sub: cfg.configured ? cfg.model : (l?.coachNotSetUp ?? 'Not set up'),
-                trailing: Pressable(
-                  semanticLabel: l?.coachMenuSemantic ?? 'Chats and AI settings',
-                  onTap: _menu,
-                  child: Icon(LucideIcons.ellipsis, size: I.md, color: p.ink),
-                ),
-              ),
-            ),
+            _header(c, p, cfg),
             Expanded(child: _body(c, p, cfg)),
-            if (_status != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(S.x5, S.x2, S.x5, 0),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: p.on(kCoachAccent),
-                      ),
-                    ),
-                    const SizedBox(width: S.x3),
-                    Expanded(
-                      child: Text(
-                        coachPresentationText(
-                          AppLocalizations.of(context),
-                          _status ?? '',
-                        ),
-                        style: F.cap.copyWith(color: p.ink3),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             if (cfg.configured && _engine != null) _composer(c, p),
           ],
         ),
@@ -533,155 +538,276 @@ class _CoachScreenState extends State<CoachScreen> {
       );
     }
     if (_items.isEmpty) {
+      final starters = _starters(c);
       return ListView(
-        padding: pad,
+        padding: const EdgeInsets.fromLTRB(S.x4, S.x6, S.x4, S.x4),
         children: [
-          const SizedBox(height: S.x2),
-          Surface(
-            color: p.wash(kCoachAccent),
-            elevation: 0,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      LucideIcons.sparkles,
-                      size: I.sm,
-                      color: p.on(kCoachAccent),
-                    ),
-                    const SizedBox(width: S.x2),
-                    Text(
-                      l?.coachYourDataYourModel ?? 'YOUR DATA, YOUR MODEL',
-                      style: F.over.copyWith(color: p.on(kCoachAccent)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: S.x3),
-                Text(
-                  l?.coachIntroBody ??
-                      'Ask about anything the app measures, and it can log food, '
-                          'water, workouts, doses and how you felt — always asking '
-                          'first.',
-                  style: F.body.copyWith(color: p.ink, height: 1.45),
-                ),
-              ],
-            ),
+          const Center(child: AiOrb(size: S.x16 + S.x6)),
+          const SizedBox(height: S.x5),
+          Text(
+            'How can I help?',
+            textAlign: TextAlign.center,
+            style: F.t1.copyWith(color: p.ink),
           ),
-          Section(
-            l?.coachTryAsking ?? 'Try asking',
-            Surface(
-              pad: const EdgeInsets.symmetric(vertical: S.x1),
-              child: Column(
-                children: [
-                  for (final s in _starters(c))
-                    Pressable(
-                      onTap: () => _send(s),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: S.x4,
-                          vertical: S.x3,
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                s,
-                                style: F.body.copyWith(color: p.ink2),
-                              ),
-                            ),
-                            Icon(
-                              LucideIcons.chevronRight,
-                              size: I.sm,
-                              color: p.ink3,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
+          const SizedBox(height: S.x2),
+          Text(
+            l?.coachIntroBody ??
+                'Ask about anything the app measures, and it can log food, '
+                    'water, workouts, doses and how you felt — always asking '
+                    'first.',
+            textAlign: TextAlign.center,
+            style: F.cap.copyWith(color: p.ink3, height: 1.5),
+          ),
+          const SizedBox(height: S.x6),
+          for (var i = 0; i < starters.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: S.x2),
+              child: _Starter(
+                _starterIcons[i % _starterIcons.length],
+                starters[i],
+                onTap: () => _send(starters[i]),
               ),
             ),
-          ),
         ],
       );
     }
+    final waiting = _busy && _streamingItem == null;
+    final last = _items.last;
     return ListView.builder(
       controller: _scroll,
       padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x4),
-      itemCount: _items.length,
-      itemBuilder: (_, i) => _Bubble(item: _items[i]),
+      itemCount: _items.length + (waiting ? 1 : 0),
+      itemBuilder: (_, i) {
+        if (i == _items.length) {
+          return _Thinking(
+            lead: last.kind == CoachItemKind.user,
+            status: _status == null
+                ? null
+                : coachPresentationText(AppLocalizations.of(context), _status!),
+          );
+        }
+        // The coach's mark leads each run of answers, not every line of one.
+        final prev = i == 0 ? null : _items[i - 1];
+        return _Bubble(
+          item: _items[i],
+          lead: prev == null ||
+              prev.kind == CoachItemKind.user ||
+              prev.kind == CoachItemKind.error,
+        );
+      },
     );
   }
 
   Widget _composer(BuildContext c, P p) {
     final l = AppLocalizations.of(c);
     return Padding(
-    padding: EdgeInsets.fromLTRB(
-      S.x4,
-      S.x2,
-      S.x4,
-      S.x3 + MediaQuery.of(c).viewInsets.bottom,
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: S.x4,
-              vertical: S.x2,
-            ),
-            decoration: BoxDecoration(
-              color: p.card,
-              borderRadius: R.rXl,
-            ),
-            child: Semantics(
-              label: l?.coachAskLabel ?? 'Ask the coach',
-              textField: true,
-              child: AppField(
-                controller: _input,
-                minLines: 1,
-                maxLines: 4,
-                enabled: !_busy,
-                textInputAction: TextInputAction.send,
-                onSubmitted: _busy ? null : _send,
-                bare: true,
-                hint: l?.coachInputHint ?? 'Ask about your health…',
+      padding: EdgeInsets.fromLTRB(
+          S.x4, S.x2, S.x4, S.x3 + MediaQuery.of(c).viewInsets.bottom),
+      // One rounded bar with the send button inside it, the way a message box
+      // sits in any chat.
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(S.x5, S.x1, S.x1, S.x1),
+        decoration: BoxDecoration(
+          color: p.card,
+          borderRadius: R.rPill,
+          border: Border.all(color: p.line),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Semantics(
+                label: l?.coachAskLabel ?? 'Ask the coach',
+                textField: true,
+                child: AppField(
+                  controller: _input,
+                  minLines: 1,
+                  maxLines: 4,
+                  enabled: !_busy,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: _busy ? null : _send,
+                  bare: true,
+                  hint: l?.coachInputHint ?? 'Ask about your health…',
+                ),
               ),
             ),
-          ),
-        ),
-        const SizedBox(width: S.x2),
-        Pressable(
-          semanticLabel: l?.coachSendLabel ?? 'Send',
-          onTap: _busy ? null : () => _send(_input.text),
-          child: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: _busy ? p.card2 : p.fill(kCoachAccent),
+            const SizedBox(width: S.x2),
+            Pressable(
+              semanticLabel: l?.coachSendLabel ?? 'Send',
+              onTap: _busy ? null : () => _send(_input.text),
+              child: Container(
+                width: S.x10,
+                height: S.x10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _busy ? p.card2 : p.fill(kCoachAccent),
+                ),
+                child: Icon(
+                  LucideIcons.arrowUp,
+                  size: I.md,
+                  color: _busy ? p.ink3 : p.inkOn(p.fill(kCoachAccent)),
+                ),
+              ),
             ),
-            child: Icon(
-              LucideIcons.arrowUp,
-              size: I.md,
-              color: _busy ? p.ink3 : p.inkOn(p.fill(kCoachAccent)),
-            ),
-          ),
+          ],
         ),
-      ],
-    ),
-  );
+      ),
+    );
   }
 }
 
-/// One transcript entry. The user's turn is a soft bubble; the answer is the
-/// page (no card chrome — a card around every answer makes a chat read as a
-/// feed); figures keep their own frame.
+/// A suggestion to start from: a glyph, the question, and an arrow.
+class _Starter extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final VoidCallback onTap;
+  const _Starter(this.icon, this.text, {required this.onTap});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    return Pressable(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x3),
+        decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
+        child: Row(children: [
+          Container(
+            width: S.x8,
+            height: S.x8,
+            decoration: BoxDecoration(
+                color: p.wash(kCoachAccent), shape: BoxShape.circle),
+            child: Icon(icon, size: I.sm, color: p.on(kCoachAccent)),
+          ),
+          const SizedBox(width: S.x3),
+          Expanded(
+            child: Text(text, style: F.body.copyWith(color: p.ink, height: 1.35)),
+          ),
+          const SizedBox(width: S.x2),
+          Icon(LucideIcons.arrowUpRight, size: I.sm, color: p.ink3),
+        ]),
+      ),
+    );
+  }
+}
+
+/// The coach's side of a conversation: its mark in a fixed gutter (shown on the
+/// first line of a run, empty after it) and the content beside it.
+class _CoachRow extends StatelessWidget {
+  final bool lead;
+  final Widget child;
+  const _CoachRow({required this.lead, required this.child});
+
+  static const double gutter = S.x6;
+
+  @override
+  Widget build(BuildContext c) => Padding(
+        padding: const EdgeInsets.only(bottom: S.x4),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SizedBox(
+            width: gutter,
+            child: lead ? const AiOrb(size: gutter) : null,
+          ),
+          const SizedBox(width: S.x3),
+          Expanded(child: child),
+        ]),
+      );
+}
+
+/// Waiting on the model: three dots, and what it is doing if it says.
+class _Thinking extends StatefulWidget {
+  final bool lead;
+  final String? status;
+  const _Thinking({required this.lead, this.status});
+
+  @override
+  State<_Thinking> createState() => _ThinkingState();
+}
+
+class _ThinkingState extends State<_Thinking>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _t =
+      AnimationController(vsync: this, duration: Motion.typing);
+
+  @override
+  void initState() {
+    super.initState();
+    // Round again until the dots are gone or motion is turned off.
+    _t.addStatusListener((s) {
+      if (s == AnimationStatus.completed && mounted && Motion.enabled(context)) {
+        _t.forward(from: 0);
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reduced motion: three still dots say the same thing.
+    if (Motion.enabled(context)) {
+      if (!_t.isAnimating) _t.forward(from: 0);
+    } else {
+      _t.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _t.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    return _CoachRow(
+      lead: widget.lead,
+      child: Row(children: [
+        AnimatedBuilder(
+          animation: _t,
+          builder: (_, _) => Row(mainAxisSize: MainAxisSize.min, children: [
+            for (var i = 0; i < 3; i++)
+              Padding(
+                padding: const EdgeInsets.only(right: S.x1),
+                child: Opacity(
+                  // Each dot peaks a third of a turn after the one before.
+                  opacity: .35 +
+                      .65 *
+                          (1 - ((_t.value * 3 - i) % 3).clamp(0.0, 1.0)),
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    decoration:
+                        BoxDecoration(color: p.ink2, shape: BoxShape.circle),
+                  ),
+                ),
+              ),
+          ]),
+        ),
+        if (widget.status != null) ...[
+          const SizedBox(width: S.x2),
+          Expanded(
+            child: Text(widget.status!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: F.cap.copyWith(color: p.ink3)),
+          ),
+        ],
+      ]),
+    );
+  }
+}
+
+/// One transcript entry. The user's turn is a bubble on the right; the coach
+/// answers on the page beside its mark (no card chrome — a card around every
+/// answer makes a chat read as a feed); figures keep their own frame.
 class _Bubble extends StatelessWidget {
   final CoachItem item;
-  const _Bubble({required this.item});
+
+  /// First of a run of the coach's items, so it carries the coach's mark.
+  final bool lead;
+  const _Bubble({required this.item, this.lead = true});
 
   @override
   Widget build(BuildContext c) {
@@ -691,14 +817,19 @@ class _Bubble extends StatelessWidget {
         return Align(
           alignment: Alignment.centerRight,
           child: Container(
-            margin: const EdgeInsets.only(bottom: S.x3, left: S.x12),
+            margin: const EdgeInsets.only(bottom: S.x4, left: S.x12),
             padding: const EdgeInsets.symmetric(
               horizontal: S.x4,
               vertical: S.x3,
             ),
             decoration: BoxDecoration(
-              color: p.wash(kCoachAccent),
-              borderRadius: R.rLg,
+              color: p.card2,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(R.xxl),
+                topRight: Radius.circular(R.xxl),
+                bottomLeft: Radius.circular(R.xxl),
+                bottomRight: Radius.circular(S.x1),
+              ),
             ),
             child: Text(
               item.text ?? '',
@@ -707,21 +838,21 @@ class _Bubble extends StatelessWidget {
           ),
         );
       case CoachItemKind.assistant:
-        return Padding(
-          padding: const EdgeInsets.only(bottom: S.x4),
+        return _CoachRow(
+          lead: lead,
           child: GptMarkdown(
             item.text ?? '',
             style: F.body.copyWith(color: p.ink, height: 1.5),
           ),
         );
       case CoachItemKind.chart:
-        return Padding(
-          padding: const EdgeInsets.only(bottom: S.x4),
+        return _CoachRow(
+          lead: lead,
           child: CoachFigure(spec: item.chart!.toJson()),
         );
       case CoachItemKind.render:
-        return Padding(
-          padding: const EdgeInsets.only(bottom: S.x4),
+        return _CoachRow(
+          lead: lead,
           child: CoachFigure(spec: item.render!),
         );
       case CoachItemKind.error:

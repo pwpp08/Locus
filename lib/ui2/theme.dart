@@ -719,6 +719,9 @@ class Motion {
   /// One writing of the Locus mark ([LocusMark]): the pen's run and a hold,
   /// and when it loops, the ink lifting back off.
   static const logo = Duration(milliseconds: 2400);
+
+  /// One pass of the three dots while the coach is thinking (the coach thinking dots).
+  static const typing = Duration(milliseconds: 1200);
   static const linger = Duration(milliseconds: 1300);
 
   /// White filling the word LOCUS on the pull to refresh ([WordmarkFill]).

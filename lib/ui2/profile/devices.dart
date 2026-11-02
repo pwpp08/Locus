@@ -1073,8 +1073,25 @@ List<HealthSource> rankSources(List<HealthSource> sources) {
 
 // ══════════════════ MY DEVICES ══════════════════
 
-class MyDevices extends StatelessWidget {
+class MyDevices extends StatefulWidget {
   const MyDevices({super.key});
+
+  @override
+  State<MyDevices> createState() => _MyDevicesState();
+}
+
+class _MyDevicesState extends State<MyDevices> {
+  /// "About 3 days left" on the band's card. Loaded once, like the band's own
+  /// page does; null until it arrives and whenever the forecaster abstains.
+  BatteryForecast? _forecast;
+
+  @override
+  void initState() {
+    super.initState();
+    loadBatteryForecast().then((f) {
+      if (mounted) setState(() => _forecast = f);
+    });
+  }
 
   @override
   Widget build(BuildContext c) {
@@ -1098,6 +1115,7 @@ class MyDevices extends StatelessWidget {
 
   Widget _build(BuildContext c, AppState app, Set<String> liveAdapterIds) {
     return MyDevicesView(
+      bandForecast: _forecast,
       sources: rankSources(liveSources(app, liveAdapterIds: liveAdapterIds)),
       // The band row's dot says connected or not. That covers six different
       // problems with six different fixes, and a user cannot fix a problem the
@@ -1278,8 +1296,12 @@ class MyDevicesView extends StatelessWidget {
   final List<InputSignal> contendedSignals;
   final VoidCallback? onSignalPriority;
 
+  /// `loadBatteryForecast`, for the "days left" line on the band's card.
+  final BatteryForecast? bandForecast;
+
   const MyDevicesView({
     super.key,
+    this.bandForecast,
     this.sources = const [],
     this.onPair,
     this.onAddSensor,
@@ -1358,6 +1380,12 @@ class MyDevicesView extends StatelessWidget {
                 ],
                 for (final s in sources) ...[
                   SourceRow(s, onTap: () => goto(c, DeviceDetail(s))),
+                  // The band's numbers on the list itself: nobody should have
+                  // to open the band to learn how much battery it has left.
+                  if (s.isBand) ...[
+                    const SizedBox(height: S.x2),
+                    BandStats(s, forecast: bandForecast),
+                  ],
                   if (s.isBand && fault != null) ...[
                     const SizedBox(height: S.x2),
                     StatusCard(fault.title, fault.reason,
@@ -1393,24 +1421,6 @@ class MyDevicesView extends StatelessWidget {
                         onTap: onSignalPriority),
                   ),
                 ],
-                // NOT YET — removed from this screen per product decision
-                // (owner's call, live review). `kNotYet`/`NotYet` still hold
-                // the reasons and permanences below; only the render is gone.
-                const SizedBox(height: S.x5),
-                Text(l?.devicesQualityLadder ?? 'THE QUALITY LADDER',
-                    style: F.over.copyWith(color: p.ink3)),
-                const SizedBox(height: S.x3),
-                for (final t in SourceTier.values)
-                  // Every rung is drawn now, filled or not. The tier-1 rung
-                  // used to be hidden because nothing could reach it and an
-                  // unreachable empty rung is just something to go hunting
-                  // for; "Add a sensor" above is how it is reached, so an
-                  // empty one is now a genuine invitation rather than a dead
-                  // end.
-                  ...[
-                    TierRow(t, filled: sources.any((s) => s.tier == t)),
-                    const SizedBox(height: S.x3),
-                  ],
                 ],
               ),
             ),
@@ -1535,7 +1545,8 @@ class SourceRow extends StatelessWidget {
                           color: s.connected ? p.on(C.green) : p.ink3)),
                 ),
               ]),
-              if (battery != null)
+              // The band's percentage is in its stats card on the list, not twice.
+              if (battery != null && !s.isBand)
                 Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(
                       s.charging
@@ -1618,6 +1629,101 @@ class TierRow extends StatelessWidget {
 
 // ══════════════════ DEVICE DETAIL ══════════════════
 
+/// The same projection the overnight charge warning fires on, read here rather
+/// than recomputed: the band's card and its page are where someone asks "how
+/// long have I got". Null on an abstention, and on any failure: a projection is
+/// a nicety, and the screen's real job is the band's state.
+Future<BatteryForecast?> loadBatteryForecast() async {
+  try {
+    final rows = await LocalDb.recentBandBatterySamples(limit: 400);
+    final now = DateTime.now();
+    return const BatteryForecaster().forecast(
+      samples: [
+        for (final r in rows)
+          if (r['battery_pct'] != null && r['ts'] != null)
+            BatterySample(
+              tsSec: (r['ts'] as num).toInt(),
+              pct: (r['battery_pct'] as num).toDouble(),
+              charging: (r['charging'] as num?)?.toInt() == 1,
+            ),
+      ],
+      now: now,
+      // Only `predictedEmptyAt` is read, and it does not depend on the wake
+      // time — the projection to a wake time is the notification's question.
+      wakeAt: now,
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
+/// The band's battery row: the percentage, and under it only how long is left
+/// (or that it is charging). The charge history lives on the battery screen
+/// this row opens.
+Widget _batteryRow(BuildContext c, HealthSource s, BatteryForecast? forecast) {
+  final l = AppLocalizations.of(c);
+  final battery = s.batteryPct;
+  return SetRow(LucideIcons.batteryMedium, C.green,
+      l?.devicesBattery ?? 'Battery',
+      value: battery == null ? '' : '${battery.round()}%',
+      onTap: () => goto(c, const BatteryDetailScreen()),
+      sub: battery == null
+          ? (l?.devicesBatteryNotReported ??
+              'Not reported since the last connection')
+          : s.charging
+              ? (l?.devicesCharging ?? 'Charging')
+              : (_timeLeft(forecast) ?? ''),
+      chevron: false);
+}
+
+Widget _lastDataRow(BuildContext c, HealthSource s) {
+  final l = AppLocalizations.of(c);
+  final last = s.lastData;
+  return SetRow(LucideIcons.refreshCw, C.purple,
+      l?.devicesLastData ?? 'Last data',
+      value: last == null ? '' : formatDayTime(last, l),
+      sub: last == null
+          ? (l?.devicesNothingBankedYet ?? 'Nothing banked yet')
+          : '',
+      chevron: false);
+}
+
+/// Which generation the band says it is. The value only: what it means stays
+/// in [calibrationDisclosure] for anything that wants to say so.
+Widget? _calibrationRow(BuildContext c, HealthSource s) {
+  final calibration = calibrationDisclosure(s);
+  if (calibration == null) return null;
+  return SetRow(LucideIcons.sliders, C.teal,
+      AppLocalizations.of(c)?.devicesCalibration ?? 'Calibration',
+      value: calibration.$1, chevron: false);
+}
+
+/// The connected band's numbers, on the My sources list under its row: battery
+/// with the days left, when it last sent data, and which band it is.
+class BandStats extends StatelessWidget {
+  final HealthSource s;
+  final BatteryForecast? forecast;
+  const BandStats(this.s, {super.key, this.forecast});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final calibration = _calibrationRow(c, s);
+    return Surface(
+      pad: const EdgeInsets.symmetric(horizontal: S.x4),
+      child: Column(children: [
+        _batteryRow(c, s, forecast),
+        Divider(color: p.line, height: 1),
+        _lastDataRow(c, s),
+        if (calibration != null) ...[
+          Divider(color: p.line, height: 1),
+          calibration,
+        ],
+      ]),
+    );
+  }
+}
+
 class DeviceDetail extends StatefulWidget {
   final HealthSource s;
   const DeviceDetail(this.s, {super.key});
@@ -1627,11 +1733,8 @@ class DeviceDetail extends StatefulWidget {
 }
 
 class _DeviceDetailState extends State<DeviceDetail> {
-  /// Held, not rebuilt: this screen watches AppState, so a FutureBuilder given
-  /// a fresh `batteryHealth()` on every build would rescan the sample table on
-  /// every connection tick.
-  Map<String, dynamic>? _health;
-  /// `device.wearing`, loaded once like `_health`.
+  /// `device.wearing`, loaded once: this screen watches AppState, so a
+  /// FutureBuilder would reread it on every connection tick.
   int? _wornOn;
   bool _wornOnUnknown = false;
 
@@ -1641,18 +1744,10 @@ class _DeviceDetailState extends State<DeviceDetail> {
   /// notification they may have dismissed.
   BatteryForecast? _forecast;
 
-  /// This page shows the band's live BPM, so it owns the HR stream while
-  /// mounted. Captured for `dispose`, which must not read `context`.
-  AppState? _liveHrOwner;
-
   @override
   void initState() {
     super.initState();
     if (!widget.s.isBand) return;
-    _liveHrOwner = context.read<AppState>()..retainLiveHrView();
-    LocalDb.batteryHealth().then((h) {
-      if (mounted) setState(() => _health = h);
-    }).catchError((_) {});
     LocalDb.deviceWearingRaw().then((raw) {
       if (!mounted) return;
       setState(() {
@@ -1660,39 +1755,9 @@ class _DeviceDetailState extends State<DeviceDetail> {
         _wornOn = _wornOnUnknown ? raw : Wearing.parse(raw);
       });
     }).catchError((_) {});
-    _loadForecast();
-  }
-
-  @override
-  void dispose() {
-    _liveHrOwner?.releaseLiveHrView();
-    super.dispose();
-  }
-
-  Future<void> _loadForecast() async {
-    try {
-      final rows = await LocalDb.recentBandBatterySamples(limit: 400);
-      final now = DateTime.now();
-      final f = const BatteryForecaster().forecast(
-        samples: [
-          for (final r in rows)
-            if (r['battery_pct'] != null && r['ts'] != null)
-              BatterySample(
-                tsSec: (r['ts'] as num).toInt(),
-                pct: (r['battery_pct'] as num).toDouble(),
-                charging: (r['charging'] as num?)?.toInt() == 1,
-              ),
-        ],
-        now: now,
-        // Only `predictedEmptyAt` is read below, and it does not depend on the
-        // wake time — the projection to a wake time is the notification's
-        // question, not this screen's.
-        wakeAt: now,
-      );
+    loadBatteryForecast().then((f) {
       if (mounted) setState(() => _forecast = f);
-    } catch (_) {
-      // A projection is a nicety. The screen's real job is the band's state.
-    }
+    });
   }
 
   @override
@@ -1716,10 +1781,8 @@ class _DeviceDetailState extends State<DeviceDetail> {
                 });
               }
             },
-      health: _health,
       forecast: _forecast,
       onFind: app?.buzzBand,
-      liveHr: s.isBand ? app?.liveHr : null,
       onRename: (app != null && app.isConnected)
           ? () => _renameBand(c, app, s.name)
           : null,
@@ -2066,11 +2129,6 @@ class DeviceDetailView extends StatelessWidget {
   final HealthSource s;
   final VoidCallback? onFind, onForget, onSync;
 
-  /// The beat arriving right now, or null when nothing fresh is streaming.
-  /// Passed IN rather than read from a provider here: this view is rendered in
-  /// tests with no Provider above it, which is the point of it being a view.
-  final int? liveHr;
-
   /// Rename the band. Null when there is nothing to rename (the phone) or no
   /// link to carry the write — the name lives on the strap, not on the phone,
   /// so an offline rename would be a lie the next connect quietly undoes.
@@ -2087,9 +2145,6 @@ class DeviceDetailView extends StatelessWidget {
 
   /// Opens the wearing sheet. Null hides the row.
   final VoidCallback? onWearing;
-  /// `LocalDb.batteryHealth()` — the recent `band_battery` series, which is the
-  /// one table nothing prunes. Null until it loads, and on a non-band source.
-  final Map<String, dynamic>? health;
 
   /// `BatteryForecaster.forecast` over the same series. Null until it loads and
   /// on a non-band source; an ABSTAINING forecast is a valid value and draws
@@ -2102,12 +2157,10 @@ class DeviceDetailView extends StatelessWidget {
       this.onForget,
       this.onSync,
       this.onRename,
-      this.liveHr,
       this.status,
       this.wornOn,
       this.wornOnUnknown = false,
       this.onWearing,
-      this.health,
       this.forecast});
 
   @override
@@ -2116,11 +2169,10 @@ class DeviceDetailView extends StatelessWidget {
     final l = AppLocalizations.of(c);
     final localizedStatus =
         status == null ? null : localizedBandStatus(c, status!);
-    final battery = s.batteryPct;
     final last = s.lastData;
     final fault =
         localizedStatus?.isFault == true ? localizedStatus : null;
-    final calibration = calibrationDisclosure(s);
+    final calibration = _calibrationRow(c, s);
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
@@ -2292,36 +2344,7 @@ class DeviceDetailView extends StatelessWidget {
                             onTap: onWearing),
                         Divider(color: p.line, height: 1),
                       ],
-                      SetRow(LucideIcons.batteryMedium, C.green,
-                          l?.devicesBattery ?? 'Battery',
-                          value: battery == null ? '' : '${battery.round()}%',
-                          onTap: () {
-                            Navigator.of(c).push(
-                              MaterialPageRoute(
-                                  builder: (_) => const BatteryDetailScreen()),
-                            );
-                          },
-                          // L11 — the band's own charge history, on the row
-                          // that already exists rather than a new one. Within
-                          // THIS band only: `charge_cycles` counts times it went
-                          // on the charger, not full cycles, and the millivolts
-                          // are the highest reading seen while charging — so
-                          // neither is ever put against a cell spec, turned
-                          // into a percentage of original capacity, or read as
-                          // "replace the battery".
-                          //
-                          // Both were structurally blank until schema 45: the
-                          // voltage had no writer at all, so this line has shown
-                          // nothing on every install there has ever been.
-                          sub: battery == null
-                              ? (l?.devicesBatteryNotReported ??
-                                  'Not reported since the last connection')
-                              : [
-                                  if (s.charging) (l?.devicesCharging ?? 'Charging'),
-                                  ?_timeLeft(forecast),
-                                  ?_chargeHistory(health),
-                                ].join(' · '),
-                          chevron: false),
+                      _batteryRow(c, s, forecast),
                       Divider(color: p.line, height: 1),
                       if (s.batteryPackPct case final pack?) ...[
                         SetRow(LucideIcons.batteryCharging, C.green,
@@ -2332,31 +2355,10 @@ class DeviceDetailView extends StatelessWidget {
                             chevron: false),
                         Divider(color: p.line, height: 1),
                       ],
-                      // Live, not a stored reading: present only while the
-                      // band is actually streaming, and gone the moment it
-                      // stops.
-                      if (liveHr != null) ...[
-                        SetRow(LucideIcons.heartPulse, C.red,
-                            l?.devicesHeartRate ?? 'Heart rate',
-                            value: '$liveHr bpm',
-                            sub: l?.devicesRightNow ?? 'Right now',
-                            chevron: false),
-                        Divider(color: p.line, height: 1),
-                      ],
-                      SetRow(LucideIcons.refreshCw, C.purple,
-                          l?.devicesLastData ?? 'Last data',
-                          value: last == null ? '' : formatDayTime(last, l),
-                          sub: last == null
-                              ? (l?.devicesNothingBankedYet ?? 'Nothing banked yet')
-                              : '',
-                          chevron: false),
+                      _lastDataRow(c, s),
                       if (calibration != null) ...[
                         Divider(color: p.line, height: 1),
-                        SetRow(LucideIcons.sliders, C.teal,
-                            l?.devicesCalibration ?? 'Calibration',
-                            value: calibration.$1,
-                            sub: calibration.$2,
-                            chevron: false),
+                        calibration,
                       ],
                       // WHO HAS CHECKED, not how good the numbers are. Said
                       // here rather than only as a word on the list row,
@@ -2418,18 +2420,6 @@ String? _timeLeft(BatteryForecast? f) {
   if (left.inHours < 1) return 'under an hour left';
   if (left.inHours < 36) return 'about ${left.inHours} h left';
   return 'about ${(left.inHours / 24).round()} days left';
-}
-
-/// "12 charges logged, up to 4,180 mV" — or null when there is no history to
-/// report yet. Two facts about this band and nothing derived from them: nothing
-/// here knows the pack's design capacity, and going on the charger is not a
-/// cycle.
-String? _chargeHistory(Map<String, dynamic>? h) {
-  final cycles = (h?['charge_cycles'] as num?)?.toInt() ?? 0;
-  if (cycles <= 0) return null;
-  final mv = (h?['full_charge_mv'] as num?)?.toInt();
-  return '$cycles charge${cycles == 1 ? '' : 's'} logged'
-      '${mv == null ? '' : ', up to $mv mV'}';
 }
 
 String wornName(BuildContext c, int w) {

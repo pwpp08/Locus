@@ -67,10 +67,8 @@ void main() {
     expect(tierNamed('someFutureRung'), isNull);
   });
 
-  testWidgets('the tier-1 rung is drawn even when empty, now that it is '
-      'reachable', (t) async {
-    // Tall surface: the ladder sits at the foot of a ListView, and an
-    // offscreen row is simply not built.
+  testWidgets('there is no quality ladder: an empty rung is not drawn, but '
+      'adding a sensor still is offered', (t) async {
     t.view.physicalSize = const Size(390 * 3, 2400 * 3);
     t.view.devicePixelRatio = 3;
     addTearDown(t.view.reset);
@@ -81,11 +79,8 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('Add a sensor'), findsOneWidget);
     const t1 = SourceTier.beatToBeat;
-    final rung = find.text('Tier ${t1.rank} · ${t1.label}');
-    await t.scrollUntilVisible(rung, 300, scrollable: find.byType(Scrollable).first);
-    expect(rung, findsOneWidget);
-    // Empty, and saying so — the rung is an invitation now, not a dead end.
-    expect(find.text('Nothing here yet'), findsWidgets);
+    expect(find.text('Tier ${t1.rank} · ${t1.label}'), findsNothing);
+    expect(find.text('Nothing here yet'), findsNothing);
   });
 
   testWidgets('a paired strap does not satisfy "a band is paired"', (t) async {

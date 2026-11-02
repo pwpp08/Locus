@@ -192,6 +192,31 @@ void main() {
     expect(find.byType(BootSplash), findsOneWidget);
   });
 
+  testWidgets('the L writes itself once; a fast start waits for it, then '
+      'the cover goes and never comes back', (tester) async {
+    var ready = false;
+    late StateSetter set;
+    await tester.pumpWidget(MaterialApp(
+      home: StatefulBuilder(builder: (_, s) {
+        set = s;
+        return BootSplash(ready: ready, child: const Text('the app'));
+      }),
+    ));
+    // The app is ready at once; the mark is not done writing.
+    set(() => ready = true);
+    await tester.pump(const Duration(milliseconds: 300));
+    final cover = find.byType(LocusMark);
+    expect(cover, findsOneWidget, reason: 'still writing, so still covered');
+    expect(tester.widget<LocusMark>(cover).loop, isFalse,
+        reason: 'it plays once, it does not loop');
+
+    await tester.pump(Motion.logo);
+    await tester.pump(Motion.slow * 2);
+    await tester.pumpAndSettle();
+    expect(cover, findsNothing);
+    expect(find.text('the app'), findsOneWidget);
+  });
+
   testWidgets('an absent value is a StatusCard, never a bare dash',
       (tester) async {
     for (final entry in cases.entries) {
