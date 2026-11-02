@@ -155,6 +155,15 @@ class _StrainRepo extends LocalRepository {
 }
 
 
+/// The strength logger's "⋯" sheet: swap, add, skip and the rest of what used
+/// to be chips and rows on the screen itself.
+Future<void> _openMore(WidgetTester tester, String row) async {
+  await tester.tap(find.bySemanticsLabel('More'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(row));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   // ── the catalogue ────────────────────────────────────────────────────────
   group('catalogue', () {
@@ -1251,7 +1260,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('LOG SET'));
       await tester.pump();
-      expect(find.text('40 kg × 8'), findsWidgets);
+      expect(find.text('40 × 8'), findsWidgets);
 
       // Minimise: the route is gone and every widget with it. The set was
       // held in `_LiveStrengthState` and died here — silently, while
@@ -1262,9 +1271,9 @@ void main() {
       await tester.pumpWidget(
           _frame(liveFor(a, weightKg: 72.4), Brightness.light, 1.0));
       await tester.pumpAndSettle();
-      expect(find.text('40 kg × 8'), findsWidgets,
+      expect(find.text('40 × 8'), findsWidgets,
           reason: 'a typed set is the one thing nothing can recompute');
-      expect(find.text('320'), findsOneWidget, reason: 'volume, restored');
+      expect((LiveDraft.current!.data['sets']! as List).length, 1);
       expect(tester.takeException(), isNull);
     });
 
@@ -1302,8 +1311,7 @@ void main() {
       expect(find.text('Incline DB press'), findsOneWidget);
 
       // No set belongs to this slot yet, so changing it replaces the slot.
-      await tester.tap(find.text('Incline DB press'));
-      await tester.pumpAndSettle();
+      await _openMore(tester, 'Swap exercise');
       await tester.tap(find.text('Back squat'));
       await tester.pumpAndSettle();
       expect(LiveDraft.current!.data['exercise_plan'], ['back_squat']);
@@ -1312,8 +1320,7 @@ void main() {
       // relabelling what the user already logged.
       await tester.tap(find.text('LOG SET'));
       await tester.pump();
-      await tester.tap(find.text('Back squat'));
-      await tester.pumpAndSettle();
+      await _openMore(tester, 'Swap exercise');
       await tester.tap(find.text('Bench press'));
       await tester.pumpAndSettle();
       expect(LiveDraft.current!.data['exercise_plan'],
@@ -1561,16 +1568,47 @@ void main() {
       expect(find.text('Choose exercise'), findsWidgets);
       expect(find.text('Bench press'), findsNothing,
           reason: 'no draft is not evidence that this was a bench press');
-      expect(find.text('96'), findsOneWidget);
-
-      // The body is built once and left alone by the 1 Hz tick — but the heart
-      // rate on it is measured, so it must not freeze with the rest.
-      hr = 141;
-      await tester.pump(const Duration(seconds: 1));
-      expect(find.text('141'), findsOneWidget);
+      expect(find.textContaining('BPM'), findsNothing,
+          reason: 'nothing is being logged yet, so there is no heart rate row');
     });
 
-    testWidgets('the rest countdown ticks without rebuilding the shell',
+    testWidgets('the heart rate on the logging screen follows the band, and '
+        'is absent rather than a dash when there is none', (tester) async {
+      tester.view.physicalSize = const Size(390 * 3, 2400 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      addTearDown(LiveDraft.clear);
+      final activity = activityByName('weight_training')!;
+      LiveDraft.begin(activity);
+      LiveDraft.current!.put('exercise_plan', ['bench_press']);
+
+      int? hr = 96;
+      await tester.pumpWidget(_frame(
+          LiveStrength(activity, feed: () => LiveFeed(hr: hr, bandConnected: true)),
+          Brightness.light,
+          1.0));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('96'), findsOneWidget);
+
+      // The body is built once and left alone by the 1 Hz tick, but the heart
+      // rate on it is measured, so it must not freeze with the rest.
+      // With a draft the clock reads wall time, so let a real second pass.
+      Future<void> aSecond() async {
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 1100)));
+        await tester.pump(const Duration(seconds: 1));
+      }
+
+      hr = 141;
+      await aSecond();
+      expect(find.textContaining('141'), findsOneWidget);
+
+      hr = null;
+      await aSecond();
+      expect(find.textContaining('BPM'), findsNothing);
+    });
+
+    testWidgets('logging a set shows no rest countdown: Log set stays Log set',
         (tester) async {
       tester.view.physicalSize = const Size(390 * 3, 2400 * 3);
       tester.view.devicePixelRatio = 3;
@@ -1581,27 +1619,14 @@ void main() {
       LiveDraft.begin(activity);
       LiveDraft.current!.put('exercise_plan', ['bench_press']);
 
-      await tester.pumpWidget(_frame(
-          LiveStrength(activity),
-          Brightness.light,
-          1.0));
+      await tester.pumpWidget(_frame(LiveStrength(activity), Brightness.light, 1.0));
       await tester.pumpAndSettle();
       await tester.tap(find.text('LOG SET'));
       await tester.pump();
-      expect(find.text('01:30'), findsOneWidget);
-
-      // The countdown used to be a field behind setState, so every one of the
-      // ninety ticks rebuilt this state — and with it a whole new LiveShell,
-      // header and transport and all. The widget instance is the tell: only
-      // _LiveStrengthState.build makes a new one.
-      final shell = tester.widget<LiveShell>(find.byType(LiveShell));
-      await tester.pump(const Duration(seconds: 1));
-
-      expect(find.text('01:29'), findsOneWidget,
-          reason: 'the ring still counts down');
-      expect(identical(tester.widget<LiveShell>(find.byType(LiveShell)), shell),
-          isTrue,
-          reason: 'the shell must not be rebuilt for a number inside the body');
+      expect(find.text('SET 2'), findsOneWidget);
+      expect(find.textContaining('RESTING'), findsNothing);
+      expect(find.text('SKIP REST'), findsNothing);
+      expect(find.text('LOG SET'), findsOneWidget);
     });
 
     testWidgets('a first push-up set is bodyweight, not the carried-over load',
@@ -1625,8 +1650,7 @@ void main() {
       await tester.pump();
       expect(sets.single.loadKg, 40, reason: 'bench keeps its stepper load');
 
-      await tester.tap(find.text('Add exercise'));
-      await tester.pumpAndSettle();
+      await _openMore(tester, 'Add exercise');
       await tester.tap(find.text('Push-up'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('LOG SET'));
@@ -1792,7 +1816,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('the strength logger accumulates volume, sets and reps',
+    testWidgets('a logged set becomes a chip and the screen moves to the next set',
         (tester) async {
       tester.view.physicalSize = const Size(390 * 3, 2400 * 3);
       tester.view.devicePixelRatio = 3;
@@ -1808,14 +1832,16 @@ void main() {
           Brightness.light,
           1.0));
       await tester.pumpAndSettle();
+      expect(find.text('SET 1'), findsOneWidget);
 
-      // Default entry is 40 kg × 8 = 320 kg of volume for one set.
+      // Default entry is 40 kg × 8.
       await tester.tap(find.text('LOG SET'));
       await tester.pump();
 
-      expect(find.text('320'), findsOneWidget); // volume
-      expect(find.text('40 kg × 8'), findsWidgets);
-      expect(find.textContaining('RESTING'), findsOneWidget);
+      expect(find.text('40 × 8'), findsOneWidget);
+      expect(find.text('SET 2'), findsOneWidget);
+      expect(find.text('320'), findsNothing,
+          reason: 'totals live in the summary, not on the logging screen');
       expect(tester.takeException(), isNull);
     });
 
@@ -1851,12 +1877,8 @@ void main() {
 
       await tester.tap(find.text('LOG SET'));
       await tester.pump();
-      expect(find.text('93 lb × 8'), findsWidgets);
-      // Volume = (40 kg + one 5 lb step, in kg) × 8 reps, shown in lb.
-      final u = UnitsController.seed(UnitSystem.imperial);
-      final loggedKg = 40.0 + u.loadStepKg(2.5);
-      expect(find.text(u.weightValue(loggedKg * 8).round().toString()),
-          findsOneWidget);
+      expect(find.text('93 × 8'), findsWidgets);
+      expect(find.textContaining(' kg'), findsNothing);
       expect(tester.takeException(), isNull);
     });
 

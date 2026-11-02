@@ -40,6 +40,7 @@ import '../grammar.dart';
 import '../paint_activity.dart';
 import '../theme.dart';
 import 'catalogue.dart';
+import '../profile/profile.dart' show SetRow, settingsGroup;
 import 'exercise_picker.dart';
 import 'summary.dart';
 
@@ -450,6 +451,10 @@ class LiveShell extends StatefulWidget {
   /// What this session became, built when the user stops it.
   final ActivityResult Function(int elapsed) result;
 
+  /// Replaces the activity's name and [subtitle] in the header (the strength
+  /// logger names the exercise there), and the button at its right.
+  final Widget? headerCenter, trailing;
+
   /// Hands the finished session to the app to be persisted, and takes back
   /// whatever the stores can add to it. Absent in tests and previews.
   final SessionFinish? onFinish;
@@ -465,6 +470,8 @@ class LiveShell extends StatefulWidget {
     this.weightKg,
     this.footer,
     this.onFinish,
+    this.headerCenter,
+    this.trailing,
   });
 
   @override
@@ -586,7 +593,7 @@ class LiveShellState extends State<LiveShell> {
                 l?.activityLiveMinimiseLabel ?? 'Minimise',
               ),
                   Expanded(
-                    child: Column(
+                    child: widget.headerCenter ?? Column(
                       children: [
                         Text(
                           a.displayName(c).toUpperCase(),
@@ -602,12 +609,13 @@ class LiveShellState extends State<LiveShell> {
                 ]),
               ),
               // Balances the minimise button, so the title stays centred.
-              SizedBox(
-                width: S.x12,
-                child: widget.private
-                    ? Icon(LucideIcons.lock, size: I.md, color: p.ink3)
-                    : null,
-              ),
+              widget.trailing ??
+                  SizedBox(
+                    width: S.x12,
+                    child: widget.private
+                        ? Icon(LucideIcons.lock, size: I.md, color: p.ink3)
+                        : null,
+                  ),
             ]),
           ),
           Expanded(
@@ -643,9 +651,10 @@ class LiveShellState extends State<LiveShell> {
               // A control with no callback is announced as content and does
               // nothing when activated. Locking the screen is not implemented,
               // so the affordance is not drawn.
-              const SizedBox(width: S.x12 + S.x2),
-              const SizedBox(width: S.x4),
-              // The screen's one primary control, in the START pill's blue.
+              //
+              // The screen's one primary control, in the START pill's blue,
+              // unless the screen has a bigger one above it (Log set), which
+              // then keeps the blue to itself.
               Expanded(
                 child: Pressable(
                   semanticLabel: paused
@@ -658,12 +667,13 @@ class LiveShellState extends State<LiveShell> {
                   child: Container(
                     height: S.x12 + S.x2,
                     alignment: Alignment.center,
-                    decoration: const BoxDecoration(
-                        color: C.dialStrain, borderRadius: R.rPill),
+                    decoration: BoxDecoration(
+                        color: widget.footer == null ? C.dialStrain : p.card2,
+                        borderRadius: R.rPill),
                     child: Icon(
                         paused ? LucideIcons.play : LucideIcons.pause,
                         size: I.lg,
-                        color: C.white),
+                        color: widget.footer == null ? C.white : p.ink),
                   ),
                 ),
               ),
@@ -1227,32 +1237,11 @@ class _LiveStrengthState extends State<LiveStrength> {
 
   final logged = <LoggedSet>[];
 
-  static const restTarget = 90;
-
-  /// A listenable rather than a field behind `setState`, for the same reason
-  /// [LiveShellState.clock] is one: the countdown ticks once a second for a
-  /// minute and a half between sets, and putting it behind `setState` rebuilt
-  /// this state, and with it the whole [LiveShell] — header, transport,
-  /// footer, body — when the only thing that moved was the ring.
-  ///
-  /// `setState` still runs at the ZERO CROSSING, where the screen genuinely
-  /// changes shape: the footer flips back to Log set and the body back to the
-  /// entry pad.
-  final restLeft = ValueNotifier<int>(0);
-  Timer? _rest;
-
   @override
   void initState() {
     super.initState();
     _restore();
     _seedFromHistory();
-  }
-
-  @override
-  void dispose() {
-    _rest?.cancel();
-    restLeft.dispose();
-    super.dispose();
   }
 
   /// Plan and sets written before this screen was rebuilt — the session was
@@ -1383,7 +1372,6 @@ class _LiveStrengthState extends State<LiveStrength> {
           restSec: prior == null ? null : now.difference(prior).inSeconds,
           at: now));
     });
-    restLeft.value = restTarget;
     _persist();
     // The next planned set, when the workout was built ahead.
     final next = _planned(key, setsHere.length);
@@ -1394,28 +1382,10 @@ class _LiveStrengthState extends State<LiveStrength> {
         reps = next.reps;
       });
     }
-    _rest?.cancel();
-    _rest = Timer.periodic(Motion.tick, (t) {
-      if (!mounted) return;
-      restLeft.value--;
-      if (restLeft.value <= 0) {
-        t.cancel();
-        // The one tick the shell has to see — see [restLeft].
-        setState(() {});
-        HapticFeedback.mediumImpact();
-        // A buzz is not a message. The rest-over moment was reachable only by
-        // feeling the watch, or by watching a number nobody was told to watch.
-        say(context,
-            AppLocalizations.of(context)?.activityLiveRestOverAnnounce ??
-                'Rest over');
-      }
-    });
   }
 
   void goExercise(int i) {
     if (i < 0 || i >= plan.length) return;
-    _rest?.cancel();
-    restLeft.value = 0;
     setState(() => index = i);
     _persistPlan();
     _seedFromHistory();
@@ -1429,8 +1399,6 @@ class _LiveStrengthState extends State<LiveStrength> {
       recentKeys: _recentKeys,
     );
     if (!mounted || picked == null) return;
-    _rest?.cancel();
-    restLeft.value = 0;
     setState(() {
       if (!plan.contains(picked)) plan.add(picked);
       index = plan.indexOf(picked);
@@ -1452,8 +1420,6 @@ class _LiveStrengthState extends State<LiveStrength> {
       recentKeys: _recentKeys,
     );
     if (!mounted || picked == null || picked == plan[oldIndex]) return;
-    _rest?.cancel();
-    restLeft.value = 0;
     setState(() {
       final existing = plan.indexOf(picked);
       if (mayReplace) {
@@ -1474,8 +1440,6 @@ class _LiveStrengthState extends State<LiveStrength> {
   }
 
   void skipExercise() {
-    _rest?.cancel();
-    restLeft.value = 0;
     if (setsHere.isEmpty && plan.length > 1) {
       setState(() {
         plan.removeAt(index);
@@ -1500,22 +1464,8 @@ class _LiveStrengthState extends State<LiveStrength> {
 
   @override
   Widget build(BuildContext c) {
-    final volume = log.volumeKg;
-    final l = AppLocalizations.of(c);
-    final u = unitsOf(c);
-    // Localized template bakes "KG" in — safe for metric (correct unit), but
-    // imperial bypasses it rather than mislabel a pound figure as kilos; see
-    // the same call at [_body] below.
     return LiveShell(
       widget.a,
-      subtitle: volume == null
-          ? (l?.activityLiveSetsCountSubtitle(log.setCount) ??
-              '${log.setCount} SETS')
-          : (u?.isImperial == true
-                ? '${grouped(u!.weightValue(volume))} ${uiText(c, u.weightUnit)} · '
-                      '${l?.activityLiveSetsCountSubtitle(log.setCount) ?? '${log.setCount} SETS'}'
-                : (l?.activityLiveVolumeSetsSubtitle(grouped(volume), log.setCount) ??
-                  '${grouped(volume)} KG · ${log.setCount} SETS')),
       private: widget.private,
       weightKg: widget.weightKg,
       onFinish: widget.onFinish,
@@ -1523,6 +1473,11 @@ class _LiveStrengthState extends State<LiveStrength> {
           widget.feed?.call() ?? LiveFeed.none, widget.weightKg, elapsed,
           widget.private,
           strength: log),
+      // The exercise is the title; its place in the session is the line under.
+      headerCenter: plan.isEmpty ? null : Builder(builder: _header),
+      trailing: plan.isEmpty
+          ? null
+          : RoundIconButton(LucideIcons.ellipsis, _more, 'More'),
       footer: (ctx) => plan.isEmpty
           ? BigButton(
               AppLocalizations.of(ctx)?.activityExercisePickerChooseTitle ??
@@ -1531,37 +1486,109 @@ class _LiveStrengthState extends State<LiveStrength> {
               color: C.purple,
               onTap: addExercise,
             )
-          : restLeft.value > 0
-          ? Row(children: [
-              Expanded(
-                child: BigButton('+30s',
-                    color: C.teal,
-                    soft: true,
-                    // No `setState`: nothing on the shell changes shape while
-                    // the countdown stays above zero, and the ring listens.
-                    onTap: () => restLeft.value += 30),
-              ),
-              const SizedBox(width: S.x3),
-              Expanded(
-                child: BigButton(
-                    AppLocalizations.of(ctx)?.activityLiveSkipRest ??
-                        'Skip rest',
-                    icon: LucideIcons.skipForward,
-                    color: C.teal,
-                    onTap: () {
-                      _rest?.cancel();
-                      restLeft.value = 0;
-                      setState(() {});
-                    }),
-              ),
-            ])
           : BigButton(AppLocalizations.of(ctx)?.activityLiveLogSet ?? 'Log set',
               icon: LucideIcons.plus, color: C.purple, onTap: logSet),
-      // Nothing here is measured: the sets, reps and load are typed, and the
-      // one live thing on the screen is the heart-rate block, which asks for
-      // the tick itself.
+      // Nothing here is measured: the sets, reps and load are typed. The one
+      // live number, the heart rate, asks for the tick itself.
       bodyFollowsClock: false,
       body: (ctx, _) => _body(ctx),
+    );
+  }
+
+  Widget _header(BuildContext c) {
+    final p = P.of(c);
+    final l = AppLocalizations.of(c);
+    return Column(children: [
+      Text(
+          def?.labelFor(Localizations.localeOf(c).languageCode) ?? key,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: F.t2.copyWith(color: p.ink)),
+      Text(
+          l?.activityLiveExerciseOf(index + 1, plan.length) ??
+              'Exercise ${index + 1} of ${plan.length}',
+          style: F.over.copyWith(color: p.ink3)),
+    ]);
+  }
+
+  /// What the screen used to spread over six rows (totals, the exercise chips,
+  /// effort, bodyweight, the previous/best cards): one sheet, one tap away.
+  void _more() {
+    final l = AppLocalizations.of(context);
+    AppSheet.show<void>(
+      context,
+      title: l?.activityLiveChangeExercise ?? 'This exercise',
+      child: StatefulBuilder(builder: (sheet, setSheet) {
+        final p = P.of(sheet);
+        void then(VoidCallback go) {
+          Navigator.of(sheet).pop();
+          go();
+        }
+
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          settingsGroup(sheet, 'Exercise', [
+            SetRow(LucideIcons.repeat, C.blue, 'Swap exercise',
+                onTap: () => then(changeExercise)),
+            SetRow(LucideIcons.plus, C.blue,
+                l?.activityLiveAddExerciseTitle ?? 'Add exercise',
+                onTap: () => then(addExercise)),
+            if (plan.length > 1)
+              SetRow(LucideIcons.skipForward, C.blue, 'Skip exercise',
+                  onTap: () => then(skipExercise)),
+            if (index > 0)
+              SetRow(LucideIcons.chevronLeft, C.blue,
+                  l?.activityLivePreviousExercise ?? 'Previous exercise',
+                  onTap: () => then(() => goExercise(index - 1))),
+            if (index < plan.length - 1)
+              SetRow(LucideIcons.chevronRight, C.blue,
+                  l?.activityLiveNextExercise ?? 'Next exercise',
+                  onTap: () => then(() => goExercise(index + 1))),
+          ]),
+          settingsGroup(sheet, 'This set', [
+            SetRow(LucideIcons.scale, C.blue, 'Log as bodyweight',
+                value: bodyweight ? 'On' : 'Off',
+                chevron: false, onTap: () {
+              setState(() => bodyweight = !bodyweight);
+              setSheet(() {});
+            }),
+          ]),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(S.x1, S.x2, S.x1, S.x2),
+            child: Text(l?.activityLiveEffortRpeHeader ?? 'EFFORT (RPE)',
+                style: F.over.copyWith(color: p.ink3)),
+          ),
+          Row(children: [
+            for (var i = 0; i < 5; i++) ...[
+              if (i > 0) const SizedBox(width: S.x2),
+              Expanded(
+                child: Pressable(
+                  semanticLabel: 'RPE ${i + 6}',
+                  onTap: () {
+                    setState(() => rpe = i + 6);
+                    setSheet(() {});
+                  },
+                  child: Container(
+                    height: S.x10,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: rpe == i + 6
+                          ? p.ink
+                          : p.ink.withValues(alpha: .08),
+                      borderRadius: R.rSm,
+                    ),
+                    child: Text('${i + 6}',
+                        style: F.cap.copyWith(
+                            color: rpe == i + 6 ? p.bg : p.ink2,
+                            fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              ),
+            ],
+          ]),
+          const SizedBox(height: S.x3),
+        ]);
+      }),
     );
   }
 
@@ -1570,414 +1597,140 @@ class _LiveStrengthState extends State<LiveStrength> {
     final l = AppLocalizations.of(c);
     final u = unitsOf(c);
     if (plan.isEmpty) {
-      return Column(children: [
-        StatusCard(
-          l?.activityExercisePickerChooseTitle ?? 'Choose exercise',
-          l?.activityLiveChooseExerciseBody ??
-              'Pick the first exercise before logging a set.',
-          icon: LucideIcons.dumbbell,
-        ),
-        const SizedBox(height: S.x5),
-        LiveTick((_, _) => LiveHeart(widget.feed?.call() ?? LiveFeed.none)),
-      ]);
+      return StatusCard(
+        l?.activityExercisePickerChooseTitle ?? 'Choose exercise',
+        l?.activityLiveChooseExerciseBody ??
+            'Pick the first exercise before logging a set.',
+        icon: LucideIcons.dumbbell,
+      );
     }
-    final volume = log.volumeKg;
-    final hist = widget.history[key];
-    return Column(children: [
-      // running totals — the numbers that actually matter here
-      Row(children: [
-        Expanded(
-            child: _total(
-                p,
-                volume == null
-                    ? (l?.activityLiveBwAbbrev ?? 'BW')
-                    : grouped(u?.weightValue(volume) ?? volume),
-                volume == null
-                    ? (l?.activityLiveBodyweightOnly ?? 'bodyweight only')
-                    : (u?.isImperial == true
-                          ? (l?.presentationVolumeUnit(
-                                  uiText(c, u!.weightUnit),
-                                ) ??
-                                '${u!.weightUnit} volume')
-                          : (l?.activityLiveKgVolumeUnit ?? 'kg volume')),
-              ),
-            ),
-            Container(width: 1, height: 26, color: p.line),
-        Expanded(child: _total(p, '${log.setCount}', l?.activityLiveSetsUnit ?? 'sets')),
-        Container(width: 1, height: 26, color: p.line),
-        Expanded(child: _total(p, '${log.repCount}', l?.activityLiveRepsUnit ?? 'reps')),
-      ]),
-      const SizedBox(height: S.x5),
-
-      // exercise navigation
-      Row(children: [
-        Pressable(
-          semanticLabel: l?.activityLivePreviousExercise ?? 'Previous exercise',
-          onTap: index == 0 ? null : () => goExercise(index - 1),
-          child: Icon(LucideIcons.chevronLeft,
-              size: I.md, color: index == 0 ? p.line : p.ink3),
-        ),
-        Expanded(
-          child: Pressable(
-            semanticLabel:
-                l?.activityLiveChangeExercise ?? 'Change exercise',
-            onTap: changeExercise,
-            child: Column(children: [
-              Text(
-                  l?.activityLiveExerciseOf(index + 1, plan.length) ??
-                      'EXERCISE ${index + 1} OF ${plan.length}',
-                  style: F.over.copyWith(color: p.ink3)),
-              const SizedBox(height: S.x1),
-              Row(mainAxisSize: MainAxisSize.min, children: [
-                Flexible(
-                  child: Text(
-                      def?.labelFor(
-                              Localizations.localeOf(c).languageCode) ??
-                          key,
-                      textAlign: TextAlign.center,
-                      style: F.t2.copyWith(color: p.ink)),
-                ),
-                const SizedBox(width: S.x2),
-                Icon(LucideIcons.chevronsUpDown, size: I.sm, color: p.ink3),
-              ]),
-            ]),
-          ),
-        ),
-        Pressable(
-          semanticLabel: l?.activityLiveNextExercise ?? 'Next exercise',
-          onTap:
-              index == plan.length - 1 ? null : () => goExercise(index + 1),
-          child: Icon(LucideIcons.chevronRight,
-              size: I.md, color: index == plan.length - 1 ? p.line : p.ink3),
-        ),
-      ]),
-      const SizedBox(height: S.x3),
-      Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _chip(p, LucideIcons.repeat, 'Swap', changeExercise),
-          if (plan.length > 1) ...[
-            const SizedBox(width: S.x2),
-            _chip(p, LucideIcons.skipForward, 'Skip', skipExercise),
-          ],
-          const SizedBox(width: S.x2),
-          _chip(p, LucideIcons.plus,
-              l?.activityLiveAddExerciseTitle ?? 'Add exercise', addExercise,
-              lit: true),
-        ],
-      ),
-      const SizedBox(height: S.x4),
-
-      if (restLeft.value > 0)
-        ValueListenableBuilder<int>(
-          valueListenable: restLeft,
-          builder: (_, _, _) => _rest_(p, c),
-        )
-      else
-        ..._entry(p, c),
-
+    final here = setsHere;
+    final prev = widget.history[key]?.previous;
+    final stepKg = u?.loadStepKg(def?.step ?? 2.5) ?? (def?.step ?? 2.5);
+    final unit = uiText(c, u?.weightUnit ?? 'kg');
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       const SizedBox(height: S.x6),
-      if (setsHere.isNotEmpty) ...[
-        Align(
-            alignment: Alignment.centerLeft,
-            child: Text(l?.activityLiveThisExerciseLabel ?? 'THIS EXERCISE',
-                style: F.over.copyWith(color: p.ink3))),
-        const SizedBox(height: S.x3),
-        Surface(
-          pad: const EdgeInsets.symmetric(horizontal: S.x4),
-          child: Column(children: [
-            for (var i = 0; i < setsHere.length; i++) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: S.x2),
-                child: Row(children: [
-                  Container(
-                    width: S.x6,
-                    height: S.x6,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                        color: p.ink.withValues(alpha: .08),
-                        borderRadius: R.rSm),
-                    child: Text('${i + 1}',
-                        style: F.over.copyWith(color: p.ink2)),
-                  ),
-                  const SizedBox(width: S.x3),
-                  Expanded(
-                    child: Text(
-                        setsHere[i].loadKg == null
-                            ? (l?.activityLiveRepsBodyweightRow(
-                                    setsHere[i].reps) ??
-                                '${setsHere[i].reps} reps · bodyweight')
-                                : '${_fmt(setsHere[i].loadKg!, u)} '
-                                      '${uiText(c, u?.weightUnit ?? 'kg')} × '
-                                      '${setsHere[i].reps}',
-                            style: F.body.copyWith(color: p.ink),
-                          ),
-                        ),
-                  if (setsHere[i].rpe != null)
-                    Text('RPE ${setsHere[i].rpe}',
-                        style: F.cap.copyWith(color: p.ink3)),
-                        if (setsHere[i].volume != null) ...[
-                          const SizedBox(width: S.x3),
-                          Text(
-                            '${grouped(u?.weightValue(setsHere[i].volume!) ?? setsHere[i].volume!)} '
-                            '${uiText(c, u?.weightUnit ?? 'kg')}',
-                        style: F.cap.copyWith(
-                            color: p.ink2, fontWeight: FontWeight.w600)),
-                  ],
-                ]),
-              ),
-              if (i < setsHere.length - 1) Divider(color: p.line, height: 1),
-            ],
-          ]),
-        ),
-        const SizedBox(height: S.x5),
-      ],
-
-      // references
-      if (hist?.previous != null || hist?.best != null) ...[
-        Row(children: [
-          Expanded(
-              child: _ref(c, p, l?.activityLivePreviousLabel ?? 'Previous',
-                  hist?.previous)),
-          const SizedBox(width: S.x3),
-          Expanded(
-              child: _ref(c, p, l?.activityLiveBestLabel ?? 'Best',
-                  hist?.best, gold: true)),
+      Row(children: [
+        Text('SET ${here.length + 1}', style: F.over.copyWith(color: p.ink3)),
+        const Spacer(),
+        // Plain numbers, and only when the band is reading: no heart rate is
+        // an empty space here, never a dash or a card explaining one.
+        LiveTick((_, _) {
+          final hr = (widget.feed?.call() ?? LiveFeed.none).hr;
+          return hr == null
+              ? const SizedBox.shrink()
+              : ExcludeSemantics(
+                  child: Text.rich(TextSpan(children: [
+                    TextSpan(
+                        text: '$hr',
+                        style: F.body.copyWith(
+                            color: p.ink, fontWeight: FontWeight.w700)),
+                    TextSpan(
+                        text: ' ${l?.activityLiveBpmUnit.toUpperCase() ?? 'BPM'}',
+                        style: F.over.copyWith(color: p.ink3)),
+                  ])),
+                );
+        }),
+      ]),
+      if (here.isNotEmpty) ...[
+        const SizedBox(height: S.x2),
+        Wrap(spacing: S.x2, runSpacing: S.x2, children: [
+          for (final s in here)
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: S.x3, vertical: S.x1 + S.half),
+              decoration: BoxDecoration(
+                  color: p.ink.withValues(alpha: .08), borderRadius: R.rSm),
+              child: Text(
+                  s.loadKg == null
+                      ? '${s.reps} reps'
+                      : '${_fmt(s.loadKg!, u)} × ${s.reps}',
+                  style: F.cap.copyWith(color: p.ink2)),
+            ),
         ]),
-        const SizedBox(height: S.x5),
       ],
-      LiveTick((_, _) => LiveHeart(widget.feed?.call() ?? LiveFeed.none)),
+      const SizedBox(height: S.x5),
+      _stepRow(
+        c,
+        p,
+        l?.activityLiveWeightLabel ?? 'WEIGHT',
+        bodyweight ? (l?.activityLiveBwAbbrev ?? 'BW') : _fmt(kg, u),
+        bodyweight ? '' : unit,
+        () => setState(() {
+          bodyweight = false;
+          kg = (kg - stepKg).clamp(0, 500).toDouble();
+        }),
+        () => setState(() {
+          bodyweight = false;
+          kg = kg + stepKg;
+        }),
+      ),
+      const SizedBox(height: S.x3),
+      _stepRow(
+        c,
+        p,
+        l?.activityLiveRepsLabel ?? 'REPS',
+        '$reps',
+        '',
+        () => setState(() => reps = (reps - 1).clamp(1, 100)),
+        () => setState(() => reps = reps + 1),
+      ),
+      if (prev != null) ...[
+        const SizedBox(height: S.x4),
+        Center(
+          child: Text(
+              prev.loadKg == null
+                  ? 'Last time: ${prev.reps} reps'
+                  : 'Last time: ${_fmt(prev.loadKg!, u)} $unit × ${prev.reps}',
+              style: F.cap.copyWith(color: p.ink3)),
+        ),
+      ],
+      const SizedBox(height: S.x4),
     ]);
   }
 
-  /// A small chip: the exercise actions, which are corrections rather than
-  /// the thing the screen is for.
-  Widget _chip(P p, IconData icon, String label, VoidCallback onTap,
-          {bool lit = false}) =>
-      Pressable(
-        onTap: onTap,
-        semanticLabel: label,
-        child: Container(
-          height: S.x8,
-          padding: const EdgeInsets.symmetric(horizontal: S.x3),
-          decoration: BoxDecoration(
-            color: p.ink.withValues(alpha: .06),
-            borderRadius: R.rSm,
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: I.sm, color: lit ? p.ink : p.ink2),
-            const SizedBox(width: S.x1),
-            Text(label,
-                style: F.caps.copyWith(color: lit ? p.ink : p.ink2)),
-          ]),
-        ),
-      );
-
-  /// What you are about to log: the set's number, its load and its reps, on
-  /// one row of two pads. It used to be two stacked steppers with 56 pt
-  /// circles and a display-size figure each, which pushed the effort row and
-  /// the sets already logged off the bottom of the phone.
-  List<Widget> _entry(P p, BuildContext c) {
-    final l = AppLocalizations.of(c);
-    final u = unitsOf(c);
-    final stepKg = u?.loadStepKg(def?.step ?? 2.5) ?? (def?.step ?? 2.5);
-    return [
-      Row(children: [
-        Expanded(
-          child: _pad(
-              c,
-              p,
-              l?.activityLiveWeightLabel ?? 'WEIGHT',
-              bodyweight ? (l?.activityLiveBwAbbrev ?? 'BW') : _fmt(kg, u),
-              bodyweight ? '' : (u?.weightUnit ?? 'kg'),
-              () => setState(() => kg = (kg - stepKg).clamp(0, 500).toDouble()),
-              () => setState(() => kg = kg + stepKg)),
-        ),
-        const SizedBox(width: S.x3),
-        Expanded(
-          child: _pad(c, p, l?.activityLiveRepsLabel ?? 'REPS', '$reps', '',
-              () => setState(() => reps = (reps - 1).clamp(1, 100)),
-              () => setState(() => reps = reps + 1)),
-        ),
-      ]),
-      const SizedBox(height: S.x2),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: Pressable(
-          onTap: () => setState(() => bodyweight = !bodyweight),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: S.x1),
-            child: Text(
-                bodyweight
-                    ? (l?.activityLiveBodyweightExcludedNote ??
-                        'Bodyweight — left out of volume')
-                    : (l?.activityLiveLogAsBodyweight ?? 'Log as bodyweight'),
-                style: F.cap.copyWith(color: p.on(C.dialStrain))),
-          ),
-        ),
-      ),
-      const SizedBox(height: S.x3),
-      // Effort: the label and the five steps on one row, wrapping only where
-      // the type is scaled far up.
-      Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: S.x3,
-        runSpacing: S.x2,
-        children: [
-          Text(l?.activityLiveEffortRpeHeader ?? 'EFFORT (RPE)',
-              style: F.over.copyWith(color: p.ink3)),
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            for (var i = 0; i < 5; i++) ...[
-              if (i > 0) const SizedBox(width: S.x2),
-              _rpeStep(p, i + 6),
-            ],
-          ]),
-        ],
-      ),
-    ];
-  }
-
-  /// One entry pad: its caption, then minus / figure / plus on one line.
-  Widget _pad(BuildContext c, P p, String label, String value, String unit,
+  /// One value the person is about to log: its caption and figure on the left,
+  /// minus and plus on the right, at a size that can be hit mid-set.
+  Widget _stepRow(BuildContext c, P p, String label, String value, String unit,
       VoidCallback minus, VoidCallback plus) {
     final l = AppLocalizations.of(c);
     return Container(
-      padding: const EdgeInsets.fromLTRB(S.x2, S.x2, S.x2, S.x2),
+      padding: const EdgeInsets.fromLTRB(S.x4, S.x3, S.x3, S.x3),
       decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
-      child: Column(children: [
-        Text(label, style: F.over.copyWith(color: p.ink3)),
-        const SizedBox(height: S.x1),
-        Row(children: [
-          counterButton(p, LucideIcons.minus, p.ink,
-              l?.activityLiveDecrease(label) ?? '$label down', minus,
-              size: S.x10),
-          Expanded(
-            child: ExcludeSemantics(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+      child: Row(children: [
+        Expanded(
+          child: ExcludeSemantics(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(label, style: F.over.copyWith(color: p.ink3)),
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
                   Flexible(
                     child: Text(value,
-                        style: F.n34.copyWith(
-                            color: p.ink, fontWeight: FontWeight.w700),
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
+                        overflow: TextOverflow.ellipsis,
+                        style: F.n48.copyWith(
+                            color: p.ink, fontWeight: FontWeight.w700)),
                   ),
                   if (unit.isNotEmpty) ...[
-                    const SizedBox(width: S.x1),
+                    const SizedBox(width: S.x2),
                     Text(unit, style: F.cap.copyWith(color: p.ink3)),
                   ],
                 ],
               ),
-            ),
+            ]),
           ),
-          counterButton(p, LucideIcons.plus, p.ink,
-              l?.activityLiveIncrease(label) ?? '$label up', plus,
-              size: S.x10),
-        ]),
+        ),
+        counterButton(p, LucideIcons.minus, p.ink,
+            l?.activityLiveDecrease(label) ?? '$label down', minus,
+            size: S.x12),
+        const SizedBox(width: S.x3),
+        counterButton(p, LucideIcons.plus, p.ink,
+            l?.activityLiveIncrease(label) ?? '$label up', plus,
+            size: S.x12),
       ]),
     );
-  }
-
-  /// One step of the Borg CR-10 reps-in-reserve range.
-  Widget _rpeStep(P p, int v) {
-    final on = rpe == v;
-    return Pressable(
-      semanticLabel: 'RPE $v',
-      onTap: () => setState(() => rpe = v),
-      child: Container(
-        width: S.x10,
-        height: S.x8 + S.x1,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: on ? p.ink : p.ink.withValues(alpha: .08),
-          borderRadius: R.rSm,
-        ),
-        child: Text('$v',
-            style: F.cap.copyWith(
-                color: on ? p.bg : p.ink2, fontWeight: FontWeight.w800)),
-      ),
-    );
-  }
-
-  Widget _rest_(P p, BuildContext c) {
-    final l = AppLocalizations.of(c);
-    final u = unitsOf(c);
-    return Column(children: [
-        Text(l?.activityLiveRestingHeader ?? 'RESTING',
-            style: F.over.copyWith(color: p.on(C.teal))),
-        const SizedBox(height: S.x3),
-        SizedBox(
-          width: S.x16 * 2 + S.x4,
-          height: S.x16 * 2 + S.x4,
-          child: Stack(alignment: Alignment.center, children: [
-            CustomPaint(
-                size: const Size(S.x16 * 2 + S.x4, S.x16 * 2 + S.x4),
-                painter:
-                    Ring(restLeft.value / restTarget, p.on(C.teal), p.track)),
-            Column(mainAxisSize: MainAxisSize.min, children: [
-              Text(clock(restLeft.value), style: F.n34.copyWith(color: p.ink)),
-              if (logged.isNotEmpty)
-                Text(
-                    logged.last.loadKg == null
-                        ? (l?.activityLiveRepsLoggedBodyweight(
-                                logged.last.reps) ??
-                            '${logged.last.reps} reps logged')
-                          : (u?.isImperial == true
-                                ? (l?.presentationWeightRepsLogged(
-                                        _fmt(logged.last.loadKg!, u),
-                                        uiText(c, u!.weightUnit),
-                                        logged.last.reps,
-                                      ) ??
-                                      '${_fmt(logged.last.loadKg!, u)} ${u!.weightUnit} × ${logged.last.reps} logged')
-                                : (l?.activityLiveWeightRepsLogged(
-                                    _fmt(logged.last.loadKg!),
-                                    logged.last.reps) ??
-                                '${_fmt(logged.last.loadKg!)} kg × '
-                                    '${logged.last.reps} logged')),
-                    style: F.cap.copyWith(color: p.ink3)),
-            ]),
-          ]),
-        ),
-      ]);
-  }
-
-  Widget _total(P p, String v, String l) => Column(children: [
-        Text(v, style: F.n17.copyWith(color: p.ink)),
-        Text(l,
-            style: F.over.copyWith(color: p.ink3),
-            textAlign: TextAlign.center),
-      ]);
-
-  Widget _ref(BuildContext c, P p, String label, LoggedSet? s,
-      {bool gold = false}) {
-    final l = AppLocalizations.of(c);
-    final u = unitsOf(c);
-    return Surface(
-        pad: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x3),
-        child: Column(children: [
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            if (gold) ...[
-              Icon(LucideIcons.trophy, size: I.sm, color: p.ink),
-              const SizedBox(width: S.x1),
-            ],
-            Text(label.toUpperCase(),
-                style: F.over
-                    .copyWith(color: gold ? p.ink : p.ink3)),
-          ]),
-          const SizedBox(height: S.x2),
-          Text(
-            s == null
-                ? (l?.activityLiveNoneYet ?? 'None yet')
-                : s.loadKg == null
-                ? (l?.activityLiveRepsOnly(s.reps) ?? '${s.reps} reps')
-                : '${_fmt(s.loadKg!, u)} ${uiText(c, u?.weightUnit ?? 'kg')} × ${s.reps}',
-              style: F.cap
-                  .copyWith(color: p.ink, fontWeight: FontWeight.w600)),
-        ]),
-      );
   }
 
   /// [d] is always in kg (storage unit); [u] converts + rounds for display

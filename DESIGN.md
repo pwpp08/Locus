@@ -984,6 +984,16 @@ Laid out like a recorded activity: the header on the LEFT (back chevron, the lou
 - **My Workouts:** Start a Workout (Quick Start), Generate with AI, Build a Workout, and saved workouts with a three-dot menu.
 - Exercise photos from the bundled Free Exercise DB are cover-cropped thumbnails. A placeholder dumbbell tile stands in when there is no photo.
 
+### 14.8a Live strength workout (`activity/live.dart`, `LiveStrength`)
+
+Only what is needed to log the next set; everything else is one tap away.
+- **Header:** the minimise button, the **exercise's name** in `F.t2` with `Exercise 2 of 5` under it in `F.over` ink3, and a **⋯** round button. (`LiveShell.headerCenter` / `trailing`; other activities keep their own header.)
+- **Set row:** `SET 3` (`F.over` ink3) left; the heart rate right as plain text, `112` in `F.body` w700 and `BPM` in `F.over` ink3, **no icon**, and nothing at all when the band is not reading (never a dash or a card). Under it the sets already done on this exercise as small `ink` 8 % chips, `60 × 8` (or `8 reps` for bodyweight).
+- **Two step rows** (`card`, `R.xl`): the caption in `F.over`, the figure in `F.n48` w700 with its unit in `F.cap`, and minus and plus as 48 `counterButton`s on the right. Weight above, reps below. Touching the weight steps leaves bodyweight.
+- **`Last time: 60 kg × 8`** in `F.cap` ink3, centred, when there is a previous set.
+- **Log set** is the one blue pill above the transport; pause is a `card2` pill under it (blue only where nothing sits above it), stop a `card2` circle. **There is no rest countdown**: the rest actually taken is still recorded, from the gap between sets.
+- **⋯ opens a sheet** with: Swap exercise, Add exercise, Skip exercise, Previous / Next exercise, **Log as bodyweight** (On/Off) and **Effort (RPE)** 6 to 10. The totals row, the previous/best cards, the full sets list and the standalone heart-rate block are gone from this screen (the summary has the totals).
+
 ### 14.8 Macros (`nutrition_screen.dart`)
 
 One page, in the order it is used; no sub-tabs.
