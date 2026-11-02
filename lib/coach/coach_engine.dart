@@ -354,6 +354,17 @@ class CoachEngine {
     transcript.clear();
   }
 
+  /// Open a conversation with an answer the app already has (today's
+  /// outlook): the coach's turn is shown, and the question it answers rides
+  /// in the history so a follow-up has the context.
+  void seedAnswer(String question, String answer, {String title = ''}) {
+    _history
+      ..add({'role': 'user', 'content': question})
+      ..add({'role': 'assistant', 'content': answer});
+    transcript.add(CoachItem.assistant(answer));
+    if (_title.isEmpty) _title = title;
+  }
+
   /// Load a specific session into the working set.
   Future<void> openSession(String id) async {
     try {
@@ -884,7 +895,19 @@ class CoachEngine {
       'messages': messages,
       'temperature': temperature,
     });
-    return ((msg['content'] as String?) ?? '').trim();
+    return contentText(msg['content']).trim();
+  }
+
+  /// A message's content as text: a string, or a list of parts some providers
+  /// send (`[{type: text, text: ...}]`) joined together.
+  static String contentText(Object? content) {
+    if (content is String) return content;
+    if (content is List) {
+      return content
+          .map((part) => part is Map ? '${part['text'] ?? ''}' : '$part')
+          .join();
+    }
+    return '';
   }
 
   /// One-shot "system + user → text" completion. The simplest reuse surface.

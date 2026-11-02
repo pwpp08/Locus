@@ -1381,7 +1381,12 @@ class _PairPainter extends CustomPainter {
       tp.paint(canvas, Offset(0, y - tp.height / 2));
     }
 
-    void series(List<double?> vs, List<String> labels, Color color, bool below) {
+    // Each value's label goes on the side away from the other series: the
+    // higher of the two on a day is labelled above, the lower below, so two
+    // close values never print their labels on top of each other. With no
+    // other value that day, A is labelled above and B below.
+    void series(List<double?> vs, List<String> labels, Color color, bool isB,
+        List<double?> other) {
       Path? path;
       for (var i = 0; i < n; i++) {
         final v = vs[i];
@@ -1422,6 +1427,8 @@ class _PairPainter extends CustomPainter {
           final tp = _text(labels[i],
               F.num(F.cap).copyWith(color: at == i ? p.ink : color, fontWeight: FontWeight.w700),
               width: r.width / n * 2);
+          final o = i < other.length ? other[i] : null;
+          final below = o == null ? isB : (v < o || (v == o && isB));
           final cy = below ? y + S.x5 + tp.height / 2 : y - S.x5 - tp.height / 2;
           canvas.drawRRect(
             RRect.fromRectAndRadius(
@@ -1434,8 +1441,8 @@ class _PairPainter extends CustomPainter {
       }
     }
 
-    series(w.a, w.aLabels, w.colorA, false);
-    series(w.b, w.bLabels, w.colorB, true);
+    series(w.a, w.aLabels, w.colorA, false, w.b);
+    series(w.b, w.bLabels, w.colorB, true, w.a);
 
     for (var i = 0; i < n && i < w.xLabels.length; i++) {
       if (w.xLabels[i].isEmpty) continue;

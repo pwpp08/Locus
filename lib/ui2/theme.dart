@@ -217,6 +217,17 @@ class C {
   static const coachEdgeA = Color(0xFF7E57C2);
   static const coachEdgeB = Color(0xFF3FA7B5);
 
+  /// The coach's ground, top to bottom: a warm dusk grey under the header,
+  /// slate behind the first lines, then near-black for the rest of the chat.
+  static const coachSky = [
+    Color(0xFF786C62),
+    Color(0xFF4B5158),
+    Color(0xFF29343F),
+    Color(0xFF161B20),
+    Color(0xFF111316),
+  ];
+  static const coachSkyStops = [0.0, 0.18, 0.36, 0.58, 1.0];
+
   /// The sleep recommendation's panel: a pale mint ground on the white sheet,
   /// inked in [char]. A ground, not an accent, so it is not in [all].
   static const mint = Color(0xFFDFF8EF);

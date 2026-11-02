@@ -100,7 +100,8 @@ void main() {
           ),
         }));
     expect(find.text('D'), findsOneWidget);
-    // Opens on the day, whose hours add up to its figure.
+    // Charts open on the week; the day's hours add up to its figure.
+    await tab(t, 'D');
     expect(find.text('TOTAL'), findsOneWidget);
     expect(find.text('1,800'), findsWidgets);
   });
@@ -181,6 +182,7 @@ void main() {
         'hrv',
         _Loader({'hrv': _days((i) => 60)},
             intra: intra, sleep: (from: 0, to: 420, mean: 63.4)));
+    await tab(t, 'D');
     expect(find.byType(ScrubLine), findsOneWidget);
     expect(find.text('AVERAGE'), findsWidgets);
     // The night's mean, not the 45.5 the whole day's hours would give.
@@ -189,6 +191,7 @@ void main() {
 
     // With no night on record there is no average to give.
     await pump(t, 'hrv', _Loader({'hrv': _days((i) => 60)}, intra: intra));
+    await tab(t, 'D');
     expect(find.text('63'), findsNothing);
     expect(find.text('46'), findsNothing);
     expect(find.text('--'), findsWidgets);
@@ -242,6 +245,7 @@ void main() {
             day: _today
           ),
         }));
+    await tab(t, 'D');
     expect(find.text('RESET ZOOM'), findsNothing);
     final c = t.getRect(find.byType(ScrubLine)).center;
     final a = await t.startGesture(c - const Offset(20, 0), pointer: 21);

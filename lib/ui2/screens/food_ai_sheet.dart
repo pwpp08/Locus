@@ -190,11 +190,13 @@ class _FoodAiSheetState extends State<FoodAiSheet> {
           _error = e.message;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      // Say what actually went wrong: "could not be reached" for a parse or
+      // type error sent people chasing a network problem they did not have.
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = 'The AI provider could not be reached. Try again.';
+          _error = 'The food estimate failed: $e';
         });
       }
     }

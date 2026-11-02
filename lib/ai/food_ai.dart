@@ -104,7 +104,16 @@ List<FoodGuess> parseFoodAi(String raw) {
   }
   final items = j is Map ? j['items'] : null;
   if (items is! List) return const [];
-  double? n(Object? v) => v is num && v.isFinite ? v.toDouble() : null;
+  // Some models quote their numbers ("150", "150 g"); the figure is still
+  // the figure.
+  double? n(Object? v) {
+    final d = v is num
+        ? v.toDouble()
+        : v is String
+            ? double.tryParse(RegExp(r'-?\d+(\.\d+)?').stringMatch(v) ?? '')
+            : null;
+    return d != null && d.isFinite ? d : null;
+  }
   final out = <FoodGuess>[];
   for (final it in items) {
     if (it is! Map) continue;

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../data/day_label.dart' show dayLabelOf;
 import '../../../l10n/app_localizations.dart';
 import '../../../state/clock_format.dart' show formatClockOf;
-import '../../app_shell.dart' show AiOrb;
 import '../../grammar.dart' show Pressable, Surface;
 import '../../theme.dart' show C, F, I, P, R, S;
 import '../../ui2.dart' show LucideIcons;
@@ -33,49 +32,40 @@ class HomeSectionHead extends StatelessWidget {
   }
 }
 
-/// Under the My Day title: a round coach button, then a card that opens the
-/// day's briefing. The sun rises in the morning and sets from five o'clock.
+/// Under the My Day title: one full-width card that opens the day's briefing.
+/// A plain sunrise glyph (sunset from five o'clock), the words, a chevron.
 class DailyOutlookRow extends StatelessWidget {
   final bool evening;
-  final VoidCallback onCoach, onOutlook;
+  final VoidCallback onOutlook;
   const DailyOutlookRow({
     super.key,
     required this.evening,
-    required this.onCoach,
     required this.onOutlook,
   });
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    const label = 'Daily Outlook';
     return Padding(
       padding: const EdgeInsets.only(bottom: S.x3),
-      child: Row(children: [
-        Pressable(
-          onTap: onCoach,
-          semanticLabel: 'Ask the coach',
-          child: const AiOrb(size: S.x12 + S.x2),
+      child: Surface(
+        onTap: onOutlook,
+        pad: const EdgeInsets.symmetric(horizontal: S.x4),
+        child: SizedBox(
+          height: S.x12 + S.x2,
+          child: Row(children: [
+            Icon(evening ? LucideIcons.sunset : LucideIcons.sunrise,
+                size: I.lg, color: p.ink3),
+            const SizedBox(width: S.x3),
+            Expanded(
+              child: Text('Daily Outlook',
+                  style: F.head
+                      .copyWith(color: p.ink, fontWeight: FontWeight.w500)),
+            ),
+            Icon(LucideIcons.chevronRight, size: I.lg, color: p.ink3),
+          ]),
         ),
-        const SizedBox(width: S.x3),
-        Expanded(
-          child: Surface(
-            onTap: onOutlook,
-            pad: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x3),
-            child: Row(children: [
-              Icon(evening ? LucideIcons.sunset : LucideIcons.sunrise,
-                  size: I.lg, color: p.on(C.orange)),
-              const SizedBox(width: S.x3),
-              Expanded(
-                child: Text(label,
-                    style: F.body
-                        .copyWith(color: p.ink, fontWeight: FontWeight.w600)),
-              ),
-              Icon(LucideIcons.chevronRight, size: I.md, color: p.ink3),
-            ]),
-          ),
-        ),
-      ]),
+      ),
     );
   }
 }

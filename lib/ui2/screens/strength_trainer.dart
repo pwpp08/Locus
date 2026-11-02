@@ -586,6 +586,29 @@ class _WorkoutsTab extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(
           S.x6, S.x4, S.x6, tabMode ? S.navClear(c) : S.x16),
       children: [
+        // The saved plans first: they are what someone opens this page for
+        // once they have any.
+        Text('My Workouts',
+            style: F.t2.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
+        if (workouts.isEmpty) ...[
+          const SizedBox(height: S.x2),
+          Text('Workouts you build or generate are kept here.',
+              style: F.body.copyWith(color: p.ink2, height: 1.4)),
+        ],
+        for (final w in workouts) ...[
+          const SizedBox(height: S.x3 + S.half),
+          _WorkoutRow(
+              workout: w,
+              onTap: () => _edit(c, w),
+              onMenu: () => _menu(c, w)),
+        ],
+        const SizedBox(height: S.x6),
+        _AiCard(onTap: () => _ai(c)),
+        const SizedBox(height: S.x3 + S.half),
+        _Pill(label: 'BUILD A WORKOUT', onTap: () => _edit(c, null)),
+        const SizedBox(height: S.x8),
+        rule,
+        const SizedBox(height: S.x6),
         Text('Start a Workout',
             style: F.t2.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
         const SizedBox(height: S.x2),
@@ -596,25 +619,6 @@ class _WorkoutsTab extends StatelessWidget {
             label: 'QUICK START',
             filled: true,
             onTap: () => _quick(c)),
-        const SizedBox(height: S.x8),
-        rule,
-        const SizedBox(height: S.x6),
-        Text('My Workouts',
-            style: F.t2.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
-        const SizedBox(height: S.x6 + S.x1),
-        _AiCard(onTap: () => _ai(c)),
-        const SizedBox(height: S.x3 + S.half),
-        _Pill(label: 'BUILD A WORKOUT', onTap: () => _edit(c, null)),
-        const SizedBox(height: S.x8),
-        rule,
-        const SizedBox(height: S.x3),
-        for (final w in workouts) ...[
-          const SizedBox(height: S.x3 + S.half),
-          _WorkoutRow(
-              workout: w,
-              onTap: () => _edit(c, w),
-              onMenu: () => _menu(c, w)),
-        ],
       ],
     );
   }

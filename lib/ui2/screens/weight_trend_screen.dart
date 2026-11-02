@@ -375,7 +375,7 @@ class _WeightTrendScreenState extends State<WeightTrendScreen> {
                               ),
                               const SizedBox(width: S.x1),
                               Text(
-                                '7-DAY TREND',
+                                'LOGGED',
                                 style: F.over.copyWith(
                                   color: p.ink2,
                                   fontWeight: FontWeight.w700,
@@ -392,7 +392,7 @@ class _WeightTrendScreenState extends State<WeightTrendScreen> {
                               ),
                               const SizedBox(width: S.x1),
                               Text(
-                                'LOGGED',
+                                '7-DAY TREND',
                                 style: F.over.copyWith(
                                   color: p.ink3,
                                   fontWeight: FontWeight.w600,
@@ -450,7 +450,7 @@ class _WeightTrendScreenState extends State<WeightTrendScreen> {
                               axis: axis!,
                               scrubIndex: _scrubIndex,
                               lineColor: C.dialStrain,
-                              dotColor: p.ink,
+                              dotColor: p.card,
                               gridColor: p.line,
                               ink: p.ink,
                               ink3: p.ink3,
@@ -631,7 +631,8 @@ class _WeightChartPainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      tp.paint(canvas, Offset(4, y - tp.height - 2));
+      final above = y - tp.height - 2;
+      tp.paint(canvas, Offset(4, above < 0 ? y + 2 : above));
     }
 
     // Average line
@@ -652,47 +653,54 @@ class _WeightChartPainter extends CustomPainter {
     double xOf(int i) => (i / (n - 1)) * w;
     double yOf(double v) => h - axis.t(v) * h;
 
-    // Draw 7-day EWMA trend line (smooth path)
-    final trendPoints = <Offset>[];
-    for (var i = 0; i < n; i++) {
-      final v = trendVals[i];
-      if (v != null) {
-        trendPoints.add(Offset(xOf(i), yOf(v)));
+    Path through(List<double?> vals) {
+      final path = Path();
+      var started = false;
+      for (var i = 0; i < n; i++) {
+        final v = vals[i];
+        if (v == null) continue;
+        final pt = Offset(xOf(i), yOf(v));
+        started ? path.lineTo(pt.dx, pt.dy) : path.moveTo(pt.dx, pt.dy);
+        started = true;
       }
+      return path;
     }
 
-    if (trendPoints.length >= 2) {
-      final path = Path()..moveTo(trendPoints.first.dx, trendPoints.first.dy);
-      for (var i = 1; i < trendPoints.length; i++) {
-        final p0 = trendPoints[i - 1];
-        final p1 = trendPoints[i];
-        final midX = (p0.dx + p1.dx) / 2;
-        path.cubicTo(midX, p0.dy, midX, p1.dy, p1.dx, p1.dy);
-      }
+    // The 7-day trend, faint, behind: the context, not the reading.
+    canvas.drawPath(
+      through(trendVals),
+      Paint()
+        ..color = ink.withValues(alpha: .28)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
 
-      final linePaint = Paint()
+    // The logged weights, joined point to point across the days between
+    // them, as the trend view's charts draw a series.
+    canvas.drawPath(
+      through(rawVals),
+      Paint()
         ..color = lineColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.4
         ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round;
-      canvas.drawPath(path, linePaint);
-    }
+        ..strokeJoin = StrokeJoin.round,
+    );
 
-    // Draw raw weight logged dots
-    final dotPaint = Paint()..color = dotColor.withValues(alpha: .85);
-    final dotRingPaint = Paint()
+    // A ring on each logged day.
+    final ringFill = Paint()..color = dotColor;
+    final ring = Paint()
       ..color = lineColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-
+      ..strokeWidth = 2.4;
     for (var i = 0; i < n; i++) {
       final v = rawVals[i];
-      if (v != null) {
-        final pt = Offset(xOf(i), yOf(v));
-        canvas.drawCircle(pt, 3.5, dotPaint);
-        canvas.drawCircle(pt, 5.0, dotRingPaint);
-      }
+      if (v == null) continue;
+      final pt = Offset(xOf(i), yOf(v));
+      canvas.drawCircle(pt, 5, ringFill);
+      canvas.drawCircle(pt, 5, ring);
     }
 
     // Scrubber line & active dots

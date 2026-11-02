@@ -94,10 +94,9 @@ void main() {
     expect(zones.values.last, 30);
   });
 
-  test('two metrics of one colour family are told apart', () {
-    expect(compareSecondColour(C.dialStrain, C.dialStrain),
-        isNot(C.dialStrain));
-    expect(compareSecondColour(C.dialStrain, C.optimal), C.optimal);
+  test('the two series use the hours-vs-needed pair, whatever the metrics',
+      () {
+    expect(kCompareColours, (C.optimal, C.dialSleep));
   });
 
   testWidgets('both metrics share one chart', (t) async {

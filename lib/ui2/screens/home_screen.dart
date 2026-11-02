@@ -37,9 +37,8 @@ import '../profile/wearable_numbers.dart'
     show WearableCells, kHomeWearableRows;
 import '../ui2.dart';
 import '../../ai/briefing.dart' show BriefingPeriod, currentBriefingPeriod;
-import 'action_sheet.dart' show openCoach;
 import 'add_activity.dart' show openAddActivity;
-import 'ai_briefing.dart' show AiBriefingScreen;
+import 'coach.dart' show CoachScreen;
 import 'day_heart.dart';
 import 'detected_activities.dart';
 import 'health_monitor.dart'
@@ -705,8 +704,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           final period = currentBriefingPeriod(DateTime.now());
           return DailyOutlookRow(
             evening: period == BriefingPeriod.evening,
-            onCoach: () => openCoach(c),
-            onOutlook: () => go(c, AiBriefingScreen(period: period)),
+            onOutlook: () => go(c, CoachScreen(outlook: period)),
           );
         }),
       _MyDay(

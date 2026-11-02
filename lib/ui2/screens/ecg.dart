@@ -808,7 +808,6 @@ class _EcgDetailScreenState extends State<EcgDetailScreen> {
       themedRoute(
         (_) => CoachScreen(
           initialMessage: ecgAnalyzePrompt(id),
-          startNewSession: true,
         ),
         name: 'CoachScreen',
       ),

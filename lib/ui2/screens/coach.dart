@@ -26,7 +26,8 @@ import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../ai/briefing.dart' show currentBriefingPeriod;
+import '../../ai/briefing.dart';
+import '../../ai/briefing_engine.dart';
 import '../../coach/coach_config.dart';
 import '../../coach/coach_engine.dart';
 import '../../state/app_state.dart';
@@ -96,13 +97,18 @@ class CoachScreen extends StatefulWidget {
   /// own turn, so the model runs its tools on it like any other question
   /// (nothing is injected as trusted prose). [startNewSession] opens a fresh
   /// conversation for it first.
+  ///
+  /// Every opening is a new conversation; earlier ones are under History.
   final String? initialMessage;
-  final bool startNewSession;
+
+  /// Open on today's outlook for this period: the briefing (written now if
+  /// there is none yet) is the coach's first turn, and the user can reply.
+  final BriefingPeriod? outlook;
 
   const CoachScreen({
     super.key,
     this.initialMessage,
-    this.startNewSession = false,
+    this.outlook,
   });
 
   @override
@@ -143,6 +149,10 @@ class _CoachScreenState extends State<CoachScreen> {
   @override
   void initState() {
     super.initState();
+    // The send arrow lights once there is something to send.
+    _input.addListener(() {
+      if (mounted) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _initEngine());
   }
 
@@ -160,19 +170,16 @@ class _CoachScreenState extends State<CoachScreen> {
       api: repo,
       storageKey: (app.user?['id'] ?? 'local').toString(),
     );
-    await engine.restore();
-    if (!mounted) {
-      engine.dispose();
-      return;
-    }
-    if (widget.startNewSession) engine.newSession();
+    // Never the last conversation carried on: a new one each time, and the
+    // old ones a tap away under History.
+    engine.newSession();
     setState(() {
       _engine = engine;
-      _items
-        ..clear()
-        ..addAll(engine.transcript);
+      _items.clear();
     });
-    _scrollDown();
+    if (widget.outlook case final period?) {
+      await _openOutlook(engine, period);
+    }
     final first = widget.initialMessage;
     if (first != null && first.trim().isNotEmpty && !_sentInitial) {
       _sentInitial = true;
@@ -181,6 +188,79 @@ class _CoachScreenState extends State<CoachScreen> {
   }
 
   bool _sentInitial = false;
+
+  /// Today's outlook as the coach's first turn. The stored briefing when there
+  /// is one (the morning's stands in until the evening one exists), otherwise
+  /// one is written now.
+  Future<void> _openOutlook(CoachEngine engine, BriefingPeriod period) async {
+    final shown = resolveBriefingToShow(
+      period,
+      BriefingStore.read(period),
+      BriefingStore.read(BriefingPeriod.morning),
+    );
+    var b = shown.briefing;
+    if (b == null) {
+      final repo = repoOf(context);
+      final cfg = context.read<CoachConfig>();
+      if (repo == null) return;
+      setState(() {
+        _busy = true;
+        _status = 'Writing your outlook…';
+      });
+      try {
+        b = await BriefingEngine(config: cfg, repo: repo).generate(period);
+      } catch (e) {
+        if (mounted) {
+          setState(() => _items.add(CoachItem.error(e is CoachException
+              ? e.message
+              : (AppLocalizations.of(context)?.coachSomethingWrong('$e') ??
+                  'Something went wrong: $e'))));
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _busy = false;
+            _status = null;
+          });
+        }
+      }
+    }
+    if (b == null || !mounted) return;
+    final text = b.oneLiner == 'Nothing stood out tonight.'
+        ? uiText(context, b.oneLiner)
+        : b.oneLiner;
+    engine.seedAnswer(
+      'What is my outlook for today?',
+      [text, if (b.breakdownMd.isNotEmpty) b.breakdownMd].join('\n\n'),
+      title: 'Daily Outlook',
+    );
+    setState(() {
+      _items
+        ..clear()
+        ..addAll(engine.transcript);
+    });
+  }
+
+  /// The starters, from the composer's (+).
+  Future<void> _suggest() async {
+    final starters = _starters(context);
+    final pick = await AppSheet.show<String>(
+      context,
+      title: 'TRY ASKING',
+      child: Column(children: [
+        for (var i = 0; i < starters.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: S.x2),
+            child: _Starter(
+              _starterIcons[i % _starterIcons.length],
+              starters[i],
+              onTap: () => Navigator.of(context).pop(starters[i]),
+            ),
+          ),
+      ]),
+    );
+    if (pick != null && mounted) await _send(pick);
+  }
 
   @override
   void dispose() {
@@ -431,52 +511,85 @@ class _CoachScreenState extends State<CoachScreen> {
     );
   }
 
-  /// Back, the coach and the model it is talking through, and the menu.
+  /// Back, the coach's name with the model under it in a small tag, and
+  /// History.
   Widget _header(BuildContext c, P p, CoachConfig cfg) {
     final l = AppLocalizations.of(c);
+    final model = cfg.configured ? cfg.model : (l?.coachNotSetUp ?? 'Not set up');
+    Widget icon(IconData i, String label, VoidCallback onTap) => Pressable(
+          onTap: onTap,
+          semanticLabel: label,
+          child: SizedBox.square(
+            dimension: S.x12,
+            child: Icon(i, size: I.lg + S.x1, color: p.ink),
+          ),
+        );
     return Padding(
-      padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x2),
+      padding: const EdgeInsets.fromLTRB(S.x2, S.x2, S.x2, S.x3),
       child: Row(children: [
-        RoundIconButton(LucideIcons.chevronLeft, () => Navigator.maybePop(c),
-            l?.supplementNavBack ?? 'Back'),
+        icon(LucideIcons.chevronLeft, l?.supplementNavBack ?? 'Back',
+            () => Navigator.maybePop(c)),
         Expanded(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Row(mainAxisSize: MainAxisSize.min, children: [
-              const AiOrb(size: S.x6),
-              const SizedBox(width: S.x2),
-              Text(l?.coachNavTitle ?? 'Coach',
-                  style: F.t2.copyWith(color: p.ink)),
-            ]),
-            const SizedBox(height: S.half),
             Text(
-              cfg.configured
-                  ? cfg.model
-                  : (l?.coachNotSetUp ?? 'Not set up'),
-              style: F.cap.copyWith(color: p.ink3),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              'LOCUS COACH',
+              style: F.body.copyWith(
+                  color: p.ink,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 2.2),
+            ),
+            const SizedBox(height: S.x1),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: S.x2, vertical: S.half),
+              decoration: BoxDecoration(
+                color: p.ink.withValues(alpha: .14),
+                borderRadius: R.rSm,
+              ),
+              child: Text(
+                model.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: F.over.copyWith(
+                    color: p.ink,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2),
+              ),
             ),
           ]),
         ),
-        RoundIconButton(LucideIcons.ellipsis, _menu,
-            l?.coachMenuSemantic ?? 'Chats and AI settings'),
+        icon(LucideIcons.history,
+            l?.coachMenuSemantic ?? 'Chats and AI settings', _menu),
       ]),
     );
   }
 
   @override
-  Widget build(BuildContext c) {
+  Widget build(BuildContext c) =>
+      AlwaysChar(child: Builder(builder: _build));
+
+  Widget _build(BuildContext c) {
     final p = P.of(c);
     final cfg = c.watch<CoachConfig>();
     return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _header(c, p, cfg),
-            Expanded(child: _body(c, p, cfg)),
-            if (cfg.configured && _engine != null) _composer(c, p),
-          ],
+      backgroundColor: C.coachSky.last,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: C.coachSky,
+            stops: C.coachSkyStops,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _header(c, p, cfg),
+              Expanded(child: _body(c, p, cfg)),
+              if (cfg.configured && _engine != null) _composer(c, p),
+            ],
+          ),
         ),
       ),
     );
@@ -537,7 +650,7 @@ class _CoachScreenState extends State<CoachScreen> {
         ],
       );
     }
-    if (_items.isEmpty) {
+    if (_items.isEmpty && !_busy) {
       final starters = _starters(c);
       return ListView(
         padding: const EdgeInsets.fromLTRB(S.x4, S.x6, S.x4, S.x4),
@@ -572,15 +685,24 @@ class _CoachScreenState extends State<CoachScreen> {
       );
     }
     final waiting = _busy && _streamingItem == null;
-    final last = _items.last;
-    return ListView.builder(
+    final last = _items.isEmpty ? null : _items.last;
+    // The lines fade out into the composer rather than stop at a hard edge.
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (r) => LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [C.white, C.white, C.white.withValues(alpha: 0)],
+        stops: const [0, .88, 1],
+      ).createShader(r),
+      child: ListView.builder(
       controller: _scroll,
-      padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x4),
+      padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x10),
       itemCount: _items.length + (waiting ? 1 : 0),
       itemBuilder: (_, i) {
         if (i == _items.length) {
           return _Thinking(
-            lead: last.kind == CoachItemKind.user,
+            lead: last == null || last.kind == CoachItemKind.user,
             status: _status == null
                 ? null
                 : coachPresentationText(AppLocalizations.of(context), _status!),
@@ -595,63 +717,80 @@ class _CoachScreenState extends State<CoachScreen> {
               prev.kind == CoachItemKind.error,
         );
       },
+      ),
     );
   }
 
+  /// (+) for suggestions, a new chat, and the message box: an outlined field
+  /// on a coach-coloured edge with the send arrow inside it.
   Widget _composer(BuildContext c, P p) {
     final l = AppLocalizations.of(c);
+    final canSend = !_busy && _input.text.trim().isNotEmpty;
+    Widget tool(IconData i, String label, VoidCallback? onTap, Color ink) =>
+        Pressable(
+          onTap: onTap,
+          semanticLabel: label,
+          child: SizedBox(
+            width: S.x10,
+            height: S.x12,
+            child: Icon(i, size: I.lg + S.x1, color: ink),
+          ),
+        );
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          S.x4, S.x2, S.x4, S.x3 + MediaQuery.of(c).viewInsets.bottom),
-      // One rounded bar with the send button inside it, the way a message box
-      // sits in any chat.
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(S.x5, S.x1, S.x1, S.x1),
-        decoration: BoxDecoration(
-          color: p.card,
-          borderRadius: R.rPill,
-          border: Border.all(color: p.line),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Semantics(
-                label: l?.coachAskLabel ?? 'Ask the coach',
-                textField: true,
-                child: AppField(
-                  controller: _input,
-                  minLines: 1,
-                  maxLines: 4,
-                  enabled: !_busy,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: _busy ? null : _send,
-                  bare: true,
-                  hint: l?.coachInputHint ?? 'Ask about your health…',
-                ),
-              ),
+          S.x2, 0, S.x4, S.x3 + MediaQuery.of(c).viewInsets.bottom),
+      child: Row(children: [
+        tool(LucideIcons.plus, 'Suggestions', _busy ? null : _suggest, p.ink),
+        tool(LucideIcons.messageSquarePlus, l?.coachNewChat ?? 'New chat',
+            _busy ? null : _newChat, p.ink3),
+        const SizedBox(width: S.x2),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(S.half),
+            decoration: const BoxDecoration(
+              borderRadius: R.rXl,
+              gradient: LinearGradient(
+                  colors: [C.coachEdgeA, C.coachEdgeB]),
             ),
-            const SizedBox(width: S.x2),
-            Pressable(
-              semanticLabel: l?.coachSendLabel ?? 'Send',
-              onTap: _busy ? null : () => _send(_input.text),
-              child: Container(
-                width: S.x10,
-                height: S.x10,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _busy ? p.card2 : p.fill(kCoachAccent),
-                ),
-                child: Icon(
-                  LucideIcons.arrowUp,
-                  size: I.md,
-                  color: _busy ? p.ink3 : p.inkOn(p.fill(kCoachAccent)),
-                ),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: S.x10),
+              padding: const EdgeInsets.only(left: S.x3),
+              decoration: BoxDecoration(
+                color: C.coachSky.last,
+                borderRadius:
+                    const BorderRadius.all(Radius.circular(R.xl - S.half)),
               ),
+              child: Row(children: [
+                Expanded(
+                  child: Semantics(
+                    label: l?.coachAskLabel ?? 'Ask the coach',
+                    textField: true,
+                    child: AppField(
+                      controller: _input,
+                      minLines: 1,
+                      maxLines: 4,
+                      enabled: !_busy,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: _busy ? null : _send,
+                      bare: true,
+                      hint: '',
+                    ),
+                  ),
+                ),
+                Pressable(
+                  semanticLabel: l?.coachSendLabel ?? 'Send',
+                  onTap: canSend ? () => _send(_input.text) : null,
+                  child: SizedBox.square(
+                    dimension: S.x10,
+                    child: Icon(LucideIcons.arrowUp,
+                        size: I.md, color: canSend ? p.ink : p.ink3),
+                  ),
+                ),
+              ]),
             ),
-          ],
+          ),
         ),
-      ),
+      ]),
     );
   }
 }
@@ -842,7 +981,10 @@ class _Bubble extends StatelessWidget {
           lead: lead,
           child: GptMarkdown(
             item.text ?? '',
-            style: F.body.copyWith(color: p.ink, height: 1.5),
+            style: F.head.copyWith(
+                color: p.ink.withValues(alpha: .84),
+                fontWeight: FontWeight.w400,
+                height: 1.6),
           ),
         );
       case CoachItemKind.chart:

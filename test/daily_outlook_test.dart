@@ -33,24 +33,22 @@ void main() {
     await t.pumpAndSettle();
   }
 
-  testWidgets('the outlook row opens the briefing, the orb opens the coach',
-      (t) async {
+  testWidgets('the outlook card is one plain full-width card that opens the '
+      'outlook', (t) async {
     final taps = <String>[];
     await pump(
       t,
-      DailyOutlookRow(
-        evening: false,
-        onCoach: () => taps.add('coach'),
-        onOutlook: () => taps.add('outlook'),
-      ),
+      DailyOutlookRow(evening: false, onOutlook: () => taps.add('outlook')),
     );
     expect(find.text('Daily Outlook'), findsOneWidget);
+    expect(find.byType(AiOrb), findsNothing, reason: 'no coloured circle');
+    final w = t.getSize(find.byType(Surface)).width;
+    expect(w, closeTo(390, 1), reason: 'as wide as the row');
     await t.tap(find.text('Daily Outlook'));
-    await t.tap(find.bySemanticsLabel('Ask the coach'));
-    expect(taps, ['outlook', 'coach']);
+    expect(taps, ['outlook']);
   });
 
-  testWidgets('the coach screen has its own header: the coach, and that it is not set up',
+  testWidgets('the coach screen header: the name, the model tag (here: not set up) and History',
       (t) async {
     final config = CoachConfig();
     addTearDown(config.dispose);
@@ -61,8 +59,9 @@ void main() {
         child: const CoachScreen(),
       ),
     );
-    expect(find.text('Coach'), findsOneWidget);
-    expect(find.text('Not set up'), findsOneWidget);
+    expect(find.text('LOCUS COACH'), findsOneWidget);
+    expect(find.text('NOT SET UP'), findsOneWidget);
+    expect(find.bySemanticsLabel('Chats and AI settings'), findsOneWidget);
     expect(t.takeException(), isNull);
   });
 }

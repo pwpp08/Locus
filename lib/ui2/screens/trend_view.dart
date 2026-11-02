@@ -1673,8 +1673,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   @override
   void initState() {
     super.initState();
-    // Every chart opens on the day when it has one and the day is today.
-    _range = _hasDay && _openDay == _today ? TrendRange.day : TrendRange.week;
+    // Every chart opens on the week, the day view included one tap away.
+    _range = TrendRange.week;
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 

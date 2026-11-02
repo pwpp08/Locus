@@ -717,7 +717,9 @@ class _MetricDetailState extends State<MetricDetail> {
   /// was never today. The range switcher is still here and still remembers
   /// nothing between visits — a default is where a screen starts, not a
   /// preference.
-  int _range = 0;
+  // The week, like every chart; a metric with less than a week of history
+  // has only Today to offer and the clamp lands there.
+  int _range = 1;
   MetricData? _d;
   bool _loading = true;
 

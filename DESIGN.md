@@ -568,7 +568,7 @@ As the page scrolls, the dials do not just scroll away. Each ring flies into a c
 ### 11.5 My Day
 
 - **Section head:** "My Day" in `F.t1`. The trailing `PlusButton` opens the plus menu (§11.6).
-- **Daily Outlook row** (today only), directly under the head: the coach orb (56, opens the coach, or its setup) and a `Surface` card with a sunrise (sunset from 17:00) glyph in `p.on(C.orange)`, "Daily Outlook" in `F.body` w600 and a chevron. It opens today's briefing (`AiBriefingScreen`, the morning one before 17:00, the nightly one after).
+- **Daily Outlook card** (today only), directly under the head: one full-width `Surface`, 56 tall, padding 16 across: a sunrise glyph (sunset from 17:00) at I.lg in **ink3, no colour**, 12, "Daily Outlook" in `F.head` w500 ink, and a chevron at I.lg ink3. No coach orb beside it. It opens the coach on today's outlook (§14.10).
 - **ACTIVITIES card:** a `Surface` with padding 16/8/16/16.
   - **Header:** `ACTIVITIES` in `F.caps` tracking .6 (indented 4). On the right, a `maximize2` icon (I.md ink3) in a 44 box opens the sideways day-HR screen (§14.3).
   - **Rows:** last night's sleep first, then the day's sessions oldest first, 12 apart. The empty state is "Nothing recorded for this day yet." in `F.body` ink3.
@@ -1096,8 +1096,25 @@ Every new public widget needs a case in `lib/ui2/profile/gallery.dart` (or an en
 
 ### 14.10 The coach (`screens/coach.dart`)
 
-A chat in the app's own grammar, not a settings page. **Header:** a back button, the coach orb (24) with "Coach", the model under it, and the menu (`RoundIconButton`s). **Empty:** a large orb, "How can I help?", the intro line, and the starters as full-width cards (a glyph in a tinted disc, the question, an arrow). **Thread:** the user's turn is a right-aligned `card2` bubble (`R.xxl`, tight bottom-right corner); the coach answers on the page beside its orb, which marks the first item of a run and leaves a blank gutter after (figures and charts use the same gutter). **Waiting:** three pulsing dots (still under reduced motion) in the coach's row, with what it is doing if it says ("Reading your sleep…"); there is no spinner row above the composer. **Composer:** one `p.card` pill with a hairline border, the field inside it and a round send button (`p.fill(kCoachAccent)`, `card2` while busy).
+Every AI chat is this one screen, in the dark palette whatever the theme (`AlwaysChar`).
+
+- **Ground:** `C.coachSky`, a vertical gradient from a warm dusk grey under the header, through slate, to near-black by just past the middle (`C.coachSkyStops`).
+- **Header:** a bare back chevron, then centred `LOCUS COACH` in `F.body` w700 tracked 2.2 with the model in a small tag under it (ink 14 % ground, `R.sm`, `F.over` w700 caps), and a **History** glyph on the right that opens the past chats (and New chat, and the briefing disclosure).
+- **Every opening is a new chat.** Nothing carries on from last time; earlier chats are under History.
+- **Daily Outlook:** opened from Home, the chat starts with today's briefing as the coach's first turn (the stored one, the morning's standing in until the evening's exists, or written there and then with the thinking dots). The question it answers is kept in the history, so a reply has context.
+- **Thread:** the coach's turns sit beside its orb (24, on the first item of a run) in `F.head` size, regular weight, ink at 84 % so bold figures stand out; the user's turns are right-aligned `card2` bubbles. The list fades out into the composer.
+- **Composer:** a (+) that opens suggested questions, a new-chat glyph (ink3), then the message box: a `R.xl` field outlined by a 2 px coach-orb gradient (`coachEdgeA → coachEdgeB`), filled with the bottom of the sky, the send arrow inside it (ink once there is text, ink3 before).
+- **Empty new chat:** a large orb, "How can I help?", the intro line and the starter cards.
 
 ### 14.11 App start
 
 The Locus mark writes itself **once** on the cold-start cover (`BootSplash`, then the wordmark under it) and holds; the cover leaves when the app is ready and the stroke has finished. It never loops. Reduced motion shows it still and drops the cover the moment the app is ready.
+
+### 14.12 Small screens
+
+- **Alarm editor** (sheet): fits one screen. The time is the control, with no box drawn round it, "Rings in…" under it; REPEAT presets and the day circles; the label; one card with Alarm on, Alarm mode (value only) and Smart wake (value only, opens a picker); Save, then Delete.
+- **Weight trend:** the logged weights are joined point to point across the days between them in strain blue, with a ring on each logged day, like the trend view's lines; the 7-day trend is a thin faint line behind it. Axis labels never climb into the legend.
+- **Charts open on the week.** Trend View, metric detail (7 days, or Today while there is less than a week of history), battery and weight all start on the week view; the day view is one tap away.
+- **Compare metrics** draws its two series in the hours-vs-needed pair, `C.optimal` and `C.dialSleep` (`kCompareColours`), whatever the metrics.
+- **Paired line labels** (`ScrubPair`): on each day the higher value is labelled above its point and the lower below, so close values never print over each other.
+- **My workouts:** the saved workouts come first, then Generate with AI and Build a workout, then Start a Workout.

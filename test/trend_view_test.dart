@@ -245,7 +245,7 @@ void main() {
     expect(find.byType(ScrubLine), findsOneWidget);
   });
 
-  testWidgets('a chart with a day opens on it, and reads out the minute under the finger',
+  testWidgets('a chart with a day opens on the week; its day reads out the minute under the finger',
       (t) async {
     t.view.physicalSize = const Size(390 * 3, 2400 * 3);
     t.view.devicePixelRatio = 3;
@@ -266,8 +266,12 @@ void main() {
     await t.pump();
     await t.pump();
     await t.pump();
-    // D is offered, and it is where the chart opened.
+    // D is offered, but every chart opens on the week.
     expect(find.text('D'), findsOneWidget);
+    await t.tap(find.text('D'));
+    for (var i = 0; i < 3; i++) {
+      await t.pump();
+    }
     expect(find.text('bpm'), findsOneWidget);
     final box = t.getRect(find.byType(ScrubLine));
     final g = await t.startGesture(Offset(box.right - 4, box.center.dy));

@@ -582,7 +582,7 @@ void main() {
     });
   });
 
-  // ── a tile opens today, not the widest range the install can fill ──
+  // ── a tile opens on the week, not the widest range the install can fill ──
   group('MetricDetail default range', () {
     Future<void> pump(WidgetTester t, String key, MetricData d) async {
       t.view.physicalSize = const Size(390 * 3, 2400 * 3);
@@ -597,7 +597,7 @@ void main() {
     // The old default was index 2, clamped to whatever the install could fill
     // — so it landed on 30 days, or on 7 for a young install, and moved as the
     // install aged. It was never today.
-    testWidgets('opens on today however much history there is', (t) async {
+    testWidgets('opens on the week however much history there is', (t) async {
       await pump(
           t,
           'resting_hr',
@@ -605,8 +605,10 @@ void main() {
             daysAvailable: 400,
             series: [for (var i = 200; i >= 0; i--) (t: _noon(i), v: 54.0)],
           ));
-      expect(find.text('Today'), findsWidgets);
-      // Today's headline is today's reading, not a window average.
+      // The week's headline is its daily average; Today is one tap away.
+      expect(find.textContaining('Daily average'), findsOneWidget);
+      await t.tap(find.text('TODAY'));
+      await t.pumpAndSettle();
       expect(find.textContaining('Daily average'), findsNothing);
     });
 
@@ -645,6 +647,8 @@ void main() {
 
     testWidgets('it is there on today, and it is called Breakdown', (t) async {
       await pump(t);
+      await t.tap(find.text('TODAY'));
+      await t.pumpAndSettle();
       expect(find.text('Breakdown'), findsOneWidget);
       // The old name said "today's" while sitting under a month of days.
       expect(find.textContaining("Where today's came from"), findsNothing);

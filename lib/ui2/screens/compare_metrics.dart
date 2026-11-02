@@ -87,19 +87,10 @@ String compareSentence(String a, String b, ({double r, int n}) c) {
       '(r ${c.r < 0 ? '−' : ''}${s.toStringAsFixed(2)}, ${c.n} days).';
 }
 
-/// [b], unless its hue is within 30° of [a]'s; then whichever accent sits
-/// furthest from [a] on the colour wheel.
-Color compareSecondColour(Color a, Color b) {
-  double hue(Color c) => HSVColor.fromColor(c).hue;
-  double apart(Color x, Color y) {
-    final d = (hue(x) - hue(y)).abs() % 360;
-    return d > 180 ? 360 - d : d;
-  }
-
-  if (apart(a, b) >= 30) return b;
-  const accents = [C.orange, C.purple, C.teal, C.yellow, C.lavender];
-  return accents.reduce((x, y) => apart(a, x) >= apart(a, y) ? x : y);
-}
+/// The two series' colours: the pair the sleep chart already uses for hours
+/// against need, so a comparison reads in the app's own colours whatever the
+/// two metrics are (and never as two shades of one family).
+const kCompareColours = (C.optimal, C.dialSleep);
 
 class CompareMetricsCard extends StatefulWidget {
   final TrendLoader loader;
@@ -207,11 +198,7 @@ class _CompareMetricsCardState extends State<CompareMetricsCard> {
         earliest == null || shiftDay(end, -7).compareTo(earliest) >= 0;
     final a = trendMetricOf(_pair.$1)!, b = trendMetricOf(_pair.$2)!;
     final da = _data[a.id], db = _data[b.id];
-    // Two metrics of one family (HRV and resting HR are both heart blues)
-    // would read as one on one chart: the second takes the accent furthest
-    // round the colour wheel from the first.
-    final ca = trendColorOf(a);
-    final cb = compareSecondColour(ca, trendColorOf(b));
+    final (ca, cb) = kCompareColours;
 
     // Four weeks up to the one shown, the day in progress left out.
     final corrDays = [

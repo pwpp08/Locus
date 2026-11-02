@@ -21,7 +21,7 @@ class BatteryDetailScreen extends StatefulWidget {
 }
 
 class _BatteryDetailScreenState extends State<BatteryDetailScreen> {
-  BatteryTimeRange _range = BatteryTimeRange.day;
+  BatteryTimeRange _range = BatteryTimeRange.week;
   List<BatterySample> _samples = [];
   bool _loading = true;
   BatteryForecast? _forecast;

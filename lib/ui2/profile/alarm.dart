@@ -2,7 +2,6 @@
 // system alarm sync, and instant strap confirmation.
 
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
@@ -411,12 +410,12 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                         BoxDecoration(color: p.line, borderRadius: R.rPill),
                   ),
                 ),
-                const SizedBox(height: S.x5),
+                const SizedBox(height: S.x3),
                 Semantics(
                   header: true,
                   child: Text('Edit alarm', style: F.t2.copyWith(color: p.ink)),
                 ),
-                const SizedBox(height: S.x4),
+                // The time itself is the control: no box drawn round it.
                 Pressable(
                   semanticLabel:
                       '${formatClock(picked.hour, picked.minute)}. Change the time',
@@ -425,10 +424,8 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                         initial: picked, title: 'Alarm time');
                     if (t != null) setS(() => picked = t);
                   },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: S.x5),
-                    decoration:
-                        BoxDecoration(color: p.card2, borderRadius: R.rXl),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: S.x1),
                     child: Column(
                       children: [
                         FittedBox(
@@ -438,7 +435,6 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                             style: F.n80.copyWith(color: p.ink),
                           ),
                         ),
-                        const SizedBox(height: S.x1),
                         Text(
                           next == null
                               ? 'Not scheduled'
@@ -449,7 +445,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                     ),
                   ),
                 ),
-                const SizedBox(height: S.x5),
+                const SizedBox(height: S.x3),
                 Text('REPEAT', style: F.over.copyWith(color: p.ink3)),
                 const SizedBox(height: S.x2),
                 RangeSegments(
@@ -462,7 +458,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                       }),
                   width: null,
                 ),
-                const SizedBox(height: S.x3),
+                const SizedBox(height: S.x2),
                 Row(
                   children: [
                     for (final (n, d) in const [
@@ -514,7 +510,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                       ),
                   ],
                 ),
-                const SizedBox(height: S.x5),
+                const SizedBox(height: S.x3),
                 OsTextField(
                   controller: labelCtrl,
                   label: 'Alarm label',
@@ -538,7 +534,6 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                         LucideIcons.alarmClock,
                         C.dialStrain,
                         'Alarm mode',
-                        sub: mode.blurb,
                         value: mode.title,
                         onTap: () async {
                           final m =
@@ -546,47 +541,23 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                           if (m != null) setS(() => mode = m);
                         },
                       ),
+                      // Smart wake is for an exact alarm only; the goal modes
+                      // have a window of their own.
+                      if (mode == AlarmMode.exact)
+                        SetRow(
+                          LucideIcons.waves,
+                          C.dialStrain,
+                          'Smart wake',
+                          value: smartMin == 0 ? 'Off' : '$smartMin min',
+                          onTap: () async {
+                            final m = await _pickSmartWake(ctx, smartMin, early);
+                            if (m != null) setS(() => smartMin = m);
+                          },
+                        ),
                     ],
                   ),
                 ),
-                // Smart wake is for an exact alarm only; the goal modes have a
-                // window of their own.
-                if (mode == AlarmMode.exact) ...[
-                  const SizedBox(height: S.x3),
-                  Surface(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(LucideIcons.waves, size: I.md, color: p.ink3),
-                            const SizedBox(width: S.x3),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Smart wake',
-                                      style: F.body.copyWith(color: p.ink)),
-                                  Text('Buzzes during light sleep, up to this '
-                                      'long before the time',
-                                      style: F.cap.copyWith(color: p.ink3)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: S.x3),
-                        RangeSegments(
-                          const ['Off', '15 min', '30 min', '45 min'],
-                          math.max(0, early.indexOf(smartMin)),
-                          (i) => setS(() => smartMin = early[i]),
-                          width: null,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: S.x5),
+                const SizedBox(height: S.x4),
                 BigButton(
                   l?.actionSave ?? 'Save alarm',
                   icon: LucideIcons.check,
@@ -605,7 +576,6 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                     ));
                   },
                 ),
-                const SizedBox(height: S.x2),
                 Center(
                   child: TextAction(
                     'Delete alarm',
@@ -624,6 +594,36 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
       ),
     );
     labelCtrl.dispose();
+  }
+
+  /// How early smart wake may buzz, from the editor's one-line row.
+  Future<int?> _pickSmartWake(BuildContext c, int current, List<int> options) {
+    final p = P.of(c);
+    return AppSheet.show<int>(
+      c,
+      title: 'SMART WAKE',
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text('Buzzes during light sleep, up to this long before the time.',
+            style: F.cap.copyWith(color: p.ink3, height: 1.4)),
+        const SizedBox(height: S.x2),
+        for (final m in options)
+          Pressable(
+            onTap: () => Navigator.of(c).pop(m),
+            semanticLabel: m == 0 ? 'Off' : '$m minutes',
+            child: SizedBox(
+              height: S.x12,
+              child: Row(children: [
+                Expanded(
+                  child: Text(m == 0 ? 'Off' : '$m min',
+                      style: F.body.copyWith(color: p.ink)),
+                ),
+                if (m == current)
+                  Icon(LucideIcons.check, size: I.md, color: p.ink),
+              ]),
+            ),
+          ),
+      ]),
+    );
   }
 
   Future<void> _createNewAlarm(BuildContext context) async {
