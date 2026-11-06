@@ -24,6 +24,7 @@ class AlarmManager extends ChangeNotifier {
   static const String _kAlarmsList = 'alarms_list_v2';
   static const String _kSyncSystem = 'alarm_sync_system';
   static const String _kShakeToStop = 'alarm_shake_to_stop';
+  static const String _kShakeLast = 'alarm_shake_last';
 
   List<AlarmItem> _alarms = [];
   bool _syncSystem = false;
@@ -49,12 +50,27 @@ class AlarmManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// What the last shake watch saw, one line ("7:00 · 140 frames · peak
+  /// 2.1× · stopped"), so a shake that did nothing leaves evidence of why:
+  /// no frames means the motion stream never came on, frames with a small
+  /// peak means the shake was too gentle. Null before the first watch.
+  String? get lastShakeWatch => _lastShakeWatch;
+  String? _lastShakeWatch;
+
+  Future<void> recordShakeWatch(String line) async {
+    _lastShakeWatch = line;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kShakeLast, line);
+  }
+
   AlarmManager();
 
   Future<void> init({List<AlarmScheduleEntry>? legacySchedule}) async {
     final prefs = await SharedPreferences.getInstance();
     _syncSystem = prefs.getBool(_kSyncSystem) ?? false;
     _shakeToStop = prefs.getBool(_kShakeToStop) ?? false;
+    _lastShakeWatch = prefs.getString(_kShakeLast);
     final jsonStr = prefs.getString(_kAlarmsList);
 
     if (jsonStr != null && jsonStr.isNotEmpty) {
@@ -187,6 +203,27 @@ class AlarmManager extends ChangeNotifier {
       await _persist();
       notifyListeners();
     }
+  }
+
+  /// Skip a repeating alarm's next morning only; it rings as usual after.
+  Future<void> skipNext(String id, DateTime now) async {
+    final idx = _alarms.indexWhere((a) => a.id == id);
+    if (idx == -1) return;
+    final next = _alarms[idx].nextUnskipped(now);
+    if (next == null) return;
+    _alarms[idx] = _alarms[idx]
+        .copyWith(enabled: true, skipDay: AlarmItem.dayKey(next));
+    await _persist();
+    notifyListeners();
+  }
+
+  /// Ring on the skipped morning after all.
+  Future<void> clearSkip(String id) async {
+    final idx = _alarms.indexWhere((a) => a.id == id);
+    if (idx == -1 || _alarms[idx].skipDay == null) return;
+    _alarms[idx] = _alarms[idx].copyWith(clearSkip: true);
+    await _persist();
+    notifyListeners();
   }
 
   Future<void> deleteAlarm(String id) async {

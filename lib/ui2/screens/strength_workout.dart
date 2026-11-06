@@ -391,7 +391,7 @@ class _StrengthWorkoutScreenState extends State<StrengthWorkoutScreen> {
   Future<void> _start() async {
     await _save();
     if (!mounted) return;
-    final ok = await startStrengthSession(context, plan: _plan);
+    final ok = await startStrengthSession(context, plan: _plan, name: _name);
     if (!ok && mounted) {
       AppSheet.show<void>(context,
           title: 'Could not start',

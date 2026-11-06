@@ -701,6 +701,8 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
       _CurveCard(
         curve: d.curve,
         strain: d.strain,
+        day: d.day,
+        sessions: _t.sessions,
         title: l?.dayStrainChartTitle ?? 'Strain through the day',
         footnote: l?.dayStrainChartFootnote(drawn) ??
             'Effort above your usual waking pace. Once earned it stays for the day. From $drawn recorded waking minutes.',
@@ -1042,9 +1044,16 @@ class _CurveCard extends StatefulWidget {
   final List<double?> curve;
   final double? strain;
   final String title, footnote;
+
+  /// The day the curve's minute 0 is local midnight of, and the sessions
+  /// drawn on it: a tinted span each, its icon above.
+  final DateTime? day;
+  final List<Map<String, dynamic>> sessions;
   const _CurveCard({
     required this.curve,
     required this.strain,
+    this.day,
+    this.sessions = const [],
     required this.title,
     required this.footnote,
   });
@@ -1095,7 +1104,11 @@ class _CurveCardState extends State<_CurveCard> {
           slots: false,
           smooth: true,
           fill: true,
+          // The HRV chart's weight: a minute trace at 1.5 read as a hairline.
+          stroke: 2.5,
           height: 180,
+          paintUnder: _spans,
+          paintOver: _icons,
           onScrub: (i) => setState(() => _at = i),
         ),
         if (widget.footnote.isNotEmpty) ...[
@@ -1104,6 +1117,69 @@ class _CurveCardState extends State<_CurveCard> {
         ],
       ]),
     );
+  }
+}
+
+/// The day's sessions as (start minute, end minute, colour, icon).
+extension on _CurveCardState {
+  List<(int, int, Color, IconData)> get _acts {
+    final d = widget.day;
+    if (d == null) return const [];
+    final midnight = DateTime(d.year, d.month, d.day).millisecondsSinceEpoch ~/ 1000;
+    final n = widget.curve.length;
+    return [
+      for (final s in widget.sessions)
+        if (s['start_ts'] is num)
+          () {
+            final type = (s['type'] ?? s['sport'] ?? '').toString();
+            final a = activityByName(type);
+            final st = ((s['start_ts'] as num).toInt() - midnight) ~/ 60;
+            final en = s['end_ts'] is num
+                ? ((s['end_ts'] as num).toInt() - midnight) ~/ 60
+                : st + 1;
+            return (
+              st.clamp(0, n - 1),
+              en.clamp(0, n - 1),
+              a?.color ?? C.dialStrain,
+              a?.icon ?? LucideIcons.activity,
+            );
+          }(),
+    ];
+  }
+
+  void _spans(Canvas canvas, Rect plot, double Function(int) xOf,
+      double Function(double) yOf) {
+    for (final (a, b, color, _) in _acts) {
+      final x0 = xOf(a), x1 = math.max(xOf(b), x0 + 2);
+      canvas.drawRect(Rect.fromLTRB(x0, plot.top, x1, plot.bottom),
+          Paint()..color = color.withValues(alpha: .16));
+    }
+  }
+
+  /// A small disc with the activity's glyph, over the top of its span.
+  void _icons(Canvas canvas, Rect plot, double Function(int) xOf,
+      double Function(double) yOf) {
+    const r = I.sm / 2 + S.x1;
+    for (final (a, b, color, icon) in _acts) {
+      final cx = (xOf(a) + xOf(b)) / 2;
+      final c = Offset(cx.clamp(plot.left + r, plot.right - r), plot.top + r);
+      canvas.drawCircle(c, r, Paint()..color = color);
+      final tp = TextPainter(
+        text: TextSpan(
+          text: String.fromCharCode(icon.codePoint),
+          // F.over's 11 pt is the glyph size; the family is the icon font's.
+          style: F.over.copyWith(
+              fontFamily: icon.fontPackage == null
+                  ? icon.fontFamily
+                  : 'packages/${icon.fontPackage}/${icon.fontFamily}',
+              letterSpacing: 0,
+              height: 1,
+              color: C.white),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, c - Offset(tp.width / 2, tp.height / 2));
+    }
   }
 }
 

@@ -30,7 +30,7 @@ import 'workout_screen.dart' show activityHost, loadSetHistory;
 /// with the exercises (and the sets planned for them) already on its list.
 /// False when one is already running or it would not start.
 Future<bool> startStrengthSession(BuildContext c,
-    {List<PlannedExercise> plan = const []}) async {
+    {List<PlannedExercise> plan = const [], String? name}) async {
   final AppState app;
   try {
     app = c.read<AppState>();
@@ -49,6 +49,7 @@ Future<bool> startStrengthSession(BuildContext c,
   app.startWorkout(type: a.typeKey, trackRoute: false);
   if (app.activeWorkout == null) return false;
   LiveDraft.begin(a, weightKg: weight);
+  if (name != null) LiveDraft.current?.put('workout_name', name);
   if (plan.isNotEmpty) {
     LiveDraft.current?.put('exercise_plan', [for (final e in plan) e.key]);
     LiveDraft.current?.put('planned', {
@@ -97,6 +98,39 @@ class _StrengthTrainerScreenState extends State<StrengthTrainerScreen> {
   List<TypedRecord> _typed = const [];
   List<StrengthWorkout> _workouts = const [];
   bool _loaded = false;
+
+  /// The app's session, watched so a workout that ends — finished here, from
+  /// the minimised bar, or from My Workouts — reloads Progress. This screen
+  /// read the store once and kept showing the volume and records from before
+  /// the session, which read as the session never being counted.
+  AppState? _app;
+  bool _wasLive = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    AppState? app;
+    try {
+      app = context.read<AppState>();
+    } catch (_) {}
+    if (identical(app, _app)) return;
+    _app?.removeListener(_onApp);
+    _app = app;
+    _wasLive = app?.activeWorkout != null;
+    app?.addListener(_onApp);
+  }
+
+  void _onApp() {
+    final live = _app?.activeWorkout != null;
+    if (_wasLive && !live) _load();
+    _wasLive = live;
+  }
+
+  @override
+  void dispose() {
+    _app?.removeListener(_onApp);
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -505,6 +539,7 @@ class _WorkoutsTab extends StatelessWidget {
 
   Future<void> _quick(BuildContext c) async {
     final ok = await startStrengthSession(c);
+    await onChanged();
     if (!ok && c.mounted) {
       AppSheet.show<void>(c,
           title: 'Could not start',
@@ -528,6 +563,46 @@ class _WorkoutsTab extends StatelessWidget {
     final r = await buildWorkoutFromNotes(c);
     if (r == null || !c.mounted) return;
     await _edit(c, null, seed: r.exercises, name: r.name);
+  }
+
+  /// By hand, or from notes with the person's own AI key.
+  Future<void> _build(BuildContext c) async {
+    final p = P.of(c);
+    final pick = await AppSheet.show<String>(c,
+        title: 'Build a workout',
+        child: Column(children: [
+          for (final (id, icon, label, sub) in const [
+            ('hand', LucideIcons.pencil, 'Build it yourself',
+                'Pick the exercises and plan the sets.'),
+            ('ai', LucideIcons.sparkles, 'Generate with AI',
+                'Describe it or paste your notes.'),
+          ])
+            Pressable(
+              onTap: () => Navigator.of(c).pop(id),
+              semanticLabel: label,
+              child: SizedBox(
+                height: S.x12 + S.x2,
+                child: Row(children: [
+                  Icon(icon, size: I.md, color: p.ink2),
+                  const SizedBox(width: S.x4),
+                  Expanded(
+                    child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(label,
+                              style: F.body.copyWith(
+                                  color: p.ink, fontWeight: FontWeight.w600)),
+                          Text(sub, style: F.cap.copyWith(color: p.ink3)),
+                        ]),
+                  ),
+                ]),
+              ),
+            ),
+        ]));
+    if (pick == null || !c.mounted) return;
+    if (pick == 'ai') return _ai(c);
+    return _edit(c, null);
   }
 
   Future<void> _menu(BuildContext c, StrengthWorkout w) async {
@@ -559,7 +634,7 @@ class _WorkoutsTab extends StatelessWidget {
     if (pick == null || !c.mounted) return;
     switch (pick) {
       case 'start':
-        await startStrengthSession(c, plan: w.exercises);
+        await startStrengthSession(c, plan: w.exercises, name: w.name);
       case 'edit':
         await _edit(c, w);
       case 'copy':
@@ -588,8 +663,13 @@ class _WorkoutsTab extends StatelessWidget {
       children: [
         // The saved plans first: they are what someone opens this page for
         // once they have any.
-        Text('My Workouts',
-            style: F.t2.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
+        Row(children: [
+          Expanded(
+            child: Text('My Workouts',
+                style: F.t2.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
+          ),
+          _BuildButton(onTap: () => _build(c)),
+        ]),
         if (workouts.isEmpty) ...[
           const SizedBox(height: S.x2),
           Text('Workouts you build or generate are kept here.',
@@ -602,10 +682,6 @@ class _WorkoutsTab extends StatelessWidget {
               onTap: () => _edit(c, w),
               onMenu: () => _menu(c, w)),
         ],
-        const SizedBox(height: S.x6),
-        _AiCard(onTap: () => _ai(c)),
-        const SizedBox(height: S.x3 + S.half),
-        _Pill(label: 'BUILD A WORKOUT', onTap: () => _edit(c, null)),
         const SizedBox(height: S.x8),
         rule,
         const SizedBox(height: S.x6),
@@ -638,7 +714,7 @@ class _Pill extends StatelessWidget {
       onTap: onTap,
       semanticLabel: label[0] + label.substring(1).toLowerCase(),
       child: Container(
-        height: S.x12 + S.x1 + S.half,
+        height: S.x10 + S.x1,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: filled ? p.ink : p.card,
@@ -654,65 +730,27 @@ class _Pill extends StatelessWidget {
   }
 }
 
-/// "Generate with AI": a card with a purple-to-blue edge.
-class _AiCard extends StatelessWidget {
+/// "+ BUILD": the one way in to building a workout, by hand or with AI.
+class _BuildButton extends StatelessWidget {
   final VoidCallback onTap;
-  const _AiCard({required this.onTap});
+  const _BuildButton({required this.onTap});
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    const edge = [C.lavender, C.dialStrain];
     return Pressable(
       onTap: onTap,
-      semanticLabel: 'Build a workout from your notes',
+      semanticLabel: 'Build a workout',
       child: Container(
-        padding: const EdgeInsets.all(S.half + S.half),
-        decoration: const BoxDecoration(
-          borderRadius: R.rXl,
-          gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: edge),
-        ),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(S.x4 + S.half, S.x4, S.x4, S.x4),
-          decoration: BoxDecoration(
-            borderRadius: const BorderRadius.all(Radius.circular(R.xl - S.half)),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color.alphaBlend(C.lavender.withValues(alpha: .16), p.bg),
-                Color.alphaBlend(C.dialStrain.withValues(alpha: .10), p.bg),
-              ],
-            ),
-          ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Generate with AI',
-                style: F.head.copyWith(color: p.ink, fontWeight: FontWeight.w500)),
-            const SizedBox(height: S.x2),
-            Text(
-                'Describe your workout and it will be built for you — type '
-                'it out or paste your notes.',
-                style: F.body.copyWith(color: p.ink2, height: 1.4)),
-            const SizedBox(height: S.x3),
-            Row(children: [
-              ShaderMask(
-                shaderCallback: (r) =>
-                    const LinearGradient(colors: edge).createShader(r),
-                blendMode: BlendMode.srcIn,
-                child: Text('GET STARTED',
-                    style: F.cap.copyWith(
-                        color: C.white,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.6)),
-              ),
-              const SizedBox(width: S.x3),
-              const Icon(LucideIcons.arrowRight, size: I.md, color: C.white),
-            ]),
-          ]),
-        ),
+        height: S.x8,
+        padding: const EdgeInsets.symmetric(horizontal: S.x3),
+        decoration: BoxDecoration(color: p.card, borderRadius: R.rPill),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(LucideIcons.plus, size: I.sm, color: p.ink),
+          const SizedBox(width: S.x1),
+          Text('BUILD',
+              style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w800)),
+        ]),
       ),
     );
   }

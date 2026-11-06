@@ -73,6 +73,7 @@ import 'derive_prepare.dart';
 import 'onehz_pipeline.dart';
 import 'step_cadence.dart';
 import 'strain_peak.dart' show peakStrain;
+import 'movement_bouts.dart';
 import 'profile.dart';
 import 'substrate.dart';
 import 'vendor_sleep.dart';
@@ -5490,6 +5491,24 @@ class DerivationEngine {
         _localDayLabelToSec(day.date),
         localNextMidnightSecForDayLabel(day.date),
       );
+      // The sessions the user kept over the last 60 days: what the walk
+      // detector names a bout after, and when they usually do it.
+      final habitSessions = [
+        for (final r in await LocalDb.sessionsInRange(
+          _localDayLabelToSec(day.date) - 60 * 86400,
+          _localDayLabelToSec(day.date),
+        ))
+          if (r['type'] is String &&
+              r['start_ts'] is int &&
+              r['end_ts'] is int &&
+              r['status'] != 'live')
+            HabitSession(
+              r['type'] as String,
+              r['start_ts'] as int,
+              r['end_ts'] as int,
+              cadenceSpm: (r['cadence_spm'] as num?)?.toDouble(),
+            ),
+      ];
 
       // Off-wrist / charging spans over the NAP window (which runs past this
       // day's end), read here because the isolate has no DB handle. These are
@@ -5625,6 +5644,7 @@ class DerivationEngine {
         quietHrrHistory: history.valuesBefore('quiet_hrr', day.date,
             family: _baselineFamily('quiet_hrr', daySub.deviceFamily)),
         savedSessions: savedSessions,
+        habitSessions: habitSessions,
         wristOffSpans: wristOffSpans,
         chargingSpans: chargingSpans,
         mainTstMin: (scMap?['tst_min'] as num?)?.round(),
@@ -9605,6 +9625,7 @@ class DerivationEngine {
       maxHr: inp.maxHrUsed,
       rhrScalar: inp.rhr,
       saved: inp.savedSessions,
+      habits: inp.habitSessions,
       date: inp.date,
       dayEndSec: inp.dayEndSec,
       dataNowSec: inp.dataNowSec,
@@ -9693,6 +9714,7 @@ class DerivationEngine {
     required int? maxHr,
     required double? rhrScalar,
     required List<Map<String, dynamic>> saved,
+    List<HabitSession> habits = const [],
     required String date,
     required int dayEndSec,
     required int dataNowSec,
@@ -9819,6 +9841,31 @@ class DerivationEngine {
           });
         }
 
+      }
+      // Walks and runs off the band's step counter — the bouts an elevated
+      // heart rate never flags. Outside every logged session and HR bout.
+      final learned = ActivityHabits.fromSessions(habits);
+      for (final w in detectMovementBouts(
+        tsSec: s.tsSec,
+        stepCount: s.stepCount,
+        excluded: [
+          for (final sp in savedSpans) [sp.startSec, sp.endSec],
+          for (final b in bouts) [b.startSec, b.endSec],
+        ],
+      )) {
+        final sport = learned.name(w);
+        toPersist.add({
+          'id': sugId(w.startSec),
+          'date': date,
+          'start_ts': w.startSec,
+          'end_ts': w.endSec,
+          'duration_min': w.minutes,
+          'sport': sport,
+          'steps': w.steps,
+          'cadence_spm': w.cadenceSpm.round(),
+          'usual': ?learned.usual(sport),
+          'dismissed': 0,
+        });
       }
       return _WorkoutCompute(
         boutJson: boutJson,
@@ -10297,6 +10344,9 @@ class _DayBlocksInput {
 
   final List<Map<String, dynamic>> savedSessions;
 
+  /// The last 60 days' kept sessions, for [ActivityHabits].
+  final List<HabitSession> habitSessions;
+
   /// The user's nap edits for this day, replayed over the detector's output.
   final List<NapEdit> napEdits;
 
@@ -10350,6 +10400,7 @@ class _DayBlocksInput {
     required this.dynHistoryDays,
     this.quietHrrHistory = const [],
     required this.savedSessions,
+    this.habitSessions = const [],
     this.napEdits = const [],
     required this.wristOffSpans,
     required this.chargingSpans,

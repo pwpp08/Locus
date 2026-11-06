@@ -3653,6 +3653,9 @@ class AppField extends StatelessWidget {
   /// a value (a weight, a heart rate) passes [F.head].
   final TextStyle? textStyle;
 
+  /// Where the text sits; a figure in a small box is centred.
+  final TextAlign textAlign;
+
   const AppField({
     super.key,
     this.label = '',
@@ -3676,6 +3679,7 @@ class AppField extends StatelessWidget {
     this.enableSuggestions = true,
     this.bare = false,
     this.textStyle,
+    this.textAlign = TextAlign.start,
   });
 
   @override
@@ -3705,6 +3709,7 @@ class AppField extends StatelessWidget {
         enableSuggestions: enableSuggestions,
         cursorColor: p.ink,
         style: style,
+        textAlign: textAlign,
         decoration: bare
             ? InputDecoration.collapsed(
                 hintText: hint,

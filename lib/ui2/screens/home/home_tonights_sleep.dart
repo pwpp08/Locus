@@ -10,8 +10,13 @@ import 'home_data.dart' show clock;
 
 class HomeTonightsSleep extends StatelessWidget {
   final int? bedtimeMin;
+
+  /// The recommended wake time (minute of day), shown when no alarm is set:
+  /// a bedtime alone left the night without its other end.
+  final int? wakeMin;
   final (DateTime?, AlarmArmState)? alarm;
-  const HomeTonightsSleep({super.key, required this.bedtimeMin, required this.alarm});
+  const HomeTonightsSleep(
+      {super.key, required this.bedtimeMin, this.wakeMin, required this.alarm});
 
   @override
   Widget build(BuildContext c) {
@@ -73,9 +78,17 @@ class HomeTonightsSleep extends StatelessWidget {
           ),
           Expanded(
             child: half(
-              LucideIcons.alarmClock,
-              at == null ? '--' : formatClockOf(at),
-              Row(mainAxisSize: MainAxisSize.min, children: [
+              at == null ? LucideIcons.sunrise : LucideIcons.alarmClock,
+              at != null
+                  ? formatClockOf(at)
+                  : wakeMin == null
+                      ? '--'
+                      : clock(wakeMin!),
+              at == null && wakeMin != null
+                  ? Text('RECOMMENDED WAKE',
+                      textAlign: TextAlign.center,
+                      style: F.over.copyWith(color: p.ink3, letterSpacing: .4))
+                  : Row(mainAxisSize: MainAxisSize.min, children: [
                 Container(
                   width: S.x1 + S.half,
                   height: S.x1 + S.half,

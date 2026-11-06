@@ -4,7 +4,7 @@
 // in their own colour, the wake as a green line and the day's strain over the
 // last reading. Under the trace, one column a minute for how much the wrist
 // moved (movement_lane.dart). Opened from My Day's expand button; pinch to
-// zoom, drag to move along a zoomed day, the magnifier to jump in and back out.
+// zoom, drag to move along a zoomed day.
 
 import 'dart:math' as math;
 
@@ -213,27 +213,23 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
     });
   }
 
-  /// The magnifier: into the last four hours (or the busiest stretch), and
-  /// back out to the whole day.
-  void _toggleZoom() {
-    if (_v1 - _v0 < _t1 - _t0) {
-      _setView(_t0, _t1 - _t0);
-    } else {
-      final span = math.min(4 * 3600, _t1 - _t0);
-      _setView(_t1 - span, span);
-    }
-  }
-
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
     final strain = widget.strain;
     return Scaffold(
       backgroundColor: p.bg,
+      // Edge to edge: the top strip used to stop short of the screen's side
+      // inset and looked cut off. Only the content keeps clear of a notch.
       body: SafeArea(
+        left: false,
+        right: false,
         child: LayoutBuilder(builder: (c, box) {
           final w = box.maxWidth, h = box.maxHeight;
-          final left = w * .115, right = w * .835;
+          final pad = MediaQuery.paddingOf(c);
+          // The y labels' gutter on the left; the chart runs to the right
+          // edge now the magnifier is gone.
+          final left = pad.left + S.x12, right = w - pad.right - S.x5;
           // A slim strip: an icon and a figure per mark, no more.
           final headH = math.min(S.x16 + S.x2, h * .2);
           final span = math.max(1, _v1 - _v0);
@@ -297,6 +293,7 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
                     wake: _wake,
                     end: end,
                     first: _t0,
+                    gutter: pad.left,
                     ink: p.ink,
                     ink3: p.ink3,
                     grid: p.ink.withValues(alpha: .08),
@@ -397,10 +394,15 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
                   height: S.x1,
                   child: ColoredBox(color: m.sleep ? C.dialSleep : C.dialStrain),
                 ),
-            // The day's strain, over the last reading.
+            // The day's strain, over the last reading — or beside the mark it
+            // would land on, so a late activity's figure is never covered.
             if (endX > left && endX <= right + S.x2)
               Positioned(
-                left: endX - S.x12,
+                left: _strainX(endX, [
+                      for (final g in groups)
+                        g.map((e) => e.x).reduce((a, b) => a + b) / g.length,
+                    ], left, w - pad.right) -
+                    S.x12,
                 width: S.x12 * 2,
                 top: S.x1,
                 height: headH - S.x2,
@@ -415,7 +417,7 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
                 ]),
               ),
             Positioned(
-              left: S.x2,
+              left: pad.left + S.x1,
               top: S.x1,
               child: Pressable(
                 onTap: () => Navigator.of(c).maybePop(),
@@ -427,29 +429,22 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
                 ),
               ),
             ),
-            Positioned(
-              left: right + (w - right) * .45 - S.tap / 2,
-              top: headH + (h - headH) * .38,
-              child: Pressable(
-                onTap: _toggleZoom,
-                semanticLabel: _v1 - _v0 < _t1 - _t0
-                    ? 'Show the whole day'
-                    : 'Zoom in',
-                child: SizedBox(
-                  width: S.tap + S.x2,
-                  height: S.tap + S.x2,
-                  child: Icon(
-                      _v1 - _v0 < _t1 - _t0 ? LucideIcons.zoomOut : LucideIcons.zoomIn,
-                      size: I.xl,
-                      color: p.ink),
-                ),
-              ),
-            ),
           ]);
         }),
       ),
     );
   }
+}
+
+/// Where the strain figure's centre goes: at [x] unless a mark's figure is
+/// within one label width, then just clear of it on whichever side fits.
+double _strainX(double x, List<double> marks, double lo, double hi) {
+  const half = S.x12, clear = S.x12 * 2;
+  final hit = marks.where((m) => (m - x).abs() < clear).toList();
+  if (hit.isEmpty) return x;
+  final right = hit.reduce(math.max) + clear;
+  if (right + half <= hi) return right;
+  return math.max(lo + half, hit.reduce(math.min) - clear);
 }
 
 class _DayPaint extends CustomPainter {
@@ -459,6 +454,9 @@ class _DayPaint extends CustomPainter {
   final int v0, v1, end, first;
   final int? wake;
   final double left, right;
+
+  /// The side inset the labels keep clear of.
+  final double gutter;
   final Color ink, ink3, grid;
 
   _DayPaint({
@@ -472,6 +470,7 @@ class _DayPaint extends CustomPainter {
     required this.wake,
     required this.end,
     required this.first,
+    this.gutter = 0,
     required this.ink,
     required this.ink3,
     required this.grid,
@@ -492,12 +491,13 @@ class _DayPaint extends CustomPainter {
     double yOf(double v) =>
         plot.bottom - (v - _lo) / (_hi - _lo) * plot.height;
 
-    // The marked stretches, behind everything.
+    // The marked stretches, behind everything — down through the movement
+    // lane too, so an activity's moving shows inside its own colour.
     for (final m in marks) {
       if (m.to <= v0 || m.from >= v1) continue;
       final a = xOf(math.max(m.from, v0)), b = xOf(math.min(m.to, v1));
       canvas.drawRect(
-          Rect.fromLTRB(a, plot.top, b, plot.bottom),
+          Rect.fromLTRB(a, plot.top, b, floor),
           Paint()
             ..color = m.sleep
                 ? ink.withValues(alpha: .06)
@@ -511,7 +511,8 @@ class _DayPaint extends CustomPainter {
     for (var v = 40.0; v <= 200; v += 40) {
       final y = yOf(v);
       canvas.drawLine(Offset(left, y), Offset(right, y), gp);
-      _text(canvas, '${v.round()}', Offset(left * .55, y), ink3, centre: true);
+      _text(canvas, '${v.round()}', Offset((gutter + left) / 2, y), ink3,
+          centre: true);
     }
 
     // The trace: the night in the night's colour, an activity in blue, the
@@ -559,7 +560,7 @@ class _DayPaint extends CustomPainter {
       final lane = Rect.fromLTRB(left, floor - laneH, right, floor);
       canvas.drawLine(Offset(left, floor), Offset(right, floor), gp);
       paintMovement(canvas, lane, move, xOf, ink.withValues(alpha: .4));
-      _small(canvas, 'MOVE', Offset(left * .55, lane.center.dy), ink3);
+      _small(canvas, 'MOVE', Offset((gutter + left) / 2, lane.center.dy), ink3);
     }
 
     // The wake, and the last reading.

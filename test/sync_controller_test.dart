@@ -209,7 +209,7 @@ class _Rig {
       recoverOrphanedLiveSession: () async => trace.add('recover'),
       resetLivePedometer: () => trace.add('resetPedometer'),
       refreshHighFreqWakeWindow: () async => trace.add('wake'),
-      armNextAlarmOccurrence: () async => trace.add('alarm'),
+      armNextAlarmOccurrence: ({bool force = false}) async => trace.add('alarm'),
       resetActivityReviewAttempts: () => trace.add('reviews.reset'),
       refreshActivityReviews: () async => trace.add('reviews.refresh'),
     );

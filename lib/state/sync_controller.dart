@@ -43,7 +43,7 @@ class SyncController {
     required Future<void> Function() recoverOrphanedLiveSession,
     required void Function() resetLivePedometer,
     required Future<void> Function() refreshHighFreqWakeWindow,
-    required Future<void> Function() armNextAlarmOccurrence,
+    required Future<void> Function({bool force}) armNextAlarmOccurrence,
     required void Function() resetActivityReviewAttempts,
     required Future<void> Function() refreshActivityReviews,
   })  : _engine = engine,
@@ -85,7 +85,7 @@ class SyncController {
   final Future<void> Function() _recoverOrphanedLiveSession;
   final void Function() _resetLivePedometer;
   final Future<void> Function() _refreshHighFreqWakeWindow;
-  final Future<void> Function() _armNextAlarmOccurrence;
+  final Future<void> Function({bool force}) _armNextAlarmOccurrence;
   final void Function() _resetActivityReviewAttempts;
   final Future<void> Function() _refreshActivityReviews;
 
@@ -619,7 +619,11 @@ class SyncController {
       await _refreshHighFreqWakeWindow();
       // Compute + arm the next weekly-schedule occurrence on every successful
       // connect (Feature 1's arming engine) — see _armNextAlarmOccurrence.
-      await _armNextAlarmOccurrence();
+      // FORCED on a fresh connect: the record that the band is armed lives on
+      // the phone, and a band that dropped its alarm (a reboot, a flat
+      // battery, a clock reset) was never re-armed because the phone still
+      // believed it was. Rewriting the same deadline is harmless.
+      await _armNextAlarmOccurrence(force: true);
       _log('Listening — live streams per owners, historical burst runs concurrently.');
       // Enable live streams PROMPTLY, then let the historical burst run
       // CONCURRENTLY (unawaited, single-flight via _kickSyncBurst). History and

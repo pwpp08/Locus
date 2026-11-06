@@ -70,6 +70,7 @@ import '../data/auto_backup.dart' as backup
 import 'alarm_schedule.dart';
 import 'alarm_manager.dart';
 import 'alarm_shake.dart';
+import 'clock_format.dart';
 import '../platform/device_actions.dart';
 import '../data/step_calibration.dart' show Wearing;
 import 'derive_coordinator.dart';
@@ -4439,6 +4440,11 @@ class AppState extends ChangeNotifier {
   bool get alarmShakeWatching => _shakeWatching;
   bool _shakeWatching = false;
 
+  /// The open watch's evidence, written to [AlarmManager.lastShakeWatch].
+  DateTime? _shakeOpenedAt;
+  int _shakeFrames = 0;
+  bool _shakeStopped = false;
+
   /// Plan the watch around the alarm armed at [epoch]: open a little before
   /// it, close once the longest buzz could have ended. A no-op unless
   /// shake-to-stop is on. Re-scheduling for the same epoch is idempotent.
@@ -4475,6 +4481,16 @@ class AppState extends ChangeNotifier {
     if (_shakeWatching) return;
     _shakeDetector.reset();
     _shakeWatching = true;
+    _shakeOpenedAt = DateTime.now();
+    _shakeFrames = 0;
+    _shakeStopped = false;
+    // The sticky marginal-radio latch drops the motion stream for the rest of
+    // the process, and an overnight link is exactly where it trips: the watch
+    // then opened onto nothing. A ringing alarm is worth retrying for; if the
+    // radio really cannot keep up, the detectors re-trip within seconds.
+    unawaited(engine.clearRadioFallbackAndReconcile().catchError((Object e) {
+      _log('[alarm] radio fallback clear failed: $e');
+    }));
     _liveStreamController.setAlarmShakeWindow(true);
     unawaited(DeviceActions.perform('start_phone_shake_watch'));
     _log('[alarm] shake watch open until $until');
@@ -4486,6 +4502,16 @@ class AppState extends ChangeNotifier {
     if (!_shakeWatching) return;
     _shakeWatching = false;
     _liveStreamController.setAlarmShakeWindow(false);
+    final at = _shakeOpenedAt;
+    if (at != null) {
+      final rest = _shakeDetector.rest;
+      unawaited(alarmManager.recordShakeWatch(
+        '${formatClock(at.hour, at.minute)} · $_shakeFrames frames'
+        '${rest == null ? '' : ' · rest ${rest.toStringAsFixed(2)} g'}'
+        ' · peak ${(1 + _shakeDetector.peak).toStringAsFixed(1)}×'
+        ' · ${_shakeStopped ? 'stopped' : 'not stopped'}',
+      ));
+    }
     unawaited(DeviceActions.perform('stop_phone_shake_watch'));
     _log('[alarm] shake watch closed');
   }
@@ -4505,8 +4531,10 @@ class AppState extends ChangeNotifier {
   /// Fed every live accel frame while the watch is open.
   void _feedAlarmShake(List<double> mags, int nowMs) {
     if (!_shakeWatching) return;
+    _shakeFrames++;
     if (!_shakeDetector.add(mags, nowMs)) return;
     _log('[alarm] wrist shake — stopping the buzz');
+    _shakeStopped = true;
     _endAlarmShakeWatch();
     unawaited(engine.stopHaptics().catchError((Object e) {
       _log('[alarm] stop-haptics failed: $e');
@@ -4531,6 +4559,15 @@ class AppState extends ChangeNotifier {
       }
 
       if (alarmManager.isLoaded) {
+        // The phone's own next alarm, read fresh: the cached one is only
+        // updated by the system's "next alarm changed" broadcast, and a
+        // process that was asleep when yesterday's alarm rang still held
+        // yesterday's time, which is in the past and so armed nothing.
+        if (alarmManager.syncSystem) {
+          try {
+            await alarmManager.refreshSystemAlarm();
+          } catch (_) {}
+        }
         final now = alarmRearmFrom(DateTime.now(), firedEpoch);
         final plan = alarmManager.computeNextArmedPlan(now);
         if (plan == null) {

@@ -89,6 +89,19 @@ void main() {
       expect(fired, isTrue);
     });
 
+    test('a band whose rest reads 0.5 g still sees a shake', () {
+      final d = AlarmShakeDetector();
+      // Scale off by half: rest is 0.5, a hard jolt 1.5. A fixed 1 g band
+      // read every sample as one endless excursion and never fired.
+      expect(d.add(List.filled(100, 0.5), 1000), isFalse);
+      var fired = false;
+      for (var i = 0; i < 3 && !fired; i++) {
+        final f = List.filled(25, 0.5)..[10] = 1.5;
+        fired = d.add(f, 2000 + i * 250);
+      }
+      expect(fired, isTrue);
+    });
+
     test('the buzz itself (small vibration) is not a shake', () {
       final d = AlarmShakeDetector();
       final f = [for (var i = 0; i < 200; i++) i.isEven ? 1.3 : 0.7];

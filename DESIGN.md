@@ -543,7 +543,7 @@ Tapping a dial opens Recovery, Strain or Sleep detail for the day being shown. A
 
 As the page scrolls, the dials do not just scroll away. Each ring flies into a compact bar pinned to the top:
 
-- After every build, each big dial's resting centre and diameter are measured.
+- Each big dial's resting centre and diameter are measured **after** a frame (layout and scroll offset agree then): after every build and after every scroll frame. A dial scrolled out of the list keeps its last measurement, so the rings never snap into the bar or start from where the dials sat before a card above them loaded.
 - **Per dial:** `progress = scrollOffset / (restY − barY)`, clamped 0–1 and eased with `easeInOutCubic`. The ring follows the page up, then slides sideways into its slot and shrinks:
   - Position goes from its rest position to the slot centre.
   - Diameter goes from its rest size to **32**.
@@ -583,7 +583,8 @@ As the page scrolls, the dials do not just scroll away. Each ring flies into a c
   - The header row opens the Sleep Planner.
   - **Two halves** with a `- - - -` between them (ink3, 16 down). Each half is an icon at I.lg in ink2, 8, and a time in `F.n24` w700. Under that:
     - Left: `RECOMMENDED\nBEDTIME` in `F.over` w700 ink2.
-    - Right: an 8 px status dot and its word: `ALARM ON` (green), `SENDING TO BAND` or `NOT CONFIRMED` (yellow), `ALARM OFF` (ink3, with the word in ink2).
+    - Right, with an alarm: the alarm's time, an 8 px status dot and its word: `ALARM ON` (green), `SENDING TO BAND` or `NOT CONFIRMED` (yellow).
+    - Right, with no alarm: the **recommended wake** time (sunrise icon) over `RECOMMENDED WAKE`. There is no separately typed wake time: the alarm is the wake time, else the recommendation, and the bedtime is counted back from it.
   - Then 16, and the SET / EDIT ALARM button.
 
 ### 11.1a Pull to refresh (`pull_refresh.dart`)
@@ -870,7 +871,7 @@ Opened from a dashboard row, a week card chevron, or a detail screen. One metric
   - Tapping a card opens the recorded activity.
 - **Weekly Trends:** one card per metric (strain, zones 1–3, zones 4–5, steps, calories).
   - Each card: radius 12, padding 16. The title in `F.caps` w700 with a chevron (I.lg ink2) that opens Trend View on that metric. A small readout for the touched or newest day. A legend of 10 swatches for stacks. A **192-tall column chart** with no gutter and no ticks, value labels in ink, and the newest day highlighted at rest. Each card scrubs on its own.
-- **Strain through the day** (`ChartFrame` with a 0–21 axis, `LineChart` in lavender) with its own readout.
+- **Strain through the day** (`ScrubLine`, 0–21 axis, `dialStrain`) with its own readout. The trace is **2.5** wide, the HRV chart's weight. Each of the day's activities is a tinted span (its catalogue colour at 16 %) with its icon in a small disc of that colour above it, at the top of the plot.
 - **Strain never falls through a day.** The headline and the curve are the analytics' net curve held at its running peak (`compute/strain_peak.dart`, `kAlgoVersion` 115): effort once earned stays earned. Peak HR and Worn under the curve sit inset `S.x5`, under the plot rather than the axis.
 - **Time in zones** and **What this is made of** (`card2` panel, `F.cap` ink3). The zones card's link, "How these are set", opens **Heart rate settings** (the same screen Settings opens: personalized zones, resting and max HR). There is no second zones screen.
 
@@ -899,13 +900,14 @@ Opened from a dashboard row, a week card chevron, or a detail screen. One metric
 ### 14.3 The day's heart rate, sideways (`day_heart.dart`)
 
 Opened from ACTIVITIES ⤢. It **forces landscape** and restores the app's orientations on close.
+- **Edge to edge:** the strip and the chart run under the side insets; only labels and the close button keep clear of a notch.
 - **Header strip:** `min(128, 30 % of the height)` tall, char 60 % over `bg`, with 2 px char borders. Over it, each mark (the night, each activity) shows its icon (I.lg) and figure (`F.num(F.n24)`) centred on its stretch. Marks that would overlap merge into a `MarkCount`, and zooming spreads them apart again. Under each mark, a 4-tall bar the width of its stretch in `dialSleep` or `dialStrain`.
-- **Plot:** from 11.5 % to 83.5 % of the width, a fixed 20–220 bpm scale, grid every 40 (ink 8 %), tick labels `F.num(F.head)` ink3 in the left margin.
-  - Stretches are shaded: the night at ink 6 %, activities at `dialStrain` 10 %.
+- **Plot:** from the left inset + 48 (the tick-label gutter) to the right inset − 20, a fixed 20–220 bpm scale, grid every 40 (ink 8 %), tick labels `F.num(F.head)` ink3 in the gutter.
+  - Stretches are shaded: the night at ink 6 %, activities at `dialStrain` 10 %. The shading runs **down through the MOVE lane**, so an activity's movement sits inside its colour.
   - **Trace colour by context:** the night in `dialSleep`, activities in `dialStrain`, the rest of the day in ink3 at 75 %. 1.6 px, broken across gaps of more than 5 minutes.
-  - The **wake** is a dashed `recGreen` line and the **last reading** a dashed `dialStrain` line, with `STRAIN 12.4` written over the last reading.
+  - The **wake** is a dashed `recGreen` line and the **last reading** a dashed `dialStrain` line, with `STRAIN 12.4` written over the last reading — or just beside the activity mark it would land on, never over it.
   - **Clock labels** along the foot: the start, every 1, 2 or 4 hours depending on the span, and the end. Labels are never closer than 64; the ends win.
-- **Gestures:** pinch zoom (minimum 30 minutes), one finger pans a zoomed day, and the magnifier toggles between the last 4 hours and the whole day. Close × at the top left.
+- **Gestures:** pinch zoom (minimum 30 minutes) and one finger pans a zoomed day. There is no magnifier; the chart has that room. Close × at the top left.
 
 ### 14.4 Start Activity (`start_activity.dart`)
 
@@ -925,6 +927,11 @@ Opened from ACTIVITIES ⤢. It **forces landscape** and restores the app's orien
   - **Levels:** > 18 all-out, > 14 strenuous, > 10 moderate, otherwise light.
 - **Start bar:** char, 64 + 24 + safe area tall, holding the START ACTIVITY pill. A sleep or nap in progress shows a running clock (`F.n48`), `SLEEP · SINCE 23:10`, and END and DISCARD controls.
 - **Alarm countdown** (`AlarmCountdown`): the rest alarm card says how long until it rings ("Rings in 7 h 32 min", `F.cap`, rounded up to the minute, ticking each minute), and the same line sits centred in `F.num(F.head)` on top of My Schedule, the alarm page ("No alarm set" without one).
+
+### 14.4b Turning off a repeating alarm (`profile/alarm.dart`)
+
+Each alarm card on My Schedule carries its own switch. Switching off a **repeating** alarm asks first, in a sheet titled TURN OFF RECURRING ALARM?: three 48-tall centred rows with hairlines between them — **Skip tomorrow** (or Skip Wednesday, for the next one that would ring), **Turn off recurring alarm**, **Cancel** (ink2). A skip keeps the alarm on and drops that one morning: the card says `Skipping Thu 7 Nov` in `F.cap` ink2 with an **Undo** text action. A one-shot alarm just switches off.
+- **Shake to stop** shows, under its switch, what the last alarm's watch saw: `Last alarm: 7:00 · 140 frames · rest 1.00 g · peak 2.1× · stopped` (`F.cap` ink3), so a shake that did nothing says why.
 
 ### 14.4a Edit alarm (`profile/alarm.dart`)
 
@@ -983,18 +990,23 @@ Laid out like a recorded activity: the header on the LEFT (back chevron, the lou
 
 - Two tabs, PROGRESS and MY WORKOUTS.
 - **Progress:** total volume load with its own W / M / 6M segments and page chevrons, drawn with `ScrubColumns` at a fixed slim bar width. A Personal Records list with ADD; tapping a record shows its progress as a `ScrubLine` with the same readout, once there are at least two sessions.
-- **My Workouts:** Start a Workout (Quick Start), Generate with AI, Build a Workout, and saved workouts with a three-dot menu.
+- **My Workouts:** the title with a compact **+ BUILD** pill (32 tall, `card`) at its right, opening a sheet of two rows: Build it yourself, Generate with AI. Then the saved workouts with a three-dot menu, and Start a Workout (Quick Start, a 44 pill).
+- Progress reloads whenever the app's session ends (finished here, from the minimised bar, or from a saved workout), so its sets count in the volume and records at once.
 - Exercise photos from the bundled Free Exercise DB are cover-cropped thumbnails. A placeholder dumbbell tile stands in when there is no photo.
 
 ### 14.8a Live strength workout (`activity/live.dart`, `LiveStrength`)
 
-Only what is needed to log the next set; everything else is one tap away.
-- **Header:** the minimise button, the **exercise's name** in `F.t2` with `Exercise 2 of 5` under it in `F.over` ink3, and a **⋯** round button. (`LiveShell.headerCenter` / `trailing`; other activities keep their own header.)
-- **Set row:** `SET 3` (`F.over` ink3) left; the heart rate right as plain text, `112` in `F.body` w700 and `BPM` in `F.over` ink3, **no icon**, and nothing at all when the band is not reading (never a dash or a card). Under it the sets already done on this exercise as small `ink` 8 % chips, `60 × 8` (or `8 reps` for bodyweight).
-- **Two step rows** (`card`, `R.xl`): the caption in `F.over`, the figure in `F.n48` w700 with its unit in `F.cap`, and minus and plus as 48 `counterButton`s on the right. Weight above, reps below. Touching the weight steps leaves bodyweight.
-- **`Last time: 60 kg × 8`** in `F.cap` ink3, centred, when there is a previous set.
-- **Log set** is the one blue pill above the transport; pause is a `card2` pill under it (blue only where nothing sits above it), stop a `card2` circle. **There is no rest countdown**: the rest actually taken is still recorded, from the gap between sets.
-- **⋯ opens a sheet** with: Swap exercise, Add exercise, Skip exercise, Previous / Next exercise, **Log as bodyweight** (On/Off) and **Effort (RPE)** 6 to 10. The totals row, the previous/best cards, the full sets list and the standalone heart-rate block are gone from this screen (the summary has the totals).
+The whole session as exercise cards, each with its own set table. Sizes are the compact reference's.
+- **Header:** a bare 40 **⋯** at the left, the **workout's name** (`F.caps` w800, the saved workout's name or the activity's) over the session clock `00:30:54` (`F.body` w600 tabular, ink2) with the heart rate after it (`128` w700, `BPM` `F.over` ink3; nothing when the band is not reading), and a bare 40 **+** (add exercise) at the right.
+- **Tabs:** LIVE SESSION · EXERCISES, `F.caps` w800, 40 tall, a 2 px `optimal` underline under the chosen one over a `line` hairline.
+- **Exercise card** (`card`, `R.lg`, padding 12, 12 apart): a 44 thumbnail (`R.md`), the name in `F.body` w700 over `3 Sets` in `F.cap` ink3, and a grip handle (32) that **drags the card to reorder the session**, mid-workout.
+  - The table: `SET · REPS · WEIGHT (KG)` in `F.over` ink3, then a row per planned set: the number (32 column), two **36-tall `card2` inputs** (`R.sm`, `F.body` w700, typed in place), and a 32 ▶. The row being lifted is outlined `optimal` 1.5 (`R.md`). A logged row reads back what was lifted with a check in place of the ▶; only each exercise's next row has a live ▶.
+  - Under it, 32 round `card2` − and + (remove / add a planned set) and, while nothing is logged on it, a trash to remove the exercise.
+  - A dumbbell lift adds "If lifting two dumbbells, enter the combined weight of both." in `F.cap` ink3.
+- **Bottom bar:** an outlined **START SET** pill (44 tall, `optimal` 1.5 border and text, `F.caps` w800) with a 44 `card2` stop circle beside it. START SET opens the set and the pill becomes `FINISH SET · 0:23` on an `optimal` 14 % wash; FINISH SET logs the outlined row. A finished exercise hands over to the next one with rows left. No rest countdown; the rest actually taken is recorded from the gap between sets.
+- **EXERCISES tab:** the order at a glance: a row per exercise (36 thumbnail, name, `2/3`, a check when done, the grip), reorderable, tap to go to it.
+- **⋯ opens a sheet:** **Minimise** first (the session lives on `LiveDraft`; the bar above the tab bar brings it back, as does Android back), then Swap, Add, Skip exercise, Log the rest as bodyweight, and Effort (RPE) 6 to 10.
+- Starting from a saved workout carries its plan (rows) and its name into the session.
 
 ### 14.8 Macros (`nutrition_screen.dart`)
 

@@ -24,6 +24,11 @@ class AlarmItem {
   /// time it is set to, and the latest it will ever ring.
   final AlarmMode mode;
 
+  /// A repeating alarm's one skipped morning, as a local `YYYY-MM-DD`: that
+  /// day's occurrence does not ring, every later one does. Null when nothing
+  /// is skipped. A date in the past is simply never matched again.
+  final String? skipDay;
+
   const AlarmItem({
     required this.id,
     required this.hour,
@@ -33,7 +38,14 @@ class AlarmItem {
     this.days = const {},
     this.smartWindowMinutes = 0,
     this.mode = AlarmMode.exact,
+    this.skipDay,
   });
+
+  /// `YYYY-MM-DD` for [d], the form [skipDay] is kept in.
+  static String dayKey(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 
   /// The minutes before the set time inside which this alarm may buzz early:
   /// its Smart Wake window, or a goal mode's own.
@@ -92,13 +104,18 @@ class AlarmItem {
       final date = from.add(Duration(days: offset));
       if (days.contains(date.weekday)) {
         final candidate = DateTime(date.year, date.month, date.day, hour, minute);
-        if (candidate.isAfter(from)) {
+        if (candidate.isAfter(from) && dayKey(candidate) != skipDay) {
           return candidate;
         }
       }
     }
     return null;
   }
+
+  /// The occurrence the next skip would drop: the next one, ignoring any skip
+  /// already set. Null for a one-shot (turning it off is the skip).
+  DateTime? nextUnskipped(DateTime from) =>
+      days.isEmpty ? null : copyWith(clearSkip: true).nextOccurrence(from);
 
   AlarmItem copyWith({
     String? id,
@@ -109,6 +126,8 @@ class AlarmItem {
     Set<int>? days,
     int? smartWindowMinutes,
     AlarmMode? mode,
+    String? skipDay,
+    bool clearSkip = false,
   }) =>
       AlarmItem(
         id: id ?? this.id,
@@ -119,6 +138,7 @@ class AlarmItem {
         days: days ?? this.days,
         smartWindowMinutes: smartWindowMinutes ?? this.smartWindowMinutes,
         mode: mode ?? this.mode,
+        skipDay: clearSkip ? null : (skipDay ?? this.skipDay),
       );
 
   Map<String, dynamic> toJson() => {
@@ -130,6 +150,7 @@ class AlarmItem {
         'days': days.toList()..sort(),
         'smartWindowMinutes': smartWindowMinutes,
         'mode': mode.name,
+        if (skipDay != null) 'skipDay': skipDay,
       };
 
   factory AlarmItem.fromJson(Map<String, dynamic> json) => AlarmItem(
@@ -141,6 +162,7 @@ class AlarmItem {
         days: ((json['days'] as List?)?.map((e) => (e as num).toInt()).toSet()) ?? const {},
         smartWindowMinutes: (json['smartWindowMinutes'] as num?)?.toInt() ?? 0,
         mode: AlarmMode.fromName(json['mode']),
+        skipDay: json['skipDay'] as String?,
       );
 
   static List<AlarmItem> decodeList(String jsonStr) {

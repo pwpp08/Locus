@@ -157,6 +157,15 @@ class _StrainRepo extends LocalRepository {
 
 /// The strength logger's "⋯" sheet: swap, add, skip and the rest of what used
 /// to be chips and rows on the screen itself.
+/// One set on the redesigned logger: START SET opens it, FINISH SET logs the
+/// outlined row.
+Future<void> _logSet(WidgetTester tester) async {
+  await tester.tap(find.text('START SET'));
+  await tester.pump();
+  await tester.tap(find.textContaining('FINISH SET'));
+  await tester.pump();
+}
+
 Future<void> _openMore(WidgetTester tester, String row) async {
   await tester.tap(find.bySemanticsLabel('More'));
   await tester.pumpAndSettle();
@@ -1099,8 +1108,7 @@ void main() {
           1.0));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('LOG SET'));
-      await tester.pump();
+      await _logSet(tester);
       await tester.tap(find.bySemanticsLabel('Finish session'));
       await tester.pumpAndSettle();
 
@@ -1258,9 +1266,8 @@ void main() {
       await tester.pumpWidget(
           _frame(liveFor(a, weightKg: 72.4), Brightness.light, 1.0));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('LOG SET'));
-      await tester.pump();
-      expect(find.text('40 × 8'), findsWidgets);
+      await _logSet(tester);
+      expect(find.bySemanticsLabel('Start set 2'), findsOneWidget);
 
       // Minimise: the route is gone and every widget with it. The set was
       // held in `_LiveStrengthState` and died here — silently, while
@@ -1271,7 +1278,7 @@ void main() {
       await tester.pumpWidget(
           _frame(liveFor(a, weightKg: 72.4), Brightness.light, 1.0));
       await tester.pumpAndSettle();
-      expect(find.text('40 × 8'), findsWidgets,
+      expect(find.bySemanticsLabel('Start set 2'), findsOneWidget,
           reason: 'a typed set is the one thing nothing can recompute');
       expect((LiveDraft.current!.data['sets']! as List).length, 1);
       expect(tester.takeException(), isNull);
@@ -1295,7 +1302,7 @@ void main() {
       expect(find.text('Choose exercise'), findsWidgets);
       expect(find.text('Bench press'), findsNothing,
           reason: 'a real session must not invent a first lift');
-      await tester.tap(find.widgetWithText(BigButton, 'CHOOSE EXERCISE'));
+      await tester.tap(find.text('CHOOSE EXERCISE'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Incline DB press'));
       await tester.pumpAndSettle();
@@ -1318,8 +1325,7 @@ void main() {
 
       // Once a set exists, changing exercises switches/adds instead of
       // relabelling what the user already logged.
-      await tester.tap(find.text('LOG SET'));
-      await tester.pump();
+      await _logSet(tester);
       await _openMore(tester, 'Swap exercise');
       await tester.tap(find.text('Bench press'));
       await tester.pumpAndSettle();
@@ -1342,7 +1348,7 @@ void main() {
       await tester.pumpWidget(
           _frame(liveFor(a, weightKg: 72.4), Brightness.light, 3.1));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(BigButton, 'CHOOSE EXERCISE'));
+      await tester.tap(find.text('CHOOSE EXERCISE'));
       await tester.pumpAndSettle();
 
       expect(find.text('Cardio'), findsNothing);
@@ -1373,7 +1379,7 @@ void main() {
       await tester.pumpWidget(
           _frame(liveFor(a, weightKg: 72.4), Brightness.light, 1.0));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(BigButton, 'CHOOSE EXERCISE'));
+      await tester.tap(find.text('CHOOSE EXERCISE'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Abs'));
       await tester.pumpAndSettle();
@@ -1608,7 +1614,7 @@ void main() {
       expect(find.textContaining('BPM'), findsNothing);
     });
 
-    testWidgets('logging a set shows no rest countdown: Log set stays Log set',
+    testWidgets('logging a set shows no rest countdown: Start set stays Start set',
         (tester) async {
       tester.view.physicalSize = const Size(390 * 3, 2400 * 3);
       tester.view.devicePixelRatio = 3;
@@ -1621,12 +1627,11 @@ void main() {
 
       await tester.pumpWidget(_frame(LiveStrength(activity), Brightness.light, 1.0));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('LOG SET'));
-      await tester.pump();
-      expect(find.text('SET 2'), findsOneWidget);
+      await _logSet(tester);
+      expect(find.bySemanticsLabel('Start set 2'), findsOneWidget);
       expect(find.textContaining('RESTING'), findsNothing);
       expect(find.text('SKIP REST'), findsNothing);
-      expect(find.text('LOG SET'), findsOneWidget);
+      expect(find.text('START SET'), findsOneWidget);
     });
 
     testWidgets('a first push-up set is bodyweight, not the carried-over load',
@@ -1646,15 +1651,13 @@ void main() {
           Brightness.light,
           1.0));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('LOG SET'));
-      await tester.pump();
+      await _logSet(tester);
       expect(sets.single.loadKg, 40, reason: 'bench keeps its stepper load');
 
       await _openMore(tester, 'Add exercise');
       await tester.tap(find.text('Push-up'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('LOG SET'));
-      await tester.pump();
+      await _logSet(tester);
       expect(sets.last.exerciseKey, 'push_up');
       expect(sets.last.loadKg, isNull,
           reason: 'no history for push-ups must not invent a 40 kg load');
@@ -1816,7 +1819,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('a logged set becomes a chip and the screen moves to the next set',
+    testWidgets('a logged set reads back in its row and the next row is up',
         (tester) async {
       tester.view.physicalSize = const Size(390 * 3, 2400 * 3);
       tester.view.devicePixelRatio = 3;
@@ -1832,22 +1835,21 @@ void main() {
           Brightness.light,
           1.0));
       await tester.pumpAndSettle();
-      expect(find.text('SET 1'), findsOneWidget);
+      expect(find.bySemanticsLabel('Start set 1'), findsOneWidget);
 
-      // Default entry is 40 kg × 8.
-      await tester.tap(find.text('LOG SET'));
-      await tester.pump();
+      // Default entry is 40 kg × 8, three rows of it.
+      expect(find.text('3 Sets'), findsOneWidget);
+      await _logSet(tester);
 
-      expect(find.text('40 × 8'), findsOneWidget);
-      expect(find.text('SET 2'), findsOneWidget);
+      expect(find.bySemanticsLabel('Start set 2'), findsOneWidget);
+      expect(find.bySemanticsLabel('Start set 1'), findsNothing);
       expect(find.text('320'), findsNothing,
           reason: 'totals live in the summary, not on the logging screen');
       expect(tester.takeException(), isNull);
     });
 
     testWidgets(
-        'imperial: the stepper shows lb, steps by a clean 5 lb plate, and '
-        'volume totals in lb — never kg', (tester) async {
+        'imperial: the set table shows lb and a typed lb load is stored in kg', (tester) async {
       tester.view.physicalSize = const Size(390 * 3, 2400 * 3);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.reset);
@@ -1866,19 +1868,18 @@ void main() {
       await tester.pumpAndSettle();
 
       // Default entry is 40 kg, shown as its lb rounding — never "40 kg".
-      expect(find.text('88'), findsOneWidget);
-      expect(find.text('kg'), findsNothing);
-      expect(find.text('lb'), findsWidgets);
+      expect(find.text('88'), findsWidgets);
+      expect(find.text('WEIGHT (LB)'), findsOneWidget);
+      expect(find.textContaining('KG'), findsNothing);
 
-      // One tap steps a clean 5 lb (not a raw 2.5 kg → 5.5 lb conversion).
-      await tester.tap(find.bySemanticsLabel('WEIGHT up'));
+      // A typed load is read in lb and stored in kg.
+      await tester.enterText(find.byType(TextField).at(1), '93');
       await tester.pump();
-      expect(find.text('93'), findsOneWidget);
-
-      await tester.tap(find.text('LOG SET'));
-      await tester.pump();
-      expect(find.text('93 × 8'), findsWidgets);
+      await _logSet(tester);
+      expect(find.text('93'), findsWidgets);
       expect(find.textContaining(' kg'), findsNothing);
+      final sets = LiveDraft.current!.data['sets']! as List;
+      expect(((sets.single as Map)['kg'] as num).toDouble(), closeTo(42.2, 0.2));
       expect(tester.takeException(), isNull);
     });
 

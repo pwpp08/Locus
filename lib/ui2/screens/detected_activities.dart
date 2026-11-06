@@ -266,7 +266,11 @@ class _ActivityProposalCardState extends State<ActivityProposalCard> {
                 child: Text(
                   (nap
                           ? (l?.activityPossibleNap ?? 'Possible nap')
-                          : (l?.activityPossibleWorkout ?? 'Possible workout'))
+                          // A walk or run off the step counter names itself.
+                          : suggestion.details['cadence_spm'] != null &&
+                                  activityByName(suggestion.sport) != null
+                              ? 'Possible ${activityByName(suggestion.sport)!.localizedName(l).toLowerCase()}'
+                              : (l?.activityPossibleWorkout ?? 'Possible workout'))
                       .toUpperCase(),
                   style: F.caps.copyWith(color: p.ink),
                 ),
@@ -278,9 +282,13 @@ class _ActivityProposalCardState extends State<ActivityProposalCard> {
           const SizedBox(height: S.x1),
           Text(
             '$when · '
-            '${l?.activityLengthMinutes(minutes) ?? '$minutes min'}',
+            '${l?.activityLengthMinutes(minutes) ?? '$minutes min'}'
+            '${suggestion.details['cadence_spm'] is num ? ' · ${suggestion.details['cadence_spm']} steps/min' : ''}',
             style: F.cap.copyWith(color: p.ink2),
           ),
+          // What the detector learned from the sessions kept before.
+          if (suggestion.details['usual'] case final String usual)
+            Text(usual, style: F.cap.copyWith(color: p.ink3)),
           const SizedBox(height: S.x3),
           // The heart rate and the wrist's movement around it, the window drawn
           // on them the way the editor draws it. Its two lines can be dragged

@@ -626,6 +626,55 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
     );
   }
 
+  /// "Thu 7 Nov" for a skip that is still ahead, else null.
+  String? _skippedLabel(AlarmItem a) {
+    final key = a.skipDay;
+    if (key == null) return null;
+    final d = DateTime.tryParse(key);
+    final now = widget.now ?? clock.now();
+    if (d == null || d.isBefore(DateTime(now.year, now.month, now.day))) {
+      return null;
+    }
+    const wd = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
+      'Oct', 'Nov', 'Dec'];
+    return '${wd[d.weekday - 1]} ${d.day} ${mo[d.month - 1]}';
+  }
+
+  /// A card's switch. Turning off a REPEATING alarm asks first: skip only its
+  /// next morning, or turn the whole schedule off.
+  Future<void> _toggle(BuildContext c, AlarmItem alarm, bool on) async {
+    final mgr = widget.alarmManager;
+    if (mgr == null) return;
+    if (on || alarm.isRingOnce) {
+      await mgr.toggleAlarm(alarm.id, on);
+      if (on) await mgr.clearSkip(alarm.id);
+      return;
+    }
+    final now = widget.now ?? clock.now();
+    final next = alarm.nextUnskipped(now);
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final skipText = next != null &&
+            next.year == tomorrow.year &&
+            next.month == tomorrow.month &&
+            next.day == tomorrow.day
+        ? 'Skip tomorrow'
+        : next == null
+            ? null
+            : 'Skip ${const ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][next.weekday - 1]}';
+    final pick = await AppSheet.show<String>(
+      c,
+      title: 'TURN OFF RECURRING ALARM?',
+      child: _ChoiceList([
+        if (skipText != null) ('skip', skipText),
+        ('off', 'Turn off recurring alarm'),
+        ('cancel', 'Cancel'),
+      ]),
+    );
+    if (pick == 'skip') await mgr.skipNext(alarm.id, now);
+    if (pick == 'off') await mgr.toggleAlarm(alarm.id, false);
+  }
+
   Future<void> _createNewAlarm(BuildContext context) async {
     final mgr = widget.alarmManager;
     if (mgr == null) return;
@@ -710,8 +759,18 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                     style: F.n24.copyWith(
                         color: p.ink, fontWeight: FontWeight.w700)),
               ),
-              Icon(LucideIcons.chevronRight, size: I.md, color: p.ink3),
+              AppSwitch(alarm.enabled, (v) => _toggle(c, alarm, v),
+                  semanticLabel: 'Alarm ${formatClock(alarm.hour, alarm.minute)} on'),
             ]),
+            if (alarm.enabled ? _skippedLabel(alarm) : null case final skipped?) ...[
+              const SizedBox(height: S.x1),
+              Row(children: [
+                Text('Skipping $skipped',
+                    style: F.cap.copyWith(color: p.ink2)),
+                const SizedBox(width: S.x2),
+                TextAction('Undo', () => widget.alarmManager?.clearSkip(alarm.id)),
+              ]),
+            ],
             const SizedBox(height: S.x2),
             Align(
               alignment: Alignment.centerLeft,
@@ -940,6 +999,14 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                   AppSwitch(mgr.shakeToStop, (v) => mgr.setShakeToStop(v),
                       semanticLabel: 'Shake to stop'),
                 ),
+                if (mgr.shakeToStop && mgr.lastShakeWatch != null) ...[
+                  const SizedBox(height: S.x1),
+                  Padding(
+                    padding: const EdgeInsets.only(left: I.lg + S.x4),
+                    child: Text('Last alarm: ${mgr.lastShakeWatch}',
+                        style: F.cap.copyWith(color: p.ink3)),
+                  ),
+                ],
               ],
               const SizedBox(height: S.x6),
               if (!widget.connected)
@@ -993,5 +1060,36 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
             SnackBar(content: Text('$e'.replaceFirst('Exception: ', ''))));
       }
     }
+  }
+}
+
+/// Stacked one-line choices in a sheet, hairlines between them; pops the
+/// chosen id. Compact rows, like a system action sheet.
+class _ChoiceList extends StatelessWidget {
+  final List<(String, String)> choices;
+  const _ChoiceList(this.choices);
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      for (var i = 0; i < choices.length; i++) ...[
+        if (i > 0) Divider(height: 1, color: p.line),
+        Pressable(
+          onTap: () => Navigator.of(c).pop(choices[i].$1),
+          semanticLabel: choices[i].$2,
+          child: SizedBox(
+            height: S.x12,
+            width: double.infinity,
+            child: Center(
+              child: Text(choices[i].$2,
+                  style: F.body.copyWith(
+                      color: choices[i].$1 == 'cancel' ? p.ink2 : p.ink,
+                      fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ),
+      ],
+    ]);
   }
 }

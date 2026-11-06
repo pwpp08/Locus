@@ -19,6 +19,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -41,6 +42,7 @@ import '../paint_activity.dart';
 import '../theme.dart';
 import 'catalogue.dart';
 import '../profile/profile.dart' show SetRow, settingsGroup;
+import 'exercise_image.dart';
 import 'exercise_picker.dart';
 import 'summary.dart';
 
@@ -459,6 +461,17 @@ class LiveShell extends StatefulWidget {
   /// whatever the stores can add to it. Absent in tests and previews.
   final SessionFinish? onFinish;
 
+  /// Replaces the minimise chevron at the header's left.
+  final Widget? leading;
+
+  /// Replaces [footer] and the pause / finish row: the screen draws its own
+  /// bottom bar and is handed the shell's finish.
+  final Widget Function(BuildContext c, VoidCallback finish)? bottom;
+
+  /// False when [body] scrolls itself (a reorderable list cannot sit inside
+  /// the shell's own ListView).
+  final bool scrollBody;
+
   const LiveShell(
     this.a, {
     super.key,
@@ -472,6 +485,9 @@ class LiveShell extends StatefulWidget {
     this.onFinish,
     this.headerCenter,
     this.trailing,
+    this.leading,
+    this.bottom,
+    this.scrollBody = true,
   });
 
   @override
@@ -578,7 +594,9 @@ class LiveShellState extends State<LiveShell> {
   Widget _shell(BuildContext c, P p, AppLocalizations? l, Activity a) {
     return Scaffold(
       backgroundColor: p.bg,
-      body: SafeArea(
+      // The clock reaches the header and the bottom bar too: a strength
+      // session draws its timer in the header and its set clock in the pill.
+      body: _LiveClock(clock, child: SafeArea(
         child: Column(children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: S.x5),
@@ -587,11 +605,12 @@ class LiveShellState extends State<LiveShell> {
               // route, so leaving the screen — by this chevron, by Android
               // back, or by an iOS edge-swipe — puts it away rather than
               // destroying it. The bar above the tab bar brings it back.
-              RoundIconButton(
-                LucideIcons.chevronDown,
-                () => Navigator.maybePop(c),
-                l?.activityLiveMinimiseLabel ?? 'Minimise',
-              ),
+              widget.leading ??
+                  RoundIconButton(
+                    LucideIcons.chevronDown,
+                    () => Navigator.maybePop(c),
+                    l?.activityLiveMinimiseLabel ?? 'Minimise',
+                  ),
                   Expanded(
                     child: widget.headerCenter ?? Column(
                       children: [
@@ -626,7 +645,9 @@ class LiveShellState extends State<LiveShell> {
             // second ask for the tick themselves, through [LiveTick].
             child: _LiveClock(
               clock,
-              child: Builder(
+              child: !widget.scrollBody
+                  ? Builder(builder: (bc) => widget.body(bc, clock.value))
+                  : Builder(
                 builder: (bc) => ValueListenableBuilder<int>(
                   valueListenable: clock,
                   child: widget.bodyFollowsClock
@@ -640,11 +661,17 @@ class LiveShellState extends State<LiveShell> {
               ),
             ),
           ),
-          if (widget.footer != null)
+          if (widget.bottom != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(S.x5, S.x3, S.x5, S.x4),
+              child: widget.bottom!(c, finish),
+            ),
+          if (widget.bottom == null && widget.footer != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: S.x5),
               child: widget.footer!(c),
             ),
+          if (widget.bottom == null)
           Padding(
             padding: const EdgeInsets.fromLTRB(S.x5, S.x4, S.x5, S.x5),
             child: Row(children: [
@@ -684,7 +711,7 @@ class LiveShellState extends State<LiveShell> {
             ]),
           ),
         ]),
-      ),
+      )),
     );
   }
 
@@ -1230,10 +1257,7 @@ class _LiveStrengthState extends State<LiveStrength> {
   final plan = <String>[];
   int index = 0;
 
-  double kg = 40;
-  int reps = 8;
   int rpe = 7;
-  bool bodyweight = false;
 
   final logged = <LoggedSet>[];
 
@@ -1241,7 +1265,6 @@ class _LiveStrengthState extends State<LiveStrength> {
   void initState() {
     super.initState();
     _restore();
-    _seedFromHistory();
   }
 
   /// Plan and sets written before this screen was rebuilt — the session was
@@ -1315,80 +1338,10 @@ class _LiveStrengthState extends State<LiveStrength> {
       [for (final s in logged) if (s.exerciseKey == key) s];
   StrengthLog get log => StrengthLog(logged);
 
-  /// Open each exercise at what the user did last time. Nothing to go on →
-  /// leave the stepper where it is rather than guessing a load, but take the
-  /// mode from this session's sets, else from the exercise itself, so a first
-  /// push-up after bench does not log the bench load.
-  /// The set a built workout planned for [key] at position [i], if any.
-  ({int reps, double? kg})? _planned(String key, int i) {
-    final all = LiveDraft.current?.data['planned'];
-    final list = all is Map ? all[key] : null;
-    if (list is! List || list.isEmpty) return null;
-    final e = list[i < list.length ? i : list.length - 1];
-    if (e is! Map) return null;
-    final reps = (e['reps'] as num?)?.toInt();
-    if (reps == null) return null;
-    return (reps: reps, kg: (e['kg'] as num?)?.toDouble());
-  }
-
-  void _seedFromHistory() {
-    if (plan.isEmpty) return;
-    final planned = _planned(key, setsHere.length);
-    if (planned != null) {
-      setState(() {
-        bodyweight = planned.kg == null;
-        kg = planned.kg ?? kg;
-        reps = planned.reps;
-      });
-      return;
-    }
-    final prev = widget.history[key]?.previous;
-    if (prev == null) {
-      final here = setsHere;
-      final bw = here.isNotEmpty
-          ? here.last.loadKg == null
-          : def?.bodyweight ?? false;
-      if (bw != bodyweight) setState(() => bodyweight = bw);
-      return;
-    }
-    setState(() {
-      bodyweight = prev.loadKg == null;
-      kg = prev.loadKg ?? kg;
-      reps = prev.reps;
-    });
-  }
-
-  void logSet() {
-    if (plan.isEmpty) return;
-    HapticFeedback.mediumImpact();
-    final now = DateTime.now();
-    // The rest ACTUALLY taken before this set, not the 90 s target — the
-    // target is what the timer counted down, the gap is what happened.
-    final prior = logged.isEmpty ? null : logged.last.at;
-    setState(() {
-      logged.add(LoggedSet(key, reps,
-          loadKg: bodyweight ? null : kg,
-          rpe: rpe,
-          restSec: prior == null ? null : now.difference(prior).inSeconds,
-          at: now));
-    });
-    _persist();
-    // The next planned set, when the workout was built ahead.
-    final next = _planned(key, setsHere.length);
-    if (next != null) {
-      setState(() {
-        bodyweight = next.kg == null;
-        kg = next.kg ?? kg;
-        reps = next.reps;
-      });
-    }
-  }
-
   void goExercise(int i) {
     if (i < 0 || i >= plan.length) return;
     setState(() => index = i);
     _persistPlan();
-    _seedFromHistory();
   }
 
   Future<void> addExercise() async {
@@ -1404,7 +1357,6 @@ class _LiveStrengthState extends State<LiveStrength> {
       index = plan.indexOf(picked);
     });
     _persistPlan();
-    _seedFromHistory();
   }
 
   /// Replace an empty slot; once it has sets, switch/add instead so logged
@@ -1436,7 +1388,6 @@ class _LiveStrengthState extends State<LiveStrength> {
       }
     });
     _persistPlan();
-    _seedFromHistory();
   }
 
   void skipExercise() {
@@ -1446,8 +1397,7 @@ class _LiveStrengthState extends State<LiveStrength> {
         if (index >= plan.length) index = plan.length - 1;
       });
       _persistPlan();
-      _seedFromHistory();
-    } else if (index < plan.length - 1) {
+      } else if (index < plan.length - 1) {
       goExercise(index + 1);
     }
   }
@@ -1462,6 +1412,163 @@ class _LiveStrengthState extends State<LiveStrength> {
     return [for (final entry in entries) entry.key];
   }
 
+  // ── THE SESSION AS A LIST OF EXERCISE CARDS ──────────────────────────────
+  // Every exercise is a card with its own set table (reps, weight, ▶ per
+  // row); the row being lifted is outlined. START SET opens a set and starts
+  // its clock, FINISH SET logs it. Cards reorder by their handle mid-session,
+  // and a card's planned rows are edited in place. Sizes follow the compact
+  // reference: 36 pt inputs, 32 pt row controls, one 44 pt pill.
+
+  /// 0 the live session, 1 the exercise list.
+  int _tab = 0;
+
+  /// When the open set began; null between sets.
+  DateTime? _setStartedAt;
+
+  /// The planned rows per exercise, editable until logged.
+  final _rows = <String, List<_SetRow>>{};
+  final _ctrls = <String, TextEditingController>{};
+
+  @override
+  void dispose() {
+    for (final t in _ctrls.values) {
+      t.dispose();
+    }
+    super.dispose();
+  }
+
+  int _done(String k) => logged.where((s) => s.exerciseKey == k).length;
+
+  /// A built workout's plan, else last time's set three times, else 8 reps at
+  /// 40 kg (or bodyweight for a bodyweight lift) — the old stepper's start.
+  List<_SetRow> _rowsFor(String k) => _rows.putIfAbsent(k, () {
+        final all = LiveDraft.current?.data['planned'];
+        final list = all is Map ? all[k] : null;
+        if (list is List && list.isNotEmpty) {
+          return [
+            for (final e in list)
+              if (e is Map)
+                _SetRow((e['reps'] as num?)?.toInt() ?? 8,
+                    (e['kg'] as num?)?.toDouble()),
+          ];
+        }
+        final prev = widget.history[k]?.previous;
+        final bw = prev != null
+            ? prev.loadKg == null
+            : exerciseByKey(k)?.bodyweight ?? false;
+        final kg0 = bw ? null : (prev?.loadKg ?? 40.0);
+        return [for (var i = 0; i < 3; i++) _SetRow(prev?.reps ?? 8, kg0)];
+      });
+
+  int _rowCount(String k) => math.max(_rowsFor(k).length, _done(k));
+
+  void _persistRows() {
+    final all = LiveDraft.current?.data['planned'];
+    LiveDraft.current?.put('planned', {
+      if (all is Map) ...all,
+      for (final e in _rows.entries)
+        e.key: [for (final r in e.value) {'reps': r.reps, 'kg': r.kg}],
+    });
+  }
+
+  /// Start the set on the current exercise, or finish (log) the open one.
+  void _startOrFinish() {
+    if (plan.isEmpty) {
+      addExercise();
+      return;
+    }
+    if (_setStartedAt != null) {
+      _finishSet();
+      return;
+    }
+    // A finished exercise hands over to the next one with rows left.
+    if (_done(key) >= _rowCount(key)) {
+      final next = plan.indexWhere((k) => _done(k) < _rowCount(k));
+      if (next >= 0) {
+        index = next;
+      } else {
+        _rowsFor(key).add(_rowsFor(key).last.copy());
+        _persistRows();
+      }
+    }
+    HapticFeedback.selectionClick();
+    setState(() => _setStartedAt = DateTime.now());
+    _persistPlan();
+  }
+
+  void _finishSet() {
+    final k = key;
+    final i = _done(k);
+    final rows = _rowsFor(k);
+    if (i >= rows.length) rows.add(rows.last.copy());
+    final r = rows[i];
+    HapticFeedback.mediumImpact();
+    final now = DateTime.now();
+    // The rest ACTUALLY taken before this set, not a target.
+    final prior = logged.isEmpty ? null : logged.last.at;
+    setState(() {
+      logged.add(LoggedSet(k, r.reps,
+          loadKg: r.kg,
+          rpe: rpe,
+          restSec: prior == null ? null : now.difference(prior).inSeconds,
+          at: now));
+      _setStartedAt = null;
+      if (_done(k) >= _rowCount(k)) {
+        final next = plan.indexWhere((x) => _done(x) < _rowCount(x));
+        if (next >= 0) index = next;
+      }
+    });
+    _persistRows();
+    _persist();
+  }
+
+  /// A row's ▶: the open row finishes, another exercise's next row starts.
+  void _play(String k) {
+    if (_setStartedAt != null && k == key) return _finishSet();
+    if (_setStartedAt != null) _finishSet();
+    setState(() => index = plan.indexOf(k));
+    _startOrFinish();
+  }
+
+  void _reorder(int from, int to) {
+    if (to > from) to--;
+    if (from == to) return;
+    final current = key;
+    setState(() {
+      plan.insert(to, plan.removeAt(from));
+      index = plan.indexOf(current);
+    });
+    _persistPlan();
+  }
+
+  void _removeExercise(String k) {
+    if (_done(k) > 0 || plan.length < 2) return;
+    final current = key;
+    setState(() {
+      plan.remove(k);
+      _rows.remove(k);
+      index = math.max(0, plan.indexOf(current));
+    });
+    _persistPlan();
+    _persistRows();
+  }
+
+  void _addRow(String k) {
+    final rows = _rowsFor(k);
+    setState(() => rows.add(rows.isEmpty ? _SetRow(8, null) : rows.last.copy()));
+    _persistRows();
+  }
+
+  void _dropRow(String k) {
+    final rows = _rowsFor(k);
+    if (rows.length <= math.max(1, _done(k))) return;
+    setState(() => rows.removeLast());
+    _persistRows();
+  }
+
+  TextEditingController _ctrl(String id, String text) =>
+      _ctrls.putIfAbsent(id, () => TextEditingController(text: text));
+
   @override
   Widget build(BuildContext c) {
     return LiveShell(
@@ -1473,52 +1580,405 @@ class _LiveStrengthState extends State<LiveStrength> {
           widget.feed?.call() ?? LiveFeed.none, widget.weightKg, elapsed,
           widget.private,
           strength: log),
-      // The exercise is the title; its place in the session is the line under.
-      headerCenter: plan.isEmpty ? null : Builder(builder: _header),
-      trailing: plan.isEmpty
-          ? null
-          : RoundIconButton(LucideIcons.ellipsis, _more, 'More'),
-      footer: (ctx) => plan.isEmpty
-          ? BigButton(
-              AppLocalizations.of(ctx)?.activityExercisePickerChooseTitle ??
-                  'Choose exercise',
-              icon: LucideIcons.search,
-              color: C.purple,
-              onTap: addExercise,
-            )
-          : BigButton(AppLocalizations.of(ctx)?.activityLiveLogSet ?? 'Log set',
-              icon: LucideIcons.plus, color: C.purple, onTap: logSet),
-      // Nothing here is measured: the sets, reps and load are typed. The one
-      // live number, the heart rate, asks for the tick itself.
+      leading: _iconButton(c, LucideIcons.ellipsis, 'More', _more),
+      headerCenter: Builder(builder: _header),
+      trailing: _iconButton(c, LucideIcons.plus,
+          AppLocalizations.of(c)?.activityLiveAddExerciseTitle ?? 'Add exercise',
+          addExercise),
       bodyFollowsClock: false,
+      scrollBody: false,
       body: (ctx, _) => _body(ctx),
+      bottom: _bottom,
     );
   }
+
+  /// A bare 40 pt glyph button, as the reference's header draws them.
+  Widget _iconButton(BuildContext c, IconData i, String label, VoidCallback f) =>
+      Pressable(
+        semanticLabel: label,
+        onTap: f,
+        child: SizedBox.square(
+          dimension: S.x10,
+          child: Icon(i, size: I.lg, color: P.of(c).ink),
+        ),
+      );
 
   Widget _header(BuildContext c) {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
-    return Column(children: [
+    final name = LiveDraft.current?.data['workout_name'];
+    return Column(mainAxisSize: MainAxisSize.min, children: [
       Text(
-          def?.labelFor(Localizations.localeOf(c).languageCode) ?? key,
-          textAlign: TextAlign.center,
+          (name is String && name.isNotEmpty ? name : widget.a.displayName(c))
+              .toUpperCase(),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: F.t2.copyWith(color: p.ink)),
-      Text(
-          l?.activityLiveExerciseOf(index + 1, plan.length) ??
-              'Exercise ${index + 1} of ${plan.length}',
-          style: F.over.copyWith(color: p.ink3)),
+          style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w800)),
+      LiveTick((tc, e) {
+        final hr = plan.isEmpty ? null : (widget.feed?.call() ?? LiveFeed.none).hr;
+        return Text.rich(TextSpan(children: [
+          TextSpan(
+              text: _hms(e),
+              style: F.body.copyWith(
+                  color: p.ink2,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: const [FontFeature.tabularFigures()])),
+          // Only while the band reads: no heart rate is an empty space.
+          if (hr != null) ...[
+            TextSpan(
+                text: '  $hr',
+                style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+            TextSpan(
+                text: ' ${l?.activityLiveBpmUnit.toUpperCase() ?? 'BPM'}',
+                style: F.over.copyWith(color: p.ink3)),
+          ],
+        ]));
+      }),
     ]);
   }
 
-  /// What the screen used to spread over six rows (totals, the exercise chips,
-  /// effort, bodyweight, the previous/best cards): one sheet, one tap away.
+  static String _hms(int sec) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(sec ~/ 3600)}:${two(sec % 3600 ~/ 60)}:${two(sec % 60)}';
+  }
+
+  Widget _bottom(BuildContext c, VoidCallback finish) {
+    final p = P.of(c);
+    final l = AppLocalizations.of(c);
+    final open = _setStartedAt;
+    final label = plan.isEmpty
+        ? (l?.activityExercisePickerChooseTitle ?? 'Choose exercise')
+        : open == null
+            ? 'Start set'
+            : 'Finish set';
+    return Row(children: [
+      Expanded(
+        child: Pressable(
+          semanticLabel: label,
+          onTap: _startOrFinish,
+          child: Container(
+            height: S.x10 + S.x1,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: open == null ? null : C.optimal.withValues(alpha: .14),
+              border: Border.all(color: C.optimal, width: 1.5),
+              borderRadius: R.rPill,
+            ),
+            child: open == null
+                ? Text(label.toUpperCase(),
+                    style: F.caps.copyWith(
+                        color: C.optimal, fontWeight: FontWeight.w800))
+                : LiveTick((_, _) {
+                    final s = DateTime.now().difference(open).inSeconds;
+                    return Text(
+                        '${label.toUpperCase()} · ${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}',
+                        style: F.caps.copyWith(
+                            color: C.optimal, fontWeight: FontWeight.w800));
+                  }),
+          ),
+        ),
+      ),
+      const SizedBox(width: S.x3),
+      Pressable(
+        semanticLabel: l?.activityLiveFinishSessionLabel ?? 'Finish session',
+        onTap: finish,
+        child: Container(
+          width: S.x10 + S.x1,
+          height: S.x10 + S.x1,
+          decoration: BoxDecoration(color: p.card2, shape: BoxShape.circle),
+          child: Icon(LucideIcons.square, size: I.sm, color: p.on(C.red)),
+        ),
+      ),
+    ]);
+  }
+
+  Widget _body(BuildContext c) {
+    final p = P.of(c);
+    final l = AppLocalizations.of(c);
+    Widget tab(String label, int i) => Expanded(
+          child: Pressable(
+            semanticLabel: label,
+            onTap: () => setState(() => _tab = i),
+            child: Container(
+              height: S.x10,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                      color: _tab == i ? C.optimal : p.line,
+                      width: _tab == i ? 2 : 1),
+                ),
+              ),
+              child: Text(label,
+                  style: F.caps.copyWith(
+                      color: _tab == i ? p.ink : p.ink3,
+                      fontWeight: FontWeight.w800)),
+            ),
+          ),
+        );
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: S.x5),
+        child: Row(children: [tab('LIVE SESSION', 0), tab('EXERCISES', 1)]),
+      ),
+      Expanded(
+        child: plan.isEmpty
+            ? ListView(padding: const EdgeInsets.all(S.x5), children: [
+                StatusCard(
+                  l?.activityExercisePickerChooseTitle ?? 'Choose exercise',
+                  l?.activityLiveChooseExerciseBody ??
+                      'Pick the first exercise before logging a set.',
+                  icon: LucideIcons.dumbbell,
+                ),
+              ])
+            : ReorderableListView.builder(
+                buildDefaultDragHandles: false,
+                padding: const EdgeInsets.fromLTRB(S.x5, S.x3, S.x5, S.x4),
+                itemCount: plan.length,
+                onReorder: _reorder,
+                itemBuilder: (bc, i) => _tab == 0
+                    ? _card(bc, i, key: ValueKey('card-${plan[i]}'))
+                    : _listRow(bc, i, key: ValueKey('row-${plan[i]}')),
+              ),
+      ),
+    ]);
+  }
+
+  /// One exercise of the session: its picture, name and set count, the set
+  /// table, and the row controls under it.
+  Widget _card(BuildContext c, int i, {required Key key}) {
+    final p = P.of(c);
+    final u = unitsOf(c);
+    final k = plan[i];
+    final d = exerciseByKey(k);
+    final rows = _rowsFor(k);
+    final done = _done(k);
+    final count = _rowCount(k);
+    final current = i == index;
+    final unit = uiText(c, u?.weightUnit ?? 'kg').toUpperCase();
+    final dumbbell =
+        d?.equipment.any((e) => e.toLowerCase().contains('dumbbell')) ?? false;
+    return Container(
+      key: key,
+      margin: const EdgeInsets.only(bottom: S.x3),
+      padding: const EdgeInsets.all(S.x3),
+      decoration: BoxDecoration(color: p.card, borderRadius: R.rLg),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          ExerciseImage(
+              def: d, width: S.x10 + S.x1, height: S.x10 + S.x1, radius: R.rMd),
+          const SizedBox(width: S.x3),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(d?.labelFor(Localizations.localeOf(c).languageCode) ?? k,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+              Text('$count ${count == 1 ? 'Set' : 'Sets'}',
+                  style: F.cap.copyWith(color: p.ink3)),
+            ]),
+          ),
+          ReorderableDragStartListener(
+            index: i,
+            child: Semantics(
+              label: 'Reorder',
+              child: SizedBox.square(
+                dimension: S.x8,
+                child: Icon(LucideIcons.gripVertical, size: I.md, color: p.ink3),
+              ),
+            ),
+          ),
+        ]),
+        const SizedBox(height: S.x3),
+        Row(children: [
+          SizedBox(
+              width: S.x8,
+              child: Text('SET', style: F.over.copyWith(color: p.ink3))),
+          Expanded(
+              child: Text('REPS',
+                  textAlign: TextAlign.center,
+                  style: F.over.copyWith(color: p.ink3))),
+          const SizedBox(width: S.x2),
+          Expanded(
+              child: Text('WEIGHT ($unit)',
+                  textAlign: TextAlign.center,
+                  style: F.over.copyWith(color: p.ink3))),
+          const SizedBox(width: S.x8),
+        ]),
+        const SizedBox(height: S.x1),
+        for (var r = 0; r < count; r++)
+          _setRowView(c, k, r,
+              row: r < rows.length ? rows[r] : null,
+              set: r < done
+                  ? logged.where((s) => s.exerciseKey == k).elementAt(r)
+                  : null,
+              outlined: current && r == done),
+        const SizedBox(height: S.x2),
+        Row(children: [
+          _mini(c, LucideIcons.minus, 'Remove a set', () => _dropRow(k)),
+          const SizedBox(width: S.x2),
+          _mini(c, LucideIcons.plus, 'Add a set', () => _addRow(k)),
+          const Spacer(),
+          if (done == 0 && plan.length > 1)
+            _mini(c, LucideIcons.trash2, 'Remove exercise',
+                () => _removeExercise(k)),
+        ]),
+        if (dumbbell) ...[
+          const SizedBox(height: S.x2),
+          Text('If lifting two dumbbells, enter the combined weight of both.',
+              style: F.cap.copyWith(color: p.ink3)),
+        ],
+      ]),
+    );
+  }
+
+  /// SET · REPS · WEIGHT · ▶ — a logged row reads back what was lifted.
+  Widget _setRowView(BuildContext c, String k, int r,
+      {_SetRow? row, LoggedSet? set, required bool outlined}) {
+    final p = P.of(c);
+    final u = unitsOf(c);
+    String w(double? kg) => kg == null ? '' : _fmt(kg, u);
+    final running = outlined && _setStartedAt != null;
+    final next = set == null && r == _done(k);
+    Widget box(String id, String value, void Function(String) onChanged) =>
+        Container(
+          height: S.x8 + S.x1,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: p.card2, borderRadius: R.rSm),
+          child: set != null
+              ? Text(value,
+                  style: F.body.copyWith(color: p.ink2, fontWeight: FontWeight.w700))
+              : AppField(
+                  bare: true,
+                  controller: _ctrl(id, value),
+                  onChanged: onChanged,
+                  textAlign: TextAlign.center,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  textStyle: F.body.copyWith(fontWeight: FontWeight.w700),
+                  hint: '—',
+                ),
+        );
+    return Container(
+      margin: const EdgeInsets.only(top: S.x1),
+      padding: const EdgeInsets.symmetric(vertical: S.x1),
+      decoration: BoxDecoration(
+        borderRadius: R.rMd,
+        border: Border.all(
+            color: outlined ? C.optimal : Colors.transparent, width: 1.5),
+      ),
+      child: Row(children: [
+        SizedBox(
+          width: S.x8,
+          child: Text('${r + 1}',
+              textAlign: TextAlign.center,
+              style: F.body.copyWith(
+                  color: set != null ? p.ink3 : p.ink,
+                  fontWeight: FontWeight.w700)),
+        ),
+        Expanded(
+          child: box('$k|$r|r', '${set?.reps ?? row?.reps ?? ''}', (t) {
+            final v = int.tryParse(t.trim());
+            if (v != null && v > 0 && row != null) row.reps = v;
+            _persistRows();
+          }),
+        ),
+        const SizedBox(width: S.x2),
+        Expanded(
+          child: box('$k|$r|w', set != null ? (set.loadKg == null ? 'BW' : w(set.loadKg)) : w(row?.kg), (t) {
+            if (row == null) return;
+            final txt = t.trim();
+            row.kg = txt.isEmpty
+                ? null
+                : (u?.weightToKg(txt) ?? double.tryParse(txt.replaceAll(',', '.')));
+            _persistRows();
+          }),
+        ),
+        SizedBox(
+          width: S.x8,
+          child: set != null
+              ? Icon(LucideIcons.check, size: I.md, color: C.optimal)
+              : Pressable(
+                  semanticLabel: running ? 'Finish set ${r + 1}' : 'Start set ${r + 1}',
+                  onTap: next ? () => _play(k) : null,
+                  child: Icon(running ? LucideIcons.square : LucideIcons.play,
+                      size: I.md, color: next ? C.optimal : p.ink3),
+                ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _mini(BuildContext c, IconData i, String label, VoidCallback f) {
+    final p = P.of(c);
+    return Pressable(
+      semanticLabel: label,
+      onTap: f,
+      child: Container(
+        width: S.x8,
+        height: S.x8,
+        decoration: BoxDecoration(color: p.card2, shape: BoxShape.circle),
+        child: Icon(i, size: I.sm, color: p.ink2),
+      ),
+    );
+  }
+
+  /// The EXERCISES tab: the order at a glance, reorderable, tap to go there.
+  Widget _listRow(BuildContext c, int i, {required Key key}) {
+    final p = P.of(c);
+    final k = plan[i];
+    final d = exerciseByKey(k);
+    final done = _done(k), count = _rowCount(k);
+    return Pressable(
+      key: key,
+      semanticLabel: d?.label ?? k,
+      onTap: () => setState(() {
+        index = i;
+        _tab = 0;
+        _persistPlan();
+      }),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: S.x2),
+        padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x2),
+        decoration: BoxDecoration(
+          color: p.card,
+          borderRadius: R.rLg,
+          border: i == index ? Border.all(color: C.optimal, width: 1.5) : null,
+        ),
+        child: Row(children: [
+          ExerciseImage(def: d, width: S.x8 + S.x1, height: S.x8 + S.x1, radius: R.rSm),
+          const SizedBox(width: S.x3),
+          Expanded(
+            child: Text(d?.labelFor(Localizations.localeOf(c).languageCode) ?? k,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
+          ),
+          Text('$done/$count', style: F.cap.copyWith(color: p.ink3)),
+          if (done >= count)
+            Padding(
+              padding: const EdgeInsets.only(left: S.x2),
+              child: Icon(LucideIcons.check, size: I.sm, color: C.optimal),
+            ),
+          ReorderableDragStartListener(
+            index: i,
+            child: SizedBox.square(
+              dimension: S.x8,
+              child: Icon(LucideIcons.gripVertical, size: I.md, color: p.ink3),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  /// Minimise first, then the exercise and set options.
   void _more() {
     final l = AppLocalizations.of(context);
+    final nav = Navigator.of(context);
     AppSheet.show<void>(
       context,
-      title: l?.activityLiveChangeExercise ?? 'This exercise',
+      title: 'Workout',
       child: StatefulBuilder(builder: (sheet, setSheet) {
         final p = P.of(sheet);
         void then(VoidCallback go) {
@@ -1527,32 +1987,35 @@ class _LiveStrengthState extends State<LiveStrength> {
         }
 
         return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          settingsGroup(sheet, 'Exercise', [
-            SetRow(LucideIcons.repeat, C.blue, 'Swap exercise',
-                onTap: () => then(changeExercise)),
-            SetRow(LucideIcons.plus, C.blue,
-                l?.activityLiveAddExerciseTitle ?? 'Add exercise',
-                onTap: () => then(addExercise)),
-            if (plan.length > 1)
-              SetRow(LucideIcons.skipForward, C.blue, 'Skip exercise',
-                  onTap: () => then(skipExercise)),
-            if (index > 0)
-              SetRow(LucideIcons.chevronLeft, C.blue,
-                  l?.activityLivePreviousExercise ?? 'Previous exercise',
-                  onTap: () => then(() => goExercise(index - 1))),
-            if (index < plan.length - 1)
-              SetRow(LucideIcons.chevronRight, C.blue,
-                  l?.activityLiveNextExercise ?? 'Next exercise',
-                  onTap: () => then(() => goExercise(index + 1))),
+          settingsGroup(sheet, 'Session', [
+            // The session lives on [LiveDraft], so leaving the screen puts it
+            // away; the bar above the tab bar brings it back.
+            SetRow(LucideIcons.chevronDown, C.blue,
+                l?.activityLiveMinimiseLabel ?? 'Minimise',
+                onTap: () => then(() => nav.maybePop())),
           ]),
-          settingsGroup(sheet, 'This set', [
-            SetRow(LucideIcons.scale, C.blue, 'Log as bodyweight',
-                value: bodyweight ? 'On' : 'Off',
-                chevron: false, onTap: () {
-              setState(() => bodyweight = !bodyweight);
-              setSheet(() {});
-            }),
-          ]),
+          if (plan.isNotEmpty)
+            settingsGroup(sheet, 'Exercise', [
+              SetRow(LucideIcons.repeat, C.blue, 'Swap exercise',
+                  onTap: () => then(changeExercise)),
+              SetRow(LucideIcons.plus, C.blue,
+                  l?.activityLiveAddExerciseTitle ?? 'Add exercise',
+                  onTap: () => then(addExercise)),
+              if (plan.length > 1)
+                SetRow(LucideIcons.skipForward, C.blue, 'Skip exercise',
+                    onTap: () => then(skipExercise)),
+              SetRow(LucideIcons.scale, C.blue, 'Log the rest as bodyweight',
+                  onTap: () => then(() {
+                        final rows = _rowsFor(key);
+                        setState(() {
+                          for (var r = _done(key); r < rows.length; r++) {
+                            rows[r].kg = null;
+                            _ctrls.remove('$key|$r|w')?.dispose();
+                          }
+                        });
+                        _persistRows();
+                      })),
+            ]),
           Padding(
             padding: const EdgeInsets.fromLTRB(S.x1, S.x2, S.x1, S.x2),
             child: Text(l?.activityLiveEffortRpeHeader ?? 'EFFORT (RPE)',
@@ -1569,7 +2032,7 @@ class _LiveStrengthState extends State<LiveStrength> {
                     setSheet(() {});
                   },
                   child: Container(
-                    height: S.x10,
+                    height: S.x8 + S.x1,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: rpe == i + 6
@@ -1589,147 +2052,6 @@ class _LiveStrengthState extends State<LiveStrength> {
           const SizedBox(height: S.x3),
         ]);
       }),
-    );
-  }
-
-  Widget _body(BuildContext c) {
-    final p = P.of(c);
-    final l = AppLocalizations.of(c);
-    final u = unitsOf(c);
-    if (plan.isEmpty) {
-      return StatusCard(
-        l?.activityExercisePickerChooseTitle ?? 'Choose exercise',
-        l?.activityLiveChooseExerciseBody ??
-            'Pick the first exercise before logging a set.',
-        icon: LucideIcons.dumbbell,
-      );
-    }
-    final here = setsHere;
-    final prev = widget.history[key]?.previous;
-    final stepKg = u?.loadStepKg(def?.step ?? 2.5) ?? (def?.step ?? 2.5);
-    final unit = uiText(c, u?.weightUnit ?? 'kg');
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const SizedBox(height: S.x6),
-      Row(children: [
-        Text('SET ${here.length + 1}', style: F.over.copyWith(color: p.ink3)),
-        const Spacer(),
-        // Plain numbers, and only when the band is reading: no heart rate is
-        // an empty space here, never a dash or a card explaining one.
-        LiveTick((_, _) {
-          final hr = (widget.feed?.call() ?? LiveFeed.none).hr;
-          return hr == null
-              ? const SizedBox.shrink()
-              : ExcludeSemantics(
-                  child: Text.rich(TextSpan(children: [
-                    TextSpan(
-                        text: '$hr',
-                        style: F.body.copyWith(
-                            color: p.ink, fontWeight: FontWeight.w700)),
-                    TextSpan(
-                        text: ' ${l?.activityLiveBpmUnit.toUpperCase() ?? 'BPM'}',
-                        style: F.over.copyWith(color: p.ink3)),
-                  ])),
-                );
-        }),
-      ]),
-      if (here.isNotEmpty) ...[
-        const SizedBox(height: S.x2),
-        Wrap(spacing: S.x2, runSpacing: S.x2, children: [
-          for (final s in here)
-            Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: S.x3, vertical: S.x1 + S.half),
-              decoration: BoxDecoration(
-                  color: p.ink.withValues(alpha: .08), borderRadius: R.rSm),
-              child: Text(
-                  s.loadKg == null
-                      ? '${s.reps} reps'
-                      : '${_fmt(s.loadKg!, u)} × ${s.reps}',
-                  style: F.cap.copyWith(color: p.ink2)),
-            ),
-        ]),
-      ],
-      const SizedBox(height: S.x5),
-      _stepRow(
-        c,
-        p,
-        l?.activityLiveWeightLabel ?? 'WEIGHT',
-        bodyweight ? (l?.activityLiveBwAbbrev ?? 'BW') : _fmt(kg, u),
-        bodyweight ? '' : unit,
-        () => setState(() {
-          bodyweight = false;
-          kg = (kg - stepKg).clamp(0, 500).toDouble();
-        }),
-        () => setState(() {
-          bodyweight = false;
-          kg = kg + stepKg;
-        }),
-      ),
-      const SizedBox(height: S.x3),
-      _stepRow(
-        c,
-        p,
-        l?.activityLiveRepsLabel ?? 'REPS',
-        '$reps',
-        '',
-        () => setState(() => reps = (reps - 1).clamp(1, 100)),
-        () => setState(() => reps = reps + 1),
-      ),
-      if (prev != null) ...[
-        const SizedBox(height: S.x4),
-        Center(
-          child: Text(
-              prev.loadKg == null
-                  ? 'Last time: ${prev.reps} reps'
-                  : 'Last time: ${_fmt(prev.loadKg!, u)} $unit × ${prev.reps}',
-              style: F.cap.copyWith(color: p.ink3)),
-        ),
-      ],
-      const SizedBox(height: S.x4),
-    ]);
-  }
-
-  /// One value the person is about to log: its caption and figure on the left,
-  /// minus and plus on the right, at a size that can be hit mid-set.
-  Widget _stepRow(BuildContext c, P p, String label, String value, String unit,
-      VoidCallback minus, VoidCallback plus) {
-    final l = AppLocalizations.of(c);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(S.x4, S.x3, S.x3, S.x3),
-      decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
-      child: Row(children: [
-        Expanded(
-          child: ExcludeSemantics(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(label, style: F.over.copyWith(color: p.ink3)),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Flexible(
-                    child: Text(value,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: F.n48.copyWith(
-                            color: p.ink, fontWeight: FontWeight.w700)),
-                  ),
-                  if (unit.isNotEmpty) ...[
-                    const SizedBox(width: S.x2),
-                    Text(unit, style: F.cap.copyWith(color: p.ink3)),
-                  ],
-                ],
-              ),
-            ]),
-          ),
-        ),
-        counterButton(p, LucideIcons.minus, p.ink,
-            l?.activityLiveDecrease(label) ?? '$label down', minus,
-            size: S.x12),
-        const SizedBox(width: S.x3),
-        counterButton(p, LucideIcons.plus, p.ink,
-            l?.activityLiveIncrease(label) ?? '$label up', plus,
-            size: S.x12),
-      ]),
     );
   }
 
@@ -2489,4 +2811,12 @@ class _LiveIntervalState extends State<LiveInterval> {
       },
     );
   }
+}
+
+/// One planned row of a strength card: what the next set will be logged as.
+class _SetRow {
+  int reps;
+  double? kg;
+  _SetRow(this.reps, this.kg);
+  _SetRow copy() => _SetRow(reps, kg);
 }

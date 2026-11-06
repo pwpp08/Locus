@@ -59,8 +59,6 @@ import 'plus_menu.dart';
 import 'readiness_detail.dart';
 import 'recovery_calendar.dart' show openRecoveryCalendar;
 import 'sleep_detail.dart';
-import 'sleep_planner.dart'
-    show alarmItemsOf, plannedWakeMin;
 import 'start_activity.dart';
 import 'strain_recovery_card.dart';
 import 'strength_trainer.dart';
@@ -200,22 +198,44 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   final _dialKeys = {for (final k in kDialOrder) k: GlobalKey()};
   final _dialRest = <HomeRingKind, (Offset, double)>{};
 
+  /// Where each dial rests, in scroll-content coordinates. Measured AFTER a
+  /// frame (layout and offset agree then) — on every home build and after
+  /// every scroll frame — and kept when a dial is scrolled out of the list:
+  /// dropping it snapped the flying rings straight into the bar, and
+  /// measuring only on a home build left them starting from where the dials
+  /// sat before a card above them loaded. Both read as a jumpy fold.
   void _measureDials() {
+    _measureQueued = false;
     final stack = _stackKey.currentContext?.findRenderObject() as RenderBox?;
     if (!mounted || stack == null || !stack.attached) return;
     final offset = _scroll.hasClients ? _scroll.offset : 0.0;
+    var moved = false;
     for (final k in kDialOrder) {
       final rb = _dialKeys[k]!.currentContext?.findRenderObject() as RenderBox?;
-      if (rb == null || !rb.attached || !rb.hasSize) {
-        _dialRest.remove(k);
-        continue;
-      }
+      if (rb == null || !rb.attached || !rb.hasSize) continue;
       final top = stack.globalToLocal(rb.localToGlobal(Offset.zero));
-      _dialRest[k] = (
+      final rest = (
         Offset(top.dx + rb.size.width / 2, top.dy + rb.size.height / 2 + offset),
         rb.size.width,
       );
+      final was = _dialRest[k];
+      if (was == null ||
+          (was.$1 - rest.$1).distance > .5 ||
+          (was.$2 - rest.$2).abs() > .5) {
+        moved = true;
+      }
+      _dialRest[k] = rest;
     }
+    // The fold is drawn from these; a changed rest must redraw it now.
+    if (moved && _scroll.hasClients && _scroll.offset > .5) setState(() {});
+  }
+
+  bool _measureQueued = false;
+
+  void _queueMeasure() {
+    if (_measureQueued) return;
+    _measureQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureDials());
   }
 
   static const _tapGrace = Duration(seconds: 20);
@@ -239,6 +259,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_queueMeasure);
     if (widget.data != null) {
       _d = widget.data;
       _night = widget.night ?? const {};
@@ -591,7 +612,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         });
     final dialsShown = (!bare && RingTrio.has(d)) || quietDay;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => _measureDials());
+    _queueMeasure();
     return Stack(key: _stackKey, children: [
      _scrolling(
         controller: _scroll,
@@ -743,9 +764,15 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         const SizedBox(height: S.x3),
         Builder(builder: (c) {
           final alarm = alarmArmOfContext(c);
+          // The wake time is the alarm's when one is set, else the
+          // recommended one — never a separately typed wake time.
+          final at = alarm?.$1;
+          final wake = at != null
+              ? at.hour * 60 + at.minute
+              : d.plan.usualWakeMin;
           return _TonightsSleep(
-            bedtimeMin: d.plan.bedtimeFor(plannedWakeMin(d.plan, alarm, items: alarmItemsOf(c))) ??
-                d.bedtime.value?.round(),
+            bedtimeMin: d.plan.bedtimeFor(wake) ?? d.bedtime.value?.round(),
+            wakeMin: at == null ? wake : null,
             alarm: alarm,
           );
         }),

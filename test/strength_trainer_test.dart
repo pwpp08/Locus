@@ -125,10 +125,13 @@ void main() {
     expect(find.text('Start a Workout'), findsOneWidget);
     expect(find.text('QUICK START'), findsOneWidget);
     expect(find.text('My Workouts'), findsOneWidget);
-    expect(find.text('Generate with AI'), findsOneWidget);
-    expect(find.text('GET STARTED'), findsOneWidget);
-    expect(find.text('BUILD A WORKOUT'), findsOneWidget);
     expect(find.text('PUSH'), findsOneWidget);
+    // Building is one compact button, not a section of the page.
+    expect(find.text('GET STARTED'), findsNothing);
+    await t.tap(find.text('BUILD'));
+    await t.pumpAndSettle();
+    expect(find.text('Build it yourself'), findsOneWidget);
+    expect(find.text('Generate with AI'), findsOneWidget);
   });
 
   testWidgets('the editor: open a card, add a set, edit a load', (t) async {
