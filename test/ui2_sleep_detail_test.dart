@@ -83,7 +83,6 @@ SleepData _full() => SleepData(
         debt: {_day: 148},
         spans: {_day: (bed: 667, wake: 1093)},
         needParts: const NeedParts(491, 32, 127, 0),
-        streak: 7,
       ),
     );
 

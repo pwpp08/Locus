@@ -3,6 +3,7 @@ import 'dart:ui' show Color;
 import 'package:flutter/material.dart' show Locale;
 import 'package:intl/intl.dart';
 
+import '../../../compute/whoop_scores.dart' show whoopStrainTarget;
 import '../../../compute/findings.dart'
     show
         kReadinessEasyBelow,
@@ -146,12 +147,6 @@ int? daysBehind(int? epochSec) {
   return calendarDaysBetween(
       DateTime.fromMillisecondsSinceEpoch(epochSec * 1000), DateTime.now());
 }
-
-/// The withheld-rollup reason inside a `getInsights()` result.
-Map<String, dynamic>? staleReasonOf(Map<String, dynamic> insights) =>
-    insights['stale'] is Map
-        ? (insights['stale'] as Map).cast<String, dynamic>()
-        : null;
 
 String hm(num? minutes) {
   if (minutes == null) return '';
@@ -364,14 +359,12 @@ class HomeData {
   final Metric bedtime;
   final SleepPlan plan;
   final Map<String, dynamic>? strainTarget;
-  final Map<String, dynamic>? insightsStale;
   final String? heldOverNight;
   final String? illnessState;
   final String? illnessDay;
   final double? illnessZ;
   final Map<String, dynamic>? absentDiag;
   final String? recoveryState;
-  final Map<String, dynamic>? readinessUpdate;
 
   const HomeData({
     this.name,
@@ -397,10 +390,8 @@ class HomeData {
     this.illnessState,
     this.illnessDay,
     this.illnessZ,
-    this.insightsStale,
     this.absentDiag,
     this.recoveryState,
-    this.readinessUpdate,
   });
 
   HomeData copyOrIllness(String? state, String? day, double? z) => HomeData(
@@ -427,10 +418,8 @@ class HomeData {
         illnessState: state,
         illnessDay: day,
         illnessZ: z,
-        insightsStale: insightsStale,
         absentDiag: absentDiag,
         recoveryState: recoveryState,
-        readinessUpdate: readinessUpdate,
       );
 
   /// [key]'s stored value on [date], or null: none stored, or no database to
@@ -459,6 +448,8 @@ class HomeData {
     final absentDiag = readiness.value != null
         ? null
         : await LocalDb.readinessAbsentDiag(date);
+    // That morning's target, off that morning's recovery, as today's is.
+    final target = whoopStrainTarget(readiness.value?.toDouble());
     return HomeData(
       name: profile['name']?.toString(),
       dayId: date,
@@ -466,6 +457,9 @@ class HomeData {
       absentDiag: absentDiag,
       rhr: metricOf(overview['resting_hr']),
       strain: metricOf(strain['strain']),
+      strainTarget: target == null
+          ? null
+          : {'value': target.optimal, 'low': target.lo, 'high': target.hi},
       steps: metricOf(strain['steps']),
       calories: metricOf(strain['calories']),
       caloriesTotal: metricOf(strain['calories_total']),
@@ -526,7 +520,6 @@ class HomeData {
       readiness: readiness,
       absentDiag: absentDiag,
       recoveryState: recoveryState,
-      readinessUpdate: (head['recovery_update'] as Map?)?.cast<String, dynamic>(),
       drivers: [
         for (final e in (gbDrivers is List ? gbDrivers : const []))
           if (e is Map) e.cast<String, dynamic>(),
@@ -554,7 +547,6 @@ class HomeData {
           ? (strain['strain_target'] as Map).cast<String, dynamic>()
           : null,
       plan: SleepPlan.of(cd),
-      insightsStale: staleReasonOf(cd),
     );
   }
 }

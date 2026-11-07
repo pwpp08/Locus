@@ -103,6 +103,78 @@ class UsualRange {
   int get hashCode => Object.hash(lo, hi);
 }
 
+/// A metric's highest and lowest days: one flat card split down the middle.
+class AllTimeRecords extends StatelessWidget {
+  const AllTimeRecords({
+    super.key,
+    required this.high,
+    required this.highDay,
+    required this.low,
+    required this.lowDay,
+    this.unit = '',
+  });
+
+  final String high, highDay, low, lowDay, unit;
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    Widget side(bool up, String label, String value, String day) => Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: S.x4, vertical: S.x3),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    DeltaTriangle(up: up, color: p.ink3, size: S.x2),
+                    const SizedBox(width: S.x1),
+                    Expanded(
+                      child: Text(label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: F.over.copyWith(color: p.ink3)),
+                    ),
+                  ]),
+                  const SizedBox(height: S.x1),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text.rich(TextSpan(children: [
+                      TextSpan(
+                          text: value,
+                          style: F.n17.copyWith(
+                              color: p.ink, fontWeight: FontWeight.w700)),
+                      if (unit.isNotEmpty)
+                        TextSpan(
+                            text: ' $unit',
+                            style: F.cap.copyWith(color: p.ink3)),
+                    ])),
+                  ),
+                  Text(day,
+                      maxLines: 1,
+                      style: F.num(F.cap).copyWith(color: p.ink3)),
+                ]),
+          ),
+        );
+    return Container(
+      decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
+      child: IntrinsicHeight(
+        child: Row(children: [
+          side(true, 'ALL-TIME HIGH', high, highDay),
+          VerticalDivider(
+              width: S.hair,
+              thickness: S.hair,
+              indent: S.x3,
+              endIndent: S.x3,
+              color: p.line),
+          side(false, 'ALL-TIME LOW', low, lowDay),
+        ]),
+      ),
+    );
+  }
+}
+
 /// "Normal for you" / "Above usual" / "Below usual".
 String usualWord(AppLocalizations? l, Side s) => switch (s) {
       Side.inside => l?.trendNormalForYou ?? 'Normal for you',

@@ -11144,6 +11144,29 @@ class LocalDb {
         where: 'date = ? AND key = ?', whereArgs: [date, key]);
   }
 
+  /// [setMetricSeriesValue] for many days at once, in one batch:
+  /// `{date: {key: value}}`.
+  static Future<void> setMetricSeriesNights(
+    Map<String, Map<String, double?>> byDate,
+  ) async {
+    if (byDate.isEmpty) return;
+    final db = await instance;
+    final batch = db.batch();
+    byDate.forEach((date, values) {
+      values.forEach((key, value) {
+        if (value == null) {
+          batch.delete('metric_series',
+              where: 'date = ? AND key = ?', whereArgs: [date, key]);
+        } else {
+          batch.insert(
+              'metric_series', {'date': date, 'key': key, 'value': value},
+              conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+      });
+    });
+    await batch.commit(noResult: true);
+  }
+
   /// A long-format metric series (oldest first) for trends/sparklines.
   ///
   /// [measuredOnly] drops days another vendor's export wrote (see

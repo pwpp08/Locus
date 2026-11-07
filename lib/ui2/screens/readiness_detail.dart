@@ -34,7 +34,6 @@ class RecoveryVitals {
   /// Seven days ending on the morning shown, oldest first.
   final List<String> week;
   final Map<String, double> recovery, hrv, restingHr, resp, sleepPerf;
-  final int? streak;
   const RecoveryVitals({
     this.week = const [],
     this.recovery = const {},
@@ -42,7 +41,6 @@ class RecoveryVitals {
     this.restingHr = const {},
     this.resp = const {},
     this.sleepPerf = const {},
-    this.streak,
   });
 
   /// The mean of a series over the [_window] days before [day].
@@ -55,19 +53,13 @@ class RecoveryVitals {
   }
 
   static Future<RecoveryVitals> load(LocalRepository repo, String day) async {
-    final recovery = await dialSeries(repo, 'recovery');
-    var streak = 0;
-    for (var d = day; recovery[d] != null; d = shiftDay(d, -1)) {
-      streak++;
-    }
     return RecoveryVitals(
       week: [for (var i = 6; i >= 0; i--) shiftDay(day, -i)],
-      recovery: recovery,
+      recovery: await dialSeries(repo, 'recovery'),
       hrv: await dialSeries(repo, 'hrv'),
       restingHr: await dialSeries(repo, 'resting_hr'),
-      resp: await dialSeries(repo, 'resp'),
+      resp: await dialSeries(repo, 'resp_rate'),
       sleepPerf: await dialSeries(repo, 'sleep_performance'),
-      streak: streak == 0 ? null : streak,
     );
   }
 }
@@ -210,16 +202,15 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
     final v = d.readiness.value;
     final name = dialDayName(d.day ?? _day, l);
     final title = name.isEmpty ? (l?.readinessDetailTitle ?? 'Recovery') : name;
-    final badge = StreakBadge(StreakKind.recovery, d.vitals.streak);
 
     if (_loading && _d == null) {
-      return DialScaffold(title: title, trailing: badge, children: const [
+      return DialScaffold(title: title, children: const [
         SizedBox(height: S.x8),
         Center(child: CircularProgressIndicator()),
       ]);
     }
 
-    return DialScaffold(title: title, trailing: badge, children: [
+    return DialScaffold(title: title, children: [
       if (v == null)
         // No `why:`. The pipeline records why readiness abstained on every
         // day it does, and the "What was missing" section directly below

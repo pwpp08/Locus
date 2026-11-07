@@ -500,19 +500,23 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     final cur = _day ?? dayId ?? today;
     return Padding(
       padding: const EdgeInsets.only(top: S.x3, bottom: S.x4),
-      child: Stack(alignment: Alignment.center, children: [
-        DayPager(
-          day: cur,
-          today: today,
-          days: _days,
-          onDay: _goDay,
-          onCalendar: () => _openCalendar(c, cur),
-        ),
-        const Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: ProfileAvatar(accent: C.domHome, size: S.x12 * 0.8)),
-        const Align(
-            alignment: AlignmentDirectional.centerEnd, child: _DeviceStatus()),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Stack(alignment: Alignment.center, children: [
+          DayPager(
+            day: cur,
+            today: today,
+            days: _days,
+            onDay: _goDay,
+            onCalendar: () => _openCalendar(c, cur),
+          ),
+          const Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: ProfileAvatar(accent: C.domHome, size: S.x12 * 0.8)),
+          const Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: _DeviceStatus()),
+        ]),
+        if (derivingOf(c)) const _Calculating(),
       ]),
     );
   }
@@ -570,7 +574,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           const SizedBox(height: S.x3),
           firstWeekCard(c, days: _days.length, strainScored: false),
         ],
-        if (_day == null || _day == todayLabel())
+        // Not over the mark: a read that failed still reaches the alarm.
+        if (!_loading && (_day == null || _day == todayLabel()))
           if (alarmArmOfContext(c) case final (DateTime?, AlarmArmState) a) ...[
             const SizedBox(height: S.x3),
             alarmDoor(c, a.$1, a.$2),
@@ -601,7 +606,6 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         (_days.length <= readinessCompositeMinBaseline ||
             recoveryNightsLeft != null);
 
-    final stale = staleInsightsCard(d.insightsStale, syncOf(c), l);
     final rebuilt = dbRebuiltCard(dbRebuiltOf(c), l);
     void openDial(HomeRingKind k) => go(
         c,
@@ -653,12 +657,13 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
               keys: _dialKeys,
               scroll: _scroll,
               note: quietDay ? 'No sleep yet today.' : null),
-          _Monitors(
-            health: _health,
-            stress: _stress,
-            onHealth: () => go(c, const HealthMonitorScreen()),
-            onStress: () => go(c, const StressMonitorScreen()),
-          ),
+          if (isToday)
+            _Monitors(
+              health: _health,
+              stress: _stress,
+              onHealth: () => go(c, const HealthMonitorScreen()),
+              onStress: () => go(c, const StressMonitorScreen()),
+            ),
         ] else
           Builder(builder: (c) {
             final need = needMessageFromNote(d.readiness.note);
@@ -680,7 +685,6 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
               onFix: () => go(c, const ReadinessDetail()),
             );
           }),
-        if (stale != null) ...[const SizedBox(height: S.x3), stale],
         if (firstWeeks) ...[
           const SizedBox(height: S.x3),
           firstWeekCard(c,
@@ -1059,5 +1063,27 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           .then<void>((_) {}, onError: (Object _) {}));
     }
     await _load();
+  }
+}
+
+/// The small line under the date picker while the app is working the numbers
+/// out. It takes its own height, so the page below moves down a few pixels.
+class _Calculating extends StatelessWidget {
+  const _Calculating();
+
+  @override
+  Widget build(BuildContext c) {
+    final ink = P.of(c).ink3;
+    return Padding(
+      padding: const EdgeInsets.only(top: S.x2),
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        SizedBox.square(
+          dimension: S.x3,
+          child: CircularProgressIndicator(strokeWidth: 1.5, color: ink),
+        ),
+        const SizedBox(width: S.x2),
+        Text('Calculating', style: F.cap.copyWith(color: ink)),
+      ]),
+    );
   }
 }

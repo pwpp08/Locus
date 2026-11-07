@@ -647,6 +647,27 @@ void _wiredFamilies() {
     });
   });
 
+  test('every night in the window keeps its own sleep performance', () {
+    final days = _synthDays(30);
+    for (final d in days) {
+      d['efficiency'] = 92.0;
+    }
+    days[10].remove('efficiency');
+    days.last['is_today'] = true;
+    final nights = <String, Map<String, double?>>{};
+    final out = buildCrossDayBundle(days, const {}, nightSeries: nights);
+    expect(nights, hasLength(30));
+    final past = nights[days[20]['date']]!;
+    expect(past['sleep_performance'], isNotNull);
+    expect(past['sleep_last_need_min'], isNotNull);
+    expect(past['sleep_consistency'], isNotNull);
+    // A night with no efficiency is absent, not scored without it.
+    expect(nights[days[10]['date']]!['sleep_performance'], isNull);
+    // The newest night is the same number the coach block publishes.
+    expect(nights[days.last['date']]!['sleep_performance'],
+        ((out['sleep_coach'] as Map)['performance'] as Map)['value']['pct']);
+  });
+
   group('TS-12 — overreaching as two facts', () {
     test('the two facts coincide only when BOTH hold', () {
       // Baseline RHR ~55 for 40 days, then five nights well above it, and a

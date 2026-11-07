@@ -1841,6 +1841,9 @@ import 'vendor_sleep.dart';
 // (`sleep_performance`, `sleep_consistency`, `sleep_last_need_min`). The
 // strain target is sized from today's recovery alone. Days derived before 116
 // keep their stored values.
+// (no bump) Every cross-day pass now also stores `sleep_performance`,
+// `sleep_consistency` and `sleep_last_need_min` for each night in its window,
+// on the v116 formulas; no day_result changes, so nothing needs re-deriving.
 const int kAlgoVersion = 116;
 /// The sibling SHAs this version was derived against, asserted against
 /// pubspec.yaml in test/db_serve_version_and_reads_test.dart.
@@ -6553,14 +6556,16 @@ class DerivationEngine {
       // one layer up on the output.
       final builtForDay = LocalDb.localDayLabelNow();
       final builtAtEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final (bundleJson, dropped, coachDay) = await _runIsolateCancellable(
+      final (bundleJson, dropped, coachDay, nights) = await _runIsolateCancellable(
         () {
+          final nights = <String, Map<String, double?>>{};
           final bundle =
               buildCrossDayBundle(
                   days,
                   profileMap,
                   cycleStartDates: cycleStarts,
                   sessionTypesByDate: sessionTypes,
+                  nightSeries: nights,
                 )
                 ..['algo_version'] = kAlgoVersion
                 ..['built_for_day'] = builtForDay
@@ -6570,7 +6575,7 @@ class DerivationEngine {
           final paths = <String>[];
           final safe = sanitizeForJson(bundle, paths) as Map<String, dynamic>;
           if (paths.isNotEmpty) safe['encode_dropped_fields'] = paths;
-          return (jsonEncode(safe), paths, sleepCoachDaySeries(safe));
+          return (jsonEncode(safe), paths, sleepCoachDaySeries(safe), nights);
         },
         _crossDayTimeout,
         label: 'crossday',
@@ -6579,13 +6584,16 @@ class DerivationEngine {
         _log('crossday: newer activity review; leaving its refresh queued');
         return false;
       }
+      // Each night in the window keeps its own Sleep Performance, Consistency
+      // and need, recomputed on the same formula on every pass (it replaces,
+      // never appends), so an edited night's score follows the edit.
+      await LocalDb.setMetricSeriesNights(nights);
       // FORWARD-ONLY HISTORY of two figures the cross-day bundle only ever
       // holds for TODAY (it is rebuilt, not appended): tonight's sleep need and
-      // the sleep debt behind it, dated the day they were computed for. Trend
-      // View's Sleep Performance / Hours vs. Needed / Sleep Debt read them; no
-      // past day is given a value it was never computed with. A null removes
-      // the row, so a day whose need went absent does not keep an older one
-      // and a day that never had one gains no row.
+      // the sleep debt behind it, dated the day they were computed for. Sleep
+      // Debt reads them; no past day is given a value it was never computed
+      // with. A null removes the row, so a day whose need went absent does not
+      // keep an older one and a day that never had one gains no row.
       for (final e in coachDay.entries) {
         await LocalDb.setMetricSeriesValue(builtForDay, e.key, e.value);
       }

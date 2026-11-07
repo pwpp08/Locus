@@ -7085,32 +7085,6 @@
   "@homeWorkoutHoldBody": {
     "description": "Body of the card shown on Home while a workout session is live and derivation is paused."
   },
-  "homeInsightsRebuildingTitle": "Your cross-day insights are being rebuilt",
-  "@homeInsightsRebuildingTitle": {
-    "description": "Title of the card shown when the cross-day insights rollup was withheld rather than shown."
-  },
-  "homeInsightsRebuildingAlgoVersion": "How these are computed changed with the last update.",
-  "@homeInsightsRebuildingAlgoVersion": {
-    "description": "Reason the cross-day rollup is being rebuilt: the algorithm version changed."
-  },
-  "homeInsightsStaleOverWeek": "Your trends were last updated over a week ago. Sync the band to bring them up to date.",
-  "@homeInsightsStaleOverWeek": {
-    "description": "Reason the cross-day rollup is being rebuilt: the last rollup is more than a week old."
-  },
-  "homeInsightsStaleOnDay": "Your trends were last updated on {day}. Sync the band to bring them up to date.",
-  "@homeInsightsStaleOnDay": {
-    "description": "Reason the cross-day rollup is being rebuilt: names the day the last rollup was built.",
-    "placeholders": {
-      "day": {
-        "type": "String",
-        "example": "Saturday, 20 May"
-      }
-    }
-  },
-  "homeInsightsNoVersionStamp": "Your trends are being updated. This takes a minute after a sync.",
-  "@homeInsightsNoVersionStamp": {
-    "description": "Reason the cross-day rollup is being rebuilt: the stored rollup has no version stamp."
-  },
   "homeSyncBand": "Sync the band",
   "@homeSyncBand": {
     "description": "Call-to-action button label: sync the band."
@@ -14681,21 +14655,6 @@
   "homeRecoveryFinishingUp": "Finishing up",
   "@homeRecoveryFinishingUp": {
     "description": "Caption under a greyed, provisional recovery number: wake detected, the night's data is still arriving."
-  },
-  "homeRecoveryUpdated": "Updated {time} · {from} → {to}",
-  "@homeRecoveryUpdated": {
-    "description": "Quiet note when today's recovery changed after it was first shown (re-analysis or late sync).",
-    "placeholders": {
-      "time": {
-        "type": "String"
-      },
-      "from": {
-        "type": "int"
-      },
-      "to": {
-        "type": "int"
-      }
-    }
   },
   "dataRecoveryChanged": "Recovery changed: {list}",
   "@dataRecoveryChanged": {

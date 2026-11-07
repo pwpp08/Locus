@@ -10,7 +10,6 @@ import 'package:openstrap_edge/coach/coach_engine.dart';
 import 'package:openstrap_edge/data/local_repository.dart';
 import 'package:openstrap_edge/l10n/app_localizations.dart';
 import 'package:openstrap_edge/models/metric.dart';
-import 'package:openstrap_edge/state/clock_format.dart' show formatClockOf;
 import 'package:openstrap_edge/ui2/screens/screens.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
@@ -56,19 +55,16 @@ void main() {
     expect(find.text('Finishing up'), findsOneWidget);
   });
 
-  testWidgets('final: the number, no provisional caption, update note',
+  testWidgets('final: the number, no provisional caption, no update note',
       (t) async {
-    final at = DateTime(2026, 10, 8, 8, 12).millisecondsSinceEpoch;
     await _pump(
         t,
         HomeData(
             recoveryState: 'final',
-            readiness: const Metric(value: 28, confidence: .8),
-            readinessUpdate: {'from': 2, 'to': 28, 'at': at}));
+            readiness: const Metric(value: 28, confidence: .8)));
     expect(find.text('28'), findsOneWidget);
     expect(find.text('Finishing up'), findsNothing);
-    final clock = formatClockOf(DateTime.fromMillisecondsSinceEpoch(at));
-    expect(find.text('Updated $clock · 2 → 28'), findsOneWidget);
+    expect(find.textContaining('Updated'), findsNothing);
   });
 
   group('Coach get_today and Home read the same recovery', () {
@@ -131,7 +127,7 @@ void main() {
       expect(find.text('Finishing up'), findsOneWidget);
     });
 
-    testWidgets('final with a changed number: the update note', (t) async {
+    testWidgets('final with a changed number: no update note', (t) async {
       final at = DateTime(2026, 10, 8, 8, 12).millisecondsSinceEpoch;
       await pumpDetail(
           t,
@@ -141,8 +137,7 @@ void main() {
             'recovery_update': {'from': 2, 'to': 28, 'at': at},
           }, readiness: const Metric(value: 28, confidence: .8)));
       await t.pumpAndSettle();
-      final clock = formatClockOf(DateTime.fromMillisecondsSinceEpoch(at));
-      expect(find.text('Updated $clock · 2 → 28'), findsOneWidget);
+      expect(find.textContaining('Updated'), findsNothing);
       expect(find.text('Finishing up'), findsNothing);
     });
 

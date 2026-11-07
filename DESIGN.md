@@ -879,7 +879,7 @@ Opened from a dashboard row, a week card chevron, or a detail screen. One metric
 
 Sleep, Recovery, Behavior Insights and Behavior Details are one family, measured from the user's reference recordings at 1.5 px per dp. The sizes below are the reference's: check against it before changing one, not against what looks comfortable.
 
-- **`DialScaffold`:** a slate-to-black page gradient, a painted back chevron, the day in caps (`FRI, MAY 16`), and a **`StreakBadge`** at the right. The badge counts consecutive scored days and reads `--` when there is no run to count. There is no day pager on these screens.
+- **`DialScaffold`:** a slate-to-black page gradient, a painted back chevron, the day in caps (`FRI, MAY 16`). There is no day pager on these screens.
 - **`DialRing`:** side 75 % of the width, stroke 6 % of the side, on `DC.tierOff` with a soft start (`Ring.softStart`). Inside: `LOCUS`, the figure in `F.nDial` with its `%` in `F.nDialPct`, then the label in `F.dHero`.
 - **`CaretPanel`:** the graded panel with a caret pointing up at the ring.
 - **`TierBar`:** three segments for the Poor, Sufficient and Optimal bands, the band it falls in lit (orange, grey, green).

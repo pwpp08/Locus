@@ -758,8 +758,6 @@ class DC {
   static const chip = Color(0xFF3A4249);
   static const field = Color(0xFF2E353B);
   static const grab = Color(0xFF56616A);
-  static const badge = Color(0x0FFFFFFF);
-  static const badgeFill = Color(0xFF0B0D10);
   static const hurtChip = Color(0x33FFA733);
   static const helpChip = Color(0x3300F19F);
   static const sparkChip = Color(0xFF263B50);

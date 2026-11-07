@@ -55,6 +55,7 @@ Map<String, dynamic> buildCrossDayBundle(
   Map<String, dynamic> profile, {
   List<String> cycleStartDates = const [],
   Map<String, List<String>> sessionTypesByDate = const {},
+  Map<String, Map<String, double?>>? nightSeries,
 }) {
   final days = daysOldestFirst;
   final n = days.length;
@@ -372,28 +373,23 @@ Map<String, dynamic> buildCrossDayBundle(
       : null;
   final lastTstMin = _todayNum(days, 'tst_min');
   // WHOOP Sleep Consistency: the newest nights' onset and wake clock times.
-  final windows = <({double onset, double wake})>[
-    for (final d in days)
-      if (d['onset_sec'] is num &&
-          d['wake_sec'] is num &&
-          (d['wake_sec'] as num) - (d['onset_sec'] as num) >= 3 * 3600)
-        () {
-          final onsetSec = (d['onset_sec'] as num).toInt();
-          final onset = _localTodMin(onsetSec);
-          // Noon-to-noon clock: a 01:00 onset sits 120 min after a 23:00 one.
-          final o = onset < 12 * 60 ? onset + 24 * 60 : onset;
-          return (
-            onset: o,
-            wake: o + ((d['wake_sec'] as num).toInt() - onsetSec) / 60,
-          );
-        }(),
-  ];
+  ({double onset, double wake})? windowOf(Map<String, dynamic> d) {
+    final on = d['onset_sec'], off = d['wake_sec'];
+    if (on is! num || off is! num || off - on < 3 * 3600) return null;
+    final onset = _localTodMin(on.toInt());
+    // Noon-to-noon clock: a 01:00 onset sits 120 min after a 23:00 one.
+    final o = onset < 12 * 60 ? onset + 24 * 60 : onset;
+    return (onset: o, wake: o + (off.toInt() - on.toInt()) / 60);
+  }
+
+  double? newestConsistency(List<({double onset, double wake})> w) =>
+      whoopSleepConsistency(w.length > 4 ? w.sublist(w.length - 4) : w);
+
+  final windows = [for (final d in days) ?windowOf(d)];
   final consistency = days.isNotEmpty &&
           days.last['is_today'] == true &&
           days.last['onset_sec'] is num
-      ? whoopSleepConsistency(windows.length > 4
-          ? windows.sublist(windows.length - 4)
-          : windows)
+      ? newestConsistency(windows)
       : null;
   final perfPct = whoopSleepPerformance(
     tstMin: lastTstMin,
@@ -424,6 +420,28 @@ Map<String, dynamic> buildCrossDayBundle(
               ? needInputNote('tst_min')
               : needInputNote('efficiency'),
         );
+  // Every night in the window, scored the way last night is above, for the
+  // history the bundle itself does not hold (it is rebuilt for today only).
+  if (nightSeries != null && chain != null) {
+    final seen = <({double onset, double wake})>[];
+    for (var i = 0; i < n; i++) {
+      final d = days[i];
+      if (windowOf(d) case final w?) seen.add(w);
+      final date = d['date'];
+      if (date is! String) continue;
+      final c = d['onset_sec'] is num ? newestConsistency(seen) : null;
+      nightSeries[date] = {
+        'sleep_last_need_min': chain[i].needMin,
+        'sleep_consistency': c,
+        'sleep_performance': whoopSleepPerformance(
+          tstMin: _numOrNull(d['tst_min']),
+          needMin: chain[i].needMin,
+          efficiencyPct: _numOrNull(d['efficiency']),
+          consistencyPct: c,
+        ),
+      };
+    }
+  }
   // typical wake clock-minute + efficiency from recent days (medians).
   final wakeMins = <double>[
     for (final d in days)

@@ -1540,85 +1540,15 @@ class _MetricDetailState extends State<MetricDetail> {
     }
     if (maxPt == null || minPt == null) return const SizedBox.shrink();
 
-    final p = P.of(c);
     final ub = unitBeside(spec.unit);
-    final u = ub.isEmpty ? '' : ' ${uiText(c, ub)}';
-
-    Widget recordCell({
-      required String label,
-      required ChartPoint pt,
-      required IconData icon,
-      required Color iconColor,
-    }) {
-      final dateStr = axisDay(pt.t);
-      final valStr = '${_fmt(spec, pt.v)}$u';
-      return Expanded(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x3),
-          decoration: BoxDecoration(
-            color: p.wash(p.ink).withValues(alpha: .04),
-            borderRadius: R.rMd,
-            border: Border.all(color: p.line.withValues(alpha: .3)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(children: [
-                Icon(icon, size: I.sm, color: iconColor),
-                const SizedBox(width: S.x1),
-                Expanded(
-                  child: Text(
-                    label.toUpperCase(),
-                    style: F.caps.copyWith(color: p.ink3, letterSpacing: .5),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ]),
-              const SizedBox(height: S.x1),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  valStr,
-                  style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700),
-                ),
-              ),
-              const SizedBox(height: S.half),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  dateStr,
-                  style: F.cap.copyWith(color: p.ink3),
-                  maxLines: 1,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Padding(
       padding: const EdgeInsets.only(top: S.x4),
-      child: Row(
-        children: [
-          recordCell(
-            label: 'All-Time High',
-            pt: maxPt,
-            icon: LucideIcons.arrowUpRight,
-            iconColor: C.green,
-          ),
-          const SizedBox(width: S.x3),
-          recordCell(
-            label: 'All-Time Low',
-            pt: minPt,
-            icon: LucideIcons.arrowDownRight,
-            iconColor: C.dialStrain,
-          ),
-        ],
+      child: AllTimeRecords(
+        high: _fmt(spec, maxPt.v),
+        highDay: axisDay(maxPt.t),
+        low: _fmt(spec, minPt.v),
+        lowDay: axisDay(minPt.t),
+        unit: ub.isEmpty ? '' : uiText(c, ub),
       ),
     );
   }

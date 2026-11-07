@@ -1683,6 +1683,13 @@ Map<String, Widget> _stateCases() => {
       ]),
       // Two activities too close on a chart to draw apart.
       'mark_count': const MarkCount(2, color: C.white),
+      'all_time_records': const AllTimeRecords(
+        high: '8:50',
+        highDay: 'Nov 7',
+        low: '4:12',
+        lowDay: 'Oct 24',
+        unit: 'hr',
+      ),
       'plus_button': const Row(mainAxisSize: MainAxisSize.min, children: [
         PlusButton(onTap: null),
         SizedBox(width: S.x4),

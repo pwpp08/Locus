@@ -148,7 +148,6 @@ class SleepVitals {
   /// Each stage's typical share of the night, 0–1.
   final Map<SleepStage, (double, double)> typical;
   final NeedParts? needParts;
-  final int? streak;
 
   const SleepVitals({
     this.week = const [],
@@ -165,7 +164,6 @@ class SleepVitals {
     this.heart = const [],
     this.typical = const {},
     this.needParts,
-    this.streak,
   });
 
   /// The mean of a series over the [_window] days before [day].
@@ -325,11 +323,6 @@ class SleepData {
       if (base > 0) parts = NeedParts(base, strainMin, debtMin, nap);
     }
 
-    var streak = 0;
-    for (var d = day; perf[d] != null; d = shiftDay(d, -1)) {
-      streak++;
-    }
-
     var heart = const <({int t, double v})>[];
     if (on is num && off is num && off > on) {
       final pad = ((off - on) * .07).round();
@@ -383,7 +376,6 @@ class SleepData {
         heart: heart,
         typical: typical,
         needParts: parts,
-        streak: streak == 0 ? null : streak,
       ),
     );
   }
@@ -478,10 +470,9 @@ class _SleepDetailState extends State<SleepDetail> {
     final title = dialDayName(shown, l).isEmpty
         ? (l?.sleepDetailNavTitle ?? 'Sleep')
         : dialDayName(shown, l);
-    final badge = StreakBadge(StreakKind.sleep, d.vitals.streak);
 
     if (_loading && _d == null) {
-      return DialScaffold(title: title, trailing: badge, children: const [
+      return DialScaffold(title: title, children: const [
         SizedBox(height: S.x8),
         Center(child: CircularProgressIndicator()),
       ]);
@@ -492,7 +483,7 @@ class _SleepDetailState extends State<SleepDetail> {
       // user marked as not sleep, or today before any. Each is put right the
       // same way, by entering the night by hand on the heart rate chart.
       final at = shown ?? todayLabel();
-      return DialScaffold(title: title, trailing: badge, children: [
+      return DialScaffold(title: title, children: [
         const SizedBox(height: S.x2),
         StatusCard(
           'No sleep recorded',
@@ -512,7 +503,7 @@ class _SleepDetailState extends State<SleepDetail> {
     final n = d.night;
     final staged = _deviceNight(d);
     final night = staged ?? n;
-    return DialScaffold(title: title, trailing: badge, children: [
+    return DialScaffold(title: title, children: [
       _SleepHero(d: d, stress: _stress[d.day]),
       if (n['provisional'] == true)
         Padding(

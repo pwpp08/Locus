@@ -397,7 +397,7 @@ const _notComponents = {
   // (a ring as wide as the screen, week charts with fixed plots), so a gallery
   // cell would only be squeezing them. ui2_sleep_detail_test pumps them at 3.1x.
   'BehaviorInsightsScreen', 'BehaviorDetailsScreen', 'EditTimeInBedSheet',
-  'DialScaffold', 'StreakBadge', 'DialRing', 'CaretPanel', 'TierBar',
+  'DialScaffold', 'DialRing', 'CaretPanel', 'TierBar',
   'ValueDelta', 'DialInfo', 'HatchBar', 'WeekChart', 'WeekCard',
   // tabs and drill-downs
   'HomeScreen', 'HealthScreen', 'WorkoutScreen', 'NutritionScreen',

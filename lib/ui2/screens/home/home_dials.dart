@@ -111,10 +111,6 @@ class HomeDials extends StatelessWidget {
         const SizedBox(height: S.x2),
         Text(note!, style: F.cap.copyWith(color: p.ink3)),
       ],
-      if (recoveryUpdatedLine(d.readinessUpdate, l) case final note?) ...[
-        const SizedBox(height: S.x2),
-        Text(note, style: F.cap.copyWith(color: p.ink3)),
-      ],
       const SizedBox(height: S.x3),
     ]);
   }

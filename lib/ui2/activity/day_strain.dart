@@ -234,7 +234,6 @@ class _StrainTrends {
     'calories',
     'zones_13',
     'zones_45',
-    'strength_time',
   ];
 
   static Future<_StrainTrends> load(
@@ -470,7 +469,6 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
     final rows = [
       row('zones_13', StatMark.zonesLow, 'Heart rate zones 1-3'),
       row('zones_45', StatMark.zonesHigh, 'Heart rate zones 4-5'),
-      row('strength_time', StatMark.strength, 'Strength activity time'),
       row('steps', StatMark.steps, 'Steps (beta)'),
     ];
     return Column(children: [

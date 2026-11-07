@@ -112,8 +112,6 @@ void main() {
     expect(d.vitals.priorRestorative(_day), 200);
     expect(d.vitals.week.last, _day);
     expect(d.vitals.spans[_day]?.bed, (23 * 60 + 7 - 720).toDouble());
-    // Unbroken run of scored nights, this one included.
-    expect(d.vitals.streak, 41);
 
     final parts = d.vitals.needParts!;
     final strainMin = whoopStrainSleepMin(strain);
@@ -133,7 +131,6 @@ void main() {
     expect(d.performance, isNull);
     expect(d.lastNeedMin, isNull);
     expect(d.vitals.needParts, isNull);
-    expect(d.vitals.streak, isNull);
     expect(d.vitals.prior(d.vitals.perf, _day), isNull);
   });
 
@@ -142,14 +139,14 @@ void main() {
       'recovery': _on(70, 60),
       'hrv': _on(114, 107),
       'resting_hr': _on(60, 58),
-      'resp': _on(15.5, 15.2),
+      'resp_rate': _on(15.5, 15.2),
       'sleep_performance': _on(72, 78),
     }));
     expect(d.day, _day);
     expect(d.readiness.value, 70);
     expect(d.vitals.hrv[_day], 114);
     expect(d.vitals.prior(d.vitals.restingHr, _day), 58);
-    expect(d.vitals.streak, 41);
+    expect(d.vitals.resp[_day], 15.5);
   });
 
   test('Behavior Insights compares its own days and journal tags', () async {

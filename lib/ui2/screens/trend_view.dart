@@ -2382,128 +2382,14 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     }
     if (maxEntry == null || minEntry == null) return const SizedBox.shrink();
 
-    final p = P.of(c);
-    final unitStr = (m.unit == null || m.unit!.isEmpty) ? '' : ' ${m.unit}';
-
-    Widget cell({
-      required String label,
-      required MapEntry<String, double> entry,
-      required bool isHigh,
-    }) {
-      final formattedVal = trendFormat(m, entry.value);
-      final dateStr = _shortDate(entry.key, l);
-      final color = isHigh ? C.trendRem : C.dialStrain;
-      return Expanded(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x3),
-          decoration: BoxDecoration(
-            color: Color.alphaBlend(p.ink.withValues(alpha: .04), p.card),
-            borderRadius: R.rMd,
-            border: Border.all(color: p.ink.withValues(alpha: .06)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    isHigh
-                        ? LucideIcons.arrowUpRight
-                        : LucideIcons.arrowDownRight,
-                    size: I.sm,
-                    color: color,
-                  ),
-                  const SizedBox(width: S.x1),
-                  Expanded(
-                    child: Text(
-                      label.toUpperCase(),
-                      style: F.caps.copyWith(color: p.ink3, letterSpacing: .5),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: S.x2),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      formattedVal,
-                      style: F.n24.copyWith(
-                        color: p.ink,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (unitStr.isNotEmpty) ...[
-                      const SizedBox(width: S.half),
-                      Text(
-                        unitStr.trim(),
-                        style: F.cap.copyWith(
-                          color: p.ink3,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: S.x1),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  dateStr,
-                  style: F.num(F.cap).copyWith(color: p.ink3),
-                  maxLines: 1,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Padding(
       padding: const EdgeInsets.only(top: S.x6),
-      child: Container(
-        padding: const EdgeInsets.all(S.x4),
-        decoration: BoxDecoration(
-          color: p.card,
-          borderRadius: R.rXl,
-          border: Border.all(color: p.ink.withValues(alpha: .08)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(LucideIcons.trophy, size: I.sm, color: p.ink3),
-                const SizedBox(width: S.x2),
-                Text(
-                  'ALL-TIME RECORDS',
-                  style: F.caps.copyWith(
-                    color: p.ink,
-                    letterSpacing: .8,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: S.x3),
-            Row(
-              children: [
-                cell(label: 'All-Time High', entry: maxEntry, isHigh: true),
-                const SizedBox(width: S.x3),
-                cell(label: 'All-Time Low', entry: minEntry, isHigh: false),
-              ],
-            ),
-          ],
-        ),
+      child: AllTimeRecords(
+        high: trendFormat(m, maxEntry.value),
+        highDay: _shortDate(maxEntry.key, l),
+        low: trendFormat(m, minEntry.value),
+        lowDay: _shortDate(minEntry.key, l),
+        unit: m.unit ?? '',
       ),
     );
   }

@@ -233,6 +233,7 @@ class LucideIcons {
   static const IconData squareCheck = base.LucideIcons.squareCheck300;
   static const IconData squareX = base.LucideIcons.squareX300;
   static const IconData x = base.LucideIcons.x300;
+  static const IconData xBold = base.LucideIcons.x400;
   static const IconData zap = base.LucideIcons.zap300;
   static const IconData zoomIn = base.LucideIcons.zoomIn300;
   static const IconData zoomOut = base.LucideIcons.zoomOut300;

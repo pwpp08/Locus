@@ -9,7 +9,7 @@ import '../../../state/prefs.dart';
 import '../../grammar.dart' show StatusCard, Surface;
 import '../../theme.dart' show C, F, I, P, S;
 import '../../ui2.dart' show LucideIcons;
-import 'home_data.dart' show prettyDay, thousands;
+import 'home_data.dart' show thousands;
 
 StatusCard? dbRebuiltCard(DbRebuild? r, [AppLocalizations? l]) {
   if (r == null) return null;
@@ -34,29 +34,6 @@ StatusCard workoutHoldCard([AppLocalizations? l]) => StatusCard(
           'Today is paused while a workout runs. The band keeps recording; finish the workout from the bar below and today fills in.',
       icon: LucideIcons.timer,
     );
-
-StatusCard? staleInsightsCard(
-    Map<String, dynamic>? reason, VoidCallback? onSync, [AppLocalizations? l]) {
-  final s = reason;
-  if (s == null) return null;
-  final built = s['built_for_day']?.toString();
-  return StatusCard(
-    l?.homeInsightsRebuildingTitle ?? 'Your cross-day insights are being rebuilt',
-    switch (s['kind']) {
-      'algo_version' => l?.homeInsightsRebuildingAlgoVersion ??
-          'How these are computed changed with the last update.',
-      'stale' => built == null || built.isEmpty
-          ? (l?.homeInsightsStaleOverWeek ??
-              'Your trends were last updated over a week ago. Sync the band to bring them up to date.')
-          : (l?.homeInsightsStaleOnDay(prettyDay(built, l)) ??
-              'Your trends were last updated on ${prettyDay(built, l)}. Sync the band to bring them up to date.'),
-      _ => l?.homeInsightsNoVersionStamp ?? 'Your trends are being updated. This takes a minute after a sync.',
-    },
-    fix: onSync == null ? '' : (l?.homeSyncBand ?? 'Sync the band'),
-    icon: LucideIcons.refreshCw,
-    onFix: onSync,
-  );
-}
 
 Widget firstWeekCard(BuildContext c,
     {required int days, required bool strainScored, int? recoveryNightsLeft}) {

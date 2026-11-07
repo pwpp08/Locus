@@ -90,6 +90,8 @@ void main() {
     // Today's own readiness ring is showing (its number is real Text, not
     // canvas-painted), and so is the stepper.
     expect(find.text('70'), findsOneWidget);
+    expect(find.text('HEALTH MONITOR'), findsOneWidget);
+    expect(find.text('STRESS MONITOR'), findsOneWidget);
     expect(find.bySemanticsLabel('Previous day'), findsOneWidget);
     // The newest day: forward is a dead arrow.
     expect(find.bySemanticsLabel('Next day'), findsOneWidget);
@@ -102,6 +104,9 @@ void main() {
     // rather than just relabelling the same data.
     expect(find.text('70'), findsNothing);
     expect(find.text('42'), findsOneWidget);
+    // The monitors are about right now: today only.
+    expect(find.text('HEALTH MONITOR'), findsNothing);
+    expect(find.text('STRESS MONITOR'), findsNothing);
 
     // Stepping forward again returns to today's own number.
     await t.tap(find.bySemanticsLabel('Next day'));

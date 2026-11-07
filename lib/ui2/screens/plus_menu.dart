@@ -47,11 +47,13 @@ class PlusButton extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          color: open ? p.ink.withValues(alpha: .12) : p.ink,
+          // Opaque when open: it sits over the real button, whose plus would
+          // otherwise show through it.
+          color: open ? C.char : p.ink,
           borderRadius: R.rMd,
         ),
-        child: Icon(open ? LucideIcons.x : LucideIcons.plus,
-            size: open ? I.lg : I.md, color: open ? p.ink : p.bg),
+        child: Icon(open ? LucideIcons.xBold : LucideIcons.plus,
+            size: open ? I.lg : I.md, color: open ? C.white : p.bg),
       ),
     );
   }
