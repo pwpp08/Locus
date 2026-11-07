@@ -12,6 +12,16 @@ means a WHOOP number moved. Fix the change, not the golden.
 
 ## History
 
+- v116: regenerated with the owner's approval, for WHOOP parity
+  (`compute/whoop_scores.dart`). Recovery is WHOOP's fitted logistic, so
+  `readiness`, its `composite_z`, drivers (HRV, RHR, RR; temp leaves) and note
+  moved, the baseline note reads `need=5`, and the calibration night count
+  reads 0 (the WHOOP fit does not self-calibrate). The sleep coach gains
+  `debt_min`, `last_night_need_min` and `consistency` (null on these days).
+  No strain or zone value moved on the synthetic days. `two_device_day_expected`
+  moved the same way. Generated on CI under UTC, +05:30 and -04:00
+  (temporary `golden-regen-v116` branch).
+
 - v115: regenerated with the owner's approval, for the strain-never-falls
   change (`compute/strain_peak.dart`). The only difference in any of the six
   files is `algo_version` 114 → 115 (nine places each); no stored value moved,

@@ -176,8 +176,12 @@
         "value": "—",
         "confidence": 0.0,
         "tier": "ESTIMATE",
-        "inputs_used": [],
-        "note": "need_baseline:have=0,need=14"
+        "inputs_used": [
+          "hrv",
+          "rhr",
+          "resp"
+        ],
+        "note": "need_baseline:have=0,need=5"
       },
       "strain": {
         "value": "—",
@@ -3920,7 +3924,7 @@
         "baseline_n": 0,
         "settled_frac": 1.0
       },
-      "note": "need_baseline:have=0,need=14"
+      "note": "need_baseline:have=0,need=5"
     },
     "scalars": {
       "rhr": 62.998333333333335,
