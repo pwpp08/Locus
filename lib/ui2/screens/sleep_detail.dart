@@ -29,6 +29,7 @@ import 'dial_parts.dart';
 import 'edit_time_in_bed.dart';
 import 'home_screen.dart';
 import 'metric_detail.dart';
+import 'movement_lane.dart';
 import 'nap_detail.dart' show NapDetailScreen;
 import 'stress_monitor.dart' show StressMonitorScreen, StressSource;
 import 'trend_view.dart' show TrendViewScreen, shiftDay;
@@ -145,6 +146,9 @@ class SleepVitals {
   /// Heart rate per minute, and where it starts, in epoch seconds.
   final List<({int t, double v})> heart;
 
+  /// Movement under the heart rate, on the same clock.
+  final List<MovePoint> movement;
+
   /// Each stage's typical share of the night, 0–1.
   final Map<SleepStage, (double, double)> typical;
   final NeedParts? needParts;
@@ -162,6 +166,7 @@ class SleepVitals {
     this.debt = const {},
     this.spans = const {},
     this.heart = const [],
+    this.movement = const [],
     this.typical = const {},
     this.needParts,
   });
@@ -324,8 +329,11 @@ class SleepData {
     }
 
     var heart = const <({int t, double v})>[];
+    var movement = const <MovePoint>[];
     if (on is num && off is num && off > on) {
       final pad = ((off - on) * .07).round();
+      movement = await readMovement(on.toInt() - pad, off.toInt() + pad,
+          repo: repo, day: day);
       try {
         final rows = await LocalDb.hrPerMinuteBetween(
             on.toInt() - pad, off.toInt() + pad);
@@ -374,6 +382,7 @@ class SleepData {
         debt: debt,
         spans: spans,
         heart: heart,
+        movement: movement,
         typical: typical,
         needParts: parts,
       ),
@@ -1147,9 +1156,11 @@ class _NightCardState extends State<_NightCard> {
             return '${clockOfTs(p.t)}, ${p.v.round()} beats per minute';
           },
           child: CustomPaint(
-            size: const Size(double.infinity, _NightPaint.height),
+            size: Size(
+                double.infinity, _NightPaint.heightOf(v.movement.isNotEmpty)),
             painter: _NightPaint(
               heart: v.heart,
+              movement: v.movement,
               from: from,
               to: to,
               onset: t0,
@@ -1163,12 +1174,7 @@ class _NightCardState extends State<_NightCard> {
             ),
           ),
         ),
-        const SizedBox(height: S.x2 - S.hair),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: S.x3 + S.hair),
-          child: _Hair(),
-        ),
-        const SizedBox(height: S.x4 + S.hair),
+        const SizedBox(height: S.x3),
         Padding(
           padding: const EdgeInsets.fromLTRB(
               S.x8 - S.hair, 0, S.x8, 0),
@@ -1193,7 +1199,7 @@ class _NightCardState extends State<_NightCard> {
                 style: F.nRow.copyWith(color: DC.ink)),
           ]),
         ),
-        const SizedBox(height: S.x6 + S.x1 + S.hair),
+        const SizedBox(height: S.x6 + S.hair),
         for (final s in _stageOrder)
           _StageRow(
             stage: s,
@@ -1221,7 +1227,7 @@ class _NightCardState extends State<_NightCard> {
           label: 'Restorative sleep',
           trailing: _restorative(d, n),
         ),
-        const SizedBox(height: S.x8 - S.hair),
+        const SizedBox(height: S.x6 + S.x1),
         _KeyedRow(
           swatch: const LinearGradient(
               colors: [DC.stageAwake, DC.stageAwake]),
@@ -1234,7 +1240,7 @@ class _NightCardState extends State<_NightCard> {
                   : null),
               style: F.nRow.copyWith(color: DC.ink)),
         ),
-        const SizedBox(height: S.x8 - S.x1 + S.hair),
+        const SizedBox(height: S.x6 + S.hair),
       ]),
     );
   }
@@ -1244,7 +1250,7 @@ class _NightCardState extends State<_NightCard> {
     final rem = (n['rem_min'] as num?)?.toDouble();
     final v = deep == null || rem == null ? null : deep + rem;
     final avg = d.vitals.priorRestorative(d.day);
-    return Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+    return Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
       ValueDelta(clockDur(v), style: F.nRow, v: v, usual: avg),
       if (avg != null) ...[
         const SizedBox(height: S.x1),
@@ -1282,7 +1288,13 @@ class _KeyedRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: F.dLabel.copyWith(color: DC.ink)),
         ),
-        Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: trailing)),
+        // Flush right: a Flexible alone left the figure mid-row.
+        Flexible(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: FittedBox(fit: BoxFit.scaleDown, child: trailing),
+          ),
+        ),
       ]),
     );
   }
@@ -1311,12 +1323,19 @@ class _TypicalKeyPaint extends CustomPainter {
 /// The heart rate over the night, the full width of the card: 170 to 30 in
 /// steps of 20, dashed down the left and right at the onset and the wake.
 class _NightPaint extends CustomPainter {
-  static const height = S.x16 * 3 + S.x4;
   static const _top = S.x2;
-  static const _step = S.x6;
-  static const _dashFoot = S.x4 * 11 + S.x1 - S.hair;
+  static const _step = S.x6 - S.hair;
+  static const _plotFoot = _top + _step * 7;
+  static const _laneTop = _plotFoot + S.x1;
+  static const _laneH = S.x5;
+
+  /// Where the dashes end: under the movement lane when there is one.
+  static double footOf(bool lane) =>
+      lane ? _laneTop + _laneH + S.hair : _plotFoot + S.x1 - S.hair;
+  static double heightOf(bool lane) => footOf(lane) + S.x6 + S.x1 + S.hair;
 
   final List<({int t, double v})> heart;
+  final List<MovePoint> movement;
   final double from, to;
   final double? onset, wake;
   final String onsetLabel, wakeLabel;
@@ -1326,6 +1345,7 @@ class _NightPaint extends CustomPainter {
   final TextScaler scaler;
   _NightPaint({
     required this.heart,
+    required this.movement,
     required this.from,
     required this.to,
     required this.onset,
@@ -1355,42 +1375,75 @@ class _NightPaint extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
-    double xOf(double t) => w * (t - from) / (to - from);
-        double yOf(double bpm) =>
+    final lane = movement.isNotEmpty;
+    final dashFoot = footOf(lane);
+    double xOf(num t) => w * (t - from) / (to - from);
+    double yOf(double bpm) =>
         _top + _step * 7 * (1 - ((bpm - 30) / 140).clamp(0.0, 1.0));
 
-    // The ground darkens toward the foot of the chart, edge to edge.
-    final ground = Rect.fromLTWH(0, 0, w, _dashFoot + S.x1);
+    // The ground darkens toward the foot of the chart, then fades out again
+    // under it, into the stages below.
+    final ground = Offset.zero & size;
     canvas.drawRect(
         ground,
         Paint()
-          ..shader = const LinearGradient(
+          ..shader = LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            stops: [.45, 1],
-            colors: [Color(0x00000000), DC.shade],
+            stops: [_plotFoot * .45 / size.height, dashFoot / size.height, 1],
+            colors: const [Color(0x00000000), DC.shade, Color(0x00000000)],
           ).createShader(ground));
 
     final lit = picked;
     final dimmed = lit != null || scrub != null;
 
-    // The picked stage's stretches, shaded down to the foot.
+    // The picked stage's stretches, shaded from the line down to the foot:
+    // never above the heart rate itself.
     if (lit != null && onset != null && wake != null) {
       final c = _stageColor(lit);
+      final span = wake! - onset!;
       for (final r in runs) {
         if (r.stage != lit) continue;
-        final x0 = xOf(onset! + (wake! - onset!) * r.from);
-        final x1 = xOf(onset! + (wake! - onset!) * r.to);
-        final box = Rect.fromLTRB(x0, _dashFoot - S.x12 - S.x1, x1, _dashFoot);
-        canvas.drawRect(
-            box,
+        final t0 = onset! + span * r.from, t1 = onset! + span * r.to;
+        final pts = [
+          for (final e in heart)
+            if (e.t >= t0 && e.t <= t1) Offset(xOf(e.t), yOf(e.v)),
+        ];
+        if (pts.isEmpty) continue;
+        final area = Path()
+          ..moveTo(xOf(t0), dashFoot)
+          ..lineTo(xOf(t0), pts.first.dy);
+        for (final o in pts) {
+          area.lineTo(o.dx, o.dy);
+        }
+        area
+          ..lineTo(xOf(t1), pts.last.dy)
+          ..lineTo(xOf(t1), dashFoot)
+          ..close();
+        final box = area.getBounds();
+        canvas.drawPath(
+            area,
             Paint()
               ..shader = LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [c.withValues(alpha: .22), c.withValues(alpha: .03)],
+                colors: [c.withValues(alpha: .3), c.withValues(alpha: .05)],
               ).createShader(box));
       }
+    }
+
+    // Movement, on the same clock, under the 30 line.
+    if (lane) {
+      paintMovement(
+          canvas,
+          Rect.fromLTRB(0, _laneTop, w, _laneTop + _laneH),
+          movement,
+          xOf,
+          DC.ink.withValues(alpha: dimmed ? .2 : .4));
+      final tp = _tp('MOVEMENT',
+          F.num(F.over).copyWith(color: DC.ink3, fontWeight: FontWeight.w600));
+      tp.paint(canvas, Offset((w - tp.width) / 2, _laneTop));
+      tp.dispose();
     }
 
     // The line, broken where nothing was recorded.
@@ -1447,18 +1500,18 @@ class _NightPaint extends CustomPainter {
     final labelStyle = F.nTiny.copyWith(color: DC.ink);
     if (onset != null) {
       final x = xOf(onset!);
-      _dashed(canvas, Offset(x, 0), Offset(x, _dashFoot), dash);
-      canvas.drawCircle(Offset(x, _dashFoot), S.half, dot);
+      _dashed(canvas, Offset(x, 0), Offset(x, dashFoot), dash);
+      canvas.drawCircle(Offset(x, dashFoot), S.half, dot);
       final tp = _tp(onsetLabel, labelStyle);
-      tp.paint(canvas, Offset(x + S.x1, _dashFoot + S.x2 + S.hair));
+      tp.paint(canvas, Offset(x + S.x1, dashFoot + S.x2 + S.hair));
       tp.dispose();
     }
     if (wake != null) {
       final x = xOf(wake!);
-      _dashed(canvas, Offset(x, 0), Offset(x, _dashFoot), dash);
-      canvas.drawCircle(Offset(x, _dashFoot), S.half, dot);
+      _dashed(canvas, Offset(x, 0), Offset(x, dashFoot), dash);
+      canvas.drawCircle(Offset(x, dashFoot), S.half, dot);
       final tp = _tp(wakeLabel, labelStyle);
-      tp.paint(canvas, Offset(x - tp.width, _dashFoot + S.x2 + S.hair));
+      tp.paint(canvas, Offset(x - tp.width, dashFoot + S.x2 + S.hair));
       tp.dispose();
     }
 
@@ -1469,7 +1522,7 @@ class _NightPaint extends CustomPainter {
       final p = heart.reduce(
           (a, b) => (a.t - want).abs() <= (b.t - want).abs() ? a : b);
       final x = xOf(p.t.toDouble());
-      _dashed(canvas, Offset(x, -S.half), Offset(x, _dashFoot + S.x1), dash);
+      _dashed(canvas, Offset(x, -S.half), Offset(x, dashFoot + S.x1), dash);
       final o = Offset(x, yOf(p.v));
       canvas.drawCircle(o, S.x1 + S.hair + S.hair, Paint()..color = DC.well);
       canvas.drawCircle(o, S.x1, Paint()..color = C.dialSleep);
@@ -1507,7 +1560,7 @@ class _StageRow extends StatelessWidget {
       semanticLabel:
           '${_stageLabel(stage)} ${clockDur(minutes)}, show on the chart',
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(S.x6 + S.hair, 0, S.x6 + S.hair, S.x6 + S.half),
+        padding: const EdgeInsets.fromLTRB(S.x6 + S.hair, 0, S.x6 + S.hair, S.x6 - S.hair),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           SizedBox(
             height: S.x6 + S.half + S.hair,
@@ -1606,6 +1659,16 @@ class _StageBarPaint extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     paintHatch(canvas, Offset.zero & size);
+    final range = typical;
+    final a = (1 - t).clamp(0.0, 1.0);
+    final box = range == null || t >= 1
+        ? null
+        : Rect.fromLTRB(w * range.$1, -S.x1,
+            math.max(w * range.$2, w * range.$1 + S.x1), size.height + S.x1);
+    if (box != null) {
+      canvas.drawRect(
+          box, Paint()..color = DC.typical.withValues(alpha: DC.typical.a * a));
+    }
     final fill = Paint()..color = color;
     final barW = w * share.clamp(0.0, 1.0);
     if (t <= 0 || runs.isEmpty) {
@@ -1628,13 +1691,7 @@ class _StageBarPaint extends CustomPainter {
             Rect.fromLTRB(x0, 0, math.max(x1, x0 + S.hair), size.height), fill);
       }
     }
-    final range = typical;
-    if (range != null && t < 1) {
-      final a = (1 - t).clamp(0.0, 1.0);
-      final box = Rect.fromLTRB(
-          w * range.$1, -S.x1, math.max(w * range.$2, w * range.$1 + S.x1), size.height + S.x1);
-      canvas.drawRect(
-          box, Paint()..color = DC.typical.withValues(alpha: DC.typical.a * a));
+    if (box != null) {
       final dash = Paint()
         ..color = DC.ink2.withValues(alpha: a)
         ..strokeWidth = S.hair;
@@ -1717,7 +1774,7 @@ class _HoursVsNeededCard extends StatelessWidget {
     final parts = d.vitals.needParts;
     return Container(
       decoration: dialCard(),
-      padding: const EdgeInsets.only(bottom: S.x4 + S.hair),
+      padding: const EdgeInsets.only(bottom: S.x4 - S.hair),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _CardHead(
           title: 'Hours vs. needed',
@@ -1771,6 +1828,8 @@ class _HoursVsNeededCard extends StatelessWidget {
                       width: sleepW,
                       height: S.x4 + S.half,
                       decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.horizontal(
+                            right: Radius.circular(S.x2)),
                         gradient: LinearGradient(colors: [
                           C.dialSleep.withValues(alpha: .25),
                           C.dialSleep.withValues(alpha: .8),
@@ -1782,7 +1841,10 @@ class _HoursVsNeededCard extends StatelessWidget {
                   const SizedBox(height: S.x3 + S.hair),
                   SizedBox(
                     height: S.x4 + S.half,
-                    child: parts == null
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.horizontal(
+                          right: Radius.circular(S.x2)),
+                      child: parts == null
                         ? Container(
                             decoration: const BoxDecoration(
                                 gradient: LinearGradient(colors: [
@@ -1813,6 +1875,7 @@ class _HoursVsNeededCard extends StatelessWidget {
                               ),
                             ],
                           ]),
+                    ),
                   ),
                   const SizedBox(height: S.x2),
                   Row(children: [
@@ -1901,7 +1964,7 @@ class _ConsistencyCard extends StatelessWidget {
         : [for (var i = 4; i >= 0; i--) shiftDay(day, -i)];
     return Container(
       decoration: dialCard(),
-      padding: const EdgeInsets.only(bottom: S.x8 + S.x1),
+      padding: const EdgeInsets.only(bottom: S.x8 - S.hair),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _CardHead(
           title: 'Sleep consistency',
@@ -2008,10 +2071,13 @@ class _ConsistencyPaint extends CustomPainter {
     for (final d in days) {
       final s = spans[d];
       if (s == null) continue;
-      while (s.bed < lo) {
+      // Last night carries its clocks over and under the bar: keep them off
+      // the top line and the day names.
+      final room = d == days.last ? 100 : 0;
+      while (s.bed - room < lo) {
         lo -= 240;
       }
-      while (s.wake > hi) {
+      while (s.wake + room > hi) {
         hi += 240;
       }
     }
@@ -2133,7 +2199,7 @@ class _EfficiencyCard extends StatelessWidget {
     }
     return Container(
       decoration: dialCard(),
-      padding: const EdgeInsets.only(bottom: S.x8 - S.x1 + S.hair),
+      padding: const EdgeInsets.only(bottom: S.x6 + S.x1),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _CardHead(
           title: 'Sleep efficiency',
@@ -2230,7 +2296,7 @@ class _StressCard extends StatelessWidget {
     final t1 = (d.night['wake_ts'] as num?)?.toInt();
     return Container(
       decoration: dialCard(),
-      padding: const EdgeInsets.only(bottom: S.x8 + S.x1 + S.hair),
+      padding: const EdgeInsets.only(bottom: S.x8 + S.hair),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _CardHead(
           title: 'Sleep stress',
@@ -2281,7 +2347,7 @@ class _StressRow extends StatelessWidget {
   Widget build(BuildContext c) {
     final share = scored <= 0 ? 0.0 : minutes / scored;
     return Padding(
-      padding: EdgeInsets.only(bottom: last ? 0 : S.x8 + S.hair),
+      padding: EdgeInsets.only(bottom: last ? 0 : S.x8 - S.hair),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
           Expanded(
@@ -2493,6 +2559,15 @@ class _SleepWeek extends StatelessWidget {
     final needMax = week.fold<double>(0,
         (a, day) => math.max(a, math.max(v.need[day] ?? 0, v.tst[day] ?? 0)));
     final effLine = [for (final day in week) v.eff[day]];
+    // 19:00 to 11:00, widened by the hour so a bar's clocks never meet the
+    // top line or the day names.
+    var bedLo = 420.0, bedHi = 1380.0;
+    for (final day in week) {
+      if (v.spans[day] case final s?) {
+        bedLo = math.min(bedLo, ((s.bed - 120) / 60).floorToDouble() * 60);
+        bedHi = math.max(bedHi, ((s.wake + 120) / 60).ceilToDouble() * 60);
+      }
+    }
     final (effLo, effHi) = weekLineAxis(effLine);
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -2569,8 +2644,8 @@ class _SleepWeek extends StatelessWidget {
         metricId: 'time_in_bed',
         chart: WeekChart(
           days: week,
-          lo: 420,
-          hi: 1380,
+          lo: bedLo,
+          hi: bedHi,
           inverted: true,
           columns: [
             for (final day in week)

@@ -50,7 +50,8 @@ import '../data/series_codec.dart';
 import '../notify/fired_keys.dart';
 import '../notify/notification_center.dart';
 import '../notify/notification_event.dart';
-import '../notify/tap_router.dart' show activitySuggestionRoute;
+import '../notify/tap_router.dart'
+    show activitySuggestionRoute, kRouteHealth, kRouteRecovery;
 import '../telemetry/firebase_bridge.dart';
 import '../telemetry/telemetry_service.dart';
 import 'crossday_pipeline.dart';
@@ -6784,7 +6785,12 @@ class DerivationEngine {
             title: notice.title,
             body: notice.body,
             date: notice.date,
-            route: '/heart',
+            // Low recovery alone opens Recovery; anything else is a vital,
+            // and those are on Health Monitor.
+            route: notice.findings
+                    .every((f) => f.kind == FindingKind.lowReadiness)
+                ? kRouteRecovery
+                : kRouteHealth,
           ),
         );
         if (notice.medical && fired) {

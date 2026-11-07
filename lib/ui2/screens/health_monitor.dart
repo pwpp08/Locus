@@ -18,7 +18,8 @@ import '../../state/app_state.dart';
 import '../ui2.dart';
 import 'home_screen.dart';
 import 'metric_detail.dart';
-import 'trend_view.dart' show TrendViewScreen, trendMetricOf;
+import 'trend_view.dart'
+    show TrendViewScreen, kSkinTempTrend, trendMetricOf;
 
 /// One vital's reading and where it sits against the usual range.
 class _Vital {
@@ -315,11 +316,11 @@ class _VitalTile extends StatelessWidget {
           };
     return Surface(
       color: p.card,
-      // The chart Home's dashboard row opens for the same metric; a vital the
-      // chart list does not have (skin temperature) keeps its own detail.
+      // The chart Home's dashboard row opens for the same metric; skin
+      // temperature has a trend of its own that only this tile opens.
       onTap: () => go(
           c,
-          trendMetricOf(v.key) != null
+          trendMetricOf(v.key) != null || v.key == kSkinTempTrend.id
               ? TrendViewScreen(initial: v.key)
               : MetricDetail(v.key)),
       semanticLabel: '${v.label}. ${v.present ? '${v.value} ${v.unit}. ' : ''}$word',

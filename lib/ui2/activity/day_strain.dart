@@ -34,8 +34,7 @@ import '../screens/trend_view.dart';
 import '../../theme/theme_switcher.dart' show themedRoute;
 import '../screens/workout_detail.dart' show WorkoutDetailScreen;
 import '../ui2.dart';
-import 'catalogue.dart' show activityByName, zonesWhy;
-import '../screens/heart_rate_settings.dart' show HeartRateSettingsScreen;
+import 'catalogue.dart' show activityByName;
 
 /// Below this the day is not comparable to a full one and the screen says so.
 /// Wear coverage is a percentage of the whole day, so a normal night off the
@@ -391,7 +390,6 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
           _weeklyTrends(p, l, today),
           const SizedBox(height: S.x8),
           ..._throughTheDay(p, l, d),
-          ..._zones(p, l, d),
           Section(l?.dayStrainInputsSection ?? 'What this is made of',
               _inputs(p, l, d)),
         ],
@@ -721,34 +719,6 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
     ];
   }
 
-  // ── where the effort sat, by zone: the minutes and the edges in bpm ──────
-  List<Widget> _zones(P p, AppLocalizations? l, DayStrainData d) {
-    final z = d.zoneMin;
-    if (z == null) return const [];
-    final total = z.fold<int>(0, (a, b) => a + b);
-    if (total <= 0) return const [];
-    return [
-      Section(
-        l?.dayStrainTimeInZonesSection ?? 'Time in zones',
-        Surface(
-          child: ZoneRows(
-            [for (final v in z) v.toDouble()],
-            lowerBpm: d.zoneLowerBpm,
-            title: l?.dayStrainZonesChartTitle ?? 'Time in zones',
-            // TS-03/TS-04 — the edges, and where THIS day's came from.
-            footnote: zonesWhy(d.zoneSource, d.zoneMaxHr, l),
-          ),
-        ),
-        // Progressive disclosure: where the zones come from, and where they
-        // are set (the ceiling, resting heart rate), is one tap behind this
-        // link: the same Heart rate settings screen Settings opens.
-        action: l?.dayStrainHowSet ?? 'How these are set',
-        onAction: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => const HeartRateSettingsScreen())),
-      ),
-    ];
-  }
-
   // ── the inputs, named ────────────────────────────────────────────────────
   Widget _inputs(P p, AppLocalizations? l, DayStrainData d) {
     final max = d.maxHrUsed;
@@ -764,13 +734,6 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
                 'It was integrated against an assumed maximum of '
                     '${max.round()} bpm — estimated from your age and your strap, '
                     'not measured.',
-          // Said out loud because the zone bar above can now be banded on a
-          // MEASURED ceiling while this number is still the age estimate, and
-          // two different ceilings on one screen with nothing saying so is
-          // exactly the defect TS-03a removed.
-          if (max != null && d.zoneSource != null && d.zoneSource != 'tanaka')
-            l?.dayStrainInputsMeasuredCeilingNote ??
-                'The zone bar uses your measured maximum. Strain does not, so the strain scores you have already seen stay the same.',
           l?.dayStrainInputsRhrAnchor ??
               'The other anchor is your resting heart rate from the night before, '
                   'so a night the band missed moves the whole day.',

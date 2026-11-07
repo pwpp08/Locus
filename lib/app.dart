@@ -34,6 +34,8 @@ import 'ui2/screens/home_screen.dart';
 import 'ui2/screens/journal_compose.dart';
 import 'ui2/screens/log_workout.dart';
 import 'ui2/screens/detected_activities.dart';
+import 'ui2/screens/screens.dart'
+    show DayStepsDetail, HealthMonitorScreen, ReadinessDetail, SleepDetail;
 import 'ui2/screens/nutrition_screen.dart';
 import 'ui2/screens/strength_trainer.dart';
 import 'ui2/screens/wellness_screen.dart';
@@ -482,6 +484,10 @@ Widget? screenForRoute(String route) => switch (routePath(route)) {
       // findings, which the app has been computing every night and delivering
       // only as a notification you could dismiss into nothing.
       kRouteRecap => const WhatChangedScreen(),
+      kRouteRecovery => const ReadinessDetail(),
+      kRouteSteps => const DayStepsDetail(),
+      kRouteHealth => const HealthMonitorScreen(),
+      kRouteSleep => const SleepDetail(),
       _ => null,
     };
 
@@ -556,6 +562,10 @@ class _ShellState extends State<_Shell> {
     final tab = app.navRequest.value;
     app.screenRequest.value = null;
     app.navRequest.value = -1;
+    if ((s == null || s.isEmpty) && tab < 0) return;
+    // Back to the shell first: a tap while another screen is open used to
+    // switch the tab underneath it, and nothing visible changed.
+    Navigator.of(context).popUntil((r) => r.isFirst);
     // A screen route carries its own domain; the tab index alongside it is
     // the base the payload was built with, not a second destination.
     if (s != null && s.isNotEmpty) {

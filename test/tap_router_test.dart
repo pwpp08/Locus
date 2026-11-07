@@ -8,8 +8,15 @@ void main() {
   test('tab routes land on their index with no sub-screen', () {
     expect(resolveTapRoute('/today').tab, 0);
     expect(resolveTapRoute('/today').screen, isNull);
-    expect(resolveTapRoute('/sleep').tab, 1);
-    expect(resolveTapRoute('/workouts').tab, 4);
+    expect(resolveTapRoute('/workouts').tab, 0);
+  });
+
+  test('every notification about a screen opens that screen', () {
+    // These used to resolve to the Home tab alone, so a tap on Home did
+    // nothing: recovery ready, step goal, the health exception, sleep.
+    for (final r in [kRouteRecovery, kRouteSteps, kRouteHealth, kRouteSleep]) {
+      expect(resolveTapRoute(r).screen, r, reason: r);
+    }
   });
 
   test('kRouteBreathing resolves to Today tab + the breathing sub-screen', () {
@@ -53,7 +60,7 @@ void main() {
     // The auto-detect notification now uses kRouteWorkoutSuggestion, but the
     // bare tab route must keep working for any other caller.
     final t = resolveTapRoute('/workouts');
-    expect(t.tab, 4);
+    expect(t.tab, 0); // Workouts has no tab of its own now: Home
     expect(t.screen, isNull);
   });
 
@@ -83,7 +90,7 @@ void main() {
     expect(recap.tab, isNot(0), reason: 'a week of data is not the Home tab');
 
     // The day's aggregated health exception, and the alarm.
-    expect(resolveTapRoute('/heart').tab, 2);
+    expect(resolveTapRoute('/heart').screen, kRouteHealth);
     expect(resolveTapRoute('/today').tab, 0);
   });
 }

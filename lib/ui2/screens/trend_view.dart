@@ -367,6 +367,21 @@ const kTrendCatalogue = <TrendMetric>[
   ),
 ];
 
+/// Skin temperature's nights, in SD from your own baseline: the same z
+/// Health Monitor shows, one unit across devices. Opened from Health Monitor
+/// alone, so it is in no picker, dashboard or comparison.
+const kSkinTempTrend = TrendMetric(
+  'skin_temp',
+  'Skin temp (from baseline)',
+  TrendGroup.recovery,
+  LucideIcons.thermometer,
+  TrendFmt.decimal1,
+  unit: 'SD',
+  higherBetter: false,
+  signed: true,
+  line: true,
+);
+
 TrendMetric? trendMetricOf(String id) {
   for (final m in kTrendCatalogue) {
     if (m.id == id) return m;
@@ -987,6 +1002,7 @@ class TrendLoader {
           'hrv' ||
           'resting_hr' ||
           'resp_rate' ||
+          'skin_temp' ||
           'efficiency':
         return _chart(m.id);
       case 'sleep_debt':
@@ -1626,7 +1642,9 @@ class TrendViewScreen extends StatefulWidget {
 }
 
 class _TrendViewScreenState extends State<TrendViewScreen> {
-  late TrendMetric _m = trendMetricOf(widget.initial) ?? kTrendCatalogue.first;
+  late TrendMetric _m = trendMetricOf(widget.initial) ??
+      (widget.initial == kSkinTempTrend.id ? kSkinTempTrend : null) ??
+      kTrendCatalogue.first;
 
   /// Compare metrics is on screen in place of one metric.
   late bool _compare = widget.initial == kCompareTile;
@@ -3887,6 +3905,10 @@ const _about = <String, String>{
       'while you sleep. It tends to fall as fitness improves and rise with '
       'illness, dehydration, alcohol, stress or too little recovery. A '
       'change of a few beats from your own baseline is worth noticing.',
+  'skin_temp':
+      'Skin temperature is shown as how far each night sat from your own '
+      'recent nights, in standard deviations, not in degrees. A run of warm '
+      'nights can come before illness; a warm room does it too.',
   'resp_rate':
       'Respiratory rate is how many breaths you take a minute while asleep. For '
       'most healthy adults it is steady, around 12 to 20. A sustained rise '

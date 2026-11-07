@@ -728,6 +728,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         Builder(builder: (c) {
           final period = currentBriefingPeriod(DateTime.now());
           return DailyOutlookRow(
+            name: d.name,
             evening: period == BriefingPeriod.evening,
             onOutlook: () => go(c, CoachScreen(outlook: period)),
           );

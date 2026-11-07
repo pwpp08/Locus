@@ -2,6 +2,7 @@
 // coach screen's own header, which is no longer the shared nav bar.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -33,7 +34,7 @@ void main() {
     await t.pumpAndSettle();
   }
 
-  testWidgets('the outlook card is one plain full-width card that opens the '
+  testWidgets('the outlook strip is one full-width strip that opens the '
       'outlook', (t) async {
     final taps = <String>[];
     await pump(
@@ -42,10 +43,34 @@ void main() {
     );
     expect(find.text('Daily Outlook'), findsOneWidget);
     expect(find.byType(AiOrb), findsNothing, reason: 'no coloured circle');
-    final w = t.getSize(find.byType(Surface)).width;
-    expect(w, closeTo(390, 1), reason: 'as wide as the row');
+    final strip = t.getSize(find.byType(DailyOutlookRow));
+    expect(strip.width, closeTo(390, 1), reason: 'as wide as the row');
     await t.tap(find.text('Daily Outlook'));
     expect(taps, ['outlook']);
+  });
+
+  testWidgets('the strip carries the first name, at the reference proportions',
+      (t) async {
+    await pump(
+      t,
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: DailyOutlookRow(
+            name: 'Greg Smith', evening: false, onOutlook: () {}),
+      ),
+    );
+    final text = find.text("Greg's Daily Outlook");
+    expect(text, findsOneWidget);
+    // The reference: the strip 44 tall, the words about 2.8 strip-heights
+    // long, starting about 37 in.
+    final strip = t.getRect(find.byType(DailyOutlookRow));
+    expect(strip.height, 44 + 12, reason: 'the strip and its gap under it');
+    final words = t.getRect(text);
+    expect(words.left - strip.left, closeTo(37, 2));
+    final ink = (t.renderObject(text) as RenderParagraph)
+        .getMaxIntrinsicWidth(double.infinity);
+    expect(ink, closeTo(124, 8));
+    expect(t.takeException(), isNull);
   });
 
   testWidgets('the coach screen header: the name, the model tag (here: not set up) and History',

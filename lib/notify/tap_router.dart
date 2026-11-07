@@ -70,6 +70,15 @@ String workoutSuggestionRoute(String id) =>
 /// reminders-at-normal pair for everything that names it.
 const String kRouteWorkoutIdle = '/workouts/idle';
 
+/// The day's health exception (illness, an anomaly, a temperature or
+/// resting-HR shift, an irregular rhythm). Lands on Health Monitor, where those
+/// vitals are. The path is the old Heart tab's, so a payload from an older
+/// build still opens the same place.
+const String kRouteHealth = '/heart';
+
+/// The old Sleep tab's path, now the Sleep screen itself.
+const String kRouteSleep = '/sleep';
+
 /// A deep link's path, without the `?id=` a route may carry.
 ///
 /// EVERY route comparison goes through this. The tables below, `classOf`,
@@ -119,12 +128,12 @@ class TapTarget {
   const TapTarget(this.tab, [this.screen]);
 }
 
+// Only Home is a tab a notification can name now; the old Sleep and Heart
+// tabs are screens (below), and Body and Workouts land on Home.
 const Map<String, int> _tabRoutes = {
   '/today': 0,
-  '/sleep': 1,
-  '/heart': 2,
-  '/body': 3,
-  '/workouts': 4,
+  '/body': 0,
+  '/workouts': 0,
   // The forgotten-workout nudge. The Workouts tab IS its destination — the
   // live session bar with the finish control is pinned to the shell there and
   // `screenForRoute` has nothing to push — so it belongs in the tab table,
@@ -157,6 +166,12 @@ const Map<String, int> _screenRoutes = {
   kRouteProfile: 0,
   kRouteRecap: 2, // Heart, i.e. Health — domainForRoute decides anyway
   kRouteAlarm: 0,
+  // Each of these used to be absent, so the tap only selected Home: nothing
+  // at all when Home was already showing.
+  kRouteRecovery: 0,
+  kRouteSteps: 0,
+  kRouteHealth: 0,
+  kRouteSleep: 0,
 };
 
 TapTarget resolveTapRoute(String route) {

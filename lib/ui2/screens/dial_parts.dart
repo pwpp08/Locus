@@ -679,16 +679,34 @@ class _WeekPaint extends CustomPainter {
         final st = (c.top.contains(':') ? F.nWeek : F.nSmall)
             .copyWith(color: labelTop);
         if (c.stack != null) {
-          // Thin dark seams between the segments.
+          // As Trend View stacks them: each segment rounded, a sliver of the
+          // card between one and the next, the foot square on the axis.
+          final parts = <(Rect, Color)>[];
           var v = 0.0;
           for (final (amount, color) in c.stack!) {
-            final y0 = yOf(v);
-            final y1 = yOf(v + amount);
-            canvas.drawRect(
-                Rect.fromLTRB(x - barW / 2, y1 + (v + amount >= h ? 0 : S.hair + .5),
-                    x + barW / 2, y0),
-                Paint()..color = color);
+            final y0 = yOf(v), y1 = yOf(v + amount);
+            if ((y0 - y1).abs() >= .5) {
+              parts.add((Rect.fromLTRB(x - barW / 2, math.min(y0, y1),
+                  x + barW / 2, math.max(y0, y1)), color));
+            }
             v += amount;
+          }
+          const gap = 1.5;
+          for (var k = 0; k < parts.length; k++) {
+            final foot = k == 0, crown = k == parts.length - 1;
+            final r = parts[k].$1;
+            final r0 = Rect.fromLTRB(r.left, r.top + (crown ? 0 : gap / 2),
+                r.right, r.bottom - (foot ? 0 : gap / 2));
+            if (r0.height < 1) continue;
+            final rad = Radius.circular(
+                math.min(math.min(3.0, barW / 3), r0.height / 2));
+            canvas.drawRRect(
+                RRect.fromRectAndCorners(r0,
+                    topLeft: rad,
+                    topRight: rad,
+                    bottomLeft: foot ? Radius.zero : rad,
+                    bottomRight: foot ? Radius.zero : rad),
+                Paint()..color = parts[k].$2);
           }
         } else {
           canvas.drawRRect(

@@ -608,6 +608,15 @@ class F {
       height: 1.3,
       fontWeight: FontWeight.w500,
       letterSpacing: 0);
+
+  /// The Daily Outlook strip's words: 14 medium, a touch tight.
+  static const dOutlook = TextStyle(
+      fontFamily: _f,
+      fontFamilyFallback: _fb,
+      fontSize: 14,
+      height: 1,
+      fontWeight: FontWeight.w500,
+      letterSpacing: -.25);
   static const dHead = TextStyle(
       fontFamily: _f,
       fontFamilyFallback: _fb,
@@ -743,6 +752,13 @@ class DC {
   static const weekHole = Color(0xFF2A2E32);
   static const dim = Color(0xFF465058);
   static const shade = Color(0x8C0B0D10);
+
+  /// The Daily Outlook strip: warm tan into slate, sampled off the reference,
+  /// and the near-white of its two glyphs.
+  static const outlookWarm = Color(0xFF8A8273);
+  static const outlookMid = Color(0xFF686866);
+  static const outlookSlate = Color(0xFF394753);
+  static const outlookGlyph = Color(0xE6FFFFFF);
 
   static const stageAwake = Color(0xFFC8C8C8);
   static const stageLight = Color(0xFFA4A2F2);

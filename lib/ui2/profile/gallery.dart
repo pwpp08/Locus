@@ -1974,7 +1974,7 @@ Map<String, Widget> _listCases() => {
         ),
       ),
       'daily_outlook_row': DailyOutlookRow(
-          evening: false, onOutlook: () {}),
+          name: 'Alex', evening: false, onOutlook: () {}),
       'nav_bar_editor': const NavBarEditor(tabs: kDefaultTabs),
       'tier_row': const Column(children: [
         TierRow(SourceTier.wristOptical, filled: true),

@@ -4,7 +4,7 @@ import '../../../data/day_label.dart' show dayLabelOf;
 import '../../../l10n/app_localizations.dart';
 import '../../../state/clock_format.dart' show formatClockOf;
 import '../../grammar.dart' show Pressable, Surface;
-import '../../theme.dart' show C, F, I, P, R, S;
+import '../../theme.dart' show C, DC, F, I, P, R, S;
 import '../../ui2.dart' show LucideIcons;
 import '../../activity/catalogue.dart' show activityByName;
 import 'home_data.dart';
@@ -32,37 +32,58 @@ class HomeSectionHead extends StatelessWidget {
   }
 }
 
-/// Under the My Day title: one full-width card that opens the day's briefing.
-/// A plain sunrise glyph (sunset from five o'clock), the words, a chevron.
+/// Under the My Day title: one full-width strip that opens the day's
+/// briefing, "{first name}'s Daily Outlook" on a warm-to-slate ground.
+/// Measured off the reference: 44 tall, a 20 pt sun 9 in, the words 14 pt
+/// medium, slightly tight, a 22 pt chevron 10 from the right.
 class DailyOutlookRow extends StatelessWidget {
   final bool evening;
   final VoidCallback onOutlook;
+
+  /// The user's name from their profile; only its first word is used.
+  final String? name;
   const DailyOutlookRow({
     super.key,
     required this.evening,
     required this.onOutlook,
+    this.name,
   });
+
+  static const height = S.x10 + S.x1;
+  static const ground = LinearGradient(
+    colors: [DC.outlookWarm, DC.outlookMid, DC.outlookSlate],
+    stops: [0, .4, 1],
+  );
 
   @override
   Widget build(BuildContext c) {
-    final p = P.of(c);
+    final first = name?.trim().split(RegExp(r'\s+')).first ?? '';
+    final title = first.isEmpty ? 'Daily Outlook' : "$first's Daily Outlook";
+    const ink = DC.outlookGlyph;
     return Padding(
       padding: const EdgeInsets.only(bottom: S.x3),
-      child: Surface(
+      child: Pressable(
         onTap: onOutlook,
-        pad: const EdgeInsets.symmetric(horizontal: S.x4),
-        child: SizedBox(
-          height: S.x12 + S.x2,
+        semanticLabel: title,
+        child: Container(
+          height: height,
+          padding: const EdgeInsets.fromLTRB(S.x2 + S.hair, 0, S.x2 + S.half, 0),
+          decoration: const BoxDecoration(
+            gradient: ground,
+            borderRadius: BorderRadius.all(Radius.circular(S.x2 + S.hair)),
+          ),
           child: Row(children: [
-            Icon(evening ? LucideIcons.sunset : LucideIcons.sunrise,
-                size: I.lg, color: p.ink3),
-            const SizedBox(width: S.x3),
+            Icon(evening ? LucideIcons.sunset : LucideIcons.sun,
+                size: I.md, color: ink),
+            const SizedBox(width: S.x2),
             Expanded(
-              child: Text('Daily Outlook',
-                  style: F.head
-                      .copyWith(color: p.ink, fontWeight: FontWeight.w500)),
+              child: Text(title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: F.dOutlook.copyWith(color: C.white)),
             ),
-            Icon(LucideIcons.chevronRight, size: I.lg, color: p.ink3),
+            const Icon(LucideIcons.chevronRight, size: I.md + S.hair + S.hair,
+                color: ink),
           ]),
         ),
       ),

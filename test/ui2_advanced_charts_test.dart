@@ -110,10 +110,8 @@ void main() {
     final scrub = t.widget<ScrubLine>(find.byType(ScrubLine));
     expect(scrub.lo, 0);
     expect(scrub.hi, 21);
-    // The zone split is five named rows with their edges, not a strip.
-    expect(find.textContaining('Zone 5'), findsOneWidget);
-    expect(find.textContaining('171+ bpm'), findsOneWidget);
-    expect(find.text('30 min'), findsOneWidget);
+    // Time in zones is no longer on this page.
+    expect(find.textContaining('Zone 5'), findsNothing);
   });
 
   testWidgets('laps read top to bottom in the order they were swum',
