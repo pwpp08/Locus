@@ -35,6 +35,8 @@ import 'package:openstrap_analytics/onehz.dart' as ana;
 import 'hr_max.dart' show smoothedMaxHr;
 import 'profile.dart';
 import 'strain_peak.dart' show peakStrain;
+import 'whoop_scores.dart'
+    show kWhoopMuscularTypes, whoopLoadForStrain, whoopMuscularLoad, whoopStrainFromLoad;
 
 /// Shortest window we accept. Below a minute the 1 Hz substrate cannot say
 /// anything useful and the entry is almost certainly a mis-tap.
@@ -214,6 +216,7 @@ List<({int t, double v})> strainCurveOf(
   required double? hrMax,
   required double? quietHrr,
   bool quietSettled = true,
+  String? type,
 }) {
   final out = <({int t, double v})>[];
   final hr = <double>[];
@@ -224,7 +227,8 @@ List<({int t, double v})> strainCurveOf(
         restingHr: restingHr,
         hrMax: hrMax,
         quietHrr: quietHrr,
-        quietSettled: quietSettled);
+        quietSettled: quietSettled,
+        type: type);
     if (v == null) return const [];
     out.add((t: m.t + 60, v: v));
   }
@@ -299,6 +303,7 @@ double? strainFromPerMinuteHr(
   required double? hrMax,
   required double? quietHrr,
   bool quietSettled = true,
+  String? type,
 }) {
   final sex = profile.sex?.toLowerCase();
   if (perMinuteHr.isEmpty ||
@@ -313,13 +318,12 @@ double? strainFromPerMinuteHr(
   // day headline makes, so "workout strain" and "daily strain" are one method.
   // Held at its highest, as the day's is (strain_peak.dart): a cool-down
   // never takes back what the set earned.
-  return peakStrain(
-    perMinuteHr,
-    restingHr: restingHr,
-    maxHr: hrMax,
-    quietHrr: quietHrr,
-    sex: workoutSex(sex) == 'female' ? ana.Sex.female : ana.Sex.male,
-  );
+  final heart = peakStrain(perMinuteHr, restingHr: restingHr, maxHr: hrMax);
+  // WHOOP adds muscular load to a strength-type session by its length
+  // (whoop_scores.dart), on top of what heart rate saw.
+  if (heart == null || !kWhoopMuscularTypes.contains(type)) return heart;
+  return whoopStrainFromLoad(whoopLoadForStrain(heart) +
+      whoopMuscularLoad(perMinuteHr.length.toDouble()));
 }
 
 /// Score a manual window from its 1 Hz HR.
@@ -350,6 +354,7 @@ ManualSessionStats computeManualSessionStats({
   ana.HeartRateZoneSet? zoneSet,
   double? quietHrr,
   bool quietSettled = true,
+  String? type,
 }) {
   if (hrTs.isEmpty || hrTs.length != hrBpm.length) {
     return const ManualSessionStats();
@@ -390,7 +395,8 @@ ManualSessionStats computeManualSessionStats({
       restingHr: restingHr,
       hrMax: hrMax,
       quietHrr: quietHrr,
-      quietSettled: quietSettled);
+      quietSettled: quietSettled,
+      type: type);
 
   double? calories;
   if (profile.hasCalorieAnchors &&

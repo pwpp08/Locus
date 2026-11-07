@@ -25,7 +25,6 @@ import 'package:provider/provider.dart';
 import '../../compute/vendor_sleep.dart' show vendorStagesReported;
 import 'dart:async' show unawaited;
 
-import '../../compute/sleep_performance.dart';
 import '../../compute/sleep_stress.dart';
 import '../../data/day_label.dart';
 import '../../data/db.dart' show LocalDb;
@@ -231,11 +230,19 @@ class SleepData {
     this.solMin,
     this.deviceNights = const [],
     this.consistency,
+    this.performance,
+    this.lastNeedMin,
   });
 
-  /// The Sleep Regularity Index, 0–100, off the cross-day rollup. Null until
-  /// it has the nights it needs.
+  /// WHOOP's 4-night Sleep Consistency for this night, 0–100. Null until it
+  /// has three nights.
   final double? consistency;
+
+  /// This night's WHOOP Sleep Performance and the need it was scored against
+  /// (its own: the day before's strain and naps, the debt carried into it),
+  /// as the cross-day pass stored them. Null: not scored.
+  final double? performance;
+  final double? lastNeedMin;
 
   bool get hasNight => night['duration_min'] is num;
 
@@ -381,7 +388,9 @@ class SleepData {
       longestSleepMin: longest,
       solMin: sol,
       deviceNights: deviceNights,
-      consistency: (envValue(cd['regularity'])?['sri'] as num?)?.toDouble(),
+      consistency: _on(await repo.getChart('sleep_consistency'), cut),
+      performance: _on(await repo.getChart('sleep_performance'), cut),
+      lastNeedMin: _on(await repo.getChart('sleep_last_need_min'), cut),
     );
   }
 }
@@ -726,19 +735,11 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
   /// is a dash and no band.
   Widget _performance(BuildContext c, P p, SleepData d, Map<String, dynamic> n) {
     final tst = (n['duration_min'] as num?)?.toDouble();
-    final need = d.need.value?.toDouble();
+    // Last night against ITS OWN need, and the score as stored — the same
+    // number Home and Trends show (crossday_pipeline.dart, whoop_scores.dart).
+    final need = d.lastNeedMin;
     final eff = (n['efficiency'] as num?)?.toDouble();
-    final rem = (n['rem_min'] as num?)?.toDouble();
-    final deep = (n['deep_min'] as num?)?.toDouble();
-    final perf = tst == null || need == null || need <= 0
-        ? null
-        : computeAdjustedSleepPerformance(
-            tstMin: tst,
-            needMin: need,
-            efficiencyPct: eff,
-            remMin: rem,
-            deepMin: deep,
-          );
+    final perf = d.performance;
     final rawDurationPerf = tst == null || need == null || need <= 0
         ? null
         : (tst / need * 100).clamp(0, 100).toDouble();
@@ -747,14 +748,15 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
     // it is a dash, never a 0, until a few earlier nights give it a baseline.
     final stress = _sleepStressDay == d.day ? _sleepStress?.pct : null;
     final rows = <(IconData, String, double?, int?)>[
+      // WHOOP's own bands per row (support article "WHOOP Sleep").
       (LucideIcons.clock3, 'Hours vs. needed', rawDurationPerf,
           rawDurationPerf == null ? null : _tierOf(rawDurationPerf)),
       (LucideIcons.repeat, 'Sleep consistency', d.consistency,
-          d.consistency == null ? null : _tierOf(d.consistency!)),
+          d.consistency == null ? null : _tierOf(d.consistency!, 80, 70)),
       (LucideIcons.bedDouble, 'Sleep efficiency', eff == null ? null : eff * 100,
-          eff == null ? null : _tierOf(eff * 100)),
+          eff == null ? null : _tierOf(eff * 100, 90, 80)),
       (LucideIcons.gauge, 'High sleep stress', stress,
-          stress == null ? null : (stress <= 10 ? 2 : (stress <= 25 ? 1 : 0))),
+          stress == null ? null : (stress < 1 ? 2 : (stress <= 5 ? 1 : 0))),
     ];
     final tier = perf == null ? null : _tierOf(perf);
 
@@ -885,7 +887,8 @@ class _SleepDetailState extends State<SleepDetail> with RevisionReload {
   }
 
   /// Poor below 70, sufficient 70–84, optimal 85 and over.
-  static int _tierOf(double v) => v >= 85 ? 2 : (v >= 70 ? 1 : 0);
+  static int _tierOf(double v, [double optimal = 85, double sufficient = 70]) =>
+      v >= optimal ? 2 : (v >= sufficient ? 1 : 0);
 
   static String _tierWord(int t) =>
       const ['Poor', 'Sufficient', 'Optimal'][t];

@@ -96,10 +96,10 @@ void main() {
   });
 
   test('the morning pin wins over a drifted series value', () async {
-    // Pin 30 (ring shows 30, "Take it easy"); a later re-derive drifted the
+    // Pin 40 (ring shows 40, yellow); a later re-derive drifted the
     // series to 24. Must not buzz.
     await seed(glassBox: 70, readiness: 24);
-    await pinOnTodaysNight(30);
+    await pinOnTodaysNight(40);
     await DerivationEngine().runNotificationsForTest();
     expect(shown, isEmpty);
   });

@@ -25,6 +25,7 @@ import '../data/day_label.dart';
 // isolate safety. One grammar for "a required input was missing" across both
 // pipelines rather than a second one here.
 import 'onehz_pipeline.dart' show needInputNote;
+import 'whoop_scores.dart';
 
 /// Build the cross-day analytics bundle from a time-ordered (OLDEST FIRST) list
 /// of per-day records and the user profile.
@@ -312,95 +313,116 @@ Map<String, dynamic> buildCrossDayBundle(
   // once enough nights exist to estimate an OSD.
   final double? baselineNeedSec =
       osdH == null ? null : (osdH.clamp(7.0, 9.5)) * 3600.0;
-  final debtSec =
-      (sleepDebt.present ? (sleepDebt.value!.debtHours ?? 0.0) : 0.0) * 3600.0;
   const noOsd = ana.Metric<ana.SleepNeed>.absent(
     tier: ana.Tier.estimate,
     inputs_used: ['osd_hours'],
     note: 'need_baseline:have=0,need=1',
   );
-  ana.Metric<ana.SleepNeed> needAt({
-    required double dayStrain,
-    required double napCreditSec,
-  }) =>
-      baselineNeedSec == null
-          ? noOsd
-          : ana.sleepNeed(
-              baselineNeedSec: baselineNeedSec,
-              sleepDebtSec: debtSec < 0 ? 0.0 : debtSec,
-              dayStrain: dayStrain,
-              napCreditSec: napCreditSec,
-            );
-  // TODAY's strain only. `_lastNum` walked backward to the last non-null, so a
-  // day whose strain compute abstained built tonight's bonus out of an EARLIER
-  // day's workout — imputation (AGENTS §3.3), and invisible, since the number
-  // lands inside `need_sec` with nothing surfacing it.
+  // WHOOP's need, night by night (whoop_scores.dart): baseline + the Strain of
+  // the day before (patent curve) + half of the previous night's shortfall −
+  // that day's naps. Built as a chain over every row so each night's debt is
+  // measured against that night's OWN need, as WHOOP's is.
   //
-  // Unlike the nap credit below, 0 here is NOT the cautious direction: strain is
-  // ADDED (up to 45 min via sleepNeed's strainBonusSec), so abstaining removes
-  // sleep from the recommendation rather than adding it. It is still right, on
-  // two grounds that are not "it's safe":
-  //   - Carrying yesterday forward is not a safety margin either. It inflates
-  //     need only when yesterday happened to be harder than today, and deflates
-  //     it when yesterday was a rest day — noise around the true value, not a
-  //     conservative bound, and forbidden regardless.
-  //   - Strain is a same-day ACCUMULATING quantity that starts at 0 and only
-  //     rises. Before today logs anything, 0 is where it genuinely sits, not a
-  //     substituted default. The bonus grows as the day's real strain arrives.
-  // Because that direction is not the cautious one, the substitution is not
-  // allowed to be silent: `strain_bonus_min` below reports what the bonus
-  // actually added, and stays NULL (never 0) when today produced no reading —
-  // which is the case where up to 45 min of need went missing.
+  // TODAY's strain and naps feed TONIGHT only, and only when today has a
+  // reading (`_todayNum`). An unmeasured day adds and removes nothing rather
+  // than borrowing an earlier day's figure (AGENTS §3.3); `strain_bonus_min`
+  // and `nap_credit_min` stay NULL then, so the card can say so.
   final todayStrainNum = _todayNum(days, 'strain');
-  final todayStrain = todayStrainNum ?? 0.0;
-  // TODAY's naps only, and minutes ASLEEP (the analytics detector reports TST
-  // and in-bed separately now). No reading means NO credit — that leaves the
-  // recommendation slightly high, which is the safe direction; reaching back a
-  // day to find a number would be the unsafe one.
   final todayNapMin = _todayNum(days, 'nap_min');
-  final todayNapSec = (todayNapMin ?? 0.0) * 60.0;
-  final need = needAt(dayStrain: todayStrain, napCreditSec: todayNapSec);
-  // What the credit ACTUALLY changed. `sleepNeed` clamps to [6 h, 11 h] AFTER
-  // subtracting, so a large credit against a low baseline is only partly
-  // realized — a 3 h nap does not remove 3 h of need. Disclosing the raw nap
-  // minutes would state a reduction the number above never took.
-  final needNoNap = needAt(dayStrain: todayStrain, napCreditSec: 0.0);
-  final appliedNapCreditMin = (todayNapMin == null ||
-          !need.present ||
-          !needNoNap.present)
+  final chain = baselineNeedSec == null
       ? null
-      : ((needNoNap.value!.needSec - need.value!.needSec) / 60).round();
-  // What the strain bonus ACTUALLY added, measured the same way `nap_credit_min`
-  // measures the nap: re-run at the real operating point with the strain zeroed
-  // and diff. The [6 h, 11 h] clamp applies AFTER adding, so against a high
-  // baseline + debt the bonus is only partly realized — disclosing the raw
-  // (strain/21)*45 would state an increase `need_sec` never took.
-  //
-  // Null when today produced no strain reading. That is the ONE case that
-  // matters most here: a confident 0 says "you rested today", while null says
-  // "we could not measure today's strain, so tonight's need is short by up to
-  // 45 min". Collapsing the two would re-hide exactly what the today-scoping
-  // fix above exposed.
-  final needNoStrain = needAt(dayStrain: 0.0, napCreditSec: todayNapSec);
-  final appliedStrainBonusMin = (todayStrainNum == null ||
-          !need.present ||
-          !needNoStrain.present)
+      : whoopSleepNeeds(
+          baselineMin: baselineNeedSec / 60,
+          nights: [
+            for (var i = 0; i < n; i++)
+              (
+                tstMin: _numOrNull(days[i]['tst_min']),
+                // The day before, only when the row before IS that day.
+                priorStrain: i > 0 && _isDayBefore(days[i - 1], days[i])
+                    ? _numOrNull(days[i - 1]['strain'])
+                    : null,
+                priorNapMin: i > 0 && _isDayBefore(days[i - 1], days[i])
+                    ? _numOrNull(days[i - 1]['nap_min'])
+                    : null,
+              ),
+          ],
+          todayStrain: todayStrainNum,
+          todayNapMin: todayNapMin,
+        );
+  final tonight = chain?.last;
+  final need = tonight == null
+      ? noOsd
+      : ana.Metric<ana.SleepNeed>(
+          value: ana.SleepNeed(tonight.needMin * 60),
+          confidence: 0.6,
+          tier: ana.Tier.estimate,
+          inputs_used: const ['osd_hours', 'strain', 'sleep_debt', 'naps'],
+          note: 'WHOOP need: baseline + strain (patent curve) + half of last '
+              "night's shortfall − naps",
+        );
+  final appliedNapCreditMin =
+      tonight == null || todayNapMin == null ? null : tonight.napMin.round();
+  final appliedStrainBonusMin = tonight == null || todayStrainNum == null
       ? null
-      : ((need.value!.needSec - needNoStrain.value!.needSec) / 60).round();
-  // last night's TST (sec) for performance. Today's row carries the main sleep
-  // that ended this morning; `_lastNum` reached back to an older night when
-  // last night had none, and scored that as last night's performance.
+      : tonight.strainMin.round();
+  // Last night: the night ending this morning, scored against ITS OWN need
+  // (yesterday's strain and naps, the debt carried into it) — not tonight's.
+  final lastNight = chain != null && days.isNotEmpty && days.last['is_today'] == true
+      ? chain[n - 1]
+      : null;
   final lastTstMin = _todayNum(days, 'tst_min');
-  final perf = (need.present && lastTstMin != null)
-      ? ana.sleepPerformance(lastTstMin * 60.0, need.value!.needSec)
+  // WHOOP Sleep Consistency: the newest nights' onset and wake clock times.
+  final windows = <({double onset, double wake})>[
+    for (final d in days)
+      if (d['onset_sec'] is num &&
+          d['wake_sec'] is num &&
+          (d['wake_sec'] as num) - (d['onset_sec'] as num) >= 3 * 3600)
+        () {
+          final onsetSec = (d['onset_sec'] as num).toInt();
+          final onset = _localTodMin(onsetSec);
+          // Noon-to-noon clock: a 01:00 onset sits 120 min after a 23:00 one.
+          final o = onset < 12 * 60 ? onset + 24 * 60 : onset;
+          return (
+            onset: o,
+            wake: o + ((d['wake_sec'] as num).toInt() - onsetSec) / 60,
+          );
+        }(),
+  ];
+  final consistency = days.isNotEmpty &&
+          days.last['is_today'] == true &&
+          days.last['onset_sec'] is num
+      ? whoopSleepConsistency(windows.length > 4
+          ? windows.sublist(windows.length - 4)
+          : windows)
+      : null;
+  final perfPct = whoopSleepPerformance(
+    tstMin: lastTstMin,
+    needMin: lastNight?.needMin,
+    efficiencyPct: _todayNum(days, 'efficiency'),
+    consistencyPct: consistency,
+  );
+  final perf = perfPct != null
+      ? ana.Metric<ana.SleepPerformance>(
+          value: ana.SleepPerformance(perfPct),
+          confidence: 0.6,
+          tier: ana.Tier.estimate,
+          inputs_used: [
+            'tst', 'sleep_need', 'efficiency',
+            if (consistency != null) 'consistency',
+          ],
+          note: 'WHOOP-fit performance: 0.272 hours vs needed + 0.327 '
+              'consistency + 0.368 efficiency',
+        )
       : ana.Metric<ana.SleepPerformance>.absent(
           tier: ana.Tier.estimate,
-          inputs_used: const ['tst', 'sleep_need'],
-          // Name the input that is actually missing. When it is the need
-          // itself, carry the need's own reason forward rather than restating
-          // it as "no sleep need" — that would name a sibling metric, which is
-          // the failure this whole convention exists to stop.
-          note: need.present ? needInputNote('tst_min') : need.note,
+          inputs_used: const ['tst', 'sleep_need', 'efficiency'],
+          // Name the input that is actually missing; when it is the need
+          // itself, carry the need's own reason forward.
+          note: lastNight == null
+              ? need.note
+              : lastTstMin == null
+              ? needInputNote('tst_min')
+              : needInputNote('efficiency'),
         );
   // typical wake clock-minute + efficiency from recent days (medians).
   final wakeMins = <double>[
@@ -449,22 +471,31 @@ Map<String, dynamic> buildCrossDayBundle(
               : needInputNote('efficiency'),
         );
 
-  // ── STRAIN COACH: recovery-gated target for today (uses today's recovery +
-  //    the CTL/ATL/TSB load). Absent until we have a recovery value today.
-  // `readyList.last` is POSITIONAL, and `days` only contains rows that exist —
-  // so on a day whose derive has not run yet the "today" it read was
-  // yesterday's readiness, and the target below was built from it. `_todayNum`
-  // is the stamped read this comment already promised; when today has no row,
-  // recovery is null and `strainTarget` returns absent, which is the honest
-  // outcome and the one the screens already render.
+  // ── STRAIN COACH: today's target from today's recovery (WHOOP sizes it
+  //    from recovery, not from past load; whoopStrainTarget).
+  // `_todayNum` is the stamped read: on a day whose derive has not run yet
+  // there is no recovery, and the target is absent rather than built from
+  // yesterday's readiness, which is the outcome the screens already render.
   final recToday = _todayNum(days, 'readiness');
-  final ls = load.present ? load.value : null;
-  final strainTgt = ana.strainTarget(
-    recovery0to100: recToday,
-    ctl: ls?.ctl,
-    atl: ls?.atl,
-    tsb: ls?.tsb,
-  );
+  final tgt = whoopStrainTarget(recToday);
+  final strainTgt = tgt == null
+      ? const ana.Metric<ana.StrainTarget>.absent(
+          tier: ana.Tier.estimate, inputs_used: ['recovery'])
+      : ana.Metric<ana.StrainTarget>(
+          value: ana.StrainTarget(
+            targetMin: tgt.lo,
+            targetMax: tgt.hi,
+            band: recToday! < kWhoopRecoveryRedBelow
+                ? 'recover'
+                : recToday < kWhoopRecoveryGreenFrom
+                    ? 'maintain'
+                    : 'push',
+            rationale: "Target sized by today's recovery.",
+          ),
+          confidence: 0.6,
+          tier: ana.Tier.estimate,
+          inputs_used: const ['recovery'],
+        );
 
   // VO₂max and Fitness Age used to be computed here. Both are DELETED, not
   // disabled. `maxHr` was a constant per user and `vo2maxEstimate` returned
@@ -578,6 +609,11 @@ Map<String, dynamic> buildCrossDayBundle(
       // worth up to 45 min of need.
       'strain_bonus_min': appliedStrainBonusMin,
       'performance': perf.toJson((v) => v.toJson()),
+      // The debt carried into tonight (minutes), last night's own need, and
+      // WHOOP's 4-night Sleep Consistency for last night. Null: not known.
+      'debt_min': tonight?.debtMin,
+      'last_night_need_min': lastNight?.needMin,
+      'consistency': consistency,
       'bedtime': bedtime.toJson((v) => v.toJson()),
       'wake': wakeRec.toJson((v) => v.toJson()),
     },
@@ -591,8 +627,9 @@ Map<String, dynamic> buildCrossDayBundle(
 
 double? _numOrNull(Object? v) => v is num ? v.toDouble() : null;
 
-/// The two sleep-coach figures worth a daily history, read off a built bundle:
-/// tonight's need (minutes of sleep) and the sleep debt behind it (minutes).
+/// The sleep-coach figures worth a daily history, read off a built bundle:
+/// tonight's need and the debt carried into it (minutes), and last night's
+/// own need, WHOOP Sleep Performance and Sleep Consistency.
 /// Absent envelopes are null, never 0 — `metric_series` stores the null so a
 /// day whose need went absent does not keep an earlier pass's value.
 Map<String, double?> sleepCoachDaySeries(Map<String, dynamic> bundle) {
@@ -600,10 +637,15 @@ Map<String, double?> sleepCoachDaySeries(Map<String, dynamic> bundle) {
       env is Map && env['value'] is Map ? env['value'] as Map : null;
   final coach = bundle['sleep_coach'];
   final needSec = _numOrNull(valueOf(coach is Map ? coach['need'] : null)?['need_sec']);
-  final debtH = _numOrNull(valueOf(bundle['sleep_debt'])?['debt_hours']);
+  final debtMin = _numOrNull(coach is Map ? coach['debt_min'] : null);
+  final perf = valueOf(coach is Map ? coach['performance'] : null)?['pct'];
   return {
     'sleep_need_min': needSec == null ? null : needSec / 60,
-    'sleep_debt_min': debtH == null ? null : debtH * 60,
+    'sleep_debt_min': debtMin,
+    'sleep_last_need_min':
+        _numOrNull(coach is Map ? coach['last_night_need_min'] : null),
+    'sleep_performance': _numOrNull(perf),
+    'sleep_consistency': _numOrNull(coach is Map ? coach['consistency'] : null),
   };
 }
 
@@ -704,6 +746,12 @@ double? _median(List<double> xs) {
 /// `_refreshCrossDayInputArtifact`). Taking `days.last` positionally is not
 /// enough: on a day with no derived row yet, the most recent record IS
 /// yesterday, so a positional read reproduces the very imputation this replaces.
+/// Whether row [a] is the calendar day right before row [b].
+bool _isDayBefore(Map<String, dynamic> a, Map<String, dynamic> b) {
+  final day = b['date'];
+  return day is String && a['date'] == dayLabelBefore(day, 1);
+}
+
 double? _todayNum(List<Map<String, dynamic>> days, String key) {
   if (days.isEmpty) return null;
   final last = days.last;

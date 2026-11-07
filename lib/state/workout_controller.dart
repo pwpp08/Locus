@@ -1671,6 +1671,7 @@ class LiveWorkoutState {
       hrMax: hrMax,
       quietHrr: quietHrr,
       quietSettled: quietSettled,
+      type: type,
     );
   }
 

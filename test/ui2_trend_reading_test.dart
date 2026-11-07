@@ -129,7 +129,7 @@ void main() {
       // The key is the dial's traffic light; the band has a visible key of
       // its own, not only a spoken one.
       expect(find.text('>66%'), findsOneWidget);
-      expect(find.text('Usual range 37–61'), findsOneWidget);
+      expect(find.text('Usual range 34–67'), findsOneWidget);
 
       final strip = find.byWidgetPredicate(
           (w) => w is Scrubber && w.label == 'Recovery');

@@ -79,7 +79,8 @@ void main() {
         w.accrueHr(150);
       }
       expect(w.perMinuteHr(), hasLength(60));
-      expect(w.strain, closeTo(11.62, 0.05));
+      // 70% of reserve for an hour on WHOOP's curve (whoop_scores.dart).
+      expect(w.strain, closeTo(15.09, 0.05));
       expect(w.strain, lessThanOrEqualTo(21.0));
     });
 

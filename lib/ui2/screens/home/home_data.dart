@@ -356,6 +356,11 @@ class HomeData {
   final Metric strain;
   final int stepGoal;
   final Metric sleepNeedMin;
+
+  /// Last night's WHOOP Sleep Performance (0-100), as the cross-day pass
+  /// stored it (`sleep_coach.performance`; `sleep_performance` series for a
+  /// past day). Never recomputed here.
+  final Metric sleepPerformance;
   final Metric bedtime;
   final SleepPlan plan;
   final Map<String, dynamic>? strainTarget;
@@ -384,6 +389,7 @@ class HomeData {
     this.strain = Metric.empty,
     this.stepGoal = kDefaultStepGoal,
     this.sleepNeedMin = Metric.empty,
+    this.sleepPerformance = Metric.empty,
     this.bedtime = Metric.empty,
     this.plan = const SleepPlan(),
     this.strainTarget,
@@ -413,6 +419,7 @@ class HomeData {
         strain: strain,
         stepGoal: stepGoal,
         sleepNeedMin: sleepNeedMin,
+        sleepPerformance: sleepPerformance,
         bedtime: bedtime,
         plan: plan,
         strainTarget: strainTarget,
@@ -425,6 +432,19 @@ class HomeData {
         recoveryState: recoveryState,
         readinessUpdate: readinessUpdate,
       );
+
+  /// [key]'s stored value on [date], or null: none stored, or no database to
+  /// read (a past day still shows what its repository gave).
+  static Future<Object?> _storedOn(String key, String date) async {
+    try {
+      return [
+        for (final r in await LocalDb.metricSeries(key))
+          if (r['date'] == date) r['value'],
+      ].lastOrNull;
+    } catch (_) {
+      return null;
+    }
+  }
 
   static Future<HomeData> loadForDay(LocalRepository repo, String date,
       [AppLocalizations? l]) async {
@@ -451,6 +471,10 @@ class HomeData {
       caloriesTotal: metricOf(strain['calories_total']),
       sleepMin: metricOf(sleep['duration_min']),
       sleepNeedMin: Metric.parse({'value': needMin, 'unit': 'min'}),
+      sleepPerformance: Metric.parse({
+        'value': await _storedOn('sleep_performance', date),
+        'unit': '%',
+      }),
       sleepEfficiency: metricOf(sleep['efficiency']),
       remMin: metricOf(sleep['rem_min']),
       deepMin: metricOf(sleep['deep_min']),
@@ -474,6 +498,7 @@ class HomeData {
     final coach = cd['sleep_coach'];
     final needEnv = coach is Map ? coach['need'] : null;
     final bedEnv = coach is Map ? coach['bedtime'] : null;
+    final perfEnv = coach is Map ? coach['performance'] : null;
     final needSec = (envValue(needEnv)?['need_sec'] as num?);
 
     final strain = today['coach'];
@@ -520,6 +545,9 @@ class HomeData {
       stepGoal: (today['step_goal'] as num?)?.toInt() ?? kDefaultStepGoal,
       sleepNeedMin: envMetric(needEnv, needSec == null ? null : needSec / 60,
           unit: 'min'),
+      sleepPerformance: envMetric(
+          perfEnv, envValue(perfEnv)?['pct'] as num?,
+          unit: '%'),
       bedtime: envMetric(
           bedEnv, envValue(bedEnv)?['bedtime_min_of_day'] as num?),
       strainTarget: strain is Map && strain['strain_target'] is Map

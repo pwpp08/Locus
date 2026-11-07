@@ -234,13 +234,13 @@ void main() {
   group('readiness banding', () {
     test('tiers at the boundaries', () {
       expect(readinessBand(100).tier, 3);
-      expect(readinessBand(61).tier, 3);
-      expect(readinessBand(60.9).tier, 2);
+      // WHOOP's bands: green 67+, yellow 34-66, red 33 and under. Tier 1
+      // ("Take it easy") is kept for the surfaces but no score lands in it.
+      expect(readinessBand(67).tier, 3);
+      expect(readinessBand(66.9).tier, 2);
       expect(readinessBand(50).tier, 2);
-      expect(readinessBand(37).tier, 2);
-      expect(readinessBand(36.9).tier, 1);
-      expect(readinessBand(26).tier, 1);
-      expect(readinessBand(25.9).tier, 0);
+      expect(readinessBand(34).tier, 2);
+      expect(readinessBand(33.9).tier, 0);
       expect(readinessBand(0).tier, 0);
     });
 

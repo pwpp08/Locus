@@ -56,8 +56,9 @@ void main() {
       )!;
       expect(z.source, 'karvonen');
       expect(z.maxHr, 196);
-      // 50 + 0.50·(196−50) = 123, not 0.50·196 = 98.
-      expect(z.zones.first.lower, closeTo(123, 0.01));
+      // WHOOP's zone 1 starts at 40% of reserve: 50 + 0.40·(196−50) = 108.4,
+      // not 0.40·196.
+      expect(z.zones.first.lower, closeTo(108.4, 0.01));
       expect(zonesAreMeasured(z.source), isTrue);
     });
 
@@ -66,10 +67,11 @@ void main() {
         observedCeilingBpm: 184,
         restingHrHistory: List<double>.filled(28, 40),
       )!;
-      // Z1 STARTS at 112 instead of the 92 a %HRmax set would give, and every
-      // band above it moves with it. This is the case the screen writes for.
-      expect(z.zones.first.lower, closeTo(112, 0.01));
-      expect(z.zones.first.upper - z.zones.first.lower, closeTo(14.4, 0.01));
+      // Z1 STARTS at 97.6 (40 + 0.40·144) instead of the 73.6 a %HRmax set
+      // would give, and every band above it moves with it. This is the case
+      // the screen writes for. Zone 1 spans 40-60% of reserve.
+      expect(z.zones.first.lower, closeTo(97.6, 0.01));
+      expect(z.zones.first.upper - z.zones.first.lower, closeTo(28.8, 0.01));
     });
 
     test('measured ceiling but short resting history ⇒ %HRmax off the ceiling,'
@@ -545,7 +547,7 @@ void main() {
       expect(z['source'], 'karvonen');
       expect(z['max_hr'], 196);
       expect(z['resting_hr'], 50);
-      expect((z['zones'] as List).first, containsPair('lo', 123));
+      expect((z['zones'] as List).first, containsPair('lo', 108));
     });
 
     test(

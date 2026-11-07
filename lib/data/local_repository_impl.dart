@@ -3147,6 +3147,7 @@ class LocalRepositoryImpl extends LocalRepository {
       // bout is priced on the baseline that day's strain was.
       quietHrr: quiet.value?.hrr,
       quietSettled: quiet.value?.settled ?? true,
+      type: type,
     );
 
     final row = buildManualSessionRow(
@@ -3274,6 +3275,7 @@ class LocalRepositoryImpl extends LocalRepository {
             row['device_family'] as String?, await _zoneAnchors()),
         quietHrr: anchors.quietHrr,
         quietSettled: anchors.quietSettled,
+        type: row['type'] as String?,
       );
       // The peak is smoothed inside `computeManualSessionStats` now — one
       // definition for the manual save, this re-score and the workout list
@@ -3569,6 +3571,7 @@ class LocalRepositoryImpl extends LocalRepository {
         hrMax: a.hrMax,
         quietHrr: a.quietHrr,
         quietSettled: a.quietSettled,
+        type: session['type'] as String?,
       );
     } catch (_) {
       return const [];

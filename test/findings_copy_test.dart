@@ -149,8 +149,8 @@ void main() {
     expect(f.score, 22);
     expect(f.detail, contains('22'));
     // The ring bands the raw value and prints it rounded.
-    expect(lowReadinessFinding('2026-10-01', 25.6)!.score, 26);
-    expect(lowReadinessFinding('2026-10-01', 26.0), isNull);
+    expect(lowReadinessFinding('2026-10-01', 33.6)!.score, 34);
+    expect(lowReadinessFinding('2026-10-01', 34.0), isNull);
     expect(lowReadinessFinding('2026-10-01', null), isNull);
   });
 
@@ -161,11 +161,11 @@ void main() {
 
   test("the push threshold is the ring's lowest band", () {
     expect(kLowReadiness, kReadinessRestBelow);
-    expect(kReadinessRestBelow, 26);
-    expect(readinessBand(25.99).tier, 0);
-    expect(readinessBand(26).tier, 1);
-    expect(readinessBand(37).tier, 2);
-    expect(readinessBand(61).tier, 3);
+    expect(kReadinessRestBelow, 34); // WHOOP: red is 33 and under
+    expect(readinessBand(33.99).tier, 0);
+    expect(readinessBand(34).tier, 2); // no "Take it easy" tier any more
+    expect(readinessBand(66.9).tier, 2);
+    expect(readinessBand(67).tier, 3);
   });
 
   test('servedReadiness: the pin wins for its own day only', () {

@@ -640,6 +640,8 @@ void _wiredFamilies() {
     test('TST last night → scored', () {
       final days = _synthDays(30);
       days.last['is_today'] = true;
+      // WHOOP's Sleep Performance weighs efficiency, so it needs one.
+      days.last['efficiency'] = 92.0;
       final coach = (buildCrossDayBundle(days, const {})['sleep_coach'] as Map);
       expect((coach['performance'] as Map)['value'], isA<Map>());
     });

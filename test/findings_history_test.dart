@@ -76,13 +76,13 @@ void main() {
     final days = [_day('2026-08-10')];
     expect(findingsHistory(_cd(days)), isEmpty);
     expect(findingsHistory(_cd(days), readiness: {'2026-08-10': 71}), isEmpty);
-    // 33 is "Take it easy" on the ring, not its lowest band.
-    expect(findingsHistory(_cd(days), readiness: {'2026-08-10': 33}), isEmpty);
+    // 40 is yellow on the ring, not its lowest band.
+    expect(findingsHistory(_cd(days), readiness: {'2026-08-10': 40}), isEmpty);
     final low =
         findingsHistory(_cd(days), readiness: {'2026-08-10': 25}).single;
     expect(low.kind, FindingKind.lowReadiness);
     expect(low.score, 25);
-    expect(findingsHistory(_cd(days), readiness: {'2026-08-10': 26}), isEmpty);
+    expect(findingsHistory(_cd(days), readiness: {'2026-08-10': 34}), isEmpty);
   });
 
   test('a resting-HR shift lands on the day it happened, with its direction',

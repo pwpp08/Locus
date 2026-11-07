@@ -34,16 +34,18 @@ import 'package:openstrap_analytics/onehz.dart' as ana;
 
 import '../data/day_label.dart' show dayLabelBefore;
 
-/// The headline composite's band cut-offs — its OWN quantiles (see the long
-/// note on `readinessBand`): p=.05 → 26, p=.20 → 37, p=.75 → 61. The ring,
-/// the widget, the briefing, the push and the log all band through these.
-const double kReadinessRestBelow = 26; // "Rest today"
-const double kReadinessEasyBelow = 37; // "Take it easy"
-const double kReadinessGoodFrom = 61; // "Good to go"
+/// The recovery band cut-offs: WHOOP's own (support article "WHOOP
+/// Recovery"): green 67 and up, yellow 34-66, red 33 and below. Three bands,
+/// as on WHOOP, so the "Take it easy" tier (between [kReadinessRestBelow] and
+/// [kReadinessEasyBelow]) is empty by design. The ring, the widget, the
+/// briefing, the push and the log all band through these.
+const double kReadinessRestBelow = 34; // red: "Rest today"
+const double kReadinessEasyBelow = 34; // yellow from here: "Steady"
+const double kReadinessGoodFrom = 67; // green: "Good to go"
 
-/// Below this, readiness is a finding: the ring's lowest band, "Rest today"
-/// (~5 % of nights by construction). Shared so the ring, the notification and
-/// the log cannot disagree about which mornings were low.
+/// Below this, readiness is a finding: WHOOP's red band, "Rest today".
+/// Shared so the ring, the notification and the log cannot disagree about
+/// which mornings were low.
 const double kLowReadiness = kReadinessRestBelow;
 
 enum FindingKind {

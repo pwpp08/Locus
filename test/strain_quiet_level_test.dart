@@ -129,8 +129,9 @@ void main() {
     test('seven prior levels: strain, the day\'s own level and net load', () {
       final r = _run(_daySub(), quietHrrHistory: List.filled(7, 0.20));
       // The shipped lump form scored this fixture 2.85: 300 quiet minutes at
-      // 0.0545 HRR cancelled most of the hour at 130 bpm.
-      expect(r.scalars['strain'] as num, closeTo(8.55, 0.05));
+      // 0.0545 HRR cancelled most of the hour at 130 bpm. On WHOOP's curve the
+      // quiet minutes sit under its load floor and add nothing.
+      expect(r.scalars['strain'] as num, closeTo(12.32, 0.05));
       // 62 bpm against RHR 55 / HRmax 183.5 = 7/128.5. Persisted for LATER
       // days; it never prices this one.
       expect(r.scalars['quiet_hrr'] as num, closeTo(0.0545, 0.0005));
@@ -170,8 +171,10 @@ void main() {
           quietHrrHistory: List.filled(7, 0.20),
           profile: _profile30,
           restingHr: 50);
-      expect(own.scalars['strain'] as num, closeTo(9.90, 0.05));
-      expect(ref.scalars['strain'] as num, closeTo(9.38, 0.05));
+      // The level only gates strain now (strain_peak.dart); it no longer
+      // prices it, so a low level cannot erase the run either way.
+      expect(own.scalars['strain'] as num, closeTo(13.56, 0.05));
+      expect(ref.scalars['strain'], own.scalars['strain']);
     });
 
     test('the curve ends on the engine\'s headline', () {

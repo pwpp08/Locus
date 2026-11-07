@@ -2,7 +2,8 @@
 // vitals, each against your own usual range.
 //
 // Every tile has three states and only three: a value inside your range, a
-// value outside it (and which side), and "No data". A dash is the absence —
+// value far out on the harmful side (WHOOP's rule, whoopMonitorReading), and
+// "No data". A dash is the absence —
 // the overnight block is refused when it is a held-over night rather than
 // today's ([overnightMetric]), so a tile never shows last week's reading as
 // this morning's.
@@ -11,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../compute/hr_max.dart' show estimatedMaxHr;
-import '../../data/day_label.dart' show todayLabel;
+import '../../compute/whoop_scores.dart' show whoopMonitorReading;
 import '../../models/metric.dart';
 import '../../state/app_state.dart';
 import '../ui2.dart';
@@ -43,20 +44,16 @@ class _MonitorData {
     if (repo == null) return const _MonitorData();
     final today = await repo.getToday();
     final profile = await repo.getProfile();
-    Map<String, dynamic> heart = const {};
-    try {
-      heart = await repo.getDayHeart(todayLabel());
-    } catch (_) {
-      // A repository without the heart block: no usual ranges, still values.
-    }
-    final baselines = heart['baselines'] is Map
-        ? (heart['baselines'] as Map).cast<String, dynamic>()
-        : null;
-
-    Future<Side?> sideOf(String key, double? v) async {
+    // WHOOP's Health Monitor: only a reading far out on the harmful side is
+    // flagged (whoopMonitorReading); just outside the middle half stays green.
+    Future<Side?> sideOf(String key, double? v, {required bool harmfulUp}) async {
       if (v == null) return null;
       final stored = seriesOf(await repo.getChart(key));
-      return usualRangeFor(key, stored, baselines)?.side(v);
+      if (stored.isEmpty) return null;
+      final r = whoopMonitorReading(v, stored.sublist(0, stored.length - 1),
+          harmfulUp: harmfulUp);
+      if (r == null) return null;
+      return !r.flagged ? Side.inside : (harmfulUp ? Side.above : Side.below);
     }
 
     final daily = today['daily'];
@@ -85,17 +82,17 @@ class _MonitorData {
             present: resp != null,
             value: resp == null ? '' : resp.toStringAsFixed(1),
             unit: 'rpm',
-            side: await sideOf('resp_rate', resp?.toDouble())),
+            side: await sideOf('resp_rate', resp?.toDouble(), harmfulUp: true)),
         _Vital('resting_hr', 'RHR', LucideIcons.heartHandshake,
             present: rhr != null,
             value: rhr == null ? '' : '${rhr.round()}',
             unit: 'bpm',
-            side: await sideOf('resting_hr', rhr?.toDouble())),
+            side: await sideOf('resting_hr', rhr?.toDouble(), harmfulUp: true)),
         _Vital('hrv', 'HRV', LucideIcons.activity,
             present: hrv != null,
             value: hrv == null ? '' : '${hrv.round()}',
             unit: 'ms',
-            side: await sideOf('hrv', hrv?.toDouble())),
+            side: await sideOf('hrv', hrv?.toDouble(), harmfulUp: false)),
         _Vital('skin_temp', 'Skin Temp (from baseline)', LucideIcons.thermometer,
             present: skinZ != null,
             value: skinZ == null
@@ -104,7 +101,7 @@ class _MonitorData {
                     ? signed(skinC, 1)
                     : signed(skinZ.toDouble(), 2),
             unit: skinC != null ? '°C' : 'SD',
-            side: await sideOf('skin_temp', skinZ?.toDouble())),
+            side: await sideOf('skin_temp', skinZ?.toDouble(), harmfulUp: true)),
       ],
     );
   }

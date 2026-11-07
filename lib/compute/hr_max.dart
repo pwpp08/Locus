@@ -180,10 +180,11 @@ ana.HeartRateZoneSet? trainingZones({
   if (observedCeilingBpm != null &&
       observedCeilingBpm > 0 &&
       (est == null || observedCeilingBpm >= est)) {
-    return ana.HeartRateZones.reserveZones(
-          restingHrHistory: restingHrHistory,
-          maxHr: observedCeilingBpm,
-        ) ??
+    final reserve = ana.HeartRateZones.reserveZones(
+      restingHrHistory: restingHrHistory,
+      maxHr: observedCeilingBpm,
+    );
+    return (reserve == null ? null : _whoopZone1(reserve)) ??
         ana.HeartRateZones.zonesFromMaxHr(
           observedCeilingBpm,
           source: 'observed',
@@ -192,6 +193,35 @@ ana.HeartRateZoneSet? trainingZones({
   return est == null
       ? null
       : ana.HeartRateZones.zonesFromMaxHr(est, source: 'tanaka');
+}
+
+/// WHOOP's reserve zones start zone 1 at 40 % of heart-rate reserve, not 50 %
+/// (Locker, "WHOOP Heart Rate Zones Explained": 40-60 / 60-70 / 70-80 / 80-90
+/// / 90-100 %); the other four edges are the analytics set's own.
+///
+/// ponytail: only the measured-ceiling (`karvonen`) set moves to WHOOP's
+/// edges. WHOOP bands on reserve from day one off the age estimate; doing that
+/// here means a new zone source and new footnote copy on the strain screens.
+ana.HeartRateZoneSet _whoopZone1(ana.HeartRateZoneSet set) {
+  final z1 = set.zones.first;
+  final z2 = set.zones[1];
+  // Resting HR is where 0 % sits: z2 starts at 60 %, z1 at 50 %.
+  final reserve = (z2.lower - z1.lower) / (z2.lowerPct - z1.lowerPct);
+  final rhr = z1.lower - z1.lowerPct * reserve;
+  return ana.HeartRateZoneSet(
+    zones: [
+      ana.HeartRateZone(
+        number: 1,
+        lower: rhr + 0.40 * reserve,
+        upper: z1.upper,
+        lowerPct: 0.40,
+        upperPct: z1.upperPct,
+      ),
+      ...set.zones.skip(1),
+    ],
+    maxHr: set.maxHr,
+    source: set.source,
+  );
 }
 
 /// Builds a zone set straight from five user-set bpm thresholds — no

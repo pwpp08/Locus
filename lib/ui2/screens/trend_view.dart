@@ -23,13 +23,14 @@ import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../compute/profile.dart' show Profile;
 import '../../compute/vo2max_estimate.dart';
+import '../../compute/whoop_age.dart' as wa;
+import '../../compute/whoop_age.dart' show WhoopAgeResult;
 import '../../state/prefs.dart';
 import '../activity/catalogue.dart' show Track, activityByName;
 import 'compare_metrics.dart';
 import '../ui2.dart';
 import 'home_screen.dart'
     show
-        envValue,
         monthShortName,
         pad,
         pointsOf,
@@ -477,7 +478,6 @@ class TrendLoader {
   final _series = <String, Future<Map<String, double>>>{};
   Future<List<Map<String, Object?>>>? _figures;
   Future<List<Map<String, Object?>>>? _strength;
-  Future<Map<String, double>>? _sri;
   Future<Vo2Result>? _vo2;
 
   /// VO₂ max, as far as the data goes (see `compute/vo2max_estimate.dart`).
@@ -536,6 +536,32 @@ class TrendLoader {
       return const Vo2Result(why: 'The estimate could not be read.');
     }
   }();
+
+  /// WHOOP Age and Pace of Aging (see `compute/whoop_age.dart`). Backend
+  /// only for now: no screen reads it yet.
+  Future<WhoopAgeResult> whoopAge() async {
+    final r = repo;
+    if (r == null) return const WhoopAgeResult(why: 'no_data');
+    try {
+      final p = Profile.fromMap(await r.getProfile());
+      return wa.whoopAge(
+        today: todayLabel(),
+        age: p.ageYears,
+        sex: p.sex,
+        recovery: await _chart('recovery'),
+        sleepMin: await _chart('tst_min'),
+        consistency: await _chart('sleep_consistency'),
+        steps: await _chart('steps'),
+        zones13Min: await _zones(const [1, 2, 3]),
+        zones45Min: await _zones(const [4, 5]),
+        strengthMin: await _strengthBy(false),
+        restingHr: await _chart('resting_hr'),
+        vo2max: (await vo2max()).byDay,
+      );
+    } catch (_) {
+      return const WhoopAgeResult(why: 'read_failed');
+    }
+  }
 
   Future<Map<String, double>> _chart(String key) => _series[key] ??= () async {
     final r = repo;
@@ -653,21 +679,6 @@ class TrendLoader {
     return out;
   }
 
-  Future<Map<String, double>> _consistency() => _sri ??= () async {
-    final r = repo;
-    if (r == null) return <String, double>{};
-    try {
-      final pairs = envValue((await r.getInsights())['regularity'])?['pairs'];
-      return {
-        if (pairs is List)
-          for (final p in pairs.whereType<Map>())
-            if (p['date'] is String && p['sri'] is num)
-              p['date'] as String: (p['sri'] as num).toDouble(),
-      };
-    } catch (_) {
-      return <String, double>{};
-    }
-  }();
 
   /// Two series of the same night, combined day by day where both exist.
   Future<Map<String, double>> _pair(
@@ -1000,24 +1011,21 @@ class TrendLoader {
         return _figure('hr_avg');
       case 'time_in_bed':
         return _figure('spt_sec', scale: 1 / 60);
+      // WHOOP's 4-night Sleep Consistency and WHOOP-fit Sleep Performance, as
+      // the cross-day pass stored them for each day (forward-only history).
+      // Hours vs. needed is each night against ITS OWN need.
       case 'consistency':
-        return _consistency();
-      // Performance is hours against need, capped at 100 — the same ratio the
-      // Sleep dial draws. Hours vs. needed (%) is that ratio uncapped.
+        return _chart('sleep_consistency');
       case 'sleep_perf':
-        return _pair(
-          'tst_min',
-          'sleep_need_min',
-          (t, n) => n <= 0 ? null : (t / n * 100).clamp(0, 100).toDouble(),
-        );
+        return _chart('sleep_performance');
       case 'hvn_pct':
         return _pair(
           'tst_min',
-          'sleep_need_min',
+          'sleep_last_need_min',
           (t, n) => n <= 0 ? null : t / n * 100,
         );
       case 'hvn_hours':
-        return _pair('tst_min', 'sleep_need_min', (t, n) => t - n);
+        return _pair('tst_min', 'sleep_last_need_min', (t, n) => t - n);
       case 'restorative_hours':
         return _pair('deep_min', 'rem_min', (d, r) => d + r);
       case 'restorative_pct':

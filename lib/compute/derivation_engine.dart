@@ -73,6 +73,8 @@ import 'derive_prepare.dart';
 import 'onehz_pipeline.dart';
 import 'step_cadence.dart';
 import 'strain_peak.dart' show peakStrain;
+import 'whoop_scores.dart'
+    show kWhoopMuscularTypes, whoopLoadForStrain, whoopMuscularLoad, whoopStrainFromLoad;
 import 'movement_bouts.dart';
 import 'profile.dart';
 import 'substrate.dart';
@@ -1826,7 +1828,20 @@ import 'vendor_sleep.dart';
 // analytics' running NetTrimp score reached (`compute/strain_peak.dart`), not
 // where it ended: a quiet evening no longer nets a busy morning back out.
 // `trimp_net` is unchanged. Days derived before 115 keep their stored values.
-const int kAlgoVersion = 115;
+// 115 → 116 (edge-only, WHOOP parity; docs/proposals/whoop-parity-research.md,
+// compute/whoop_scores.dart): recovery is the fitted WHOOP logistic over HRV,
+// RHR and resp z's against the prior 14 nights (5+; a night at baseline reads
+// 67.5), bands green >= 67, red <= 33; skin temp leaves the score (beat-less
+// wearables keep the partial analytics composite). Strain is
+// WHOOP's per-minute HRR load curve, 3.584·ln(1 + load/11.48) capped at 21,
+// plus a duration-based muscular load for strength-type sessions. Zone 1 of
+// the reserve zones starts at 40% HRR. Sleep need adds WHOOP's strain term,
+// carries half of last night's shortfall as debt and takes off naps; sleep
+// consistency and Sleep Performance are WHOOP's fitted formulas and are stored
+// (`sleep_performance`, `sleep_consistency`, `sleep_last_need_min`). The
+// strain target is sized from today's recovery alone. Days derived before 116
+// keep their stored values.
+const int kAlgoVersion = 116;
 /// The sibling SHAs this version was derived against, asserted against
 /// pubspec.yaml in test/db_serve_version_and_reads_test.dart.
 ///
@@ -7470,22 +7485,35 @@ class DerivationEngine {
     return wake;
   }
 
-  /// [strain], raised to the highest strain of a finished, non-private
-  /// session in [sessions]. Null stays null.
+  /// [strain] (heart rate only) plus the muscular load WHOOP adds for each
+  /// finished, non-private strength-type session (whoop_scores.dart), then
+  /// raised to the highest strain of such a session. Null stays null.
   @visibleForTesting
   static double? strainFlooredAtSessions(
     double? strain,
     List<Map<String, dynamic>> sessions,
   ) {
     if (strain == null) return null;
-    var best = strain;
+    var muscle = 0.0;
+    var best = 0.0;
     for (final s in sessions) {
       if (s['status'] != 'done') continue;
       if ((s['private'] as num?)?.toInt() == 1) continue;
       final v = (s['strain'] as num?)?.toDouble();
       if (v != null && v.isFinite && v > best) best = v;
+      final start = (s['start_ts'] as num?)?.toInt();
+      final end = (s['end_ts'] as num?)?.toInt();
+      if (kWhoopMuscularTypes.contains(s['type']) &&
+          start != null &&
+          end != null &&
+          end > start) {
+        muscle += whoopMuscularLoad((end - start) / 60);
+      }
     }
-    return best;
+    final day = muscle == 0
+        ? strain
+        : whoopStrainFromLoad(whoopLoadForStrain(strain) + muscle);
+    return math.max(day, best);
   }
 
   static void _applyWakeDayFeatures(
@@ -8176,13 +8204,7 @@ class DerivationEngine {
         // The day's strain is the highest its running score reached
         // (strain_peak.dart), as the pipeline's headline is.
         if (net != null) {
-          strain = peakStrain(
-            perMin,
-            restingHr: rhrForTrimp,
-            maxHr: hrMax,
-            quietHrr: quiet.value!.hrr,
-            sex: sexEnum,
-          );
+          strain = peakStrain(perMin, restingHr: rhrForTrimp, maxHr: hrMax);
         }
         // Every named input was there and the scorer still abstained. We do not
         // know why; saying so is the honest floor, and it is what the rule

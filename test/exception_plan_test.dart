@@ -65,12 +65,12 @@ void main() {
   });
 
   test('the pinned headline wins over the stored value', () {
-    // The ring shows the pin (30, "Take it easy"), so no push even though a
+    // The ring shows the pin (40, yellow), so no push even though a
     // later re-derive stored 24.
     expect(
         planExceptionNotices(_cd(),
             today: _today,
-            pin: (day: _today, value: 30),
+            pin: (day: _today, value: 40),
             storedReadiness: 24),
         isEmpty);
     // And a low pin pushes even when the day has no stored value at all.

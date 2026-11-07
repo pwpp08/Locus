@@ -115,13 +115,27 @@ void main() {
       sleepCoachDaySeries({
         'sleep_coach': {
           'need': {'value': {'need_sec': 31380}},
+          'debt_min': 30,
+          'last_night_need_min': 500,
+          'performance': {'value': {'pct': 81.5}},
+          'consistency': 77,
         },
-        'sleep_debt': {'value': {'debt_hours': 0.5}},
       }),
-      {'sleep_need_min': 523, 'sleep_debt_min': 30},
+      {
+        'sleep_need_min': 523,
+        'sleep_debt_min': 30,
+        'sleep_last_need_min': 500,
+        'sleep_performance': 81.5,
+        'sleep_consistency': 77,
+      },
     );
-    expect(sleepCoachDaySeries(const {}),
-        {'sleep_need_min': null, 'sleep_debt_min': null});
+    expect(sleepCoachDaySeries(const {}), {
+      'sleep_need_min': null,
+      'sleep_debt_min': null,
+      'sleep_last_need_min': null,
+      'sleep_performance': null,
+      'sleep_consistency': null,
+    });
   });
 
   testWidgets('trend view: average, a tapped bar, and the picker',

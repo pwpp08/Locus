@@ -25,6 +25,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:openstrap_analytics/onehz.dart';
+import 'whoop_scores.dart';
 
 // Pure value helper only — no DB, no IO, no Flutter binding — so importing it
 // does not compromise this file's isolate safety. It is here so the sex
@@ -893,32 +894,38 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
   // lives in `rhr` itself, so this is the same number the card shows.
   final rhrToday = rhr.present ? rhr.value!.low30Mean : null;
   final respToday = resp.present ? resp.value!.brpm : null;
-  final composite = readinessComposite([
-    hrvInput(lnToday, d.lnRmssdHistory),
-    rhrInput(rhrToday, d.rhrHistory),
-    respInput(respToday, d.respHistory),
-    // Feed the RAW ADC mean + the RAW-ADC baseline so the composite computes its
-    // own oriented robust-z internally (consistent with the other inputs, which
-    // pass raw values + their raw baselines).
-    //
-    // The mean stays RAW — value and baseline have to be the same quantity, and
-    // the stored history is a series of raw nightly means. The settled fraction
-    // is the GATE on using it at all: below 0.80 the driver is refused for this
-    // night, by name, and readiness renormalises over the three that are left.
-    tempInput(
-      skinTempAdc,
-      d.skinTempAdcHistory,
-      settledFraction: skinTempSettledFrac,
-    ),
-  ],
-      // A wearable gives no beats, so HRV (and resp) never enter: the
-      // composite is PARTIAL, resting HR and skin temperature, which weigh
-      // 0.30 + 0.10. Still two measured inputs, never one; the band's own
-      // floor is untouched.
-      minWeightSum: hrCadence == null
-          ? readinessCompositeMinWeight
-          : kPartialReadinessMinWeight,
-      compositeZHistory: d.readinessZHistory);
+  // WHOOP's own recovery, as fitted to a WHOOP export (whoop_scores.dart):
+  // HRV against the last 14 nights, plus a little RHR and breathing rate. It
+  // replaced the analytics glass-box composite (HRV+RHR 0.70 / RR 0.20 /
+  // temp 0.10, self-recalibrating) at v-whoop-parity. Skin temperature no
+  // longer scores here (WHOOP's fit gave it no weight); it still feeds Health
+  // Monitor and the illness signals.
+  //
+  // A wearable gives no beats, so it has no HRV for WHOOP's formula; it keeps
+  // the analytics composite, PARTIAL over resting HR and skin temperature
+  // (0.30 + 0.10, two measured inputs, never one). Its settled fraction gates
+  // the temperature driver as before.
+  final composite = hrCadence == null
+      ? whoopRecovery(
+          hrvMs: lnToday == null ? null : math.exp(lnToday),
+          hrvHistoryMs: [for (final l in d.lnRmssdHistory) math.exp(l)],
+          rhr: rhrToday,
+          rhrHistory: d.rhrHistory,
+          resp: respToday,
+          respHistory: d.respHistory,
+        )
+      : readinessComposite([
+          hrvInput(lnToday, d.lnRmssdHistory),
+          rhrInput(rhrToday, d.rhrHistory),
+          respInput(respToday, d.respHistory),
+          tempInput(
+            skinTempAdc,
+            d.skinTempAdcHistory,
+            settledFraction: skinTempSettledFrac,
+          ),
+        ],
+          minWeightSum: kPartialReadinessMinWeight,
+          compositeZHistory: d.readinessZHistory);
   // Populated when readiness comes back absent, so the main isolate can log WHY
   // instead of a bare null (this runs inside Isolate.run, so it can't call
   // Firebase directly; it just returns data). TWO consumers now, and the second
@@ -1174,11 +1181,7 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
           // running score reached (strain_peak.dart), on the same envelope.
           final peak = m.value == null
               ? null
-              : peakStrain(perMin,
-                  restingHr: rhrForTrimp,
-                  maxHr: hrMax,
-                  quietHrr: quiet.value!.hrr,
-                  sex: sexEnum);
+              : peakStrain(perMin, restingHr: rhrForTrimp, maxHr: hrMax);
           return peak == null
               ? m
               : Metric<double>(
@@ -2105,17 +2108,17 @@ List<Map<String, num>> _strainCurve(
   required String? sex,
   required double? quietHrr,
 }) {
-  if (wakeHr.isEmpty || sex == null) return const [];
-  // The headline's own arithmetic, minute by minute, held at its highest so far
-  // (strain_peak.dart), so the last point IS the headline and nothing earned
-  // falls back out through a quiet afternoon. Null — no level, or bad
-  // anchors — leaves the curve empty, which the strain screen explains.
+  // No quiet level: the headline abstains (strain_peak.dart's ponytail), so
+  // the curve does too rather than draw a day with no number.
+  if (wakeHr.isEmpty || sex == null || quietHrr == null) return const [];
+  // The headline's own arithmetic, minute by minute (strain_peak.dart). Load
+  // only adds, so the last point IS the headline and nothing earned falls
+  // back out through a quiet afternoon. Bad anchors leave the curve empty,
+  // which the strain screen explains.
   final curve = keptStrainCurve(
     [for (final p in wakeHr) p.hr],
     restingHr: restingHr,
     maxHr: maxHr,
-    quietHrr: quietHrr,
-    sex: workoutSex(sex) == 'female' ? Sex.female : Sex.male,
   );
   if (curve == null) return const [];
   return [

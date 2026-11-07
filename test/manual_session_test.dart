@@ -401,8 +401,9 @@ void main() {
       final s = strainFromPerMinuteHr(perMin,
           profile: _profile, restingHr: 55, hrMax: _hrMax, quietHrr: 0.20)!;
 
-      // The canonical figure for this effort.
-      expect(s, closeTo(11.62, 0.05));
+      // The canonical figure for this effort: an hour at 70% of reserve on
+      // WHOOP's curve (whoop_scores.dart).
+      expect(s, closeTo(15.09, 0.05));
       expect(s, lessThanOrEqualTo(21.0));
 
       // What the retired live accrual produced for the identical hour, so the
@@ -411,7 +412,7 @@ void main() {
       final legacy = hrrLive * 0.01 * 60 * 60;
       expect(legacy, greaterThan(21.0),
           reason: 'the old live formula left its own scale');
-      expect(legacy / s, greaterThan(2.0));
+      expect(legacy / s, greaterThan(1.5));
     });
 
     test('never exceeds 21, even for an absurdly long maximal effort', () {

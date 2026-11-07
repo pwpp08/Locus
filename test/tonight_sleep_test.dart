@@ -73,8 +73,9 @@ void main() {
   test('falling asleep before midnight does not lower the day\'s strain', () {
     final awake = _strain();
     final asleep = _strain(tonight: _t0 + 6 * 3600);
-    // Three hours asleep no longer pay the waking allowance.
-    expect(asleep, greaterThan(awake));
+    // Minutes asleep sit under WHOOP's load floor, so they add nothing and
+    // take nothing away.
+    expect(asleep, greaterThanOrEqualTo(awake));
   });
 
   group('tonightSleep', () {
