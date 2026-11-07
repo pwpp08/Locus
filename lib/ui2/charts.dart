@@ -617,6 +617,9 @@ class Ring extends CustomPainter {
   /// round cap.
   final bool flatStart;
 
+  /// With [flatStart]: the square start has its corners rounded off.
+  final bool softStart;
+
   /// A lighter stretch of the track, as fractions of the turn (the strain
   /// target), and a tick across the track at [tick]. Both draw under the arc.
   final (double, double)? band;
@@ -628,6 +631,7 @@ class Ring extends CustomPainter {
       this.t = 1,
       this.solid = false,
       this.flatStart = false,
+      this.softStart = false,
       this.band,
       this.bandColor,
       this.tick,
@@ -683,6 +687,14 @@ class Ring extends CustomPainter {
           ..strokeWidth = stroke
           ..color = color,
       );
+      if (softStart) {
+        final top = c.dy - r - stroke / 2;
+        cv.drawRRect(
+            RRect.fromRectAndRadius(
+                Rect.fromLTWH(c.dx - stroke * .18, top, stroke, stroke),
+                Radius.circular(stroke * .3)),
+            Paint()..color = color);
+      }
       // The round end, unless the turn is complete.
       if (sweep < 2 * pi - .02) {
         final a = -pi / 2 + sweep;

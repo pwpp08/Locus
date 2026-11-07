@@ -68,7 +68,24 @@ class _TrianglePaint extends CustomPainter {
 }
 
 /// The four marks on the strain screen's stat rows.
-enum StatMark { zonesLow, zonesHigh, strength, steps }
+enum StatMark {
+  zonesLow,
+  zonesHigh,
+  strength,
+  steps,
+  // Sleep's contributors.
+  hoursNeeded,
+  consistency,
+  efficiency,
+  sleepStress,
+  // Recovery's contributors.
+  hrv,
+  restingHr,
+  respRate,
+  sleepPerf,
+  // Behavior Insights' door.
+  bulb,
+}
 
 /// A fine-lined icon for one of the [StatMark]s, drawn on a 24-unit grid.
 class StatIcon extends StatelessWidget {
@@ -101,6 +118,12 @@ class _StatPaint extends CustomPainter {
     ..cubicTo(19.2, 3.9, 21.4, 5.9, 21.4, 8.9)
     ..cubicTo(21.4, 15.4, 12, 20.6, 12, 20.6)
     ..close();
+
+  /// The crescent of a circle with a second one bitten out of it.
+  static Path _moon(Offset c1, double r1, Offset c2, double r2) => Path.combine(
+      PathOperation.difference,
+      Path()..addOval(Rect.fromCircle(center: c1, radius: r1)),
+      Path()..addOval(Rect.fromCircle(center: c2, radius: r2)));
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -166,6 +189,144 @@ class _StatPaint extends CustomPainter {
         canvas.drawLine(const Offset(3, 15.6), const Offset(21.4, 15.6), line);
         canvas.drawLine(const Offset(11.4, 9.6), const Offset(13, 11.2), line);
         canvas.drawLine(const Offset(9.2, 10.9), const Offset(10.8, 12.4), line);
+      case StatMark.hoursNeeded:
+        // A crescent with clock hands in its hollow.
+        canvas.drawPath(_moon(const Offset(11.8, 12), 11, const Offset(15, 12), 8.6), line);
+        canvas.drawPath(
+            Path()
+              ..moveTo(15.4, 7.6)
+              ..lineTo(15.4, 12)
+              ..lineTo(18.4, 15),
+            line);
+      case StatMark.consistency:
+        // Three crescents, each a night like the last.
+        canvas.drawPath(_moon(const Offset(10.6, 12), 10, const Offset(13.6, 12), 8), line);
+        canvas.drawPath(
+            Path()..addArc(Rect.fromCircle(center: const Offset(16.4, 12), radius: 7),
+                math.pi * .22, math.pi * 1.56),
+            line);
+      case StatMark.efficiency:
+        // Four bars standing over a bed.
+        for (final (x, top) in const [
+          (3.2, 11.0),
+          (8.8, 7.4),
+          (14.6, 2.6),
+          (20.2, 5.0),
+        ]) {
+          canvas.drawPath(
+              Path()
+                ..moveTo(x - 1.9, 14.6)
+                ..lineTo(x - 1.9, top + 1.9)
+                ..arcToPoint(Offset(x + 1.9, top + 1.9),
+                    radius: const Radius.circular(1.9))
+                ..lineTo(x + 1.9, 14.6),
+              line);
+        }
+        canvas.drawPath(
+            Path()
+              ..moveTo(1.2, 15.8)
+              ..lineTo(1.2, 21.8)
+              ..moveTo(1.2, 19.4)
+              ..lineTo(22.8, 19.4)
+              ..lineTo(22.8, 21.8)
+              ..moveTo(3.4, 19.4)
+              ..lineTo(3.4, 17.2)
+              ..lineTo(8.4, 17.2)
+              ..cubicTo(13, 15.2, 19, 15.6, 22.4, 19),
+            line);
+      case StatMark.sleepStress:
+        // A gauge, open at the foot, its needle at the top right.
+        const dial = Rect.fromLTRB(1.8, 2.6, 22.2, 23);
+        canvas.drawArc(dial, math.pi * .85, math.pi * .87, false, line);
+        canvas.drawArc(dial, math.pi * 1.9, math.pi * .3, false, line);
+        canvas.drawLine(const Offset(15.4, 10.4), const Offset(19.6, 4.4), line);
+      case StatMark.hrv:
+        // A slanted pulse through a rounded band.
+        canvas.drawPath(
+            Path()
+              ..moveTo(9.4, 8.6)
+              ..lineTo(3, 8.6)
+              ..cubicTo(1.2, 8.6, 1.2, 12, 3, 12)
+              ..lineTo(7.2, 12)
+              ..lineTo(7, 19.4)
+              ..cubicTo(7, 21.2, 9.4, 21.2, 10.2, 19.6)
+              ..lineTo(14.6, 5)
+              ..cubicTo(15.2, 3.2, 17.4, 3.2, 17.4, 5)
+              ..lineTo(17.4, 8.6)
+              ..lineTo(21, 8.6)
+              ..cubicTo(22.8, 8.6, 22.8, 12, 21, 12)
+              ..lineTo(13.2, 12),
+            line);
+      case StatMark.restingHr:
+        // A heart and, beside it, an arrow going down.
+        canvas.save();
+        canvas.translate(-1, .4);
+        canvas.scale(.78);
+        canvas.drawPath(_heart(), line..strokeWidth = 1.7);
+        canvas.restore();
+        line.strokeWidth = 1.35;
+        canvas.drawLine(const Offset(19.2, 8.4), const Offset(19.2, 18.4), line);
+        canvas.drawPath(
+            Path()
+              ..moveTo(15.6, 14.8)
+              ..lineTo(19.2, 18.4)
+              ..lineTo(22.8, 14.8),
+            line);
+      case StatMark.respRate:
+        // A pair of lungs on a windpipe.
+        canvas.drawLine(const Offset(12, 3), const Offset(12, 12.2), line);
+        canvas.drawPath(
+            Path()
+              ..moveTo(9.6, 8.4)
+              ..cubicTo(6, 8.2, 2.4, 13.6, 2.2, 17.4)
+              ..cubicTo(2.2, 20.6, 6, 21.4, 9, 19.8)
+              ..cubicTo(10.4, 19, 10.4, 17.4, 10.4, 16)
+              ..lineTo(10.4, 10)
+              ..cubicTo(10.4, 9.2, 10.2, 8.6, 9.6, 8.4),
+            line);
+        canvas.drawPath(
+            Path()
+              ..moveTo(14.4, 8.4)
+              ..cubicTo(18, 8.2, 21.6, 13.6, 21.8, 17.4)
+              ..cubicTo(21.8, 20.6, 18, 21.4, 15, 19.8)
+              ..cubicTo(13.6, 19, 13.6, 17.4, 13.6, 16)
+              ..lineTo(13.6, 10)
+              ..cubicTo(13.6, 9.2, 13.8, 8.6, 14.4, 8.4),
+            line);
+        canvas.drawLine(const Offset(12, 12.2), const Offset(7.6, 15.6), line);
+        canvas.drawLine(const Offset(12, 12.2), const Offset(16.4, 15.6), line);
+      case StatMark.bulb:
+        // A bulb with its rays.
+        canvas.drawArc(const Rect.fromLTRB(7, 6.4, 17, 16.4), math.pi * .75,
+            math.pi * 1.5, false, line);
+        canvas.drawPath(
+            Path()
+              ..moveTo(8.5, 14.9)
+              ..lineTo(9.6, 18)
+              ..lineTo(14.4, 18)
+              ..lineTo(15.5, 14.9)
+              ..moveTo(10, 20.6)
+              ..lineTo(14, 20.6),
+            line);
+        for (final (a, b, c, d) in const [
+          (12.0, 1.4, 12.0, 3.8),
+          (4.4, 4.4, 6.1, 6.1),
+          (19.6, 4.4, 17.9, 6.1),
+          (1.2, 11.4, 3.6, 11.4),
+          (20.4, 11.4, 22.8, 11.4),
+        ]) {
+          canvas.drawLine(Offset(a, b), Offset(c, d), line);
+        }
+      case StatMark.sleepPerf:
+        // One thin crescent, open at the top right.
+        canvas.drawPath(
+            Path()
+              ..moveTo(17.6, 1.8)
+              ..cubicTo(22.6, 8, 22.4, 16.4, 16.8, 20.2)
+              ..cubicTo(11, 23.8, 4.6, 21.4, 1.6, 18.2)
+              ..cubicTo(9.6, 21, 19, 13.4, 17.6, 1.8)
+              ..close(),
+            line);
     }
     canvas.restore();
   }

@@ -7,6 +7,8 @@
 // high it is. Under it, how long the day spent at each level against a typical
 // one. When there is no baseline yet the screen says so; it does not guess.
 
+import 'dart:isolate';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -90,6 +92,10 @@ class StressMonitorData {
 
 /// Reads and scores days, keeping each day's series so paging back and forth
 /// does not decode the same bundle twice.
+/// Minutes a day needs scored before its share of high stress is read: the same
+/// six hours the typical-day split asks for.
+const kStressDayMinScored = 360;
+
 class StressSource {
   final LocalRepository repo;
   StressSource(this.repo);
@@ -141,6 +147,39 @@ class StressSource {
     } catch (_) {
       return null;
     }
+  }
+
+  /// The share of each of [days] in the high stress zone, 0–100, each against
+  /// the two weeks before it. A day with too little scored is left out. The
+  /// scoring runs off the UI isolate: this is a season of minutes.
+  Future<Map<String, double>> highPctByDay(List<String> days) async {
+    final inputs = <String, StressDayInput>{};
+    final need = {
+      for (final d in days)
+        for (var i = 0; i <= 14; i++) shiftDay(d, -i),
+    };
+    for (final d in need) {
+      final got = await _input(d);
+      if (got != null) inputs[d] = got;
+    }
+    final want = [...days];
+    final prior = {
+      for (final d in want)
+        d: [for (var i = 1; i <= 14; i++) shiftDay(d, -i)],
+    };
+    return Isolate.run(() {
+      final out = <String, double>{};
+      for (final d in want) {
+        final today = inputs[d];
+        if (today == null) continue;
+        final base = stressBaseline([for (final p in prior[d]!) ?inputs[p]]);
+        if (base == null) continue;
+        final mins = stressMinutes(stressScores(today, base));
+        final scored = mins.low + mins.medium + mins.high;
+        if (scored >= kStressDayMinScored) out[d] = mins.high / scored * 100;
+      }
+      return out;
+    });
   }
 
   Future<StressMonitorData> load(String day) async {

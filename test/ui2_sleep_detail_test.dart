@@ -1,55 +1,38 @@
-// The Sleep screen's judgement layer, below the fold.
-//
-// The goldens capture the top of the screen — the viewport is 1400 pt and the
-// answer, the hypnogram and the stages fill it. Everything the screen actually
-// DECIDES lives further down: which comparison verdict a measure earns, whether
-// last night was extreme enough to mention, and whether there is enough history
-// to say either. This pumps the whole page into a tall viewport and reads it.
+// The Sleep dial's screen: what it says with data, and what it refuses to say
+// without it. This pumps the whole page into a tall viewport, so a RenderFlex
+// overflow anywhere below the fold fails the pump.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openstrap_edge/l10n/app_localizations.dart';
+import 'package:openstrap_edge/compute/sleep_stress.dart';
 import 'package:openstrap_edge/theme/theme_controller.dart';
 import 'package:provider/provider.dart';
-import 'package:openstrap_edge/models/metric.dart';
 import 'package:openstrap_edge/ui2/profile/devices.dart' show DeviceFilter;
 import 'package:openstrap_edge/ui2/screens/screens.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
+const _day = '2026-05-20';
 final _onset = DateTime(2026, 5, 19, 23, 7).millisecondsSinceEpoch ~/ 1000;
 
-Map<String, dynamic> _night({
-  int tst = 443,
-  int deep = 85,
-  bool elevated = false,
-}) => {
-      'duration_min': tst,
-      'in_bed_min': 486,
-      'awake_min': 20,
-      'efficiency': .91,
+Map<String, dynamic> _night() => {
+      'duration_min': 370,
+      'awake_min': 55,
+      'efficiency': .89,
       'onset_ts': _onset,
-      'wake_ts': _onset + 486 * 60,
-      'light_min': 170,
-      'deep_min': deep,
-      'rem_min': 95,
+      'wake_ts': _onset + 425 * 60,
+      'light_min': 155,
+      'deep_min': 108,
+      'rem_min': 107,
       'hypnogram': [
         {'t': _onset, 'stage': 'light'},
-        {'t': _onset + 3600, 'stage': 'deep'},
-        {'t': _onset + 7200, 'stage': 'rem'},
-        {'t': _onset + 486 * 60, 'stage': 'awake'},
+        {'t': _onset + 3600, 'stage': 'awake'},
+        {'t': _onset + 3900, 'stage': 'deep'},
+        {'t': _onset + 7200, 'stage': 'awake'},
+        {'t': _onset + 7500, 'stage': 'rem'},
+        {'t': _onset + 425 * 60, 'stage': 'awake'},
       ],
-      'nocturnal': {
-        'sleeping_hr_avg': 52,
-        'sleeping_hr_min': 46,
-        'vs_baseline_bpm': elevated ? 4.6 : 0.4,
-        'elevated': elevated,
-      },
     };
 
-List<double> _flat(int n, double v) => List<double>.filled(n, v);
-
-/// The whole page, in a viewport tall enough to build every section — a
-/// `RenderFlex` overflow anywhere below the fold fails the pump.
 Future<void> _pump(WidgetTester t, SleepData d, {double scale = 1}) async {
   t.view.physicalSize = Size(390 * 3, 5200 * 3 * scale);
   t.view.devicePixelRatio = 3;
@@ -68,390 +51,205 @@ Future<void> _pump(WidgetTester t, SleepData d, {double scale = 1}) async {
   await t.pumpAndSettle();
 }
 
+SleepData _full() => SleepData(
+      day: _day,
+      night: _night(),
+      tstHistory: const [439, 439, 439],
+      performance: 72,
+      consistency: 85,
+      lastNeedMin: 650,
+      stress: {
+        _day: SleepStress(
+          pct: 1,
+          scored: 100,
+          high: 1,
+          nights: 10,
+          low: 80,
+          medium: 19,
+          curve: [for (var i = 0; i < 545; i++) i % 3 * .5],
+          curveLead: 60,
+        ),
+      },
+      vitals: SleepVitals(
+        week: [for (var i = 6; i >= 0; i--) shiftDay(_day, -i)],
+        perf: {_day: 72, shiftDay(_day, -1): 80},
+        tst: {_day: 370},
+        need: {_day: 650},
+        hvn: {_day: 57},
+        deep: {_day: 108},
+        rem: {_day: 107},
+        consistency: {_day: 85},
+        eff: {_day: 89},
+        debt: {_day: 148},
+        spans: {_day: (bed: 667, wake: 1093)},
+        needParts: const NeedParts(491, 32, 127, 0),
+        streak: 7,
+      ),
+    );
+
 void main() {
   testWidgets('today before any sleep says none is recorded, and scores nothing',
       (t) async {
     await _pump(
       t,
-      const SleepData(
-        day: '2026-05-20',
-        night: {'has_sleep': false, 'in_progress': true},
-      ),
+      const SleepData(day: _day, night: {'has_sleep': false, 'in_progress': true}),
     );
     expect(find.text('No sleep recorded'), findsOneWidget);
     expect(find.text('SET ONE MANUALLY'), findsOneWidget);
     expect(find.textContaining('%'), findsNothing);
   });
 
-  testWidgets('a measure inside the middle half of your nights is typical',
+  testWidgets('the ring, its contributors and each section read the night',
       (t) async {
-    await _pump(
-      t,
-      SleepData(
-        day: '2026-05-20',
-        night: _night(),
-        tstHistory: [for (var i = 0; i < 20; i++) 400 + i * 5],
-        deepHistory: _flat(20, 85),
-        effHistory: _flat(20, 91),
-      ),
-    );
-    expect(find.text('Did you sleep enough?'), findsOneWidget);
-    expect(find.textContaining('Typical for you'), findsWidgets);
+    await _pump(t, _full());
+    expect(find.text('72'), findsOneWidget);
+    expect(find.text('SLEEP\nPERFORMANCE'), findsOneWidget);
+    expect(find.text('HOURS VS. NEEDED'), findsWidgets);
+    expect(find.text('SLEEP CONSISTENCY'), findsWidgets);
+    expect(find.text('HIGH SLEEP STRESS'), findsOneWidget);
+    expect(find.text('6:10'), findsWidgets);
+    expect(find.text('SWS (DEEP)'), findsOneWidget);
+    expect(find.text('10:50'), findsOneWidget);
+    expect(find.text('+2:07'), findsOneWidget);
+    expect(find.text('Weekly Trends'), findsOneWidget);
+    // Never another wearable's words or name.
+    expect(find.textContaining('WHOOP'), findsNothing);
   });
 
-  testWidgets('a short night is measured against the median, not the band edge',
+  testWidgets('with nothing stored, a figure is -- and has no triangle',
       (t) async {
-    await _pump(
-      t,
-      SleepData(
-        day: '2026-05-20',
-        // 60 minutes under a history that never moves.
-        night: _night(tst: 340),
-        tstHistory: _flat(20, 400),
-      ),
-    );
-    expect(find.textContaining('1h 00m shorter than usual'), findsOneWidget);
+    await _pump(t, SleepData(day: _day, night: _night()));
+    expect(find.text('--'), findsWidgets);
+    expect(find.byType(DeltaTriangle), findsNothing);
   });
 
-  testWidgets('an extreme night and an elevated sleeping heart rate are called '
-      'out; nothing else is', (t) async {
-    await _pump(
-      t,
-      SleepData(
-        day: '2026-05-20',
-        night: _night(deep: 120, elevated: true),
-        tstHistory: _flat(20, 440),
-        deepHistory: [for (var i = 0; i < 20; i++) 60 + i.toDouble()],
-        effHistory: _flat(20, 91),
-      ),
-    );
-    expect(find.text('Unusual on Wednesday, 20 May'), findsOneWidget);
-    // SLP-13a — the Light/Deep split is unvalidated and flagged
-    // `deep_low_confidence` all the way up, so ranking last night's deep
-    // minutes against 20 other nights of the same split is not a claim we own.
-    expect(find.text('Most deep sleep lately'), findsNothing);
-    expect(find.textContaining('Deep sleep came to'), findsNothing);
-    expect(find.text('Sleeping heart rate ran high'), findsOneWidget);
-    // Detection against the user's own baseline is never a diagnosis, and the
-    // card has to say so on the card.
-    expect(find.textContaining('not a diagnosis'), findsOneWidget);
-    expect(find.textContaining('Nothing stood out'), findsNothing);
+  testWidgets('a low bar for a stage, not a made-up one, when the band has no REM',
+      (t) async {
+    final n = _night()..['rem_min'] = null;
+    await _pump(t, SleepData(day: _day, night: n));
+    expect(find.text('REM'), findsOneWidget);
+    // The row stays and says it has nothing, rather than a REM of 0:00.
+    expect(find.text('0:00'), findsNothing);
   });
 
-  testWidgets('a tie with the record is not an extreme', (t) async {
-    await _pump(
-      t,
-      SleepData(
-        day: '2026-05-20',
-        // Stage minutes are whole minutes, so tying the lowest of the last 20
-        // is ordinary. It used to print "less than any of your last 20 nights,
-        // the lowest of which was 41m".
-        night: _night(deep: 41),
-        tstHistory: _flat(20, 443),
-        deepHistory: [41, for (var i = 0; i < 19; i++) 60 + i.toDouble()],
-        effHistory: _flat(20, 91),
-      ),
-    );
-    expect(find.text('Least deep sleep lately'), findsNothing);
-    expect(find.textContaining('Nothing stood out'), findsOneWidget);
+  test('an unobserved stretch is not a stage', () {
+    final runs = stageRunsOf({
+      ..._night(),
+      'hypnogram': [
+        {'t': _onset, 'stage': 'unobserved'},
+        {'t': _onset + 212 * 60, 'stage': 'deep'},
+        {'t': _onset + 425 * 60, 'stage': 'awake'},
+      ],
+    });
+    expect(runs.length, 1);
+    expect(runs.single.stage, SleepStage.deep);
+    expect(runs.single.from, closeTo(.5, .01));
+    expect(stageRunsOf(const {}), isEmpty);
   });
 
-  // ── SLP-13: stage minutes are intervals, and the width is this night's ──
-  //
-  // The share column that used to be here is gone with the exact minutes it was
-  // computed from — a percentage beside a range restores, on the same row, the
-  // precision the range exists to retire.
-  group('stage ranges', () {
-    Map<String, dynamic> staged({double? conf}) => {
-          ..._night(tst: 420, deep: 80),
-          'light_min': 250,
-          'rem_min': 90,
-          'awake_min': 60,
-          'stages_confidence': ?conf,
-        };
-
-    testWidgets('a stage is a range, never a count', (t) async {
-      await _pump(t,
-          SleepData(day: '2026-05-20', night: staged(), tstHistory: _flat(20, 420)));
-      // No confidence published => the WIDEST interval, which is the honest
-      // default: we do not know how well we saw the night, so we say least.
-      // deep 80m, half-width 0.75x = 60m.
-      // Twice: the Stages row and the header of the Deep comparison below
-      // it. Both had to move — one card showing a range while another still
-      // showed a count is the contradiction this item exists to remove. Range
-      // totals are too wide to sit beside the lanes on a 390pt phone without
-      // starving the plot, so the hypnogram leaves them to the table.
-      expect(find.text('20m–2h 20m'), findsNWidgets(2));
-      // And the share column is gone with the count it was computed from.
-      for (final share in const ['52%', '17%', '19%', '13%']) {
-        expect(find.text(share), findsNothing);
-      }
-      expect(find.textContaining('Shares of'), findsNothing);
+  group('sleep latency', () {
+    testWidgets('an auto window never claims one', (t) async {
+      await _pump(t, SleepData(day: _day, night: _night(), solMin: 37));
+      expect(find.text('0:37'), findsNothing);
     });
 
-    testWidgets("a device-staged night shows the device's own minutes, no "
-        'range', (t) async {
-      final n = {
-        ...staged(conf: 0.95),
-        'sleep_source': 'vendor_staged',
-        'rem_min': null,
-      };
-      await _pump(t,
-          SleepData(day: '2026-05-20', night: n, tstHistory: _flat(20, 420)));
-      // Two times: the Stages row and the Deep comparison, both the count.
-      // Before the redesign a third sat beside the Deep lane; the card's 20 pt
-      // padding leaves the plot under its minimum share at 390 pt, so
-      // the hypnogram drops its totals column — by its own documented rule —
-      // and the Stages table carries the figure.
-      // A third sits beside the Deep lane whenever the plot has room for the
-      // hypnogram's totals column, which tighter type now often leaves it.
-      expect(find.text('1h 20m'), findsAtLeastNWidgets(2));
-      // In the Stages row (and beside the Light lane, when it fits).
-      expect(find.text('4h 10m'), findsAtLeastNWidgets(1));
-      expect(find.textContaining('Each stage is a range'), findsNothing);
-    });
-
-    testWidgets('a better-seen night gets a narrower range', (t) async {
+    testWidgets('a window you set yourself shows it', (t) async {
       await _pump(
           t,
           SleepData(
-              day: '2026-05-20',
-              night: staged(conf: 0.6), // the segmenter's ceiling
-              tstHistory: _flat(20, 420)));
-      // Same 80 minutes, half-width 0.45x = 36m. Narrower than the 60m above,
-      // from the night's own confidence rather than one published figure.
-      expect(find.text('44m–1h 56m'), findsNWidgets(2));
+              day: _day,
+              night: {..._night(), 'sleep_source': 'manual'},
+              solMin: 37));
+      expect(find.text('0:37'), findsOneWidget);
     });
+  });
 
-    testWidgets('the deep comparison stops asserting a difference', (t) async {
+  testWidgets('picking a stage marks it and picking it again clears it',
+      (t) async {
+    await _pump(t, _full());
+    Finder stageBars() => find.byWidgetPredicate((w) =>
+        w is CustomPaint &&
+        w.painter.runtimeType.toString() == '_StageBarPaint');
+    expect(stageBars(), findsWidgets);
+    await t.tap(find.text('LIGHT'));
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+    await t.tap(find.text('LIGHT'));
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+  });
+
+  testWidgets('EDIT opens the window sheet, with no other brand in it',
+      (t) async {
+    await _pump(t, _full());
+    await t.tap(find.text('EDIT'));
+    await t.pumpAndSettle();
+    expect(find.text('EDIT TIME IN BED'), findsOneWidget);
+    expect(find.text('Bed Time'), findsOneWidget);
+    expect(find.text('Wake Time'), findsOneWidget);
+    expect(find.text('Where did you wear your band?'), findsOneWidget);
+    expect(find.text('SAVE'), findsOneWidget);
+    expect(find.text('DELETE SLEEP'), findsOneWidget);
+  });
+
+  group('a device\'s own staging, beside ours', () {
+    Map<String, Object?> deviceNight(
+            String id, String label, Map<String, int> minutes) =>
+        {
+          'device_id': id,
+          'label': label,
+          'onset_ts': _onset,
+          'wake_ts': _onset + 480 * 60,
+          'duration_min': 460,
+          'stage_min': minutes,
+          'hypnogram': [
+            {'t': _onset, 'stage': 'light'},
+            {'t': _onset + 3600, 'stage': 'deep'},
+            {'t': _onset + 480 * 60, 'stage': 'deep'},
+          ],
+        };
+
+    testWidgets('a switcher offers Locus and each device; picking one says whose '
+        'staging it is and what it cannot report', (t) async {
       await _pump(
         t,
-        SleepData(
-          day: '2026-05-20',
-          night: staged(),
-          tstHistory: _flat(20, 420),
-          // Every past night 70 minutes: a degenerate band that last night's 80
-          // sits above. On the old scalar row that printed "10m more than
-          // usual" — a confident difference between two numbers neither of
-          // which is a count.
-          deepHistory: _flat(20, 70),
-        ),
+        SleepData(day: _day, night: _night(), deviceNights: [
+          deviceNight('mb-1', 'Mi Band', {'light': 400, 'deep': 60, 'wake': 20}),
+          deviceNight('cm-1', 'Colmi ring',
+              {'light': 250, 'deep': 100, 'rem': 110, 'wake': 20}),
+        ]),
       );
-      expect(find.textContaining('more than usual'), findsNothing);
-      expect(find.textContaining('Not far enough from usual to call'),
-          findsOneWidget);
+      expect(_sw('LOCUS'), findsOneWidget);
+      expect(_sw('MI BAND'), findsOneWidget);
+      expect(_sw('COLMI RING'), findsOneWidget);
+      expect(find.textContaining('Staged by'), findsNothing);
+
+      await t.tap(_sw('MI BAND'));
+      await t.pumpAndSettle();
+      expect(find.textContaining('Staged by Mi Band'), findsOneWidget);
+      expect(find.textContaining('does not report REM'), findsOneWidget);
+
+      await t.ensureVisible(_sw('COLMI RING'));
+      await t.pumpAndSettle();
+      await t.tap(_sw('COLMI RING'));
+      await t.pumpAndSettle();
+      expect(find.textContaining('Staged by Colmi ring'), findsOneWidget);
+      expect(find.textContaining('does not report'), findsNothing);
     });
-  });
 
-  testWidgets('an ordinary night says so rather than manufacturing a finding',
-      (t) async {
-    await _pump(
-      t,
-      SleepData(
-        day: '2026-05-20',
-        night: _night(),
-        tstHistory: [for (var i = 0; i < 20; i++) 400 + i * 5],
-        deepHistory: [for (var i = 0; i < 20; i++) 70 + i.toDouble()],
-        effHistory: _flat(20, 91),
-      ),
-    );
-    expect(find.textContaining('Nothing stood out'), findsOneWidget);
-  });
-
-  testWidgets('with no history the screen compares nothing and claims nothing',
-      (t) async {
-    await _pump(
-      t,
-      SleepData(
-        day: '2026-05-20',
-        night: _night(elevated: true),
-        tstHistory: const [430, 465, 410],
-      ),
-    );
-    // Too little history to compare against. The section stays, carrying the
-    // COUNT — absent-but-expected says when it arrives — but it must not claim
-    // a comparison it cannot make.
-    expect(find.textContaining('3 OF 7 NIGHTS SO FAR'), findsOneWidget);
-    expect(find.textContaining('Typical for you'), findsNothing);
-    // The extremes need history; the nocturnal detection carries its own
-    // baseline, so the section is present for that alone.
-    expect(find.text('Your shortest night lately'), findsNothing);
-    expect(find.text('Sleeping heart rate ran high'), findsOneWidget);
+    testWidgets('no device night means no switcher', (t) async {
+      await _pump(t, SleepData(day: _day, night: _night()));
+      expect(_sw('LOCUS'), findsNothing);
+    });
   });
 
   for (final scale in const [2.0, 3.1]) {
     testWidgets('every section survives ${scale}x text', (t) async {
-      await _pump(
-        t,
-        SleepData(
-          day: '2026-05-20',
-          night: _night(deep: 120, elevated: true),
-          timeline: {
-            'hr': [
-              for (var i = 0; i < 60; i++)
-                {'t': _onset + i * 480, 'v': 52 + (i % 11) - 5},
-            ],
-          },
-          need: const Metric(
-              value: 462, unit: 'min', confidence: .7, tier: MetricTier.estimate),
-          bedtime: const Metric(
-              value: 1360, confidence: .7, tier: MetricTier.estimate),
-          tstHistory: _flat(20, 440),
-          deepHistory: [for (var i = 0; i < 20; i++) 60 + i.toDouble()],
-          effHistory: _flat(20, 91),
-          onsetHistory: [
-            for (var i = 0; i < 20; i++) _onset - (i + 1) * 86400 - 900,
-          ],
-        ),
-        scale: scale,
-      );
-      expect(find.text('Unusual on Wednesday, 20 May'), findsOneWidget);
-    });
-  }
-
-  // The lane names and totals sit beside the plot. Range totals are long, so
-  // on a narrow phone at large text they used to squeeze the hypnogram to a
-  // sliver or overflow the row outright.
-  for (final (lang, scale) in const [
-    ('en', 1.0), ('en', 1.3), ('en', 3.1),
-  ]) {
-    testWidgets('$lang at ${scale}x on a 360pt phone keeps the hypnogram wide',
-        (t) async {
-      t.view.physicalSize = Size(360 * 3, 5200 * 3 * scale);
-      t.view.devicePixelRatio = 3;
-      addTearDown(t.view.reset);
-      await t.pumpWidget(MaterialApp(
-        locale: Locale(lang),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        theme: buildTheme(Brightness.light),
-        builder: (c, child) => MediaQuery(
-          data: MediaQuery.of(c).copyWith(textScaler: TextScaler.linear(scale)),
-          child: child!,
-        ),
-        home: SleepDetail(data: SleepData(day: '2026-05-20', night: _night())),
-      ));
-      await t.pumpAndSettle();
+      await _pump(t, _full(), scale: scale);
       expect(t.takeException(), isNull);
-      final plot =
-          find.byWidgetPredicate((w) => w is Scrubber && w.label == 'Hypnogram');
-      expect(plot, findsOneWidget);
-      // Over half of the 360pt screen, whatever the language or text size.
-      expect(t.getSize(plot).width, greaterThanOrEqualTo(180));
+      expect(find.text('Weekly Trends'), findsOneWidget);
     });
   }
-
-  // ── SLP-01 · a hole in the record is not sleep ────────────────────────────
-
-  test('an unobserved stretch is not light sleep', () {
-    // First half of the window never recorded, second half deep. The old
-    // `_ => SleepStage.light` catch-all turned the whole first half into light
-    // sleep, so a band that dropped four hours drew — and read — as a night.
-    final st = SleepData(night: {
-      ..._night(),
-      'hypnogram': [
-        {'t': _onset, 'stage': 'unobserved'},
-        {'t': _onset + 243 * 60, 'stage': 'deep'},
-        {'t': _onset + 486 * 60, 'stage': 'deep'},
-      ],
-    }).stages;
-    expect(st.first, isNull);
-    expect(st.last, SleepStage.deep);
-    // Nothing in the hole became a stage, and nothing outside it became a hole.
-    expect(st.where((s) => s == null).length, closeTo(st.length / 2, 4));
-    expect(st.contains(SleepStage.light), isFalse);
-  });
-
-  testWidgets('a night with a hole names the window it was measured over',
-      (t) async {
-    await _pump(
-      t,
-      SleepData(
-        day: '2026-05-20',
-        night: _night(),
-        tstHistory: _flat(20, 440),
-        unobservedMin: 106, // 486 in bed, 380 watched
-      ),
-    );
-    expect(find.text('WATCHED'), findsOneWidget);
-    expect(find.text('6h 20m'), findsOneWidget);
-    expect(find.textContaining('is not a measurement'), findsOneWidget);
-  });
-
-  testWidgets('a fully observed night says nothing about watching', (t) async {
-    await _pump(t, SleepData(day: '2026-05-20', night: _night()));
-    expect(find.text('WATCHED'), findsNothing);
-    expect(find.text('ASLEEP OF THAT'), findsOneWidget);
-  });
-
-  // ── SLP-02 · settling time, forced windows only ───────────────────────────
-
-  testWidgets('sleep-onset latency is banded, and only on your own window',
-      (t) async {
-    await _pump(
-      t,
-      SleepData(
-        day: '2026-05-20',
-        night: {..._night(), 'sleep_source': 'manual'},
-        solMin: 37,
-      ),
-    );
-    // The window's provenance lives behind the pencil on the sleep card.
-    expect(find.textContaining('30–45 minutes'), findsNothing);
-    await t.tap(find.byIcon(LucideIcons.pencil));
-    await t.pumpAndSettle();
-    expect(find.text('CHANGE THE TIMES'), findsOneWidget);
-    expect(find.text('NOT SLEEP'), findsOneWidget);
-    expect(find.textContaining('30–45 minutes'), findsOneWidget);
-    // Never a single minute: the stager sees a wrist.
-    expect(find.textContaining('37 minutes'), findsNothing);
-  });
-
-  testWidgets('an auto window never claims a settling time', (t) async {
-    await _pump(
-      t,
-      SleepData(day: '2026-05-20', night: _night(), solMin: 37),
-    );
-    expect(find.textContaining('to asleep'), findsNothing);
-  });
-
-  // ── SLP-03 · the shape of the night ───────────────────────────────────────
-
-  testWidgets('wake-ups are a floor with the threshold stated', (t) async {
-    await _pump(
-      t,
-      SleepData(
-        day: '2026-05-20',
-        night: _night(),
-        awakenings: 3,
-        longestSleepMin: 162,
-      ),
-    );
-    expect(find.textContaining('At least 3 wake-ups of 5 minutes or more'),
-        findsOneWidget);
-    expect(find.textContaining('invisible to a wrist'), findsOneWidget);
-    expect(
-        find.textContaining('Longest unbroken stretch 2h 42m'), findsOneWidget);
-  });
-
-  testWidgets('tonight is one takeaway, not six numbers', (t) async {
-    await _pump(
-      t,
-      SleepData(
-        day: '2026-05-20',
-        night: _night(),
-        need: const Metric(
-            value: 462, unit: 'min', confidence: .7, tier: MetricTier.estimate),
-        debt: const Metric(
-            value: 22, unit: 'min', confidence: .7, tier: MetricTier.estimate),
-        bedtime:
-            const Metric(value: 1360, confidence: .7, tier: MetricTier.estimate),
-      ),
-    );
-    expect(find.text('lights out'), findsOneWidget);
-    expect(find.textContaining('Your need is 7h 42m'), findsOneWidget);
-    expect(find.textContaining('22m down'), findsOneWidget);
-  });
 
   group('correctedSleepWindow', () {
     test('a bedtime moved past midnight stays on the same night', () {
@@ -499,92 +297,9 @@ void main() {
     });
   });
 
-  group('a device\'s own staging, beside ours', () {
-    Map<String, Object?> deviceNight(String id, String label, String family,
-            Map<String, int> minutes) =>
-        {
-          'device_id': id,
-          'label': label,
-          'family': family,
-          'onset_ts': _onset,
-          'wake_ts': _onset + 480 * 60,
-          'duration_min': 460,
-          'stage_min': minutes,
-          'hypnogram': [
-            {'t': _onset, 'stage': 'light'},
-            {'t': _onset + 3600, 'stage': 'deep'},
-            {'t': _onset + 480 * 60, 'stage': 'deep'},
-          ],
-        };
-
-    testWidgets('a switcher offers Locus and each device; picking one '
-        'says whose staging it is and what it cannot report', (t) async {
-      await _pump(
-        t,
-        SleepData(
-          day: '2026-05-20',
-          night: _night(),
-          deviceNights: [
-            deviceNight('mb-1', 'Mi Band', 'miband234',
-                {'light': 400, 'deep': 60, 'wake': 20}),
-            deviceNight('cm-1', 'Colmi ring', 'colmi',
-                {'light': 250, 'deep': 100, 'rem': 110, 'wake': 20}),
-          ],
-        ),
-      );
-      expect(_sw('LOCUS'), findsOneWidget);
-      expect(_sw('MI BAND'), findsOneWidget);
-      expect(_sw('COLMI RING'), findsOneWidget);
-      expect(find.textContaining('Staged by'), findsNothing,
-          reason: 'ours is the default view');
-
-      await t.tap(_sw('MI BAND'));
-      await t.pumpAndSettle();
-      expect(find.text('Staged by Mi Band'), findsOneWidget);
-      expect(find.textContaining('Deep 1h'), findsOneWidget);
-      expect(find.textContaining('does not report REM'), findsOneWidget);
-
-      // The pill row scrolls sideways; bring the last pill into view first.
-      await t.ensureVisible(_sw('COLMI RING'));
-      await t.pumpAndSettle();
-      await t.tap(_sw('COLMI RING'));
-      await t.pumpAndSettle();
-      expect(find.text('Staged by Colmi ring'), findsOneWidget);
-      expect(find.textContaining('does not report'), findsNothing);
-
-      await t.ensureVisible(_sw('LOCUS'));
-      await t.pumpAndSettle();
-      await t.tap(_sw('LOCUS'));
-      await t.pumpAndSettle();
-      expect(find.textContaining('Staged by'), findsNothing);
-    });
-
-    testWidgets('no device night means no switcher', (t) async {
-      await _pump(t, SleepData(day: '2026-05-20', night: _night()));
-      expect(_sw('LOCUS'), findsNothing);
-    });
-  });
-
-  testWidgets("a band that folds REM into light: its light and deep show, "
-      "and no REM row of 0", (t) async {
-    final n = _night()..['rem_min'] = null;
-    n['hypnogram'] = [
-      for (final p in n['hypnogram'] as List)
-        if ((p as Map)['stage'] != 'rem') p,
-    ];
-    await _pump(t, SleepData(day: '2026-05-20', night: _night()));
-    final light = find.text('Light').evaluate().length;
-    final deep = find.text('Deep').evaluate().length;
-    await t.pumpWidget(const SizedBox());
-    await _pump(t, SleepData(day: '2026-05-20', night: n));
-    expect(find.text('Light').evaluate().length, light);
-    expect(find.text('Deep').evaluate().length, deep);
-    expect(find.text('REM'), findsNothing);
-  });
-
   testWidgets('a night with nothing found is set by hand on the heart rate',
       (t) async {
-    await _pump(t, const SleepData(day: '2026-05-20'));
+    await _pump(t, const SleepData(day: _day));
     expect(find.text('No sleep recorded'), findsOneWidget);
     final b = find.text('SET ONE MANUALLY');
     expect(b, findsOneWidget);
@@ -597,10 +312,9 @@ void main() {
     expect(find.text('SAVE SLEEP'), findsOneWidget);
   });
 
-  testWidgets('a night marked not sleep is set by hand the same way',
-      (t) async {
-    await _pump(t, const SleepData(
-        day: '2026-05-20', night: {'sleep_source': 'rejected'}));
+  testWidgets('a night marked not sleep is set by hand the same way', (t) async {
+    await _pump(
+        t, const SleepData(day: _day, night: {'sleep_source': 'rejected'}));
     expect(find.text('No sleep recorded'), findsOneWidget);
     expect(find.text('Marked as not sleep'), findsNothing);
     expect(find.text('SET ONE MANUALLY'), findsOneWidget);
@@ -608,5 +322,5 @@ void main() {
 }
 
 /// A pill of the device switcher, by the label it draws (uppercased).
-Finder _sw(String label) => find.descendant(
-    of: find.byType(DeviceFilter), matching: find.text(label));
+Finder _sw(String label) =>
+    find.descendant(of: find.byType(DeviceFilter), matching: find.text(label));

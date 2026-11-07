@@ -124,7 +124,7 @@ Contributor tiers are `[C.poor, p.ink3, C.optimal]` = poor / sufficient / optima
 
 **Sleep stacks:** deep/SWS `C.trendSws #FA96F9`, REM `C.trendRem #AC5AED`. Unfocused floating bars are `C.barGrey #63676A`.
 
-**Other:** sync arrow (amber `#FFB547`); coach orb ring `#7E57C2 → #3FA7B5 → #7E57C2` (sweep), also the edge of the strength trainer's AI card; sleep-plan panel `C.mint #DFF8EF` with char ink; cycle tracking `C.rose #FF7A9A`; food `C.foodRed #E61C24` (`C.domFood`: the Macros tab's one accent; protein is the strain blue and "over" the warning orange so neither can be mistaken for it); `C.lavender #A99BFF` only on the Total sleep hero's aurora, the hypnogram's light-sleep lane and the strength milestone ring. Volt `#B1F002` is spent only on the active tab pill, the `AppSwitch` on-track and Material `primary` in dark: never a button, a dot, a chip or a chart.
+**Other:** sync arrow (amber `#FFB547`); coach orb ring `#7E57C2 → #3FA7B5 → #7E57C2` (sweep), also the edge of the strength trainer's AI card; sleep-plan panel `C.mint #DFF8EF` with char ink; cycle tracking `C.rose #FF7A9A`; food `C.foodRed #E61C24` (`C.domFood`: the Macros tab's one accent; protein is the strain blue and "over" the warning orange so neither can be mistaken for it); `C.lavender #A99BFF` only on `AuroraTile`, the hypnogram's light-sleep lane and the strength milestone ring. Volt `#B1F002` is spent only on the active tab pill, the `AppSwitch` on-track and Material `primary` in dark: never a button, a dot, a chip or a chart.
 
 **Legacy names.** Older code still names the pre-redesign accents. Each resolves in `theme.dart` to a redesign hue by what it was used for, so writing one is never off-palette, but new code names the redesign token directly:
 
@@ -290,7 +290,7 @@ Circles: dials, rings, the monitor stress square's contents, `IconChip` (32), an
 | Stress gauge | sweep low (35 %→100 %) → medium → warm 55 % → high 55 % → 30 %, dimming at both ends |
 | Unfinished `Ring` (non-solid) | sweep hue 55 % → 100 % (calibrating or provisional states only) |
 | Coach orb | sweep `#7E57C2 → #3FA7B5 → #7E57C2` |
-| The one aurora (`AuroraTile`) | the Total sleep hero on the Sleep screen only: two soft radial fields of lavender, solved for `p.ink` (`p.aurora`), plus 4 % grain, radius 18. Every word on it is `p.ink`. **No other card is an aurora**; the scallop badge and the onboarding "river" are gone |
+| The one aurora (`AuroraTile`) | on no screen now that the Sleep screen's Total sleep hero is gone (it stays in the gallery): two soft radial fields of lavender, solved for `p.ink` (`p.aurora`), plus 4 % grain, radius 18. Every word on it is `p.ink`. **No other card is an aurora**; the scallop badge and the onboarding "river" are gone |
 
 Nothing animates a gradient.
 
@@ -875,6 +875,56 @@ Opened from a dashboard row, a week card chevron, or a detail screen. One metric
 - **Strain never falls through a day.** The headline and the curve are the analytics' net curve held at its running peak (`compute/strain_peak.dart`, `kAlgoVersion` 115): effort once earned stays earned. Peak HR and Worn under the curve sit inset `S.x5`, under the plot rather than the axis.
 - **Time in zones** and **What this is made of** (`card2` panel, `F.cap` ink3). The zones card's link, "How these are set", opens **Heart rate settings** (the same screen Settings opens: personalized zones, resting and max HR). There is no second zones screen.
 
+### 14.1a The dial screens' parts (`dial_parts.dart`, tokens in `theme.dart` `DC`)
+
+Sleep, Recovery, Behavior Insights and Behavior Details are one family, measured from the user's reference recordings at 1.5 px per dp. The sizes below are the reference's: check against it before changing one, not against what looks comfortable.
+
+- **`DialScaffold`:** a slate-to-black page gradient, a painted back chevron, the day in caps (`FRI, MAY 16`), and a **`StreakBadge`** at the right. The badge counts consecutive scored days and reads `--` when there is no run to count. There is no day pager on these screens.
+- **`DialRing`:** side 75 % of the width, stroke 6 % of the side, on `DC.tierOff` with a soft start (`Ring.softStart`). Inside: `LOCUS`, the figure in `F.nDial` with its `%` in `F.nDialPct`, then the label in `F.dHero`.
+- **`CaretPanel`:** the graded panel with a caret pointing up at the ring.
+- **`TierBar`:** three segments for the Poor, Sufficient and Optimal bands, the band it falls in lit (orange, grey, green).
+- **`WeekCard`:** a week of a metric, the newest day highlighted, with a chevron into Trend View where it has one. `WeekChart` is columns, `WeekLine` the line form with its own axis, `WeekColumn.floatLabel` a value over a column. Each card scrubs on its own.
+- **`ValueDelta` and `deltaMark`:** the value with a triangle against the prior 30 days. Green up and orange down follow whether higher is better for that metric. With no prior figure there is no triangle.
+- **`DialInfo`:** the circled `i` on a card's title, opening a sheet that says what the card means in our own words.
+- **`HatchBar`:** a stage's bar over a hatched track, its typical range a darker hatched box.
+- **Absence:** every value without a measurement is `--`. Comparison lines say "vs. prior 30 days" (Sleep) or "vs. last 30 days" (Recovery), counting the prior days only, never the day itself.
+
+### 14.1b Sleep detail (`sleep_detail.dart`)
+
+Top to bottom: the ring (`SLEEP PERFORMANCE`, `dialSleep`), the contributors panel, Last Night's Sleep, the need, then the weekly cards.
+
+- **Contributors:** Hours vs. Needed, Sleep Consistency, Sleep Efficiency and High Sleep Stress, each with a `StatMark`, a `TierBar` and its figure, over the Poor / Sufficient / Optimal legend.
+- **Last Night's Sleep** (`F.dHead`, with EDIT and a pencil at the right; EDIT opens §14.1c):
+  - **Hours of Sleep** card: the figure over the prior 30 days' figure, and the night's heart rate edge to edge on a fixed 30–170 axis, with dashed lines at onset and wake. The chart scrubs. Past the raw store's retention it draws the day bundle's own curve, and it says nothing if there is neither.
+  - **Stage rows:** TYPICAL RANGE and DURATION, then Awake, Light, SWS (Deep) and REM with a share, minutes and a `HatchBar`. Tapping a stage's circle picks it: the chart colours that stage's runs and the other rows dim. Scrubbing names the stage under the finger.
+  - **Restorative Sleep** (deep + REM, against its prior 30 days) and **Sleep Latency**. Latency is shown only on a window the user set or confirmed (`sleep_source` `manual` or `confirmed`). An automatic window's onset is the stager's own guess, so nothing can be measured back from it and the row reads `--`.
+  - Other devices' staging keeps its picker and its "Staged by X, which does not report …" line.
+- **Hours vs. Needed:** the share, then hours of sleep over the need, split into Healthy Minimum, Recent Strain and Sleep Debt (`NeedParts`, rebuilt from the stored series with the same arithmetic as the need). With any input missing the split is absent; it is never estimated.
+- **Sleep Consistency** (bed and wake across the week), **Sleep Efficiency** and **Sleep Stress** (share of sleeping minutes by level, `SleepStress.low`, `medium`, `high`, and the night's `curve`).
+- **Weekly cards:** sleep performance, hours vs. needed (hours and %), restorative sleep, consistency, time in bed, efficiency, sleep debt and sleep stress.
+- **No night:** "No sleep recorded / Set one manually" opens the window editor (§14.4c). A provisional night is still marked as one.
+
+### 14.1c Edit Time in Bed (`edit_time_in_bed.dart`)
+
+A bare sheet over a black scrim: the night's bed and wake, each a date chip and a time chip, "Where did you wear your band?" (stored per night under `wearLocationKey`, read only by this sheet), SAVE, and DELETE SLEEP. Saving goes through the same `setSleepOverride` path as the window editor and re-derives the night. Deleting marks the night `rejected`.
+
+### 14.1d Recovery detail (`readiness_detail.dart`)
+
+- **Ring:** `RECOVERY` in the tier's colour, with no target tick.
+- **Contributors panel:** Heart Rate Variability, Resting Heart Rate, Respiratory Rate and Sleep Performance, each with a `StatMark`, the value in `F.nRow` over its 30-day figure in `F.nTiny`, and a triangle.
+- **Comparison strip:** both triangles, then `Fri, May 16 vs. last 30 days`.
+- **Behavior Insights door:** a `bulb` mark, the title and one line, opening §14.1e.
+- **Weekly cards:** recovery, HRV, resting heart rate, respiratory rate and sleep performance.
+- **Other states:** the calibrating, provisional and absent states are kept as they were. A held-over night says so. A missing score is a `--` with its reason, never a substituted one.
+
+### 14.1e Behavior Insights and Behavior Details (`behavior_insights.dart`, `compute/behavior_impact.dart`)
+
+- **Impact is the difference in mean recovery** between days that had the behavior and days that did not, drawn as a bar either side of zero. **It is association, not cause**, and the copy says "lines up with", never "causes" or "improves".
+- **`kBehaviorMinDays` (5) on each side**, or the row is locked and shows how far along it is. Nothing is estimated to fill a row.
+- **The app's own behaviors:** 75 %+ sleep performance, consistent bed and wake time (within `kConsistentWithinMin` of the person's median), early workout (before `kEarlyWorkoutHour`), hard strain (`kHardStrain`+), and high-stress days (over `kHighStressDayPct` % high, from `StressSource.highPctByDay`, off the UI isolate, needing `kStressDayMinScored` scored minutes).
+- **Journal tags** come after those, each tag's day moved by its own lag (`journalTagLagDays`, the analytics' table).
+- **Behavior Details** explains the page: an abstract glow where the reference has a photo (we copy no photograph), a text in our own words, and the Explore card with its painted notebook. "Outdoor Time" is omitted because nothing measures it.
+
 ### 14.2 Recorded activity (`workout_detail.dart`)
 
 - **Header:** §10.4.
@@ -942,10 +992,10 @@ A standard sheet (`AppSheet.open`, scrolling, the grab bar, `F.t2` title "Edit a
 - **Rows** in a `Surface` of `SetRow`s: Alarm on (the switch) and Alarm mode (its blurb, its name, a chevron into the mode sheet). For an exact alarm only, a second `Surface`: waves icon, "Smart wake" and what it does, over `RangeSegments` Off · 15 · 30 · 45 min.
 - **Save** is the sheet's one primary action (the ink `BigButton`, check icon); **Delete alarm** is a `ButtonTone.danger` pill under it. No trash can beside the title, no native dropdown.
 
-### 14.4c Set sleep, and the sleep window (`window_editor.dart`, `sleep_detail.dart`)
+### 14.4c Set sleep (`window_editor.dart`)
 
 - **Set sleep** (the window editor): the heart-rate chart with the two window lines, `+` / `−` at its top right to zoom (and two fingers); **no interval buttons** (30M, 2H, 6H, 1D, 2D are gone). Start and End tiles open the time picker (§10.7).
-- **The sleep-window sheet** (tapping the night's total): "You set this window" (or how it was found) with its length to asleep, then **full-width `BigButton`s**: the answer first (for a window the detector doubted: "These times are right", then "Set the times myself" soft), "Change the times" otherwise, and "Not sleep" in the coral tone at the foot. There is no "Back to automatic".
+- **An existing night is edited from Edit Time in Bed** (§14.1c). The old sleep-window sheet is gone with the Total sleep hero. There is no "Back to automatic".
 - **Ending a started sleep or nap** is instant: the window is saved and the screen closes; the night re-derives in the background and Home re-reads when it lands.
 
 ### 14.4d The activity chooser (`add_activity.dart`)

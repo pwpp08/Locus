@@ -230,6 +230,8 @@ class LucideIcons {
   static const IconData wheat = base.LucideIcons.wheat300;
   static const IconData wind = base.LucideIcons.wind300;
   static const IconData workflow = base.LucideIcons.workflow300;
+  static const IconData squareCheck = base.LucideIcons.squareCheck300;
+  static const IconData squareX = base.LucideIcons.squareX300;
   static const IconData x = base.LucideIcons.x300;
   static const IconData zap = base.LucideIcons.zap300;
   static const IconData zoomIn = base.LucideIcons.zoomIn300;

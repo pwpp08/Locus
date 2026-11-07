@@ -40,11 +40,24 @@ class SleepStress {
   /// Previous nights the baseline was built from.
   final int nights;
 
+  /// The other two levels, in minutes of the same scored night.
+  final int low, medium;
+
+  /// The score of every minute from an hour before the night to an hour after
+  /// it, on the night's own baseline, and how many minutes before the onset it
+  /// starts. Null where there is no heart rate.
+  final List<double?> curve;
+  final int curveLead;
+
   const SleepStress(
       {required this.pct,
       required this.scored,
       required this.high,
-      required this.nights});
+      required this.nights,
+      this.low = 0,
+      this.medium = 0,
+      this.curve = const [],
+      this.curveLead = 0});
 }
 
 /// Fewest scored minutes a night needs to be judged: an hour and a half, one
@@ -152,14 +165,45 @@ SleepStress? sleepStress(
         asleep: List<bool>.filled(StressDayInput.minutes, true),
       ),
       base);
-  var scored = 0, high = 0;
+  var scored = 0, high = 0, medium = 0;
   for (var i = 0; i < n.hr.length; i++) {
     final s = scores[i];
     if (s == null) continue;
     scored++;
-    if (stressLevel(s) == StressLevel.high) high++;
+    switch (stressLevel(s)) {
+      case StressLevel.high:
+        high++;
+      case StressLevel.medium:
+        medium++;
+      case StressLevel.low:
+        break;
+    }
   }
   if (scored < kSleepStressMinScored) return null;
+
+  // The chart's wider window: the hour either side of the night.
+  const lead = 60;
+  final wide = _nightOf(
+      (onset: night.onset - lead * 60, wake: night.wake + lead * 60), days);
+  final curve = wide == null
+      ? const <double?>[]
+      : stressScores(
+              StressDayInput(
+                day: 'night',
+                hr: pad(wide.hr),
+                hrv: pad(wide.hrv),
+                motion: wide.motion == null ? null : pad(wide.motion!),
+                asleep: List<bool>.filled(StressDayInput.minutes, true),
+              ),
+              base)
+          .sublist(0, wide.hr.length);
   return SleepStress(
-      pct: high / scored * 100, scored: scored, high: high, nights: base.days);
+      pct: high / scored * 100,
+      scored: scored,
+      high: high,
+      nights: base.days,
+      low: scored - high - medium,
+      medium: medium,
+      curve: curve,
+      curveLead: lead);
 }

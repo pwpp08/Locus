@@ -13,7 +13,6 @@ import 'package:openstrap_edge/ui2/onboarding/profile_setup.dart';
 import 'package:openstrap_edge/ui2/profile/profile.dart';
 import 'package:openstrap_edge/ui2/screens/home_screen.dart'
     show firstWeekCard;
-import 'package:openstrap_edge/ui2/screens/sleep_detail.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
 Widget _app(Widget child) => MaterialApp(
@@ -23,25 +22,6 @@ Widget _app(Widget child) => MaterialApp(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  testWidgets('the Sleep tab is the Sleep screen with a tab header',
-      (t) async {
-    await t.pumpWidget(_app(const SleepDetail(
-      embedded: true,
-      data: SleepData(),
-      footer: [Text('plan below the night')],
-    )));
-    await t.pump();
-    expect(find.byType(ProfileAvatar), findsOneWidget);
-    expect(find.text('plan below the night'), findsOneWidget);
-    // A tab has no way back; the pushed screen keeps its chevron.
-    expect(find.byIcon(LucideIcons.chevronLeft), findsNothing);
-
-    await t.pumpWidget(_app(const SleepDetail(data: SleepData())));
-    await t.pump();
-    expect(find.byIcon(LucideIcons.chevronLeft), findsOneWidget);
-    expect(find.byType(ProfileAvatar), findsNothing);
-  });
 
   testWidgets('the first-weeks card names the gates the pipeline uses',
       (t) async {

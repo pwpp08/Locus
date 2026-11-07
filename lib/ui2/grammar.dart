@@ -3774,10 +3774,12 @@ class AppSheet extends StatelessWidget {
           {required WidgetBuilder builder,
           bool scroll = false,
           bool dragHandle = false,
-          bool bare = false}) =>
+          bool bare = false,
+          Color? scrim}) =>
       showModalBottomSheet<T>(
         context: context,
         isScrollControlled: scroll,
+        barrierColor: scrim,
         showDragHandle: dragHandle,
         sheetAnimationStyle: sheetMotion(context),
         backgroundColor: bare ? const Color(0x00000000) : P.of(context).card,

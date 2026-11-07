@@ -5,7 +5,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openstrap_edge/models/metric.dart';
 import 'package:openstrap_edge/ui2/screens/screens.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
@@ -103,51 +102,6 @@ void main() {
     handle.dispose();
   });
 
-  group('Recovery history', () {
-    ReadinessData data(List<double?> s) => ReadinessData(
-          readiness: const Metric(
-              value: 20, unit: '', confidence: .8, tier: MetricTier.estimate),
-          series: s,
-        );
-
-    testWidgets('each bar takes its ring colour, and holding reads the day',
-        (t) async {
-      final s = <double?>[for (var i = 0; i < 20; i++) 50, 80, 20];
-      await _host(t, ReadinessDetail(data: data(s)), height: 2400, screen: true);
-      final bars = t
-          .widgetList<CustomPaint>(find.byType(CustomPaint))
-          .map((w) => w.painter)
-          .whereType<Bars>()
-          .single;
-      final p = P.of(t.element(find.byType(ReadinessDetail)));
-      // The recovery traffic light (67 / 34), the same as the dial's.
-      expect(bars.colorOf!(20), p.on(C.recRed));
-      expect(bars.colorOf!(80), p.on(C.recGreen));
-      expect(bars.colorOf!(50), p.on(C.recYellow));
-      // Enough history: the Steady band is drawn, no abstain note.
-      expect(find.byType(BandLayer), findsOneWidget);
-      // The key is the dial's traffic light; the band has a visible key of
-      // its own, not only a spoken one.
-      expect(find.text('>66%'), findsOneWidget);
-      expect(find.text('Usual range 34–67'), findsOneWidget);
-
-      final strip = find.byWidgetPredicate(
-          (w) => w is Scrubber && w.label == 'Recovery');
-      await t.tapAt(t.getBottomRight(strip) - const Offset(1, 1));
-      await t.pumpAndSettle();
-      expect(find.textContaining('· 20 · Rest today'), findsOneWidget);
-    });
-
-    testWidgets('under two weeks there is no band, and one line says why',
-        (t) async {
-      await _host(t, ReadinessDetail(data: data(const [50, 55, 20])),
-          height: 2400, screen: true);
-      expect(find.byType(BandLayer), findsNothing);
-      expect(find.text('Your usual range appears after 14 days. 3 so far.'),
-          findsOneWidget);
-    });
-  });
-
   group('MetricDetail verdict', () {
     MetricData hrv({Map<String, dynamic>? baselines}) => MetricData(
           daysAvailable: 30,
@@ -192,54 +146,4 @@ void main() {
     });
   });
 
-  testWidgets('the overnight chart scrubs the same instant as the stages',
-      (t) async {
-    final onset = DateTime(2026, 5, 19, 23, 7).millisecondsSinceEpoch ~/ 1000;
-    t.view.physicalSize = const Size(390 * 3, 5200 * 3);
-    t.view.devicePixelRatio = 3;
-    addTearDown(t.view.reset);
-    await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
-      home: SleepDetail(
-        data: SleepData(
-          day: '2026-05-20',
-          night: {
-            'duration_min': 443,
-            'in_bed_min': 486,
-            'onset_ts': onset,
-            'wake_ts': onset + 486 * 60,
-            'hypnogram': [
-              {'t': onset, 'stage': 'light'},
-              {'t': onset + 3600, 'stage': 'deep'},
-              {'t': onset + 486 * 60, 'stage': 'awake'},
-            ],
-          },
-          timeline: {
-            'hr': [
-              for (var i = 0; i < 60; i++)
-                {'t': onset + i * 480, 'v': 52 + (i % 11) - 5},
-            ],
-          },
-        ),
-      ),
-    ));
-    await t.pumpAndSettle();
-    // The night's own numbers are on the card.
-    expect(find.textContaining('HEART RATE 47–57'), findsOneWidget);
-    final stack = find.byWidgetPredicate(
-        (w) => w is Scrubber && w.label == 'Through the night');
-    expect(stack, findsOneWidget);
-    await t.tapAt(t.getCenter(stack));
-    await t.pumpAndSettle();
-    final night = t
-        .widgetList<CustomPaint>(find.byType(CustomPaint))
-        .map((w) => w.painter)
-        .whereType<NightStack>()
-        .single;
-    expect(night.selectedX, closeTo(.5, .02));
-    // The hypnogram follows: its scrubber now has a value.
-    final hyp = find.byWidgetPredicate(
-        (w) => w is Scrubber && w.label == 'Hypnogram');
-    expect(t.widget<Scrubber>(hyp).value, closeTo(.5, .02));
-  });
 }

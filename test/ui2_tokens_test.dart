@@ -393,6 +393,12 @@ const _notComponents = {
   // `start_session_card_test.dart`, which renders it at a real phone width and
   // asserts the copy is not truncated and nothing overflows.
   'StartCard',
+  // The dial screens and the parts only they use: laid out for the full page
+  // (a ring as wide as the screen, week charts with fixed plots), so a gallery
+  // cell would only be squeezing them. ui2_sleep_detail_test pumps them at 3.1x.
+  'BehaviorInsightsScreen', 'BehaviorDetailsScreen', 'EditTimeInBedSheet',
+  'DialScaffold', 'StreakBadge', 'DialRing', 'CaretPanel', 'TierBar',
+  'ValueDelta', 'DialInfo', 'HatchBar', 'WeekChart', 'WeekCard',
   // tabs and drill-downs
   'HomeScreen', 'HealthScreen', 'WorkoutScreen', 'NutritionScreen',
   'WellnessScreen', 'CycleTab', 'MetricDetail', 'ReadinessDetail',

@@ -108,13 +108,17 @@ void main() {
   });
 
   group('Readiness detail and Health say what Home says', () {
-    Future<void> pumpDetail(WidgetTester t, ReadinessData d) =>
-        t.pumpWidget(MaterialApp(
-          theme: buildTheme(Brightness.light),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: ReadinessDetail(data: d),
-        ));
+    Future<void> pumpDetail(WidgetTester t, ReadinessData d) {
+      t.view.physicalSize = const Size(390 * 3, 1600 * 3);
+      t.view.devicePixelRatio = 3;
+      addTearDown(t.view.reset);
+      return t.pumpWidget(MaterialApp(
+        theme: buildTheme(Brightness.light),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: ReadinessDetail(data: d),
+      ));
+    }
 
     testWidgets('provisional: the number, finishing up', (t) async {
       await pumpDetail(
@@ -123,7 +127,7 @@ void main() {
               head: {'recovery_state': 'provisional', 'recovery': 27.6},
               readiness: Metric(value: 27.6, confidence: .8)));
       await t.pumpAndSettle();
-      expect(find.text('28%'), findsOneWidget);
+      expect(find.text('28'), findsOneWidget);
       expect(find.text('Finishing up'), findsOneWidget);
     });
 

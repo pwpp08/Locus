@@ -565,10 +565,209 @@ class F {
       letterSpacing: -.1,
       fontFeatures: _tab);
 
+  // ── The dial detail screens' measured steps (see [DC]). ──
+  static const dNav = TextStyle(
+      fontFamily: _f,
+      fontFamilyFallback: _fb,
+      fontSize: 13,
+      height: 1.2,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.1);
+  static const dLabel = TextStyle(
+      fontFamily: _f,
+      fontFamilyFallback: _fb,
+      fontSize: 11,
+      height: 1.2,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.05);
+  static const dHero = TextStyle(
+      fontFamily: _f,
+      fontFamilyFallback: _fb,
+      fontSize: 14,
+      height: 1.2,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.6);
+  static const dTitle = TextStyle(
+      fontFamily: _f,
+      fontFamilyFallback: _fb,
+      fontSize: 21,
+      height: 1.2,
+      fontWeight: FontWeight.w500,
+      letterSpacing: -0.1);
+  static const dText = TextStyle(
+      fontFamily: _f,
+      fontFamilyFallback: _fb,
+      fontSize: 13,
+      height: 1.25,
+      fontWeight: FontWeight.w500,
+      letterSpacing: 0);
+  static const dBody = TextStyle(
+      fontFamily: _f,
+      fontFamilyFallback: _fb,
+      fontSize: 15,
+      height: 1.3,
+      fontWeight: FontWeight.w500,
+      letterSpacing: 0);
+  static const dHead = TextStyle(
+      fontFamily: _f,
+      fontFamilyFallback: _fb,
+      fontSize: 24,
+      height: 1.2,
+      fontWeight: FontWeight.w500,
+      letterSpacing: -.1);
+  static const dInsight = TextStyle(
+      fontFamily: _f,
+      fontFamilyFallback: _fb,
+      fontSize: 12,
+      height: 1.2,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.05);
+  static const dLegend = TextStyle(
+      fontFamily: _f,
+      fontFamilyFallback: _fb,
+      fontSize: 11.5,
+      height: 1.2,
+      fontWeight: FontWeight.w500,
+      letterSpacing: 0);
+  static const dTiny = TextStyle(
+      fontFamily: _f,
+      fontFamilyFallback: _fb,
+      fontSize: 11,
+      height: 1.2,
+      fontWeight: FontWeight.w500,
+      letterSpacing: 0);
+  static const nDial = TextStyle(
+      fontFamily: _n,
+      fontFamilyFallback: _nb,
+      fontSize: 80,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.5,
+      fontFeatures: _tab);
+  static const nDialPct = TextStyle(
+      fontFamily: _n,
+      fontFamilyFallback: _nb,
+      fontSize: 48,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0,
+      fontFeatures: _tab);
+  static const nCard = TextStyle(
+      fontFamily: _n,
+      fontFamilyFallback: _nb,
+      fontSize: 28,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.2,
+      fontFeatures: _tab);
+  static const nRow = TextStyle(
+      fontFamily: _n,
+      fontFamilyFallback: _nb,
+      fontSize: 18,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.1,
+      fontFeatures: _tab);
+  static const nWeek = TextStyle(
+      fontFamily: _n,
+      fontFamilyFallback: _nb,
+      fontSize: 15.5,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0,
+      fontFeatures: _tab);
+  static const nImpact = TextStyle(
+      fontFamily: _n,
+      fontFamilyFallback: _nb,
+      fontSize: 22,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0,
+      fontFeatures: _tab);
+  static const nSmall = TextStyle(
+      fontFamily: _n,
+      fontFamilyFallback: _nb,
+      fontSize: 14,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0,
+      fontFeatures: _tab);
+  static const nTiny = TextStyle(
+      fontFamily: _n,
+      fontFamilyFallback: _nb,
+      fontSize: 12,
+      height: 1,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0,
+      fontFeatures: _tab);
+
   /// [style] (a word style) for a number that stands alone: D-DIN digits, with
   /// everything else as it was.
   static TextStyle num(TextStyle style) =>
       style.copyWith(fontFamily: _n, fontFamilyFallback: _nb);
+}
+
+/// ── THE DIAL DETAIL SCREENS ── (Sleep, Recovery, Behavior Insights)
+///
+/// Measured off the reference recordings (590 px across = 393 dp, so 1.5 px to
+/// the dp). These screens are always char ([AlwaysChar]), so the page ground and
+/// its cards are fixed colours rather than the theme's. A card is a veil of
+/// white over the page, which is why it darkens toward the foot of the screen.
+class DC {
+  static const bgTop = Color(0xFF283238);
+  static const bgMid = Color(0xFF15181F);
+  static const bgFoot = Color(0xFF0F1317);
+
+  static const ink = Color(0xFFEBECEF);
+  static const ink2 = Color(0xFFA6AAAE);
+  static const ink3 = Color(0xFF85898D);
+
+  static const card = Color(0x10FFFFFF);
+  static const weekCard = Color(0x1AFFFFFF);
+  static const edge = Color(0x1FFFFFFF);
+  static const line = Color(0x1CFFFFFF);
+  static const grid = Color(0x12FFFFFF);
+  static const well = Color(0xFF090A0D);
+  static const inset = Color(0x66000000);
+  static const track = Color(0xFF32373D);
+  static const tierOff = Color(0xFF383C40);
+  static const tierMid = Color(0xFF8F8E93);
+  static const hatchBase = Color(0x0AFFFFFF);
+  static const hatchLine = Color(0x1CFFFFFF);
+  static const typical = Color(0x2EFFFFFF);
+  static const pressGlow = Color(0xFF2C3034);
+  static const column = Color(0x14FFFFFF);
+  static const columnFoot = Color(0x24FFFFFF);
+  static const pastBar = Color(0xFF636669);
+  static const needMin = Color(0xFF4A5053);
+  static const weekHole = Color(0xFF2A2E32);
+  static const dim = Color(0xFF465058);
+  static const shade = Color(0x8C0B0D10);
+
+  static const stageAwake = Color(0xFFC8C8C8);
+  static const stageLight = Color(0xFFA4A2F2);
+  static const stageDeep = Color(0xFFFB96F6);
+  static const stageRem = Color(0xFFAE58EB);
+  static const line2 = Color(0xFF64A8E8);
+
+  static const body = Color(0xFFC4C6C9);
+  static const pure = Color(0xFFFFFFFF);
+  static const scrim = Color(0xFF000000);
+  static const sheetTop = Color(0xFF293741);
+  static const sheetFoot = Color(0xFF182226);
+  static const chip = Color(0xFF3A4249);
+  static const field = Color(0xFF2E353B);
+  static const grab = Color(0xFF56616A);
+  static const badge = Color(0x0FFFFFFF);
+  static const badgeFill = Color(0xFF0B0D10);
+  static const hurtChip = Color(0x33FFA733);
+  static const helpChip = Color(0x3300F19F);
+  static const sparkChip = Color(0xFF263B50);
+  static const adviceTop = Color(0xFF1E3040);
+  static const adviceFoot = Color(0xFF16222C);
+  static const heroGlow = Color(0xFF3A3F49);
+  static const journalBody = Color(0xFF5B6065);
+  static const journalEdge = Color(0xFF3B3F44);
 }
 
 /// ── SPACING ── 4pt base ───────────────────────────────────────────────────

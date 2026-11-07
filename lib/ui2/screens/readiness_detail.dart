@@ -1,10 +1,10 @@
 import '../../l10n/presentation_text.dart';
-// READINESS — the one composite, taken apart.
+// RECOVERY — the dial's own screen, laid out from the reference recording (sizes
+// at 1.5 px to the dp, see DC): the ring and its four contributors against the
+// last 30 days, the door to Behavior Insights, then seven days of each.
 //
-// Two producers meet on this screen and the copy says so rather than blending
-// them: the headline number is the weighted composite, and the breakdown is a
-// parallel percentile view of the same four inputs. Presenting the second as
-// if it decomposed the first would be a small lie that is very hard to catch.
+// A contributor with no stored value is '--' with no triangle; a morning that
+// did not score keeps the pipeline's own reason in place of the ring.
 
 import 'package:flutter/material.dart';
 import 'package:openstrap_analytics/onehz.dart' show readinessCompositeMinBaseline;
@@ -21,14 +21,59 @@ import '../../l10n/app_localizations.dart';
 import '../../models/metric.dart';
 import '../../models/payloads.dart' show todayHeadlineOf;
 import '../ui2.dart';
+import 'behavior_insights.dart';
+import 'dial_parts.dart';
 import 'home_screen.dart';
-import 'investigate.dart';
-import 'metric_detail.dart';
+import 'trend_view.dart' show TrendViewScreen, shiftDay;
+
+/// How far back "last 30 days" reaches.
+const _window = 30;
+
+/// The stored series the screen reads, by day.
+class RecoveryVitals {
+  /// Seven days ending on the morning shown, oldest first.
+  final List<String> week;
+  final Map<String, double> recovery, hrv, restingHr, resp, sleepPerf;
+  final int? streak;
+  const RecoveryVitals({
+    this.week = const [],
+    this.recovery = const {},
+    this.hrv = const {},
+    this.restingHr = const {},
+    this.resp = const {},
+    this.sleepPerf = const {},
+    this.streak,
+  });
+
+  /// The mean of a series over the [_window] days before [day].
+  double? prior(Map<String, double> m, String? day) {
+    if (day == null) return null;
+    final xs = [
+      for (var i = 1; i <= _window; i++) ?m[shiftDay(day, -i)],
+    ];
+    return xs.isEmpty ? null : xs.reduce((a, b) => a + b) / xs.length;
+  }
+
+  static Future<RecoveryVitals> load(LocalRepository repo, String day) async {
+    final recovery = await dialSeries(repo, 'recovery');
+    var streak = 0;
+    for (var d = day; recovery[d] != null; d = shiftDay(d, -1)) {
+      streak++;
+    }
+    return RecoveryVitals(
+      week: [for (var i = 6; i >= 0; i--) shiftDay(day, -i)],
+      recovery: recovery,
+      hrv: await dialSeries(repo, 'hrv'),
+      restingHr: await dialSeries(repo, 'resting_hr'),
+      resp: await dialSeries(repo, 'resp'),
+      sleepPerf: await dialSeries(repo, 'sleep_performance'),
+      streak: streak == 0 ? null : streak,
+    );
+  }
+}
 
 class ReadinessData {
   final Metric readiness;
-  final List<Map<String, dynamic>> breakdown;
-  final int inputsUsed;
 
   /// `readiness_absent_diag` off the stored bundle — per input `{value,
   /// baseline_n}` plus the composite's own `note`. Produced on
@@ -48,12 +93,6 @@ class ReadinessData {
   /// absence.
   final String? heldOverNight;
 
-  /// DENSE — one slot per calendar day, `null` where no score was stored. The
-  /// chart under it is dated, and `seriesOf` (values only) cannot date
-  /// anything: a five-point series from five scattered weeks used to be drawn
-  /// as five consecutive days.
-  final List<double?> series;
-
   /// `todayHeadlineOf` off the same `getToday()`: the state and update note
   /// Home shows beside this number.
   final Map<String, dynamic> head;
@@ -63,57 +102,34 @@ class ReadinessData {
   const ReadinessData({
     this.head = const {},
     this.readiness = Metric.empty,
-    this.breakdown = const [],
-    this.inputsUsed = 0,
     this.heldOverNight,
-    this.series = const [],
     this.absentDiag,
-    this.days = const [],
     this.day,
+    this.vitals = const RecoveryVitals(),
   });
 
-  /// The days on record, newest first, for the pager.
-  final List<String> days;
-
-  /// The day on screen when it is not today: its stored score alone, since
-  /// the breakdown and the state line are today's.
+  /// The day on screen.
   final String? day;
+  final RecoveryVitals vitals;
 
   /// A past [day]: its stored score off the recovery series, and why it is
   /// missing when it is.
-  static Future<ReadinessData> loadDay(
-      LocalRepository repo, String day, List<String> days) async {
-    final chart = await repo.getChart('recovery');
-    final noon = DateTime.tryParse(day);
-    final at = noon == null
-        ? null
-        : DateTime(noon.year, noon.month, noon.day, 12).millisecondsSinceEpoch ~/
-            1000;
-    double? v;
-    for (final p in pointsOf(chart)) {
-      if (p.t == at) v = p.v;
-    }
+  static Future<ReadinessData> loadDay(LocalRepository repo, String day) async {
+    final vitals = await RecoveryVitals.load(repo, day);
+    final v = vitals.recovery[day];
     return ReadinessData(
       day: day,
-      days: days,
+      vitals: vitals,
       readiness: v == null ? const Metric(note: kUnknownAbsenceNote) : Metric(value: v),
-      series: denseDays(pointsOf(chart), 90),
       absentDiag: v != null ? null : await LocalDb.readinessAbsentDiag(day),
     );
   }
 
   static Future<ReadinessData> load(LocalRepository repo,
       {String? day}) async {
-    final days = await repo.availableDays();
-    if (day != null && day != todayLabel()) return loadDay(repo, day, days);
+    if (day != null && day != todayLabel()) return loadDay(repo, day);
     final today = await repo.getToday();
-    final cd = await repo.getInsights();
-    final chart = await repo.getChart('recovery');
-
     final daily = today['daily'];
-    final gb = cd['readiness_glassbox'];
-    final v = envValue(gb) ?? const <String, dynamic>{};
-    final bd = v['breakdown'];
 
     // Same rule as Home: a provisional night shows its own number, greyed.
     final head = todayHeadlineOf(today);
@@ -121,25 +137,14 @@ class ReadinessData {
         ? metricOf(daily is Map ? daily['readiness_provisional'] : null)
         : overnightMetric(
             today, daily is Map ? daily['readiness'] : null);
+    final shown = (today['status'] as Map?)?['today_day']?.toString() ?? todayLabel();
 
     return ReadinessData(
-      days: days,
+      day: shown,
       head: head,
       readiness: readiness,
-      // `narrative` and the glass-box `score` are DELIBERATELY not read. Both
-      // belong to the deprecated percentile score, which bands at 70/40 while
-      // the headline composite bands at 61/37/26 (see `readinessBand`) —
-      // printing its verdict under the ring put "You're ready" directly
-      // beneath "45 · Take it easy". The
-      // breakdown below IS worth keeping; it is a parallel ranking of the same
-      // four inputs, and the footer now says so.
-      breakdown: [
-        for (final e in (bd is List ? bd : const []))
-          if (e is Map) e.cast<String, dynamic>(),
-      ],
-      inputsUsed: (v['inputs_used'] as num?)?.toInt() ?? 0,
       heldOverNight: heldOverNightOf(today),
-      series: denseDays(pointsOf(chart), 90),
+      vitals: await RecoveryVitals.load(repo, shown),
       // Only read when there is nothing to explain away — a scored day has no
       // diag in its bundle anyway, and this is one more day_result decode.
       //
@@ -170,19 +175,7 @@ class ReadinessDetail extends StatefulWidget {
 class _ReadinessDetailState extends State<ReadinessDetail> {
   ReadinessData? _d;
   bool _loading = true;
-  late String? _day = widget.day;
-
-  void _goDay(String day) {
-    setState(() {
-      _day = day;
-      _loading = true;
-      _pick = null;
-    });
-    _load();
-  }
-
-  /// The history slot under the finger, or null.
-  int? _pick;
+  late final String? _day = widget.day;
 
   @override
   void initState() {
@@ -202,9 +195,8 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
       return;
     }
     try {
-      final want = _day;
-      final d = await ReadinessData.load(repo, day: want);
-      if (mounted && want == _day) setState(() => (_d = d, _loading = false));
+      final d = await ReadinessData.load(repo, day: _day);
+      if (mounted) setState(() => (_d = d, _loading = false));
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -216,292 +208,202 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
     final l = AppLocalizations.of(c);
     final d = _d ?? const ReadinessData();
     final v = d.readiness.value;
-    final band = readinessBand(v, l);
+    final name = dialDayName(d.day ?? _day, l);
+    final title = name.isEmpty ? (l?.readinessDetailTitle ?? 'Recovery') : name;
+    final badge = StreakBadge(StreakKind.recovery, d.vitals.streak);
 
-    // No date in the nav bar. It named the held-over night, and the headline
-    // can no longer BE that night — a date up here now would be labelling
-    // today's number with somebody else's day.
-    return detailScaffold(c, l?.readinessDetailTitle ?? 'Recovery', [
-      ...dayNavRow(_day, d.days, _goDay),
-      if (_loading && _d == null) ...[
-        const SizedBox(height: S.x8),
-        const Center(child: CircularProgressIndicator()),
-      ] else ...[
-        if (v == null) ...[
-          // No `why:`. The pipeline records why readiness abstained on every
-          // day it does, and the "What was missing" section directly below
-          // shows the same record in more detail. `why:` below reuses the
-          // EXACT SAME computed reason as that section (readinessInputShortfallNote
-          // off d.absentDiag) rather than a second, independently-guessed one
-          // — the two must never be able to disagree, only one be shorter.
-          // readinessUnstableBaselineNote covers the OTHER absence shape
-          // (PR #510): a z-cap withhold has no baseline shortfall to report
-          // (every input already cleared its floor), so the first function
-          // alone fell straight to the generic fallback for it.
-          Builder(builder: (c) {
-            final diagReason = readinessInputShortfallNote(d.absentDiag) ??
-                readinessUnstableBaselineNote(
-                    d.absentDiag?['note']?.toString());
-            // StatusCard.forMetric prefers a prose note already ON the
-            // metric (`told`, via whyFromNote) over `why:` — deliberately,
-            // for screen-authored text like the held-over "nothing synced
-            // yet" sentence [overnightMetric] attaches. When that wins, the
-            // diagnostic reason above never reaches the banner at all
-            // (PR #510 follow-up) — _absence below shows it in that one
-            // case so it is not lost from the screen entirely, without
-            // reintroducing the general "says it twice" duplication fixed
-            // earlier in this same PR. Mirrors forMetric's precedence
-            // exactly: a need_baseline note is rendered as the fix, not
-            // `told`, so `why:` still wins there; a `gap` replaces `why:`.
-            final note = d.readiness.note;
-            final bannerShowsDiag = d.heldOverNight == null &&
-                (needMessageFromNote(note) != null ||
-                    whyFromNote(note) == null);
-            return Column(children: [
-              StatusCard.forMetric(
-                      l?.readinessDetailNotScoredTitle ??
-                          'Recovery is not scored',
-                      d.readiness,
-                      why: diagReason ?? '',
-                      // Where the data stops, appended to whatever the
-                      // pipeline said. Not a substitute for the reason and
-                      // not a reading — "the last one was Saturday" is a
-                      // fact about coverage.
-                      gap: d.heldOverNight == null
-                          ? null
-                          : (l?.readinessDetailLastNightScored(
-                                  prettyDay(d.heldOverNight, l)) ??
-                              'The last night scored was '
-                                  '${prettyDay(d.heldOverNight, l)}.')) ??
-                  const SizedBox.shrink(),
-              if (d.absentDiag != null)
-                Section(
-                    l?.readinessDetailWhatWasMissing ?? 'What was missing',
-                    _absence(
-                      c,
-                      p,
-                      d.absentDiag!,
-                      fallbackReason:
-                          bannerShowsDiag ? null : diagReason,
-                    )),
-            ]);
-          }),
-        ] else
-          Surface(
-            child: Column(children: [
-              // The screen's one hero: the strain page's ring, its arc in the
-              // recovery traffic light. A provisional score keeps a grey arc
-              // and grey figure: this number may still move.
-              SizedBox(
-                width: S.x16 * 3,
-                height: S.x16 * 3,
-                child: Stack(alignment: Alignment.center, children: [
-                  CustomPaint(
-                    size: const Size.square(S.x16 * 3),
-                    painter: Ring(
-                        d.readiness.normalized(100),
-                        d.provisional ? p.ink3 : recoveryColor(v),
-                        p.track,
-                        stroke: S.x16 * 3 * .064,
-                        solid: true,
-                        flatStart: true,
-                        t: animate(c, 1)),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(S.x6),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Text('${v.round()}%',
-                            style: F.n64.copyWith(
-                                color: d.provisional ? p.ink3 : p.ink)),
-                        const SizedBox(height: S.x1),
-                        Text(
-                            (l?.readinessDetailTitle ?? 'Recovery')
-                                .toUpperCase(),
-                            style: F.caps
-                                .copyWith(color: p.ink, letterSpacing: 2.2)),
-                      ]),
-                    ),
-                  ),
-                ]),
-              ),
-              const SizedBox(height: S.x3),
-              Pill(band.label, d.provisional ? p.ink3 : band.color),
-              if (recoveryStateLine(d.head, l) case final note?) ...[
-                const SizedBox(height: S.x2),
-                Text(note, style: F.cap.copyWith(color: p.ink3)),
-              ],
-            ]),
-          ),
-
-        if (d.breakdown.isNotEmpty) ...[
-          Section(l?.readinessDetailWhatWentIntoIt ?? 'What went into it',
-              _breakdown(c, p, d)),
-          // Only when the headline above is absent: the footer's "parallel
-          // view, not slices of the number above" caveat is true either way,
-          // but it sits BELOW four rows of real-looking numbers and is easy
-          // to skim past — exactly the gap this file's own header comment
-          // warns about ("presenting the second as if it decomposed the
-          // first would be a small lie that is very hard to catch"). When
-          // there is no score to misread this against, say so up front too.
-          if (v == null) ...[
-            const SizedBox(height: S.x2),
-            Text(
-              l?.readinessDetailBreakdownNoScoreNote ??
-                  'A looser view of the same four inputs. They don’t add up to today’s score, which is missing for the reason above.',
-              style: F.cap.copyWith(color: p.ink3, height: 1.5),
-            ),
-          ],
-          const SizedBox(height: S.x4),
-          Surface(
-            elevation: 0,
-            color: p.card2,
-            child: Row(children: [
-              Expanded(
-                child: Text(
-                  l?.readinessDetailInputsFooter(
-                          d.inputsUsed, d.breakdown.length) ??
-                      '${d.inputsUsed}/${d.breakdown.length} inputs. Each one is '
-                          'ranked against your own history — a parallel view of the '
-                          'same inputs, not slices of the number above.',
-                  style: F.cap.copyWith(color: p.ink3, height: 1.5),
-                ),
-              ),
-            ]),
-          ),
-        ] else if (v != null)
-          Section(
-            l?.readinessDetailWhatWentIntoIt ?? 'What went into it',
-            StatusCard(
-              l?.readinessDetailNoBreakdownTitle ?? 'No breakdown yet',
-              l?.readinessDetailNoBreakdownBody ??
-                  'Ranking each input against your own history takes about two '
-                      'weeks of nights.',
-              icon: LucideIcons.listTree,
-            ),
-          ),
-
-        // The header used to say "Last 90 days" over a chart of five points.
-        // It says what is drawn.
-        Section(
-          _historyTitle(c, d),
-          !d.series.any((v) => v != null)
-              ? StatusCard(
-                  l?.readinessDetailNoHistoryTitle ?? 'No recovery history',
-                  l?.readinessDetailNoHistoryBody ?? '0 days scored.',
-                  fix: l?.readinessDetailWearOvernight ?? 'Wear the band overnight',
-                  icon: LucideIcons.chartLine,
-                )
-              : Surface(child: _history(c, d)),
-        ),
-        const SizedBox(height: S.x5),
-        investigateRow(c, () => go(c, const Investigate('readiness'))),
-      ],
-    ]);
-  }
-
-  /// The last 90 CALENDAR days, trimmed to start at the first day that
-  /// actually has a score — so the x labels span real dates and the empty run
-  /// before the first sync is not drawn as ninety missing days.
-  List<double?> _window(ReadinessData d) {
-    final first = d.series.indexWhere((v) => v != null);
-    return first <= 0 ? d.series : d.series.sublist(first);
-  }
-
-  String _historyTitle(BuildContext c, ReadinessData d) {
-    final l = AppLocalizations.of(c);
-    final n = d.series.any((v) => v != null) ? _window(d).length : 0;
-    return n == 0
-        ? (l?.readinessDetailHistoryTitle ?? 'History')
-        : (l?.readinessDetailLastNDays(n) ??
-            'Last $n day${n == 1 ? '' : 's'}');
-  }
-
-  /// One bar a day, each in its own band's colour, the same colour the ring
-  /// uses for that score. It used to be one green line, so a "Rest today"
-  /// morning was red on the ring and green on its own history two cards down.
-  Widget _history(BuildContext c, ReadinessData d) {
-    final win = _window(d);
-    // Readiness is a 0–100 score and the axis says so — auto-scaling turned a
-    // 71-to-76 week into a chart that looked like a collapse and a recovery.
-    const axis = AxisSpec(min: 0, max: 100, ticks: 3, format: axisInt);
-    final p = P.of(c);
-    final l = AppLocalizations.of(c);
-    final scored = [for (final v in win) ?v];
-    // "Steady" is the usual band; abstains under two weeks of scored days.
-    final band = usualRangeFor('readiness', scored, null);
-    final pick = _pick == null || _pick! >= win.length ? null : _pick;
-    final n = DateTime.now();
-    String dayOf(int i) => prettyDay(
-        dayLabelOf(DateTime(n.year, n.month, n.day - (win.length - 1 - i))), l);
-    String says(int i) {
-      final v = win[i];
-      if (v == null) {
-        return '${dayOf(i)} · ${l?.metricDetailNoRecordLabel ?? 'No record'}';
-      }
-      return '${dayOf(i)} · ${v.round()} · ${readinessBand(v, l).label}';
+    if (_loading && _d == null) {
+      return DialScaffold(title: title, trailing: badge, children: const [
+        SizedBox(height: S.x8),
+        Center(child: CircularProgressIndicator()),
+      ]);
     }
 
-    // A bar owns its whole column, so the finger picks the column it is in.
-    int slot(double v) => (v * win.length).floor().clamp(0, win.length - 1);
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      ChartFrame(
-        title: l?.readinessDetailTitle ?? 'Recovery',
-        unit: l?.readinessDetailUnit ?? '/100',
-        height: 120,
-        yAxis: axis,
-        band: band,
-        // Slot 0 is `length - 1` days behind today, not `length` — the last
-        // slot IS today. MetricDetail draws the same `recovery` series and
-        // already counts it this way; the two screens dated one chart
-        // differently.
-        xLabels: [
-          l?.readinessDetailDaysAgo(win.length - 1) ??
-              '${win.length - 1} day${win.length == 2 ? '' : 's'} ago',
-          l?.readinessDetailToday ?? 'Today',
-        ],
-        series: win,
-        // The bars wear the dial's traffic light, so the key is its three
-        // bands, as on the recovery calendar.
-        legend: [
-          ('>66%', p.on(C.recGreen)),
-          ('34% - 66%', p.on(C.recYellow)),
-          ('<34%', p.on(C.recRed)),
-        ],
-        footnote: band == null ? usualNeedsDaysText(l, scored.length) : null,
-        child: win.length < 2
-            ? CustomPaint(
-                size: Size.infinite,
-                painter: Bars(win, p.on(C.green),
-                    t: animate(c, 1),
-                    axis: axis,
-                    colorOf: (v) => p.on(readinessBand(v, l).color)),
-              )
-            : Scrubber(
-                value: pick == null ? null : (pick + .5) / win.length,
-                step: 1 / win.length,
-                label: l?.readinessDetailTitle ?? 'Recovery',
-                describe: (v) => says(slot(v)),
-                onChanged: (v) => setState(() => _pick = slot(v)),
-                child: CustomPaint(
-                  size: Size.infinite,
-                  painter: Bars(win, p.on(C.green),
-                      highlight: pick ?? -1,
-                      t: animate(c, 1),
-                      axis: axis,
-                      colorOf: (v) => p.on(readinessBand(v, l).color)),
-                ),
-              ),
-      ),
-      if (pick != null) ...[
-        const SizedBox(height: S.x2),
-        ExcludeSemantics(
-          child: Text(says(pick),
-              style: F.cap.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
+    return DialScaffold(title: title, trailing: badge, children: [
+      if (v == null)
+        // No `why:`. The pipeline records why readiness abstained on every
+        // day it does, and the "What was missing" section directly below
+        // shows the same record in more detail. `why:` below reuses the
+        // EXACT SAME computed reason as that section (readinessInputShortfallNote
+        // off d.absentDiag) rather than a second, independently-guessed one
+        // — the two must never be able to disagree, only one be shorter.
+        // readinessUnstableBaselineNote covers the OTHER absence shape
+        // (PR #510): a z-cap withhold has no baseline shortfall to report
+        // (every input already cleared its floor), so the first function
+        // alone fell straight to the generic fallback for it.
+        Builder(builder: (c) {
+          final diagReason = readinessInputShortfallNote(d.absentDiag) ??
+              readinessUnstableBaselineNote(
+                  d.absentDiag?['note']?.toString());
+          // StatusCard.forMetric prefers a prose note already ON the
+          // metric (`told`, via whyFromNote) over `why:` — deliberately,
+          // for screen-authored text like the held-over "nothing synced
+          // yet" sentence [overnightMetric] attaches. When that wins, the
+          // diagnostic reason above never reaches the banner at all
+          // (PR #510 follow-up) — _absence below shows it in that one
+          // case so it is not lost from the screen entirely, without
+          // reintroducing the general "says it twice" duplication fixed
+          // earlier in this same PR. Mirrors forMetric's precedence
+          // exactly: a need_baseline note is rendered as the fix, not
+          // `told`, so `why:` still wins there; a `gap` replaces `why:`.
+          final note = d.readiness.note;
+          final bannerShowsDiag = d.heldOverNight == null &&
+              (needMessageFromNote(note) != null ||
+                  whyFromNote(note) == null);
+          return Column(children: [
+            StatusCard.forMetric(
+                    l?.readinessDetailNotScoredTitle ??
+                        'Recovery is not scored',
+                    d.readiness,
+                    why: diagReason ?? '',
+                    // Where the data stops, appended to whatever the
+                    // pipeline said. Not a substitute for the reason and
+                    // not a reading — "the last one was Saturday" is a
+                    // fact about coverage.
+                    gap: d.heldOverNight == null
+                        ? null
+                        : (l?.readinessDetailLastNightScored(
+                                prettyDay(d.heldOverNight, l)) ??
+                            'The last night scored was '
+                                '${prettyDay(d.heldOverNight, l)}.')) ??
+                const SizedBox.shrink(),
+            if (d.absentDiag != null)
+              Section(
+                  l?.readinessDetailWhatWasMissing ?? 'What was missing',
+                  _absence(
+                    c,
+                    p,
+                    d.absentDiag!,
+                    fallbackReason: bannerShowsDiag ? null : diagReason,
+                  )),
+          ]);
+        })
+      else
+        DialRing(
+          fraction: d.readiness.normalized(100),
+          // A provisional score keeps a grey arc and grey figure: this number
+          // may still move.
+          color: d.provisional ? DC.ink3 : recoveryColor(v),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Wordmark(color: DC.ink3),
+            const SizedBox(height: S.x1 + S.hair),
+            dialFigure(v.toDouble(), d.provisional ? DC.ink3 : DC.ink),
+            const SizedBox(height: S.x2),
+            Text((l?.readinessDetailTitle ?? 'Recovery').toUpperCase(),
+                style: F.dHero.copyWith(color: DC.ink)),
+          ]),
         ),
-      ],
+      if (v != null && recoveryStateLine(d.head, l) != null)
+        Padding(
+          padding: const EdgeInsets.only(top: S.x2),
+          child: Center(
+            child: Text(recoveryStateLine(d.head, l)!,
+                style: F.dText.copyWith(color: DC.ink3)),
+          ),
+        ),
+      const SizedBox(height: S.x6 + S.half + S.hair),
+      _contributors(c, d),
+      const SizedBox(height: S.x8),
+      Pressable(
+        onTap: () => go(c, BehaviorInsightsScreen(day: d.day ?? _day)),
+        semanticLabel: 'Behavior Insights',
+        child: Container(
+          constraints: const BoxConstraints(minHeight: S.x16 + S.x1 - S.hair),
+          padding: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x2),
+          decoration: dialCard(DC.weekCard),
+          child: Row(children: [
+            const StatIcon(StatMark.bulb, color: DC.ink2, size: S.x5),
+            const SizedBox(width: S.x2),
+            Expanded(
+              child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('BEHAVIOR INSIGHTS',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: F.dInsight.copyWith(color: DC.ink)),
+                    const SizedBox(height: S.hair),
+                    Text('See how what you do lines up with recovery.',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: F.dText.copyWith(color: DC.ink2)),
+                  ]),
+            ),
+            const Icon(LucideIcons.chevronRight, size: I.md, color: DC.ink2),
+          ]),
+        ),
+      ),
+      const SizedBox(height: S.x12 + S.hair),
+      dialHeading('Weekly Trends'),
+      const SizedBox(height: S.x8 + S.half),
+      _RecoveryWeek(d.vitals),
     ]);
+  }
+
+  /// The panel under the ring: four contributors against their last 30 days.
+  Widget _contributors(BuildContext c, ReadinessData d) {
+    final v = d.vitals;
+    final day = d.day ?? _day;
+    Widget row(StatMark mark, String label, String metric, Map<String, double> m,
+        String Function(double) text,
+        {required bool higherBetter}) {
+      final now = day == null ? null : m[day];
+      final usual = v.prior(m, day);
+      return _RecoveryRow(
+        mark: mark,
+        label: label,
+        value: now == null ? '--' : text(now),
+        usual: usual == null ? '' : text(usual),
+        delta: deltaMark(now, usual, higherBetter, size: S.x2),
+        onTap: () => Navigator.of(c).push(MaterialPageRoute(
+            builder: (_) => TrendViewScreen(initial: metric))),
+      );
+    }
+
+    const hair = Divider(height: S.hair, thickness: S.hair, color: DC.line);
+    return CaretPanel(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: S.x4 + S.hair),
+        child: Column(children: [
+          row(StatMark.hrv, 'Heart rate variability', 'hrv', v.hrv,
+              (x) => '${x.round()}', higherBetter: true),
+          hair,
+          row(StatMark.restingHr, 'Resting heart rate', 'resting_hr', v.restingHr,
+              (x) => '${x.round()}', higherBetter: false),
+          hair,
+          row(StatMark.respRate, 'Respiratory rate', 'resp_rate', v.resp,
+              (x) => x.toStringAsFixed(1), higherBetter: false),
+          hair,
+          row(StatMark.sleepPerf, 'Sleep performance', 'sleep_perf', v.sleepPerf,
+              (x) => '${x.round()}%', higherBetter: true),
+          const SizedBox(height: S.x3 + S.hair),
+          Container(
+            height: S.x6,
+            padding: const EdgeInsets.symmetric(horizontal: S.x3),
+            alignment: Alignment.centerLeft,
+            decoration: const BoxDecoration(color: DC.well, borderRadius: R.rMd),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const DeltaTriangle(up: true, color: C.optimal, size: S.x2),
+              const SizedBox(width: S.x1),
+              const DeltaTriangle(up: false, color: C.strainDown, size: S.x2),
+              const SizedBox(width: S.x2),
+              Text.rich(TextSpan(children: [
+                TextSpan(
+                    text: dialDayName(day, AppLocalizations.of(c)),
+                    style: F.dLegend.copyWith(color: DC.ink)),
+                TextSpan(
+                    text: ' vs. last 30 days',
+                    style: F.dLegend.copyWith(color: DC.ink2)),
+              ])),
+            ]),
+            ),
+          ),
+        ]),
+      ),
+    );
   }
 
   /// The pipeline's own absence diagnostic, one row per input: did last night
@@ -575,99 +477,114 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
       ],
     );
   }
+}
 
-  Widget _breakdown(BuildContext c, P p, ReadinessData d) {
-    final rows = d.breakdown;
-    // THE WEIGHT THAT WAS USED, not the catalog weight. The score is
-    // `wpsum / wsum` over the USABLE inputs only, so the raw .40/.30/.18/.12
-    // are what each input would have carried had everything been present — with
-    // skin temperature missing, HRV's 40% actually carried 45.5%.
-    final wsum = rows
-        .where((r) => r['used'] == true)
-        .fold<double>(0, (a, r) => a + ((r['weight'] as num?)?.toDouble() ?? 0));
-    return Surface(
-      tone: PanelTone.rich,
-      pad: const EdgeInsets.symmetric(horizontal: S.x5),
-      child: Column(children: [
-        for (var i = 0; i < rows.length; i++) ...[
-          if (i > 0) Divider(color: p.ink.withValues(alpha: .08), height: 1),
-          _row(c, p, rows[i], wsum),
-        ],
-      ]),
-    );
-  }
+class _RecoveryRow extends StatelessWidget {
+  final StatMark mark;
+  final String label, value, usual;
+  final Widget? delta;
+  final VoidCallback onTap;
+  const _RecoveryRow({
+    required this.mark,
+    required this.label,
+    required this.value,
+    required this.usual,
+    required this.delta,
+    required this.onTap,
+  });
 
-  Widget _row(BuildContext c, P p, Map<String, dynamic> r, double wsum) {
-    final l = AppLocalizations.of(c);
-    final key = r['label']?.toString() ?? '';
-    final raw = (r['weight'] as num?)?.toDouble();
-    final contribution = (r['weighted_contribution'] as num?);
-    final used = r['used'] == true;
-    final pastMdc = r['past_mdc'] == true;
-    // No weight, or an input that carried none, means no percentage — `?? 0`
-    // printed a confident "0% weight" for a number nobody reported.
-    final share = !used || raw == null || wsum <= 0 ? null : raw / wsum;
-
-    // The row is a question, so the answer comes first: yes inside the usual
-    // range (the smallest-worthwhile-change gate), no outside it, and which
-    // way it moved the score.
-    final parts = [
-      if (used && !pastMdc)
-        l?.readinessDetailWithinSpread ?? 'yes, within your usual range',
-      if (used && pastMdc)
-        l?.readinessDetailOutsideRange ?? 'no, outside your usual range',
-      if (used && pastMdc && contribution != null)
-        contribution >= 0
-            ? (l?.readinessDetailLiftingScore ?? 'lifting your score')
-            : (l?.readinessDetailLoweringScore ?? 'pulling your score down'),
-      if (share != null)
-        l?.readinessDetailWeightPercent((share * 100).round()) ??
-            '${(share * 100).round()}% weight',
-      if (!used) l?.readinessDetailNotAvailable ?? 'not available',
-      if (used && contribution == null)
-        l?.readinessDetailContributionNotReported ?? 'contribution not reported',
-      // The temperature input is a raw sensor deviation, not a calibrated
-      // temperature. It gets said, every time.
-      if (key == 'temp')
-        l?.readinessDetailRelativeUncalibrated ?? 'relative, uncalibrated',
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: S.x3),
-      child: Row(children: [
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(_ask(key, l), style: F.body.copyWith(color: p.ink)),
-            Text(parts.join(' · '),
-                style: F.over.copyWith(color: p.ink3)),
-          ]),
-        ),
-        // No contribution number means no number — never a bare em-dash. The
-        // sub-line above says which case it is.
-        if (used && contribution != null) ...[
-          const SizedBox(width: S.x3),
-          Text(
-            '${contribution >= 0 ? '+' : '−'}'
-            '${contribution.abs().toStringAsFixed(1)}',
-            style: F.n17.copyWith(
-                color: p.on(contribution >= 0 ? C.green : C.orange)),
+  @override
+  Widget build(BuildContext c) {
+    return Pressable(
+      onTap: onTap,
+      semanticLabel: '$label $value, usually $usual',
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: S.x16),
+        child: Row(children: [
+          const SizedBox(width: S.x1 + S.hair),
+          StatIcon(mark, color: DC.ink2, size: S.x5 + S.hair),
+          const SizedBox(width: S.x2 + S.hair + S.hair),
+          Expanded(
+            child: Text(label.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: F.dLabel.copyWith(color: DC.ink)),
           ),
-        ],
-        ],
+          Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(value, style: F.nRow.copyWith(color: DC.ink)),
+                if (usual.isNotEmpty) ...[
+                  const SizedBox(height: S.half),
+                  Text(usual, style: F.nTiny.copyWith(color: DC.ink2)),
+                ],
+              ]),
+          SizedBox(
+            width: S.x5,
+            child: Center(child: delta ?? const SizedBox.shrink()),
+          ),
+          const SizedBox(width: S.x2),
+        ]),
       ),
     );
   }
 }
 
-/// A breakdown row as the plain question it answers. An input the map does
-/// not cover keeps its name.
-String _ask(String key, AppLocalizations? l) => switch (key) {
-      'hrv' => l?.readinessDetailAskHrv ?? 'Is your HRV in its usual range?',
-      'rhr' => l?.readinessDetailAskRhr ??
-          'Is your resting heart rate in its usual range?',
-      'resp' => l?.readinessDetailAskResp ??
-          'Is your breathing rate in its usual range?',
-      'temp' => l?.readinessDetailAskTemp ??
-          'Is your skin temperature in its usual range?',
-      _ => driverLabel(key, l),
-    };
+/// Seven days of each contributor, and of Recovery itself.
+class _RecoveryWeek extends StatelessWidget {
+  final RecoveryVitals v;
+  const _RecoveryWeek(this.v);
+
+  @override
+  Widget build(BuildContext c) {
+    final week = v.week;
+    if (week.isEmpty) return const SizedBox.shrink();
+
+    Widget line(String title, String id, Map<String, double> m,
+        String Function(double) text) {
+      final values = [for (final d in week) m[d]];
+      final (lo, hi) = weekLineAxis(values);
+      return WeekCard(
+        title: title,
+        metricId: id,
+        chart: WeekChart(days: week, lo: lo, hi: hi, lines: [
+          WeekLine(
+            values: values,
+            labels: [for (final x in values) x == null ? '' : text(x)],
+            color: DC.line2,
+            area: true,
+          ),
+        ]),
+      );
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      WeekCard(
+        title: 'Recovery',
+        metricId: 'recovery',
+        chart: WeekChart(days: week, lo: 0, hi: 100, columns: [
+          for (final d in week)
+            if (v.recovery[d] case final x?)
+              WeekColumn(hi: x, top: '${x.round()}%', color: recoveryColor(x))
+            else
+              const WeekColumn(),
+        ]),
+      ),
+      line('Heart rate variability', 'hrv', v.hrv, (x) => '${x.round()}'),
+      line('Resting heart rate', 'resting_hr', v.restingHr, (x) => '${x.round()}'),
+      line('Respiratory rate', 'resp_rate', v.resp, (x) => x.toStringAsFixed(1)),
+      WeekCard(
+        title: 'Sleep performance',
+        metricId: 'sleep_perf',
+        chart: WeekChart(days: week, lo: 0, hi: 100, columns: [
+          for (final d in week)
+            if (v.sleepPerf[d] case final x?)
+              WeekColumn(hi: x, top: '${x.round()}%', color: C.dialSleep)
+            else
+              const WeekColumn(),
+        ]),
+      ),
+    ]);
+  }
+}

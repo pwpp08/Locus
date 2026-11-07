@@ -166,11 +166,6 @@ final Map<String, Widget Function()> rootCases = {
   'readiness': () => const ReadinessDetail(
         data: ReadinessData(
           readiness: Metric(value: 72, confidence: .8, tier: _m),
-          breakdown: [
-            {'label': 'hrv', 'weight': .4, 'used': true, 'past_mdc': true},
-            {'label': 'rhr', 'weight': .3, 'used': true, 'past_mdc': false},
-          ],
-          inputsUsed: 2,
         ),
       ),
   'sleep': () => SleepDetail(
@@ -180,7 +175,7 @@ final Map<String, Widget Function()> rootCases = {
           night: _night(),
           timeline: _timeline(),
           tstHistory: const [430, 465, 410, 452, 401, 470, 438],
-          need: const Metric(value: 443, unit: 'min', confidence: .7, tier: _e),
+          lastNeedMin: 443,
           consistency: 89,
         ),
       ),
