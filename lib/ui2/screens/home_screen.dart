@@ -43,7 +43,9 @@ import 'day_heart.dart';
 import 'detected_activities.dart';
 import 'health_monitor.dart'
     show HealthGlance, HealthMonitorScreen, healthGlanceOf;
+import 'home/home_card_deck.dart';
 import 'home/home_cards.dart';
+import 'home/home_daily_cards.dart';
 import 'home/home_dashboard_editor.dart';
 import 'home/home_data.dart';
 import 'home/home_dials.dart';
@@ -68,7 +70,9 @@ import 'trend_view.dart';
 import 'workout_detail.dart';
 
 // Re-export submodules for clean public API and test compatibility.
+export 'home/home_card_deck.dart';
 export 'home/home_cards.dart';
+export 'home/home_daily_cards.dart';
 export 'home/home_dashboard_editor.dart';
 export 'home/home_data.dart';
 export 'home/home_dials.dart';
@@ -474,7 +478,15 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       }
     }
     final first = await loader.firstDay();
+    // Today's cards only: a past day has nothing left to act on.
+    var cards = const <DailyCard>[];
+    if (day == todayLabel()) {
+      try {
+        cards = await loadDailyCards(d, loader.series);
+      } catch (_) {}
+    }
     if (!mounted) return;
+    _cards = cards;
     _layers = layers;
     _spans = spans;
     _loader = loader;
@@ -490,6 +502,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   }
 
   Map<String, Map<String, double>> _daily = const {};
+  List<DailyCard> _cards = const [];
   Map<String, List<Map<String, double>>> _layers = const {};
   Map<String, ({double bed, double wake})>? _spans;
   TrendLoader? _loader;
@@ -657,13 +670,15 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
               keys: _dialKeys,
               scroll: _scroll,
               note: quietDay ? 'No sleep yet today.' : null),
-          if (isToday)
+          if (isToday) ...[
+            DailyCardDeck(cards: _cards, day: todayLabel()),
             _Monitors(
               health: _health,
               stress: _stress,
               onHealth: () => go(c, const HealthMonitorScreen()),
               onStress: () => go(c, const StressMonitorScreen()),
             ),
+          ],
         ] else
           Builder(builder: (c) {
             final need = needMessageFromNote(d.readiness.note);

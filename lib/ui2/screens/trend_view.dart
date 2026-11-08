@@ -578,6 +578,10 @@ class TrendLoader {
     }
   }
 
+  /// One stored series ([LocalRepository.getChart]'s key) per local day, read
+  /// once however many cards ask.
+  Future<Map<String, double>> series(String key) => _chart(key);
+
   Future<Map<String, double>> _chart(String key) => _series[key] ??= () async {
     final r = repo;
     if (r == null) return <String, double>{};

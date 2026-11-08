@@ -1084,6 +1084,23 @@ Map<String, Widget> extraCases() => {
           ),
         );
       }),
+      // Home's daily cards: a stack the top card is thrown off (SideDrag),
+      // each card a DailyCardFace. No day, so nothing put away is remembered.
+      'daily_card_deck': const DailyCardDeck(cards: [
+        DailyCard(
+          DailyCardKind.hrvHigh,
+          'HRV above your usual',
+          'Last night\'s HRV of 68 ms was 19% above your 30-day average of '
+              '57 ms. Your body is handling its load well.',
+          bars: [52, 58, 49, 61, 55, 60, 68],
+          lit: C.dialStrain,
+        ),
+        DailyCard(
+          DailyCardKind.stepGoal,
+          'Step goal reached',
+          'You walked 11,240 steps yesterday, past your goal of 10,000.',
+        ),
+      ]),
       'chart_ring': Builder(builder: (c) {
         final p = P.of(c);
         return Surface(

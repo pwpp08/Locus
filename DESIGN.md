@@ -372,6 +372,7 @@ Gestures are built only from `lib/ui2/grammar.dart`. The token test fails on a r
 | `DialScrubber` | a drag round a ring. The angle is measured clockwise from 12 o'clock. It never wraps: carried past 12, the value holds at the end it came from. A touch that starts inside 55 % of the radius (where the dial's own buttons sit) is ignored. Slider role. |
 | `SwipeHandle` | a vertical swipe of 24 px or more fires once (up or down). A tap that moves less than 8 px toggles. |
 | `Dismissible` | swiping the "Your first weeks" card away hides it until tomorrow. |
+| `SideDrag` | a sideways drag that reports its velocity on release, for a card thrown off a stack (the daily cards, §11.4a). A vertical drag stays with the page. It carries no semantics: a tap does the same job. |
 | `LocusPullRefresh` | pull to sync on Home (today only, with a paired band): §11.1a. The page waits at most 90 s; the sync carries on in the background. |
 
 **Navigation:**
@@ -510,7 +511,7 @@ My Dashboard                CUSTOMIZE ✎
 3. The **illness watch** `Observation`: only at amber or red, and only for a recent night. On ordinary days it does not appear.
 4. 20 of air. The wordmark is not on the page: it lives above the top and comes down only on a pull (§11.1a).
 5. Sync and phase status card (today, only while connecting, syncing or analysing).
-6. **Either** a bare-day card (nothing measured; while a workout runs this becomes "A workout is still running") **or** the **dials** plus the **monitors**. If no dial has anything to draw, a single "Recovery is not scored today" card replaces them.
+6. **Either** a bare-day card (nothing measured; while a workout runs this becomes "A workout is still running") **or** the **dials**, the **daily cards** (today only, §11.4a) and the **monitors**. If no dial has anything to draw, a single "Recovery is not scored today" card replaces them.
 7. Stale-insights card, then "Your first weeks" (swipeable).
 8. Wearable cells (only for non-WHOOP devices), then detected activities.
     - **Detected activity card** (`ActivityProposalCard`): caps title with a bare `ink3` icon, the dates, then a `WindowPreview(zoomable: true, onChanged:)`: caps `HEART RATE` and `bpm` above, the chart with the detected window shaded and its two lines, and under the heart rate the wrist's **movement lane** (one column a minute on the same clock, `paintMovement`, ink 45 %; none where nothing was measured). **Two fingers zoom; one finger on the start or end line moves that line (snapped to the minute, kept inside what the chart can show, start before end), one finger anywhere else pans.** There is no range bar and no drag handles to zoom, here or anywhere (the day breakdown's heart rate zooms by pinch and pans by one finger too). The dates and the length above follow the lines as they move, and CONFIRM saves the window as it is shown. `CONFIRM` is a full-width ink `BigButton` on its own line; under it, 8 apart and of one width, the edit (compact, soft) and the discard (compact, `ButtonTone.danger`, a solid red pill). Three across left no room for the words and broke them ("CONFIR / M").
@@ -565,6 +566,16 @@ As the page scrolls, the dials do not just scroll away. Each ring flies into a c
   - Health: a check, a triangle-alert or a minus.
   - Stress: the score `1.2` in `F.n17` w700.
 - **Beside the square:** the word in `F.caps` w800 in the hue (`WITHIN RANGE` / `OUT OF RANGE` / `NO DATA`, or `LOW` / `MEDIUM` / `HIGH` / `BUILDING` / `NO READING`), then the sub-line in `F.num(F.cap)` w600 ink2 (`4/4 Metrics`, `14:20`, `Needs a night`).
+
+### 11.4a Daily cards (between the dials and the monitors, today only)
+
+A stack of small cards, each one thing worth a sentence today, read off stored series by `dailyCardsFor` (`home/home_daily_cards.dart`; every threshold is in `DailyCardRules`). A card appears only when every number it states is stored; "your usual" is the mean of the 30 days before today and needs 7 of them. Overnight cards wait for last night to be scored; recovery cards skip a provisional score. At most five, most important first (`DailyCardKind` order). Hidden when there are none, and on past days.
+
+- **Card** (`DailyCardFace`): the graded `Surface` ground, radius 14, padding 20 (52 on the right, for the badge). Title `F.head` ink, 2, then the sentence in `F.body` w500 ink2 at height 1.35. An optional week of bars (64 × 48, seven bars 4 apart, ink 22 %, today lit in the metric's hue) sits 16 right of the words; a day with nothing stored is left empty.
+- **Badge**: 24 × 46, radius 6, ink 10 %, 8 in from the top and right: a check at `I.sm` over the count of cards left in `F.num(F.body)` ink2. Tapping it throws the top card off. The count rolls (fade and rise, `Motion.base`).
+- **Stack**: the card beneath peeks 10 under the top one, 12 narrower on each side, at 55 %. All cards in the deck are as tall as the tallest; that height eases (`Motion.slow`) when it changes, and to nothing with the gap above it when the last card goes.
+- **Throw**: the top card follows the finger sideways, tilting up to 0.1 rad about its foot. Let go past 35 % of the width, or flicked faster than 700 px/s, and it flies off at the finger's speed (`easeOutCubic`, `Motion.fast`…`Motion.slow`), fading after 45 % of the width, with a `selectionClick`. Anything less springs back (stiffness 420, damping 0.78); a finger can catch it mid-spring. The card beneath rises to full size and fades its words in over the first 60 % of the throw. Reduced motion: the card still follows the finger, and everything after lands at once.
+- **Once a day**: a card put away (thrown or checked off) is stored against the local day in `Prefs.dailyCardsDismissed` and does not come back that day; the next day overwrites the key.
 
 ### 11.5 My Day
 

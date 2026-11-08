@@ -110,6 +110,10 @@ class Prefs {
   /// It stays gone for the rest of that day and is back the next.
   static const String firstWeeksDismissedOn = 'ui.first_weeks_dismissed_on';
 
+  /// The daily cards under Home's dials put away today: `YYYY-MM-DD|kind,kind`
+  /// (local day). One key, so a new day overwrites the last and nothing piles up.
+  static const String dailyCardsDismissed = 'ui.daily_cards_dismissed';
+
   /// The strain the person set as the goal of an activity on Start Activity,
   /// as text ('8.5'); empty when no goal is set.
   static const String activityStrainTarget = 'activity.strain_target';
