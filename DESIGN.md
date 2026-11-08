@@ -391,7 +391,7 @@ Gestures are built only from `lib/ui2/grammar.dart`. The token test fails on a r
 
 ### 10.1 Shell (`app_shell.dart`)
 
-Bar order, by default: **Home · Strength · (+) · Macros · More**, and the user can reorder it or hide Strength and Macros (below). The (+) is an action, not a destination.
+Bar order, by default: **Home · Health · (+) · Strength · More**, and the user can reorder it or hide Strength and Health (below). The (+) is an action, not a destination.
 
 - **Bar:** a floating `Glass` pill, inset 16 from the sides and from the bottom safe area, minimum height 64, inner padding 4, `p.line` border.
 - **Tabs:** icon `I.lg` above a label in `F.over` (w700 active, w600 inactive). Text scale is clamped at 1.3 inside the bar.
@@ -1084,18 +1084,17 @@ The whole session as exercise cards, each with its own set table. Sizes are the 
 - **⋯ opens a sheet:** **Minimise** first (the session lives on `LiveDraft`; the bar above the tab bar brings it back, as does Android back), then Swap, Add, Skip exercise, Log the rest as bodyweight, and Effort (RPE) 6 to 10.
 - Starting from a saved workout carries its plan (rows) and its name into the session.
 
-### 14.8 Macros (`nutrition_screen.dart`)
+### 14.8 Locus Age (`locus_age.dart`, `locus_blob.dart`, in the Health tab)
 
-One page, in the order it is used; no sub-tabs.
-- **Day strip** (`Surface`): a `WindowPager` with the week's dates over seven day cells. Each cell: the weekday letter (`F.over`, today in the food colour), the date inside a 40 ring of that day's energy against the target (stroke 3, `domFood`, empty without a target), the picked day on a `wash(domFood)` disc, and a 4 dot under a day with anything logged. Paging lands on the window's last day.
-- **The day** (`Surface`): `TODAY` or the date, and Edit / Set a target (target icon). A 128 ring of energy eaten against the target (stroke 12; red past it; a floor draws soft and says AT LEAST over the figure), the figure in `F.n34` with "of 2,400 kcal" under it. Beside it LEFT (or OVER), BURNED and BALANCE in `F.over` over `F.n24` + kcal. A floor's left is "≤", its balance "at least". Then **Protein, Carbs, Fat**: a dot, the name in `F.over`, "66 g / 140 g", a 6 bar in the macro's colour (red, orange, yellow; soft for a floor), and "74 g to go" / Target reached / At least under it. **More nutrients** folds out fibre, sugar, saturated fat and sodium, each "≥" when some occasion did not report it, "Not recorded" when none did.
-- **Log dock:** four equal tiles (`Surface`, a 40 `wash(domFood)` disc with the icon, the label in `F.cap` w600): **Photo** (the in-app camera, below) and **Describe** (AI estimate through the user's own key, `food_ai_sheet.dart`), **Barcode** (the log sheet opening straight onto the live scanner), **Search**.
-- **The log sheet's buttons:** "I ate lunch" (a `domFood` pill, the whole point of the sheet) with a round soft **camera** button beside it (`BigButton` round, `LucideIcons.camera`).
-- **The food camera** (`food_camera.dart`, a 90 %-height `AppSheet`): the title, a line saying what it reads, a live preview in `R.xl` on char, and under it three round controls: the **gallery** (left, a 56 `card2` disc), the **shutter** (centre: a 72 ring and a 60 disc in `p.ink`, a spinner while it works) and **live barcode scan** (right, 56 `card2`). The app never opens the system camera. The shutter takes a still and decides what it is: a product barcode in it is looked up, anything else is a photo for the AI estimate (shrunk to 1024 px, JPEG 70, before it goes anywhere; the file is deleted). A gallery picture goes through the same decision. The right button hands over to the live scanner for a small or curved code. The AI sheet opens it photo-only (no barcode, no scan button). No camera or no permission says so on a `StatusCard` with the gallery as the way out.
-- **Models:** the coach and the food estimate each have their own model (AI coach setup: *Model* and *Model for food photos*; empty means the coach's). A refused request reads `Provider error (404): <reason> (host/path, model "x"). <usual cause>` on one line: a bare 404 is almost always a model name the provider does not have, or a wrong base URL.
-- **Occasions**, **water**, the floor card, then **This week**: the daily mean of complete days in `F.n34` (or the touched day), `ScrubColumns` of energy with the picked day banded and the mean dashed, and protein, carbs, fat and fibre means, each with its own denominator and floors named.
-- **AI logging:** up to three photos (or none) and a note go to the model; every item comes back for review (name, grams ± a step, meal), numbers gated per 100 g like a label, and only what the person confirms is logged, badged "AI estimate". Without a key the sheet offers the AI setup.
-- **Barcodes:** Open Food Facts first, then USDA FoodData Central's branded foods for what it does not know (credited, public domain); the same consent gate and the same physical gates.
+The Health tab (`health_tab.dart`) is two pages under a small `AGE | JOURNAL` switch, always char, painted up behind the status bar.
+
+- **Header:** `NEXT UPDATE IN n DAYS` and a week pager. Weeks run Sunday to Saturday and only finished ones are shown. Unlocked weeks only; while locked there is no pager.
+- **The blob:** 274 across at rest, a `BlobSim` of 72 spring nodes and 340 specks, stepped by a ticker and painted through its own notifier so no widget rebuilds. A finger pulls the rim toward it and scatters the specks; a tap gives way and ripples. The list keeps the drag (`TouchWatcher` only reports the finger). Reduced motion: the ticker never starts.
+- **Tone** is how the age compares: older blue to mint, a little younger teal, 4 or more years younger green, no reading slate.
+- **Scrolling** shrinks it to 100 at the top between `YEARS OLDER` and `PACE OF AGING`. The header fills solid behind it so the rows slide under.
+- **Below:** the calibrating banner while history is under six weeks, the pace strip (−1.0x to 3.0x, needle and number above it), the week's note, then Sleep, Strain and Fitness rows and the two trend charts.
+- **A row:** 12 segments, grey around the target, amber short of it and green past it, brighter the further away. ▼ six month average, ▲ 30 day average, years on the right. Opened: a thick band, both labelled, a note and `VIEW TREND`.
+- **Honesty:** no data, no row. Until 21 recoveries in 31 days the age, pace and every row's years read `--`.
 
 ---
 

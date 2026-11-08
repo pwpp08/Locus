@@ -40,7 +40,10 @@ const kJournalSelectionPref = 'journal.behaviors';
 const kJournalStripDays = 30;
 
 class JournalCompose extends StatefulWidget {
-  const JournalCompose({super.key, this.date});
+  const JournalCompose({super.key, this.date, this.embedded = false});
+
+  /// Living in a tab: no close button, and Done saves and stays.
+  final bool embedded;
 
   /// The day it opens on. Defaults to today's LOCAL label — never a UTC one.
   final String? date;
@@ -399,6 +402,11 @@ class _JournalComposeState extends State<JournalCompose> {
     // Today's "How was today?" is already armed; a rated day moves it to
     // tomorrow, and only a re-arm does that.
     unawaited(context.read<AppState>().refreshAiReminders());
+    if (widget.embedded) {
+      ScaffoldMessenger.maybeOf(context)
+          ?.showSnackBar(const SnackBar(content: Text('Saved')));
+      return;
+    }
     Navigator.of(context).pop(true);
   }
 
@@ -509,7 +517,7 @@ class _JournalComposeState extends State<JournalCompose> {
               SizedBox(height: top),
               _Header(
                 title: uiText(c, 'JOURNAL'),
-                onClose: () => Navigator.of(c).pop(),
+                onClose: widget.embedded ? null : () => Navigator.of(c).pop(),
                 onEdit: _loading ? null : () => unawaited(_edit()),
               ),
               const SizedBox(height: S.x1 + S.half + S.hair / 2),
@@ -630,7 +638,7 @@ const _kWeekdays = [
 class _Header extends StatelessWidget {
   const _Header({required this.title, required this.onClose, this.onEdit});
   final String title;
-  final VoidCallback onClose;
+  final VoidCallback? onClose;
   final VoidCallback? onEdit;
 
   @override
@@ -641,7 +649,7 @@ class _Header extends StatelessWidget {
       alignment: Alignment.center,
       children: [
         Text(title, style: JC.title.copyWith(color: JC.ink)),
-        Positioned(
+        if (onClose != null) Positioned(
           left: S.x2 + S.half,
           width: S.x12,
           height: S.x12,

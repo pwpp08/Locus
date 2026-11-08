@@ -1680,10 +1680,6 @@ class _StageBarPaint extends CustomPainter {
         ? null
         : Rect.fromLTRB(w * range.$1, -S.x1,
             math.max(w * range.$2, w * range.$1 + S.x1), size.height + S.x1);
-    if (box != null) {
-      canvas.drawRect(
-          box, Paint()..color = DC.typical.withValues(alpha: DC.typical.a * a));
-    }
     final fill = Paint()..color = color;
     final barW = w * share.clamp(0.0, 1.0);
     if (t <= 0 || runs.isEmpty) {
@@ -1706,7 +1702,10 @@ class _StageBarPaint extends CustomPainter {
             Rect.fromLTRB(x0, 0, math.max(x1, x0 + S.hair), size.height), fill);
       }
     }
+    // The typical range lies over the bar, veiling what it covers.
     if (box != null) {
+      canvas.drawRect(
+          box, Paint()..color = DC.typical.withValues(alpha: DC.typical.a * a));
       final dash = Paint()
         ..color = DC.ink2.withValues(alpha: a)
         ..strokeWidth = S.hair;

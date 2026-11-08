@@ -37,7 +37,6 @@ import '../../ecg/ecg_models.dart';
 import '../../ecg/ecg_waveform_buffer.dart';
 import '../../data/journal_fields.dart';
 import '../../data/med_store.dart';
-import '../../data/nutrition_store.dart';
 import '../../ai/nightly_sweep.dart' show SweepFinding;
 import '../../compute/findings.dart';
 import '../../models/metric.dart';
@@ -661,35 +660,7 @@ Map<String, Widget> _chartCases() {
 /// energy is a floor rather than a total, an occasion with no numbers, a dose
 /// that has not come due yet.
 Map<String, Widget> _nutritionAndWellnessCases() {
-  const bare = FoodEntry(
-      id: 'a', date: '2026-08-14', meal: 'dinner', label: 'Dinner');
-  const known = FoodEntry(
-      id: 'b',
-      date: '2026-08-14',
-      meal: 'breakfast',
-      label: 'Porridge and berries',
-      kcal: 420,
-      proteinG: 14,
-      carbsG: 62,
-      fatG: 9,
-      confirmed: true);
   return {
-    // A day that summed past an unknown: the number is a FLOOR and says so.
-    'day_energy_floor': DayEnergyCard(
-      day: rollupDay('2026-08-14', const [known, bare], today: '2026-08-15'),
-      burned: const Metric(
-          value: 2350, unit: 'kcal', confidence: .6, tier: MetricTier.estimate),
-    ),
-    'meal_row': const Column(children: [
-      MealRow(meal: 'breakfast', entries: [known]),
-      MealRow(meal: 'dinner', entries: []),
-    ]),
-    'food_row': const Surface(
-        pad: EdgeInsets.symmetric(horizontal: S.x4),
-        child: Column(children: [
-          FoodRow(entry: known, trailing: LucideIcons.circlePlus),
-          FoodRow(entry: bare),
-        ])),
     // `.preview`, because the gallery has no band and no Provider. The numbers
     // are a fixture and are shaped like one — a resting wobble, not a workout.
     'live_hr_card': const LiveHrCard.preview(hr: 68, trace: [
@@ -2154,19 +2125,6 @@ TimelineData get _tlFull => TimelineData(
             {'on': false, 'start': _tlAt(11, 0), 'end': _tlAt(11, 3), 'len_min': 3},
           ],
         },
-        meals: [
-          FoodEntry(
-            id: 'm1',
-            date: '2026-08-14',
-            meal: 'Breakfast',
-            label: 'Porridge with blueberries and honey',
-            atTs: _tlAt(8, 20),
-            kcal: 412,
-          ),
-          // No time on it: it belongs under the axis, not on it.
-          const FoodEntry(
-              id: 'm2', date: '2026-08-14', meal: 'Snack', label: 'Flapjack'),
-        ],
         doses: [(label: 'Vitamin D 1000 IU', at: _tlAt(8, 32))],
         journal: const {
           'caffeine': JournalMetricValue(3, atMinuteOfDay: 16 * 60 + 40),
@@ -2175,10 +2133,6 @@ TimelineData get _tlFull => TimelineData(
         fields: kJournalFields,
       ),
       notes: dayNotes(
-        meals: [
-          const FoodEntry(
-              id: 'm2', date: '2026-08-14', meal: 'Snack', label: 'Flapjack'),
-        ],
         journal: const {'alcohol': JournalMetricValue(2)},
         fields: kJournalFields,
         journalRows: const [

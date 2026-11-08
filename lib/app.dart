@@ -35,7 +35,7 @@ import 'ui2/screens/journal_compose.dart';
 import 'ui2/screens/detected_activities.dart';
 import 'ui2/screens/screens.dart'
     show DayStepsDetail, HealthMonitorScreen, ReadinessDetail, SleepDetail;
-import 'ui2/screens/nutrition_screen.dart';
+import 'ui2/screens/health_tab.dart';
 import 'ui2/screens/strength_trainer.dart';
 import 'ui2/screens/wellness_screen.dart';
 import 'ui2/screens/workout_screen.dart';
@@ -383,7 +383,7 @@ class _InitFailed extends StatelessWidget {
 /// a notification is scheduled days before it is tapped.
 ShellDomain domainForTab(int tab) => switch (tab) {
       1 => ShellDomain.strength,
-      2 || 3 => ShellDomain.macros,
+      2 || 3 => ShellDomain.health,
       _ => ShellDomain.today,
     };
 
@@ -391,7 +391,7 @@ ShellDomain domainForTab(int tab) => switch (tab) {
 /// Wellness) saved → where that content lives now.
 ShellDomain domainForSavedTab(int old) => switch (old) {
       1 => ShellDomain.strength,
-      2 => ShellDomain.macros,
+      2 => ShellDomain.health,
       _ => ShellDomain.today,
     };
 
@@ -399,7 +399,7 @@ ShellDomain domainForSavedTab(int old) => switch (old) {
 /// saved → where that content lives now.
 ShellDomain domainForSavedTabV2(int old) => switch (old) {
       1 => ShellDomain.strength,
-      2 || 3 => ShellDomain.macros,
+      2 || 3 => ShellDomain.health,
       _ => ShellDomain.today,
     };
 
@@ -422,7 +422,7 @@ ShellDomain domainForRoute(String route) => switch (routePath(route)) {
       kRouteAiMorning || kRouteAiEvening => ShellDomain.today,
       kRouteJournalCompose || kRouteBreathing || kRouteMeds =>
         ShellDomain.today,
-      kRouteWater => ShellDomain.macros,
+      kRouteWater => ShellDomain.today,
       kRouteMovement ||
       kRouteRecovery ||
       kRouteSteps ||
@@ -463,7 +463,6 @@ Widget? screenForRoute(String route) => switch (routePath(route)) {
       // The hydration reminder lands on the food log, where the water tile
       // carries its own − / + beside the food it belongs with. Nutrition is a
       // pushed page of Activity now, so it is pushed here too.
-      kRouteWater => const NutritionScreen(page: true),
       // The medication reminder lands on the checklist itself: Wellness is a
       // pushed page now, so the sub-tab is a constructor argument.
       kRouteMeds => const WellnessScreen(initialTab: WellnessScreen.medsTab),
@@ -615,7 +614,7 @@ class _ShellState extends State<_Shell> {
       builder: (c, d) => switch (d) {
         ShellDomain.today => const HomeScreen(),
         ShellDomain.strength => const StrengthTrainerScreen(tabMode: true),
-        ShellDomain.macros => const NutritionScreen(),
+        ShellDomain.health => const HealthTab(),
         ShellDomain.more => const ProfileHome(tab: true),
       },
     );

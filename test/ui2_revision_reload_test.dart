@@ -25,7 +25,6 @@ import 'package:openstrap_edge/data/journal_fields.dart';
 import 'package:openstrap_edge/data/local_repository.dart';
 import 'package:openstrap_edge/state/app_state.dart';
 import 'package:openstrap_edge/state/locale_controller.dart';
-import 'package:openstrap_edge/ui2/screens/screens.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
 /// The rows an import would have written, behind the repo the screen reads.
@@ -53,6 +52,36 @@ class _Repo extends LocalRepository {
   }
 }
 
+/// A live tab, reduced to what this file is about: it reads once, and shows
+/// what it read.
+class _Probe extends StatefulWidget {
+  const _Probe();
+  @override
+  State<_Probe> createState() => _ProbeState();
+}
+
+class _ProbeState extends State<_Probe> with RevisionReload {
+  String? _text;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => reload());
+  }
+
+  @override
+  void reload() {
+    final repo = context.read<AppState>().repo!;
+    repo.getJournalMetrics('2026-08-14').then((j) {
+      if (!mounted) return;
+      setState(() => _text = j['water_ml'] == null ? 'None yet' : '1.5 L');
+    });
+  }
+
+  @override
+  Widget build(BuildContext c) => Text(_text ?? '');
+}
+
 /// Frames until [f] appears, or give up.
 ///
 /// `runAsync` and not `pumpAndSettle`: the screen's load goes to sqflite, which
@@ -76,7 +105,7 @@ Widget _app(AppState app, {LocaleController? locale}) => MaterialApp(
             value: locale ?? LocaleController.seed(null),
           ),
         ],
-        child: const Scaffold(body: NutritionScreen()),
+        child: const Scaffold(body: _Probe()),
       ),
     );
 
@@ -114,7 +143,7 @@ void main() {
     expect(find.text('None yet'), findsOneWidget);
 
     // The screen that is about to be asked to notice.
-    final before = t.state(find.byType(NutritionScreen));
+    final before = t.state(find.byType(_Probe));
 
     // Something else writes — an import, the journal screen, a headless
     // derive. All of them raise the one signal.
@@ -126,7 +155,7 @@ void main() {
     // THE POINT: same State, so the number arrived by re-reading and not by
     // the screen being thrown away and built again — which is what leaving the
     // tab and coming back used to do.
-    expect(identical(t.state(find.byType(NutritionScreen)), before), isTrue,
+    expect(identical(t.state(find.byType(_Probe)), before), isTrue,
         reason:
             'the screen was remounted — that is the workaround, not the fix');
   });
@@ -171,7 +200,7 @@ void main() {
 
     await t.pumpWidget(_app(app, locale: locale));
     await _until(t, find.text('None yet'));
-    final before = t.state(find.byType(NutritionScreen));
+    final before = t.state(find.byType(_Probe));
     final reads = repo.reads;
     expect(reads, greaterThan(0));
 
@@ -189,7 +218,7 @@ void main() {
 
     expect(repo.reads, greaterThan(reads),
         reason: 'the screen did not notice the language changed');
-    expect(identical(t.state(find.byType(NutritionScreen)), before), isTrue,
+    expect(identical(t.state(find.byType(_Probe)), before), isTrue,
         reason:
             'the screen was remounted — that is the workaround, not the fix');
   });
@@ -218,11 +247,11 @@ void main() {
   });
 
   test('the screens the shell keeps alive re-read', () {
-    // Home, Nutrition and Wellness are the screens kept alive; Cycle lives
+    // Home, Locus Age and Wellness are the screens kept alive; Cycle lives
     // inside Wellness and shares its lifetime.
     for (final f in const [
       'home_screen',
-      'nutrition_screen',
+      'locus_age',
       'wellness_screen',
       'cycle_screen',
     ]) {
@@ -230,35 +259,5 @@ void main() {
           contains('with RevisionReload'),
           reason: '$f loads once and never reads again');
     }
-  });
-
-  testWidgets('a water tap steps from the stored day, not the last load',
-      (t) async {
-    t.view.physicalSize = const Size(390 * 3, 2400 * 3);
-    t.view.devicePixelRatio = 3;
-    addTearDown(t.view.reset);
-
-    final app = AppState.forTesting();
-    addTearDown(app.dispose);
-    final repo = _Repo()
-      ..journal = const {'water_ml': JournalMetricValue(2000)};
-    app.repo = repo;
-
-    await t.pumpWidget(_app(app));
-    await _until(t, find.text('2.0 L'));
-    expect(find.text('2.0 L'), findsOneWidget);
-
-    // Midnight passes with the tab open and nothing bumps it: the tile still
-    // holds yesterday's 2.0 L, but today has nothing stored yet.
-    repo.journal = const {};
-    await t.tap(find.byIcon(LucideIcons.plus).last);
-    for (var i = 0; i < 20 && repo.posted == null; i++) {
-      await t.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 20)));
-      await t.pump();
-    }
-
-    expect(repo.posted?['water_ml']?.value, 250,
-        reason: 'yesterday\'s total was carried into today');
   });
 }

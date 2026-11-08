@@ -317,7 +317,9 @@ class NotificationCenter {
     for (var i = 0; i < NotificationService.maxWaterSlots; i++) {
       await svc.cancel(NotificationService.idWaterBase + i);
     }
-    final water = waterSlotMinutes(prefs);
+    // Water reminders went with the meal tracker that logged them; the slots
+    // above are still cancelled so an old install stops ringing.
+    const water = <int>[];
     final wantWeekly = prefs.remindersEnabled && weeklyFinding != null;
     final now = DateTime.now();
     final checkIn = checkInDoneToday == null

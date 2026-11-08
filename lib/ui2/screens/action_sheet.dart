@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import '../ui2.dart';
 import 'coach.dart';
 import 'home_screen.dart' show go;
-import 'log_food.dart' show LogFoodSheet;
 import 'log_weight_sheet.dart' show LogWeightSheet;
 import 'start_activity.dart' show StartActivityScreen;
 
@@ -42,13 +41,6 @@ Future<void> openActionSheet(BuildContext c) {
           'Track a workout live with strain and heart rate',
           // The same door My Day's + opens, not the bare picker.
           () => then(() => go(c, const StartActivityScreen())),
-        ),
-        _ActionRow(
-          LucideIcons.utensils,
-          C.domFood,
-          'Log macros',
-          'Record meals, snacks or scan food barcode',
-          () => then(() => LogFoodSheet.show(c)),
         ),
       ]);
     }),

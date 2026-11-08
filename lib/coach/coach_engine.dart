@@ -1053,14 +1053,6 @@ class CoachEngine {
             tool: name, title: 'End workout',
             summary: 'End the active workout.', args: args,
           ), () async { final r = await api.endWorkout('${args['workout_id']}'); return _enc(r); });
-        case 'log_food':
-          return await _action(confirm, ActionRequest(
-            tool: name, title: 'Log food',
-            summary: 'Add "${args['label']}" to ${args['meal']} on '
-                '${args['date'] ?? 'today'}'
-                '${args['kcal'] == null ? '' : ' (${args['kcal']} kcal)'}.',
-            args: args,
-          ), () async => CoachActions.logFood(await LocalDb.instance, args));
         case 'log_journal_fields':
           return await _action(confirm, ActionRequest(
             tool: name, title: 'Log how the day went',
@@ -1268,30 +1260,6 @@ class CoachEngine {
         'waveform yourself and say if you disagree with it.',
         {'reading_id': {'type': 'string', 'description': 'the reading id from v_ecg_readings'}},
         ['reading_id']),
-    _fn('log_food',
-        'Log something eaten (asks the user to confirm). EVERY nutrient is '
-        'optional: an eating occasion with no numbers is a complete log, and '
-        'you must never invent a calorie or macro figure to fill a field. Only '
-        'pass a number the user told you or that is on a label they described.',
-        {
-          'date': {'type': 'string', 'description': 'YYYY-MM-DD, default today'},
-          'meal': {'type': 'string', 'enum': ['breakfast', 'lunch', 'dinner', 'snack']},
-          'label': {'type': 'string', 'description': 'what it was'},
-          'time': {'type': 'string', 'description': 'HH:MM, optional'},
-          'quantity': {'type': 'number'},
-          'unit': {'type': 'string', 'description': 'g, ml, piece…'},
-          'kcal': {'type': 'number'},
-          'protein_g': {'type': 'number'},
-          'carbs_g': {'type': 'number'},
-          'fat_g': {'type': 'number'},
-          'fibre_g': {'type': 'number'},
-          'sugar_g': {'type': 'number'},
-          'sat_fat_g': {'type': 'number'},
-          'sodium_mg': {'type': 'number'},
-          'iron_mg': {'type': 'number'},
-          'calcium_mg': {'type': 'number'},
-          'note': {'type': 'string'},
-        }, ['meal', 'label']),
     _fn('log_journal_fields',
         'Record the user\'s own numbers for a day (asks them to confirm). This '
         'is where WATER and MOOD live. Fields: mood, sleep_quality, energy, '

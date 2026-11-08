@@ -722,6 +722,53 @@ class F {
 /// the dp). These screens are always char ([AlwaysChar]), so the page ground and
 /// its cards are fixed colours rather than the theme's. A card is a veil of
 /// white over the page, which is why it darkens toward the foot of the screen.
+/// Locus Age: the blob's tones by how the age compares, and the page's type.
+class AC {
+  static const page = Color(0xFF07090B);
+  static const card = Color(0xFF1C2024);
+  static const cardOpen = Color(0xFF16191D);
+  static const banner = Color(0xFF17283A);
+  static const chip = Color(0xFF17283A);
+  static const coach = Color(0xFF9B8CFF);
+
+  static const olderTop = Color(0xFF4F93C9);
+  static const olderBottom = Color(0xFF86DCC4);
+  static const olderText = Color(0xFF79C4F0);
+  static const tealTop = Color(0xFF3AA3A0);
+  static const tealBottom = Color(0xFF5ACBB6);
+  static const tealText = Color(0xFF7FE0D0);
+  static const greenTop = Color(0xFF45B97A);
+  static const greenBottom = Color(0xFF5CD892);
+  static const greenText = Color(0xFF6FE3A1);
+  static const lockedTop = Color(0xFF5E7280);
+  static const lockedBottom = Color(0xFF85A0A2);
+
+  static const blobGlow = Color(0x38000000);
+  static const blobCore = Color(0xFF040506);
+  static const blobCore86 = Color(0xDB040506);
+  static const blobCore40 = Color(0x66040506);
+  static const blobCore0 = Color(0x00040506);
+  static const blobSpeck = Color(0xFFEFFFFA);
+
+  static const segAmber = Color(0xFFF2B15C);
+  static const segGreen = Color(0xFF5BE39B);
+  static const segGrey = Color(0xFF8F9296);
+
+  static final ageNum = F.n48.copyWith(fontSize: 40);
+  static final ageNumSmall = F.n24.copyWith(fontSize: 24);
+  static final ageLabel = F.dLabel.copyWith(fontSize: 13);
+  static final ageLabelSmall = F.dLabel.copyWith(fontSize: 9);
+  static final ageDelta = F.dBody.copyWith(fontSize: 13, fontWeight: FontWeight.w600);
+  static final sideNum = F.n17.copyWith(fontSize: 18);
+  static final section = F.dTitle.copyWith(fontSize: 20, fontWeight: FontWeight.w500);
+  static final rowTitle = F.dBody.copyWith(fontSize: 15, fontWeight: FontWeight.w500);
+  static final rowValue = F.nTiny.copyWith(fontSize: 13);
+  static final rowYears = F.n17.copyWith(fontSize: 16);
+  static final body = F.dBody.copyWith(fontSize: 13, height: 1.35);
+  static final barLabel = F.dLabel.copyWith(fontSize: 9, letterSpacing: .4);
+  static final barLabelMid = F.dBody.copyWith(fontSize: 11, height: 1.2);
+}
+
 class DC {
   static const bgTop = Color(0xFF283238);
   static const bgMid = Color(0xFF15181F);

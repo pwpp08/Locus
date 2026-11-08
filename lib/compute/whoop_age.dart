@@ -48,16 +48,25 @@ class WhoopAgeResult {
   /// Years per year, −1.0 to 3.0. Null without enough of the last 30 days.
   final double? pace;
 
-  /// Each contributor that had data, by key (sleep_hours, consistency, steps,
-  /// zones_13, zones_45, strength, resting_hr, vo2max, lean_mass).
+  /// The real age the reading started from.
+  final int? age;
+
+  /// Each contributor that had data over the long window, by key (sleep_hours,
+  /// consistency, steps, zones_13, zones_45, strength, resting_hr, vo2max,
+  /// lean_mass). Filled in even while the age itself is still locked.
   final Map<String, WhoopAgePart> parts;
+
+  /// The same over the last [kWhoopAgePaceDays].
+  final Map<String, WhoopAgePart> recent;
 
   final String? why;
 
   const WhoopAgeResult({
     this.whoopAge,
     this.pace,
+    this.age,
     this.parts = const {},
+    this.recent = const {},
     this.why,
   });
 }
@@ -82,16 +91,14 @@ WhoopAgeResult whoopAge({
 }) {
   if (age == null) return const WhoopAgeResult(why: 'needs_age');
   if (age < 18) return const WhoopAgeResult(why: 'under_18');
-  final recent =
-      recovery.keys.where((d) => _within(d, today, kWhoopAgeUnlockWindow));
-  if (recent.length < kWhoopAgeUnlockRecoveries) {
-    return WhoopAgeResult(
-        why: 'needs_recoveries:have=${recent.length},'
-            'need=$kWhoopAgeUnlockRecoveries');
-  }
+  final unlockFrom = _firstDay(today, kWhoopAgeUnlockWindow);
+  final recent = recovery.keys
+      .where((d) => d.compareTo(unlockFrom) >= 0 && d.compareTo(today) <= 0)
+      .toList();
 
   Map<String, WhoopAgePart> partsOver(int days) {
-    bool inWin(String d) => _within(d, today, days);
+    final from = _firstDay(today, days);
+    bool inWin(String d) => d.compareTo(from) >= 0 && d.compareTo(today) <= 0;
     double? mean(Map<String, double> m) {
       final v = [for (final e in m.entries) if (inWin(e.key)) e.value];
       return v.isEmpty ? null : v.reduce((a, b) => a + b) / v.length;
@@ -169,6 +176,14 @@ WhoopAgeResult whoopAge({
       p.values.fold(0.0, (a, x) => a + x.years) * kWhoopAgeOverlap;
 
   final long = partsOver(kWhoopAgeWindowDays);
+  if (recent.length < kWhoopAgeUnlockRecoveries) {
+    return WhoopAgeResult(
+        age: age,
+        parts: long,
+        recent: partsOver(kWhoopAgePaceDays),
+        why: 'needs_recoveries:have=${recent.length},'
+            'need=$kWhoopAgeUnlockRecoveries');
+  }
   if (long.isEmpty) return const WhoopAgeResult(why: 'needs_inputs');
   final yLong = sum(long);
   final short = partsOver(kWhoopAgePaceDays);
@@ -177,7 +192,12 @@ WhoopAgeResult whoopAge({
   final pace = short.isEmpty
       ? null
       : (1 + (sum(short) - yLong) / 0.5).clamp(-1.0, 3.0).toDouble();
-  return WhoopAgeResult(whoopAge: age + yLong, pace: pace, parts: long);
+  return WhoopAgeResult(
+      whoopAge: age + yLong,
+      pace: pace,
+      age: age,
+      parts: long,
+      recent: short);
 }
 
 /// WHOOP's VO₂max target (Table 1) by age and sex, in steps of 5 years from
@@ -221,9 +241,8 @@ double _doseHr(double v, double target,
         ? 1 + (worst - 1) * (target - v) / target
         : 1 - (1 - best) * (math.min(v, cap) - target) / (cap - target);
 
-/// Is [day] one of the [days] days ending on [today]?
-bool _within(String day, String today, int days) {
+/// The first of the [days] days ending on [today].
+String _firstDay(String today, int days) {
   final t = DateTime.parse(today);
-  final from = dayLabelOf(DateTime(t.year, t.month, t.day - days + 1));
-  return day.compareTo(from) >= 0 && day.compareTo(today) <= 0;
+  return dayLabelOf(DateTime(t.year, t.month, t.day - days + 1));
 }

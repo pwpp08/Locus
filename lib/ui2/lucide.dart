@@ -166,6 +166,7 @@ class LucideIcons {
   static const IconData plusCircle = base.LucideIcons.plusCircle300;
   static const IconData power = base.LucideIcons.power300;
   static const IconData rabbit = base.LucideIcons.rabbit300;
+  static const IconData turtle = base.LucideIcons.turtle300;
   static const IconData radar = base.LucideIcons.radar300;
   static const IconData radio = base.LucideIcons.radio300;
   static const IconData refreshCcw = base.LucideIcons.refreshCcw300;

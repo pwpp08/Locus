@@ -323,7 +323,11 @@ const _notComponents = {
   'ReportIssueScreen',
   // Scaffold routes over the database: the weight trend and its log sheet
   // (writes a reading), the healthspan page and the profile highlights.
-  'WeightTrendScreen', 'LogWeightSheet', 'HealthspanScreen',
+  'WeightTrendScreen', 'LogWeightSheet',
+  // The Health tab and Locus Age read the database and run a ticker forever;
+  // the storage and import pages are Scaffold routes over the app state.
+  'HealthTab', 'LocusAgeScreen', 'TouchWatcher', 'StorageScreen',
+  'WhoopImportScreen',
   'DataHighlightsScreen',
   // The two comparison cards need a TrendLoader (database reads) or a whole
   // WorkoutDetail; a gallery case would be a photograph of a fixture.

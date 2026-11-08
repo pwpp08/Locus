@@ -22,7 +22,7 @@ void main() {
     test('order is kept and repeats are dropped', () {
       expect(tabsFromPref('more,macros,today,macros,strength'), [
         ShellDomain.more,
-        ShellDomain.macros,
+        ShellDomain.health,
         ShellDomain.today,
         ShellDomain.strength,
       ]);
@@ -31,7 +31,7 @@ void main() {
     test('Home and More are put back if a stored bar lost them', () {
       expect(tabsFromPref('macros'), [
         ShellDomain.today,
-        ShellDomain.macros,
+        ShellDomain.health,
         ShellDomain.more,
       ]);
     });
@@ -89,29 +89,29 @@ void main() {
 
     // Home and More are pinned: no switch for them.
     expect(find.text('Always on'), findsNWidgets(2));
-    await t.tap(find.byType(Switch).first); // Strength
+    await t.tap(find.byType(Switch).last); // Strength, now the last row
     await t.pump();
     await t.tap(find.text('SAVE'));
     await t.pumpAndSettle();
 
     expect(find.text('Strength'), findsNothing);
     expect(find.text('Home'), findsOneWidget);
-    expect(find.text('Macros'), findsOneWidget);
-    expect(Prefs.getString(Prefs.navTabs, ''), 'today,macros,more');
+    expect(find.text('Health'), findsOneWidget);
+    expect(Prefs.getString(Prefs.navTabs, ''), 'today,health,more');
 
     // And it comes back with the sheet's reset.
     await openEditor(t);
     await t.tap(find.text('RESET TO DEFAULT'));
     await t.pumpAndSettle();
     expect(find.text('Strength'), findsOneWidget);
-    expect(Prefs.getString(Prefs.navTabs, ''), 'today,strength,macros,more');
+    expect(Prefs.getString(Prefs.navTabs, ''), 'today,health,strength,more');
   });
 
   testWidgets('a saved bar is what the next launch shows', (t) async {
     await prefs('more,today');
     await mount(t);
     expect(find.text('Strength'), findsNothing);
-    expect(find.text('Macros'), findsNothing);
+    expect(find.text('Health'), findsNothing);
     final more = t.getCenter(find.text('More')).dx;
     final home = t.getCenter(find.text('Home')).dx;
     expect(more, lessThan(home), reason: 'More was moved ahead of Home');
@@ -120,17 +120,17 @@ void main() {
   testWidgets('hiding the tab you are on drops you back on Home', (t) async {
     await prefs('');
     await mount(t);
-    await t.tap(find.text('Macros'));
+    await t.tap(find.text('Health'));
     await t.pumpAndSettle();
-    expect(find.text('body macros'), findsOneWidget);
+    expect(find.text('body health'), findsOneWidget);
 
-    await t.longPress(find.text('Macros'));
+    await t.longPress(find.text('Health'));
     await t.pumpAndSettle();
-    await t.tap(find.byType(Switch).last); // Macros, the last removable row
+    await t.tap(find.byType(Switch).first); // Health, the first removable row
     await t.pump();
     await t.tap(find.text('SAVE'));
     await t.pumpAndSettle();
-    expect(find.text('Macros'), findsNothing);
+    expect(find.text('Health'), findsNothing);
     expect(find.text('body today'), findsOneWidget);
   });
 }

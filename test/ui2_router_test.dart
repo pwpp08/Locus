@@ -33,8 +33,6 @@ import 'package:openstrap_edge/ui2/screens/detected_activities.dart'
     show DetectedActivitiesScreen, IdentifyActivityScreen;
 import 'package:openstrap_edge/ui2/profile/devices.dart';
 import 'package:openstrap_edge/ui2/profile/profile.dart';
-import 'package:openstrap_edge/ui2/screens/nutrition_screen.dart'
-    show NutritionScreen;
 import 'package:openstrap_edge/ui2/ui2.dart';
 
 /// A viewport tall enough that nothing under test is below the fold. The
@@ -130,8 +128,8 @@ void main() {
     test('every notification tab index resolves', () {
       expect(domainForTab(0), ShellDomain.today);
       expect(domainForTab(1), ShellDomain.strength);
-      expect(domainForTab(2), ShellDomain.macros);
-      expect(domainForTab(3), ShellDomain.macros);
+      expect(domainForTab(2), ShellDomain.health);
+      expect(domainForTab(3), ShellDomain.health);
       expect(domainForTab(4), ShellDomain.today);
       // A payload from a build that had more tabs than we do.
       expect(domainForTab(9), ShellDomain.today);
@@ -142,7 +140,7 @@ void main() {
       // Home, Health, Nutrition, Workout, Wellness.
       expect(domainForSavedTab(0), ShellDomain.today);
       expect(domainForSavedTab(1), ShellDomain.strength);
-      expect(domainForSavedTab(2), ShellDomain.macros);
+      expect(domainForSavedTab(2), ShellDomain.health);
       expect(domainForSavedTab(3), ShellDomain.today);
       expect(domainForSavedTab(4), ShellDomain.today);
       expect(domainForSavedTab(42), ShellDomain.today);
@@ -152,8 +150,8 @@ void main() {
       // Today, Sleep, Activity, Health.
       expect(domainForSavedTabV2(0), ShellDomain.today);
       expect(domainForSavedTabV2(1), ShellDomain.strength);
-      expect(domainForSavedTabV2(2), ShellDomain.macros);
-      expect(domainForSavedTabV2(3), ShellDomain.macros);
+      expect(domainForSavedTabV2(2), ShellDomain.health);
+      expect(domainForSavedTabV2(3), ShellDomain.health);
     });
 
     test('every kRoute constant lands somewhere deliberate', () {
@@ -165,17 +163,16 @@ void main() {
         kRouteMeds: ShellDomain.today,
         kRouteWorkoutSuggestion: ShellDomain.today,
         kRouteDetectedActivities: ShellDomain.today,
-        kRouteWater: ShellDomain.macros,
+        kRouteWater: ShellDomain.today,
         kRouteWorkoutIdle: ShellDomain.today,
         kRouteAlarm: ShellDomain.today,
       };
       routes.forEach((route, domain) {
         expect(domainForRoute(route), domain, reason: route);
       });
-      // The hydration reminder says "tap to log a glass": Nutrition is a
-      // pushed page of Activity now, so the tap pushes it.
-      expect(screenForRoute(kRouteWater), isA<NutritionScreen>());
-      expect((screenForRoute(kRouteWater)! as NutritionScreen).page, isTrue);
+      // The water reminders went with the meal tracker; an old one lands on
+      // Home and opens nothing over it.
+      expect(screenForRoute(kRouteWater), isNull);
       expect(domainForRoute('/profile'), ShellDomain.more);
       expect(screenForRoute('/profile'), isA<ProfileHome>(),
           reason: 'the battery notification promises the band, not Today');

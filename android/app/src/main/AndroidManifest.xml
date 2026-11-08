@@ -14,19 +14,6 @@
     <!-- FGS location type (API 34+): lets EdgeTrackingService keep sampling GPS while
          a run/ride/walk session is active and the app is backgrounded. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
-    <!-- Camera: the food log's own camera sheet (a barcode or a photo of the
-         plate, for the AI estimate) and the live barcode scanner, and nothing
-         else. A still is read on the device and its file deleted; only a photo
-         the person sends to their own AI provider leaves it. Audio is never
-         opened. Declared not-required so a phone without a camera still
-         installs; the scan row falls back to typing. -->
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
-    <!-- The F-Droid build's camera plugin declares camera.any as required and
-         RECORD_AUDIO; neither is wanted here. -->
-    <uses-feature android:name="android.hardware.camera.any" android:required="false"
-        tools:replace="android:required" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Edge Tracking foreground service: keeps the strap connection alive in the background. -->

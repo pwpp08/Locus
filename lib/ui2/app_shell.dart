@@ -1,6 +1,6 @@
 // The shell.
 //
-// Home · Health · (+) · AI · More. Home is today; Health is the longer-term
+// Home · Health · (+) · Strength · More. Home is today; Health is the longer-term
 // picture; More is the profile, devices and settings. Between them sit two
 // buttons that are NOT destinations: the Action (+) button, the quickest way
 // to start an activity, write the journal or go live, and the coach. A button
@@ -33,11 +33,12 @@ import '../state/prefs.dart';
 import 'grammar.dart';
 import 'theme.dart';
 
-/// The four destinations, in bar order.
+/// The four destinations. The order is stored (a tab's index): the bar's own
+/// order is [kDefaultTabs].
 enum ShellDomain {
   today('Home', LucideIcons.house, C.domHome),
   strength('Strength', LucideIcons.dumbbell, C.domMove),
-  macros('Macros', LucideIcons.utensils, C.domFood),
+  health('Health', LucideIcons.heartPulse, C.domHealth),
   more('More', LucideIcons.menu, C.domMind);
 
   const ShellDomain(this.label, this.icon, this.accent);
@@ -52,7 +53,7 @@ enum ShellDomain {
     return switch (this) {
           ShellDomain.today => l?.tabHome,
           ShellDomain.strength => 'Strength',
-          ShellDomain.macros => 'Macros',
+          ShellDomain.health => 'Health',
           ShellDomain.more => l?.tabMore,
         } ??
         label;
@@ -70,8 +71,8 @@ enum ShellDomain {
 /// The bar as it ships, and as "Reset" restores it.
 const List<ShellDomain> kDefaultTabs = [
   ShellDomain.today,
+  ShellDomain.health,
   ShellDomain.strength,
-  ShellDomain.macros,
   ShellDomain.more,
 ];
 
@@ -84,8 +85,10 @@ const Set<ShellDomain> kPinnedTabs = {ShellDomain.today, ShellDomain.more};
 List<ShellDomain> tabsFromPref(String raw) {
   final out = <ShellDomain>[];
   for (final name in raw.split(',')) {
+    // Macros was this tab's name before the meal tracker went.
+    final wanted = name.trim() == 'macros' ? ShellDomain.health.name : name.trim();
     for (final d in ShellDomain.values) {
-      if (d.name == name.trim() && !out.contains(d)) out.add(d);
+      if (d.name == wanted && !out.contains(d)) out.add(d);
     }
   }
   if (out.isEmpty) return [...kDefaultTabs];
@@ -213,13 +216,19 @@ class _AppShellState extends State<AppShell> {
                 ),
                 child: SafeArea(
                   bottom: false,
+                  // The Health tab paints up behind the status bar.
+                  top: _current != ShellDomain.health,
                   child: IndexedStack(
                     index: _current.index,
                     children: [
                       // An unvisited tab is an empty box, not a built screen.
                       for (final d in ShellDomain.values)
                         if (_built.contains(d))
-                          widget.builder(c, d)
+                          // A tab kept alive off screen stops its animations.
+                          TickerMode(
+                            enabled: d == _current,
+                            child: widget.builder(c, d),
+                          )
                         else
                           const SizedBox.shrink(),
                     ],

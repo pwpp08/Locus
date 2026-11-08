@@ -552,15 +552,14 @@ class TrendLoader {
     }
   }();
 
-  /// WHOOP Age and Pace of Aging (see `compute/whoop_age.dart`). Backend
-  /// only for now: no screen reads it yet.
-  Future<WhoopAgeResult> whoopAge() async {
+  /// Locus Age and Pace of Aging as of [asOf] (see `compute/whoop_age.dart`).
+  Future<WhoopAgeResult> whoopAge({String? asOf}) async {
     final r = repo;
     if (r == null) return const WhoopAgeResult(why: 'no_data');
     try {
       final p = Profile.fromMap(await r.getProfile());
       return wa.whoopAge(
-        today: todayLabel(),
+        today: asOf ?? todayLabel(),
         age: p.ageYears,
         sex: p.sex,
         recovery: await _chart('recovery'),

@@ -2,7 +2,6 @@
 // the question it answers rides in the history so a reply has context.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openstrap_edge/ai/food_ai.dart';
 import 'package:openstrap_edge/coach/coach_config.dart';
 import 'package:openstrap_edge/coach/coach_engine.dart';
 import 'package:openstrap_edge/data/local_repository.dart';
@@ -32,13 +31,6 @@ void main() {
         ]),
         '{"items":[]}');
     expect(CoachEngine.contentText(null), '');
-  });
-
-  test('food figures quoted as strings are read', () {
-    final g = parseFoodAi(
-        '{"items":[{"name":"Rice","grams":"150 g","kcal":"195","protein_g":4}]}');
-    expect(g.single.grams, 150);
-    expect(g.single.kcal, closeTo(195, .01));
   });
 }
 

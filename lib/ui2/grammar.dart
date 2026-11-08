@@ -4133,3 +4133,32 @@ class AuroraTile extends StatelessWidget {
     );
   }
 }
+
+/// Reports where a finger is without taking part in the gesture, so what is
+/// under it (a list that scrolls) keeps working.
+class TouchWatcher extends StatelessWidget {
+  final Widget child;
+  final void Function(PointerDownEvent) onDown;
+  final void Function(PointerMoveEvent) onMove;
+  final void Function(PointerUpEvent) onUp;
+  final void Function(PointerCancelEvent) onCancel;
+
+  const TouchWatcher({
+    super.key,
+    required this.child,
+    required this.onDown,
+    required this.onMove,
+    required this.onUp,
+    required this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext c) => Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: onDown,
+        onPointerMove: onMove,
+        onPointerUp: onUp,
+        onPointerCancel: onCancel,
+        child: child,
+      );
+}

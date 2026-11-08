@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/data/day_label.dart';
 import 'package:openstrap_edge/data/journal_fields.dart';
-import 'package:openstrap_edge/data/nutrition_store.dart';
 import 'package:openstrap_edge/ui2/screens/day_timeline.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
@@ -70,43 +69,6 @@ void main() {
         ],
       });
       expect(m, hasLength(2));
-    });
-
-    test('a meal with no time is never placed, and is not lost either', () {
-      const timed = FoodEntry(
-          id: 'a', date: '2026-08-14', meal: 'Lunch', label: 'Soup', kcal: 300);
-      final withTime = FoodEntry(
-          id: 'b',
-          date: '2026-08-14',
-          meal: 'Lunch',
-          label: 'Soup',
-          atTs: _at(13),
-          kcal: 300);
-      expect(
-        dayMoments(
-            timeline: {'day_start': _day}, meals: const [timed]),
-        isEmpty,
-      );
-      expect(
-        dayMoments(timeline: {'day_start': _day}, meals: [withTime]),
-        hasLength(1),
-      );
-      expect(dayNotes(meals: const [timed]), hasLength(1));
-      expect(dayNotes(meals: [withTime]), isEmpty);
-    });
-
-    test('a bare eating occasion carries no energy figure', () {
-      final m = dayMoments(timeline: {
-        'day_start': _day
-      }, meals: [
-        FoodEntry(
-            id: 'a',
-            date: '2026-08-14',
-            meal: 'Snack',
-            label: 'Apple',
-            atTs: _at(16)),
-      ]);
-      expect(m.single.detail, isNot(contains('kcal')));
     });
 
     test('a timed journal field lands at its own minute, an untimed one below',

@@ -47,12 +47,6 @@ String coachActionSummary(BuildContext context, ActionRequest request) {
       return l.supplementCoachStart(type());
     case 'end_workout':
       return localizedText(l, 'End the active workout.');
-    case 'log_food':
-      final name = text(a['label']);
-      final meal = localizedText(l, text(a['meal']));
-      return a['kcal'] == null
-          ? l.supplementCoachFood(name, meal, date())
-          : l.supplementCoachFoodEnergy(name, meal, date(), text(a['kcal']));
     case 'log_journal_fields':
       final fields = a['fields'];
       final description = fields is! Map || fields.isEmpty

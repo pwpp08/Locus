@@ -24,7 +24,8 @@ import '../../state/units_controller.dart';
 import '../ui2.dart';
 import '../screens/action_sheet.dart' show openCoach;
 import '../screens/coach.dart' show coachSubtitle;
-import '../screens/healthspan_screen.dart' show HealthspanScreen;
+import '../screens/locus_age.dart' show LocusAgeScreen;
+import 'storage_screen.dart' show StorageScreen;
 import '../screens/home_screen.dart' show deviceBatteryOf;
 import '../screens/watch_compare_screen.dart' show WatchCompareScreen;
 import '../screens/weight_trend_screen.dart' show WeightTrendScreen;
@@ -556,9 +557,9 @@ class ProfileHomeView extends StatelessWidget {
             SetRow(
               LucideIcons.activity,
               C.blue,
-              'Healthspan',
-              sub: 'Biological age, cardiovascular & cellular health',
-              onTap: () => goto(c, const HealthspanScreen()),
+              'Locus Age',
+              sub: 'How old your habits and fitness make you',
+              onTap: () => goto(c, const LocusAgeScreen(page: true)),
             ),
             SetRow(
               LucideIcons.watch,
@@ -641,7 +642,7 @@ class ProfileHomeView extends StatelessWidget {
             C.green,
             l?.profileStorage ?? 'Storage',
             value: s?.storageBytes == null ? '' : formatBytes(s!.storageBytes!),
-            chevron: false,
+            onTap: () => goto(c, const StorageScreen()),
           ),
           // Export straight from here: it used to be five taps deep,
           // behind a row named for its position ("More settings").

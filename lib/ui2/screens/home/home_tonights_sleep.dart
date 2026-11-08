@@ -66,7 +66,7 @@ class HomeTonightsSleep extends StatelessWidget {
             child: half(
               LucideIcons.sunset,
               bedtimeMin == null ? '--' : clock(bedtimeMin),
-              Text('RECOMMENDED BEDTIME',
+              Text('RECOMMENDED\nBEDTIME',
                   textAlign: TextAlign.center,
                   style: F.over.copyWith(
                       color: p.ink3, letterSpacing: .4)),
@@ -85,7 +85,7 @@ class HomeTonightsSleep extends StatelessWidget {
                       ? '--'
                       : clock(wakeMin!),
               at == null && wakeMin != null
-                  ? Text('RECOMMENDED WAKE',
+                  ? Text('RECOMMENDED\nWAKE',
                       textAlign: TextAlign.center,
                       style: F.over.copyWith(color: p.ink3, letterSpacing: .4))
                   : Row(mainAxisSize: MainAxisSize.min, children: [

@@ -40,7 +40,6 @@ import '../../data/db.dart';
 import '../../data/journal_fields.dart';
 import '../../data/local_repository.dart';
 import '../../data/med_store.dart';
-import '../../data/nutrition_store.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
 import '../../state/locale_controller.dart';
@@ -127,7 +126,6 @@ String _span(int from, int? to) =>
 List<Moment> dayMoments({
   required Map<String, dynamic> timeline,
   Map<String, dynamic> wear = const {},
-  List<FoodEntry> meals = const [],
   List<({String label, int at})> doses = const [],
   Map<String, JournalMetricValue> journal = const {},
   List<JournalFieldSpec> fields = const [],
@@ -257,27 +255,6 @@ List<Moment> dayMoments({
     ));
   }
 
-  for (final m in meals) {
-    final t = m.atTs;
-    if (t == null) continue;
-    final kcal = m.kcal;
-    out.add(
-      Moment(
-        at: t,
-        title: m.label.isEmpty ? localizedText(l, m.meal) : m.label,
-        detail: [
-          clockOfTs(t),
-          if (m.meal.isNotEmpty) localizedText(l, m.meal),
-          // A bare occasion is complete as a log. It just has no energy on it,
-          // and printing "0 kcal" for one is the fabrication this app refuses.
-          if (kcal != null) '${kcal.round()} kcal',
-        ].join(' · '),
-        icon: LucideIcons.utensils,
-        color: C.domFood,
-      ),
-    );
-  }
-
   for (final d in doses) {
     out.add(Moment(
       at: d.at,
@@ -330,7 +307,6 @@ List<Moment> dayMoments({
 
 /// Logged for the day, with no time on it. Same sources, opposite branch.
 List<DayNote> dayNotes({
-  List<FoodEntry> meals = const [],
   Map<String, JournalMetricValue> journal = const {},
   List<JournalFieldSpec> fields = const [],
   List<Map<String, dynamic>> journalRows = const [],
@@ -378,19 +354,6 @@ List<DayNote> dayNotes({
       ),
     );
   });
-  for (final m in meals) {
-    if (m.atTs != null) continue;
-    out.add(
-      DayNote(
-        m.label.isEmpty ? localizedText(l, m.meal) : m.label,
-        [
-          if (m.meal.isNotEmpty) localizedText(l, m.meal),
-          if (m.kcal != null) '${m.kcal!.round()} kcal',
-        ].join(' · '),
-        LucideIcons.utensils,
-      ),
-    );
-  }
   return out;
 }
 
@@ -633,7 +596,6 @@ class TimelineData {
     final fields = await repo.getJournalFields();
     final journal = await repo.getJournalMetrics(day);
     final db = await LocalDb.instance;
-    final meals = await NutritionDb.entriesForDay(db, day);
     final notes = await LocalDb.journalRows(sinceDaysEpoch: day);
 
     // Doses: one row per (medication, slot), and only the ones actually taken
@@ -670,7 +632,6 @@ class TimelineData {
       moments: dayMoments(
         timeline: timeline,
         wear: wear,
-        meals: [for (final m in meals) m.sanitised],
         doses: taken,
         journal: journal,
         fields: fields,
@@ -678,8 +639,7 @@ class TimelineData {
       ),
       notes: [
         ...dayNotes(
-          meals: [for (final m in meals) m.sanitised],
-          journal: journal,
+            journal: journal,
           fields: fields,
           journalRows: [for (final r in notes) if (r['date'] == day) r],
           l: l,

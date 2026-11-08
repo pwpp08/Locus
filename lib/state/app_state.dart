@@ -1986,6 +1986,15 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// The Storage page's button: [_maybeReclaimDiskSpace] on request, with the
+  /// same refusal of a moment when the app is using the database. Null means
+  /// "not now"; throws when SQLite could not rewrite the file.
+  Future<int?> freeUpSpace() async {
+    if (_disposed || _background || busy || _liveSessionActive) return null;
+    final freed = await LocalDb.vacuumIfBloated(minFreeBytes: 1 << 20);
+    return freed;
+  }
+
   /// Local push when a NEW physiological day's recovery lands (sleep window
   /// closed + recovery computed). Best-effort; fires at most once per day_id —
   /// the last-notified day is persisted so a relaunch/re-derive never re-fires.

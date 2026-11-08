@@ -331,7 +331,7 @@ class _DataScreenState extends State<DataScreen> {
               children: [
                 // Home shows this too, on the launch it happened. It belongs
                 // here as well because this is the screen someone opens when
-                // they notice their food log is empty, and it is the only
+                // they notice their history is empty, and it is the only
                 // screen where the card is ALSO an instruction: "Import a
                 // file" three rows down reads the quarantined file back.
                 // (It is named `openstrap.db.unopenable-<ms>`, not `.db` —

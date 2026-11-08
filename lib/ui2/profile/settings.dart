@@ -18,7 +18,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../data/off_lookup.dart';
 import '../../health/health_export.dart' show HealthLinkState;
 import '../../health/health_import_state.dart';
 import '../../health/health_profile_import.dart';
@@ -40,6 +39,7 @@ import 'gallery.dart';
 import 'gestures.dart';
 import 'profile.dart';
 import 'report_issue.dart';
+import 'whoop_import_screen.dart';
 import 'wearable_numbers.dart' show WearableDisplay, wearableSettingsGroup;
 
 /// Unwind the profile stack back to the gate.
@@ -70,9 +70,6 @@ class MoreSettings extends StatefulWidget {
 class _MoreSettingsState extends State<MoreSettings> {
   bool _dev = Prefs.getBool(Prefs.devMode, false);
 
-  /// Whether a food barcode may be looked up online. Not on AppState: it is a
-  /// screen-local preference like the map basemap's, read straight off Prefs.
-  bool _barcode = offLookupAllowed;
   String _version = '';
   int _taps = 0;
 
@@ -102,21 +99,6 @@ class _MoreSettingsState extends State<MoreSettings> {
   /// storage is back ON at the next launch, so it does not get to fail quietly
   /// — the switch still moves (in-session it really is off, nothing is sent),
   /// and the person is told it did not stick.
-  Future<void> _toggleBarcode(BuildContext c) async {
-    final want = !_barcode;
-    final messenger = ScaffoldMessenger.of(c);
-    final saved = await setOffLookupAllowed(want);
-    if (!mounted) return;
-    setState(() => _barcode = want);
-    if (!saved) {
-      final l = AppLocalizations.of(context);
-      messenger.showSnackBar(SnackBar(
-        content: Text(l?.settingsBarcodeSaveFailed ??
-            'That could not be saved — it may be back next time you '
-                'open the app.'),
-      ));
-    }
-  }
 
   void _setDev(bool on) {
     Prefs.setBool(Prefs.devMode, on);
@@ -147,7 +129,6 @@ class _MoreSettingsState extends State<MoreSettings> {
       zoneAlertZone: app.zoneAlertTargetZone,
       phoneSteps: app.phoneStepsEnabled,
       telemetry: app.telemetryConsent,
-      barcodeLookup: _barcode,
       // Shown when the build has the feature OR when this install already
       // consented under an older build. A consent that cannot be withdrawn is
       // not consent, and the old `lib/ui` toggle died with that package while
@@ -183,7 +164,6 @@ class _MoreSettingsState extends State<MoreSettings> {
           ? app.disablePhoneSteps()
           : app.requestPhoneSteps(),
       onToggleTelemetry: () => app.setTelemetryConsent(!app.telemetryConsent),
-      onToggleBarcodeLookup: () => _toggleBarcode(c),
       onToggleHealthShare: () => _toggleHealthShare(c, app),
       onToggleHealthSync: () => _toggleHealthSync(app),
       onToggleUpdateChecks: () =>
@@ -378,7 +358,7 @@ class MoreSettingsView extends StatelessWidget {
 
   /// 12- or 24-hour clock, or whatever the OS says ("System", the default).
   final ClockFormat clockFormat;
-  final bool phoneSteps, telemetry, barcodeLookup, cycleTracking;
+  final bool phoneSteps, telemetry, cycleTracking;
 
   /// The live-workout HR-zone-crossing haptic. Off by default; [zoneAlertZone]
   /// (1..5) is only meaningful — and only drawn — while this is on.
@@ -423,7 +403,6 @@ class MoreSettingsView extends StatelessWidget {
       onCycleClockFormat,
       onTogglePhoneSteps,
       onToggleTelemetry,
-      onToggleBarcodeLookup,
       onToggleCycleTracking,
       onToggleHealthShare,
       onToggleHealthSync,
@@ -442,7 +421,6 @@ class MoreSettingsView extends StatelessWidget {
     this.healthState = HealthLinkState.unknown,
     this.healthStore = 'Apple Health',
     this.telemetry = false,
-    this.barcodeLookup = true,
     this.cycleTracking = false,
     this.zoneAlertEnabled = false,
     this.zoneAlertZone = 3,
@@ -465,7 +443,6 @@ class MoreSettingsView extends StatelessWidget {
     this.onCycleClockFormat,
     this.onTogglePhoneSteps,
     this.onToggleTelemetry,
-    this.onToggleBarcodeLookup,
     this.onToggleCycleTracking,
     this.onToggleHealthShare,
     this.onToggleHealthSync,
@@ -573,6 +550,10 @@ class MoreSettingsView extends StatelessWidget {
 
                 ]),
                 settingsGroup(c, l?.settingsGroupData ?? 'Data', [
+                  SetRow(LucideIcons.upload, C.orange, 'Import WHOOP data',
+                      sub: 'Your recovery, sleep, strain and workouts from a '
+                          'WHOOP export',
+                      onTap: () => goto(c, const WhoopImportScreen())),
                   // The row P1 was missing. Everything behind it — the
                   // permission request, the retry/backoff, the four gates —
                   // was already written and simply had no way to be switched
@@ -604,17 +585,6 @@ class MoreSettingsView extends StatelessWidget {
                       sub: l?.settingsReportIssueRowSub ??
                           'Sends what you choose to the maintainers, encrypted',
                       onTap: () => goto(c, const ReportIssueScreen())),
-                  // The food log's one outbound call. Named by what it sends,
-                  // not by the feature it powers — a scan is the only thing
-                  // that triggers it and the barcode is the whole payload.
-                  SetRow(LucideIcons.scanBarcode, C.domFood,
-                      l?.settingsBarcodeLookupRowTitle ??
-                          'Look barcodes up online',
-                      sub: l?.settingsBarcodeLookupRowSub ??
-                          'Sends a scanned barcode to openfoodfacts.org. '
-                              'Nothing about you goes with it',
-                      value: barcodeLookup ? on : off,
-                      onTap: onToggleBarcodeLookup),
                   if (showHealthShare)
                     SetRow(LucideIcons.cloudUpload, C.red,
                         l?.settingsContributeHealthDataRowTitle ??
@@ -662,8 +632,7 @@ class MoreSettingsView extends StatelessWidget {
                         l?.settingsVersionRowTitle ?? 'Version',
                         value: version, chevron: false, onTap: onVersionTap),
                   // Where the licences of what this app uses are written out
-                  // in full. Open Food Facts' ODbL asks for the notice to be
-                  // reachable, not only for the credit beside the numbers.
+                  // in full.
                   SetRow(LucideIcons.scale, C.n500,
                       l?.settingsNoticesLicencesRowTitle ??
                           'Notices and licences',

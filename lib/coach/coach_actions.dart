@@ -278,58 +278,6 @@ class CoachActions {
     });
   }
 
-  /// Log one thing eaten. Every nutrient is optional: an eating occasion with
-  /// no numbers is a complete, valid log, and inventing a calorie figure to
-  /// fill the column is the one thing this must never do.
-  static Future<String> logFood(Database db, Map<String, dynamic> a) async {
-    final d = day(a['date']);
-    final label = str(a['label']);
-    if (label.isEmpty) throw CoachActionError('A food needs a name.');
-    final meal = str(a['meal']).toLowerCase();
-    if (!kMeals.contains(meal)) {
-      throw CoachActionError(
-        'Meal "$meal" is not one of ${kMeals.join(', ')}.',
-      );
-    }
-    final at = str(a['time']).isEmpty ? null : minuteOfDay(a['time']);
-    final e = FoodEntry(
-      id: NutritionDb.newId(),
-      date: d,
-      meal: meal,
-      label: label,
-      atTs: at == null ? null : epochOf(d, at),
-      quantity: num_(a['quantity']),
-      unit: str(a['unit']).isEmpty ? 'g' : str(a['unit']),
-      kcal: num_(a['kcal']),
-      proteinG: num_(a['protein_g']),
-      carbsG: num_(a['carbs_g']),
-      fatG: num_(a['fat_g']),
-      fibreG: num_(a['fibre_g']),
-      sugarG: num_(a['sugar_g']),
-      satFatG: num_(a['sat_fat_g']),
-      sodiumMg: num_(a['sodium_mg']),
-      ironMg: num_(a['iron_mg']),
-      calciumMg: num_(a['calcium_mg']),
-      // `manual` and confirmed: the user approved this exact entry at the
-      // confirmation gate, which is what `confirmed` records. It is NOT
-      // `verified` — that word means a manufacturer or USDA record, and a
-      // number the model recalled is not one.
-      source: FoodSource.manual,
-      confirmed: true,
-      note: str(a['note']),
-    );
-    await NutritionDb.put(db, e);
-    return jsonEncode({
-      'saved': true,
-      'date': d,
-      'meal': meal,
-      'label': label,
-      'kcal': e.kcal,
-    });
-  }
-
-  // ── journal numbers (water, mood, and the rest) ────────────────────────────
-
   /// Write one or more numeric journal fields for a day.
   ///
   /// `postJournalMetrics` replaces the WHOLE day — "the map IS the day, not a

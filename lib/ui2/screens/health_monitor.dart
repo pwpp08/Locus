@@ -263,7 +263,7 @@ class _HealthMonitorScreenState extends State<HealthMonitorScreen> {
                 const _Bar(),
                 _Hero(recorded: _recorded),
                 const _Kicker(),
-                const SizedBox(height: S.x3 + S.half),
+                const SizedBox(height: S.x8),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: S.x4),
                   child: Column(children: [
