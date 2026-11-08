@@ -977,7 +977,7 @@ class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
               const BoxDecoration(color: C.dialStrain, shape: BoxShape.circle),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             CustomPaint(
-                size: const Size.square(I.lg), painter: _HeartPainter(C.white)),
+                size: const Size.square(I.lg), painter: HeartPainter(C.white)),
             const SizedBox(height: S.x1),
             Text(hr == null ? '--' : '$hr',
                 style: F.n64.copyWith(color: C.white, fontWeight: FontWeight.w700)),
@@ -990,9 +990,9 @@ class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
 
 /// A filled heart on a 24-unit grid, the same outline the stat icons draw,
 /// for the pulse disc (Lucide has no filled glyph).
-class _HeartPainter extends CustomPainter {
+class HeartPainter extends CustomPainter {
   final Color color;
-  _HeartPainter(this.color);
+  HeartPainter(this.color);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1013,5 +1013,5 @@ class _HeartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_HeartPainter old) => old.color != color;
+  bool shouldRepaint(HeartPainter old) => old.color != color;
 }
