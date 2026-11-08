@@ -335,6 +335,77 @@ class _StatPaint extends CustomPainter {
   bool shouldRepaint(_StatPaint old) => old.mark != mark || old.color != color;
 }
 
+/// The coach's mark: a speech bubble with a heartbeat in it — the coach
+/// talking about your body. Drawn on Lucide's 24 grid at its 300 weight
+/// (1.5), so it sits beside the icon font's glyphs as one of them; sized and
+/// tinted like an [Icon] (the [IconTheme]'s colour when [color] is null).
+class CoachMark extends StatelessWidget {
+  final double size;
+  final Color? color;
+
+  const CoachMark({super.key, this.size = I.lg, this.color});
+
+  @override
+  Widget build(BuildContext c) => ExcludeSemantics(
+        child: CustomPaint(
+          size: Size.square(size),
+          painter: _CoachPaint(color ?? IconTheme.of(c).color ?? P.of(c).ink),
+        ),
+      );
+}
+
+class _CoachPaint extends CustomPainter {
+  final Color color;
+  _CoachPaint(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 24, size.height / 24);
+    final line = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      // Lucide's 300 weight, but never under one logical pixel: at the orb's
+      // smallest the bubble would otherwise thin to a hairline.
+      ..strokeWidth = math.max(1.5, 24 / size.width)
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    // The bubble: a rounded square with its tail dropped from the bottom
+    // edge, square on the left like a quote mark's.
+    const l = 3.0, t = 3.5, r = 21.0, b = 17.0, k = 3.5;
+    canvas.drawPath(
+        Path()
+          ..moveTo(l + k, t)
+          ..lineTo(r - k, t)
+          ..arcToPoint(const Offset(r, t + k), radius: const Radius.circular(k))
+          ..lineTo(r, b - k)
+          ..arcToPoint(const Offset(r - k, b), radius: const Radius.circular(k))
+          ..lineTo(11.5, b)
+          ..lineTo(8, 20.5)
+          ..lineTo(8, b)
+          ..lineTo(l + k, b)
+          ..arcToPoint(const Offset(l, b - k), radius: const Radius.circular(k))
+          ..lineTo(l, t + k)
+          ..arcToPoint(const Offset(l + k, t), radius: const Radius.circular(k))
+          ..close(),
+        line);
+    // The heartbeat across it.
+    canvas.drawPath(
+        Path()
+          ..moveTo(6.5, 10.25)
+          ..lineTo(9, 10.25)
+          ..lineTo(10.5, 7.25)
+          ..lineTo(13, 13.25)
+          ..lineTo(14.5, 10.25)
+          ..lineTo(17.5, 10.25),
+        line);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_CoachPaint old) => old.color != color;
+}
+
 /// The band, drawn from the side as the original draws it: a rounded loop with
 /// the strap's thickness down its right edge and the clasp near the foot. The
 /// loop is left open at the right, over the foot of its status: [badge] fills

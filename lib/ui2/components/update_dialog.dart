@@ -83,7 +83,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 height: S.x10 + S.x1,
                 decoration: BoxDecoration(
                     color: p.wash(C.blue), shape: BoxShape.circle),
-                child: Icon(LucideIcons.sparkles, size: I.md, color: p.on(C.blue)),
+                child: Icon(LucideIcons.downloadCloud, size: I.md, color: p.on(C.blue)),
               ),
               const SizedBox(width: S.x3),
               Expanded(

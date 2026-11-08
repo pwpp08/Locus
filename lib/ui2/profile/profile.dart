@@ -537,8 +537,8 @@ class ProfileHomeView extends StatelessWidget {
         const SizedBox(height: S.x2),
         if (tab) ...[
           settingsGroup(c, 'Insights & coaching', [
-            SetRow(
-              LucideIcons.sparkles,
+            SetRow.brand(
+              (t) => CoachMark(size: I.sm, color: t),
               C.purple,
               AppLocalizations.of(c)?.profileAiCoach ?? 'AI coach',
               sub:

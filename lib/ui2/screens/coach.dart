@@ -43,7 +43,7 @@ const Color kCoachAccent = C.purple;
 /// Whether the coach has a model behind it — false when there is no
 /// [CoachConfig] above us, which is every golden.
 ///
-/// Home shows its sparkles button only when this is true. An icon that opens a
+/// Home shows its coach button only when this is true. An icon that opens a
 /// setup form nobody asked for is clutter on a screen built around three rings,
 /// and the place to go and set the thing up is Profile, with the other
 /// settings. [keyUnreadable] counts as configured: the key IS saved, this
@@ -630,7 +630,7 @@ class _CoachScreenState extends State<CoachScreen> {
             l?.coachNotSetUpBody ??
                 'Pick a model on your own computer, or any OpenAI-compatible provider with your own key. Nothing goes through Locus either way.',
             fix: l?.coachChooseModelFix ?? 'Choose a model',
-            icon: LucideIcons.sparkles,
+            leading: const IconChip.coach(C.slate, neutral: true),
             onFix: () => go(c, const CoachSetup()),
           ),
         ],

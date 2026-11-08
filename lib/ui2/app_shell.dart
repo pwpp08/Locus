@@ -26,6 +26,7 @@
 
 import 'package:flutter/material.dart';
 import 'lucide.dart';
+import 'marks.dart';
 
 import '../l10n/app_localizations.dart';
 import '../state/prefs.dart';
@@ -355,8 +356,8 @@ class _TabBar extends StatelessWidget {
   }
 }
 
-/// The coach's mark: a dark disc in a lavender-to-teal ring, with the
-/// sparkle inside. The same mark floats on screens that offer the coach.
+/// The coach's orb: a dark disc in a lavender-to-teal ring, with the
+/// [CoachMark] inside. The same orb floats on screens that offer the coach.
 class AiOrb extends StatelessWidget {
   final double size;
   const AiOrb({super.key, this.size = S.x12});
@@ -375,8 +376,10 @@ class AiOrb extends StatelessWidget {
       ),
       child: Container(
         decoration: BoxDecoration(shape: BoxShape.circle, color: p.card),
-        child: Icon(LucideIcons.sparkles,
-            size: size == S.x12 ? I.md : size * .42, color: p.ink),
+        child: Center(
+          child: CoachMark(
+              size: size == S.x12 ? I.md : size * .42, color: p.ink),
+        ),
       ),
     );
   }

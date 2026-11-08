@@ -193,6 +193,9 @@ class LucideIcons {
   static const IconData smartphone = base.LucideIcons.smartphone300;
   static const IconData smile = base.LucideIcons.smile300;
   static const IconData snowflake = base.LucideIcons.snowflake300;
+  // The coach's mark is CoachMark (marks.dart), never a sparkle. The one use
+  // left is journal_compose.dart's AI section, which is being removed: delete
+  // this line with it.
   static const IconData sparkles = base.LucideIcons.sparkles300;
   static const IconData sprout = base.LucideIcons.sprout300;
   static const IconData square = base.LucideIcons.square300;
@@ -223,7 +226,6 @@ class LucideIcons {
   static const IconData utensils = base.LucideIcons.utensils300;
   static const IconData vibrate = base.LucideIcons.vibrate300;
   static const IconData volleyball = base.LucideIcons.volleyball300;
-  static const IconData wandSparkles = base.LucideIcons.wandSparkles300;
   static const IconData watch = base.LucideIcons.watch300;
   static const IconData waves = base.LucideIcons.waves300;
   static const IconData weight = base.LucideIcons.weight300;

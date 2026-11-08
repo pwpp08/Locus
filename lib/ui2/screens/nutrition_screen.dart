@@ -1278,7 +1278,8 @@ class _LogDock extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    Widget tile(IconData icon, String label, VoidCallback onTap) => Expanded(
+    // A null icon is the coach's mark: Describe is the coach's estimate.
+    Widget tile(IconData? icon, String label, VoidCallback onTap) => Expanded(
       child: Pressable(
         onTap: onTap,
         semanticLabel: label,
@@ -1294,7 +1295,9 @@ class _LogDock extends StatelessWidget {
                   color: p.wash(C.domFood),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: I.md, color: p.on(C.domFood)),
+                child: icon == null
+                    ? CoachMark(size: I.md, color: p.on(C.domFood))
+                    : Icon(icon, size: I.md, color: p.on(C.domFood)),
               ),
               const SizedBox(height: S.x2),
               Text(
@@ -1317,7 +1320,7 @@ class _LogDock extends StatelessWidget {
         const SizedBox(width: S.x2),
         tile(LucideIcons.scanBarcode, 'Barcode', onBarcode),
         const SizedBox(width: S.x2),
-        tile(LucideIcons.sparkles, 'Describe', onDescribe),
+        tile(null, 'Describe', onDescribe),
         const SizedBox(width: S.x2),
         tile(LucideIcons.search, 'Search', onSearch),
       ],

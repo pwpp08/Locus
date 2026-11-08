@@ -1114,7 +1114,9 @@ class _TrendCardState extends State<TrendCard> {
 /// Something the system noticed. Recommendation → reason → action.
 class InsightCard extends StatelessWidget {
   final String headline, reason, action;
-  final IconData icon;
+
+  /// Null is the coach's own mark ([CoachMark]): the system noticed it.
+  final IconData? icon;
   final Color color;
   final VoidCallback? onTap;
 
@@ -1123,7 +1125,7 @@ class InsightCard extends StatelessWidget {
     this.reason, {
     super.key,
     this.action = '',
-    this.icon = LucideIcons.sparkles,
+    this.icon,
     this.color = C.blue,
     this.onTap,
   });
@@ -1142,7 +1144,9 @@ class InsightCard extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(top: S.half),
-                child: Icon(icon, size: I.md, color: p.on(color)),
+                child: icon == null
+                    ? CoachMark(size: I.md, color: p.on(color))
+                    : Icon(icon, size: I.md, color: p.on(color)),
               ),
               const SizedBox(width: S.x3),
               Expanded(
@@ -1213,7 +1217,9 @@ class _Cta extends StatelessWidget {
 /// Something the user should do.
 class ActionCard extends StatelessWidget {
   final String title, meta, cta;
-  final IconData icon;
+
+  /// Null is the coach's mark ([CoachMark]): the coach will do the thing.
+  final IconData? icon;
   final Color color;
   final VoidCallback? onTap;
 
@@ -1242,7 +1248,9 @@ class ActionCard extends StatelessWidget {
     );
     final head = Row(
       children: [
-        Icon(icon, size: I.lg, color: p.on(color)),
+        icon == null
+            ? CoachMark(size: I.lg, color: p.on(color))
+            : Icon(icon, size: I.lg, color: p.on(color)),
         const SizedBox(width: S.x3),
         Expanded(
           child: Column(
@@ -1549,13 +1557,18 @@ class _DashedOutline extends CustomPainter {
 /// mark of cards and rows. [neutral] draws it in muted ink instead of the
 /// accent — the absent and status cases, where colour would claim a value.
 class IconChip extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
   final Color color;
   final Color? ground;
   final bool neutral;
 
-  const IconChip(this.icon, this.color,
+  const IconChip(IconData this.icon, this.color,
       {super.key, this.ground, this.neutral = false});
+
+  /// The coach's mark ([CoachMark]) in the chip.
+  const IconChip.coach(this.color,
+      {super.key, this.ground, this.neutral = false})
+      : icon = null;
 
   @override
   Widget build(BuildContext c) {
@@ -1566,7 +1579,9 @@ class IconChip extends StatelessWidget {
       alignment: Alignment.center,
       decoration:
           BoxDecoration(shape: BoxShape.circle, color: ground ?? p.card2),
-      child: Icon(icon, size: I.sm, color: neutral ? p.ink2 : p.on(color)),
+      child: icon == null
+          ? CoachMark(size: I.sm, color: neutral ? p.ink2 : p.on(color))
+          : Icon(icon, size: I.sm, color: neutral ? p.ink2 : p.on(color)),
     );
   }
 }
@@ -2555,12 +2570,16 @@ class BigButton extends StatelessWidget {
 
   /// Shows a small spinner in place of [icon] (work in progress).
   final bool busy;
+
+  /// The coach's mark ([CoachMark]) in place of [icon]: the coach does it.
+  final bool coach;
   final VoidCallback? onTap;
 
   const BigButton(
     this.label, {
     super.key,
     this.icon,
+    this.coach = false,
     this.color,
     this.soft = false,
     this.busy = false,
@@ -2588,9 +2607,11 @@ class BigButton extends StatelessWidget {
         ? SizedBox.square(
             dimension: I.sm,
             child: CircularProgressIndicator(strokeWidth: 2, color: ink))
-        : icon == null
-            ? null
-            : Icon(icon, size: I.md, color: ink);
+        : coach
+            ? CoachMark(size: I.md, color: ink)
+            : icon == null
+                ? null
+                : Icon(icon, size: I.md, color: ink);
     if (round) {
       return Pressable(
         onTap: onTap,

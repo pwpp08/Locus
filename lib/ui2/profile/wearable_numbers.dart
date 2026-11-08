@@ -770,7 +770,7 @@ Widget wearableSettingsGroup(BuildContext c) => ListenableBuilder(
                   : l.wearablePresentationOneNumber,
               chevron: false,
               onTap: () => d.setSideBySide(!d.sideBySide)),
-          SetRow(LucideIcons.sparkles, C.orange, l.wearableEstimatesRowTitle,
+          SetRow(LucideIcons.circleDashed, C.orange, l.wearableEstimatesRowTitle,
               sub: l.wearableEstimatesRowSub,
               value: d.showEstimates ? l.stateOn : l.stateOff,
               chevron: false,

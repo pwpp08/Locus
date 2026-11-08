@@ -346,7 +346,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
                       (l?.wellnessNoDriversBody ??
                           'Needs enough nights to know what normal looks like '
                               'for you.'),
-                  icon: LucideIcons.sparkles,
+                  icon: LucideIcons.hourglass,
                 )
               : DriverBreakdown(_drivers),
         ),
