@@ -34,6 +34,7 @@ import '../compute/derivation_engine.dart'
     show
         kAlgoVersion,
         kOvernightGiveUpSec,
+        userWindow,
         kPinWakeToleranceSec,
         pinnableNight,
         overnightSettled,
@@ -11635,6 +11636,7 @@ class LocalDb {
           wakeSec: wakeSec,
           dataEdgeSec: edgeSec,
           nowSec: nowSec,
+          userWake: userWindow(decoded['sleep_source']),
         )?.wire;
       }
       if (dayId == today &&
@@ -11642,6 +11644,7 @@ class LocalDb {
             sleepOffsetSec: wakeSec,
             dataEdgeSec: edgeSec,
             nowSec: nowSec,
+            userWake: userWindow(decoded['sleep_source']),
           )) {
         // When the give-up lands; getToday re-checks then, since a quiet
         // strap triggers no derive to do it.

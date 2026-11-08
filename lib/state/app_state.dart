@@ -189,6 +189,7 @@ bool recoveryNightSettled({
     sleepOffsetSec: offsetMs is num ? offsetMs ~/ 1000 : null,
     dataEdgeSec: dataEdgeSec,
     nowSec: nowSec,
+    userWake: userWindow(payload?['sleep_source']),
   );
 }
 
@@ -2426,6 +2427,39 @@ class AppState extends ChangeNotifier {
     );
     final rederive = _reanalyzeForOverride(date);
     if (wait) await rederive;
+  }
+
+  /// "I'm awake": the user ends today's night. Its onset stays the stager's;
+  /// its end is the detected wake once the band's data has confirmed it, else
+  /// now. Saved as a confirmed window, so the night settles as soon as the
+  /// data reaches that wake instead of half an hour past it, and a lie-in
+  /// after the tap is not counted as sleep. Also pulls the band's data now.
+  /// False when there is no night of today's to end.
+  Future<bool> markAwake() async {
+    final r = repo;
+    if (r == null) return false;
+    final day = todayLabel();
+    final night = await r.getDaySleepV2(day);
+    final onset = (night['onset_ts'] as num?)?.toInt();
+    final wake = (night['wake_ts'] as num?)?.toInt();
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    if (onset == null || onset >= now) return false;
+    final edge = await LocalDb.lastDecodedRecTs();
+    final end = wake != null &&
+            wake < now &&
+            edge != null &&
+            edge >= wake + kWakeConfirmMarginSec
+        ? wake
+        : now;
+    await setSleepOverride(
+      day,
+      DateTime.fromMillisecondsSinceEpoch(onset * 1000),
+      DateTime.fromMillisecondsSinceEpoch(end * 1000),
+      source: 'confirmed',
+      wait: false,
+    );
+    unawaited(syncNow());
+    return true;
   }
 
   /// Confirm the HR-led fallback's proposal for [date] (Approach 2): accept the

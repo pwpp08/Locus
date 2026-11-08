@@ -2109,8 +2109,10 @@ const int _baselineWindowDays = 28;
 /// overnight inputs are final. Same "edge past the window" model finalisation
 /// uses, anchored at wake+margin rather than wake+48 h. Conservative but still
 /// reached within the first post-wake sync in practice; raise it to trade a
-/// slightly later freeze for more safety margin.
-const int _headlineFreezeMarginSec = 60 * 60;
+/// slightly later freeze for more safety margin. Half an hour: long enough to
+/// tell a wake from a brief waking, short enough not to keep a morning
+/// waiting; "I'm awake" ([userWindow]) skips it altogether.
+const int _headlineFreezeMarginSec = 30 * 60;
 
 /// How long after a night's wake we stop waiting for the data edge to pass
 /// it. A strap that went quiet right after waking (flat battery, taken off and
@@ -2142,7 +2144,13 @@ bool overnightSettled({
   required int? sleepOffsetSec,
   required int dataEdgeSec,
   int? nowSec,
+  bool userWake = false,
 }) {
+  // The user said when they woke ("I'm awake", or a window they set): nothing
+  // after it belongs to the night, so it is settled once the data reaches it.
+  if (userWake && sleepOffsetSec != null && dataEdgeSec >= sleepOffsetSec) {
+    return true;
+  }
   if (sleepOffsetSec == null) {
     if (nowSec == null) return false;
     final now = DateTime.fromMillisecondsSinceEpoch(nowSec * 1000);
@@ -2158,8 +2166,14 @@ bool overnightSettled({
 /// wake counts as CONFIRMED rather than "where the sync happened to stop".
 /// Mid-drain the stager closes the window at the newest record, so a wake
 /// sitting at the edge is no wake at all.
-// ponytail: fixed 30 min; tune against real drain timings if provisional flickers.
-const int kWakeConfirmMarginSec = 30 * 60;
+// ponytail: fixed 15 min (half the settle margin); tune against real drain
+// timings if provisional flickers.
+const int kWakeConfirmMarginSec = 15 * 60;
+
+/// Whether a night's window is the user's own (set by hand, or ended with
+/// "I'm awake") rather than the stager's guess. Its wake is then a fact.
+bool userWindow(Object? sleepSource) =>
+    sleepSource == 'manual' || sleepSource == 'confirmed';
 
 /// A pin is only trusted for the night whose wake is within this of its own.
 const int kPinWakeToleranceSec = 60 * 60;
@@ -2192,9 +2206,13 @@ RecoveryState? recoveryStateOf({
   required int? wakeSec,
   required int dataEdgeSec,
   int? nowSec,
+  bool userWake = false,
 }) {
   if (overnightSettled(
-      sleepOffsetSec: wakeSec, dataEdgeSec: dataEdgeSec, nowSec: nowSec)) {
+      sleepOffsetSec: wakeSec,
+      dataEdgeSec: dataEdgeSec,
+      nowSec: nowSec,
+      userWake: userWake)) {
     return RecoveryState.finalReady;
   }
   if (wakeSec == null) return null;
@@ -6155,6 +6173,7 @@ class DerivationEngine {
     final overnightComplete = overnightSettled(
       sleepOffsetSec: day.sleepOffsetSec,
       dataEdgeSec: dataNowSec,
+      userWake: userWindow(day.sleepSource),
     );
     final current = await LocalDb.frozenHeadline();
     final next = nextFrozenHeadline(
@@ -6859,7 +6878,10 @@ class DerivationEngine {
         (row['finalized'] as num?) != 1 &&
         (wakeSec == null ||
             dataEdgeSec == null ||
-            dataEdgeSec < wakeSec + _headlineFreezeMarginSec)) {
+            !overnightSettled(
+                sleepOffsetSec: wakeSec,
+                dataEdgeSec: dataEdgeSec,
+                userWake: userWindow(payload['sleep_source'])))) {
       rec['unsettled'] = true;
     }
     // Explicit identity for TODAY-scoped reads. `unsettled` cannot serve

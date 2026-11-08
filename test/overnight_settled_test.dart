@@ -41,12 +41,14 @@ void main() {
     String? day,
     num? rmssd,
     num? readiness,
+    String? sleepSource,
   }) async {
     await db.insert('day_result', {
       'day_id': day ?? todayLabel(),
       'algo_version': kAlgoVersion,
       'payload_json': jsonEncode({
         'scalars': {'rmssd': ?rmssd, 'readiness': ?readiness},
+        'sleep_source': ?sleepSource,
         'sleep': {
           'window': {
             'value': {'offset_ms': wakeSec * 1000},
@@ -84,6 +86,32 @@ void main() {
     final wake = nowSec - 3 * 3600;
     await seed(wakeSec: wake, edgeSec: wake + 2 * 3600);
     expect(await overnightDay(), todayLabel());
+  });
+
+  test('the settle margin is half an hour past the wake', () {
+    final wake = nowSec - 3 * 3600;
+    expect(
+        overnightSettled(sleepOffsetSec: wake, dataEdgeSec: wake + 29 * 60),
+        isFalse);
+    expect(
+        overnightSettled(sleepOffsetSec: wake, dataEdgeSec: wake + 30 * 60),
+        isTrue);
+  });
+
+  test("I'm awake: a wake the user gave settles once the data reaches it", () {
+    final wake = nowSec - 10 * 60;
+    expect(
+        overnightSettled(
+            sleepOffsetSec: wake, dataEdgeSec: wake - 60, userWake: true),
+        isFalse,
+        reason: 'the band has not caught up to the moment yet');
+    expect(
+        overnightSettled(sleepOffsetSec: wake, dataEdgeSec: wake, userWake: true),
+        isTrue);
+    expect(userWindow('confirmed'), isTrue);
+    expect(userWindow('manual'), isTrue);
+    expect(userWindow('auto'), isFalse);
+    expect(userWindow(null), isFalse);
   });
 
   test('a strap that went quiet at wake still settles by the give-up', () {
@@ -387,9 +415,22 @@ void main() {
 
     test('wake confirmed, not settled → provisional number', () async {
       final wake = nowSec - 50 * 60;
-      await seed(wakeSec: wake, edgeSec: wake + 40 * 60, readiness: 27.6);
+      await seed(wakeSec: wake, edgeSec: wake + 20 * 60, readiness: 27.6);
       final h = todayHeadlineOf(await today());
       expect(h['recovery_state'], 'provisional');
+      expect(h['recovery'], 27.6);
+    });
+
+    test("I'm awake: the user's own wake is final as soon as data reaches it",
+        () async {
+      final wake = nowSec - 5 * 60;
+      await seed(
+          wakeSec: wake,
+          edgeSec: wake,
+          readiness: 27.6,
+          sleepSource: 'confirmed');
+      final h = todayHeadlineOf(await today());
+      expect(h['recovery_state'], 'final');
       expect(h['recovery'], 27.6);
     });
 
