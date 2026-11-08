@@ -237,4 +237,14 @@ class LucideIcons {
   static const IconData zap = base.LucideIcons.zap300;
   static const IconData zoomIn = base.LucideIcons.zoomIn300;
   static const IconData zoomOut = base.LucideIcons.zoomOut300;
+
+  // The journal's marks, cut where its reference draws them: a hairline ✕ and
+  // pencil in the top bar, heavy ✕ / ✓ / − / + on the answer buttons.
+  static const IconData xThin = base.LucideIcons.x200;
+  static const IconData pencilThin = base.LucideIcons.pencil200;
+  static const IconData xHeavy = base.LucideIcons.x600;
+  static const IconData checkBold = base.LucideIcons.check600;
+  static const IconData minusBold = base.LucideIcons.minus600;
+  static const IconData plusBold = base.LucideIcons.plus600;
+  static const IconData checkHeavy = base.LucideIcons.check500;
 }

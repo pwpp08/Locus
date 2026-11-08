@@ -10,6 +10,7 @@ import 'package:openstrap_analytics/onehz.dart' show journalTagLagDays;
 
 import '../../compute/behavior_impact.dart';
 import '../../data/day_label.dart';
+import '../../data/journal_fields.dart';
 import '../../data/local_repository.dart';
 import '../ui2.dart';
 import 'dial_parts.dart';
@@ -58,6 +59,26 @@ class BehaviorInsightsData {
       }
     }
 
+    // The journal's yes/no questions, answered either way. One a preset tag
+    // also answers is left to the tag above, which carries its whole history.
+    final metrics = await repo.getJournalMetricsSince(shiftDay(days.first, -2));
+    // The user's own definitions are read only when a day holds one of them.
+    final custom = metrics.values.any(
+            (m) => m.keys.any((k) => journalFieldSpec(k) == null))
+        ? [
+            for (final f in await repo.getJournalFields())
+              if (f.custom) f,
+          ]
+        : const <JournalFieldSpec>[];
+    final answers = <String, Map<String, double>>{};
+    for (final e in metrics.entries) {
+      for (final f in e.value.entries) {
+        final spec = journalFieldSpec(f.key, custom: custom);
+        if (spec == null || !spec.isYesNo) continue;
+        if (kJournalBehaviorsByKey[f.key]?.tag != null) continue;
+        (answers[e.key] ??= {})[f.key] = f.value.value;
+      }
+    }
     return (
       days: days,
       data: BehaviorInsightsData(behaviors: [
@@ -76,6 +97,13 @@ class BehaviorInsightsData {
           logged: logged,
           recovery: recovery,
           lagOf: (t) => journalTagLagDays[t] ?? 0,
+          shift: shiftDay,
+        ),
+        ...answerBehaviors(
+          answers: answers,
+          recovery: recovery,
+          titleOf: (k) => journalFieldSpec(k, custom: custom)?.label ?? k,
+          lagOf: (k) => kJournalSameMorning.contains(k) ? 0 : 1,
           shift: shiftDay,
         ),
       ]),
@@ -644,6 +672,13 @@ class _NotebookPaint extends CustomPainter {
             'with the same mornings when you logged a day without it.',
         'Keep logging it, along with the days you don’t do it. The more of '
             'both you have, the steadier this comparison gets.',
+      ),
+      BehaviorKind.journalAnswer => (
+        'This compares your Recovery on the mornings after you answered yes '
+            'with the mornings after you answered no. Days you skipped the '
+            'question count for neither.',
+        'Answer it on the days you don’t do it too: a no is what this '
+            'compares against.',
       ),
     };
 

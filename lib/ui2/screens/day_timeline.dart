@@ -295,7 +295,8 @@ List<Moment> dayMoments({
   journal.forEach((key, v) {
     final min = v.atMinuteOfDay;
     if (min == null || dayStart == null) return;
-    final spec = specs[key];
+    // A catalogue yes/no is not in [fields]; it still has a name.
+    final spec = specs[key] ?? journalFieldSpec(key);
     final n = v.value == v.value.roundToDouble()
         ? v.value.round().toString()
         : v.value.toStringAsFixed(1);
@@ -358,8 +359,11 @@ List<DayNote> dayNotes({
   final specs = {for (final f in fields) f.key: f};
   journal.forEach((key, v) {
     if (v.atMinuteOfDay != null) return;
-    final spec = specs[key];
-    final n = v.value == v.value.roundToDouble()
+    // A catalogue yes/no is not in [fields]; it still has a name.
+    final spec = specs[key] ?? journalFieldSpec(key);
+    final n = spec != null && spec.isYesNo
+        ? spec.format(v.value)
+        : v.value == v.value.roundToDouble()
         ? v.value.round().toString()
         : v.value.toStringAsFixed(1);
     out.add(

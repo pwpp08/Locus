@@ -53,13 +53,13 @@ void main() {
     ));
     await t.pumpAndSettle();
 
+    await t.tap(find.bySemanticsLabel('Choose what to log'));
+    await t.pumpAndSettle();
     for (var attempt = 1; attempt <= 2; attempt++) {
-      final add = find.text('Track something else');
-      await t.ensureVisible(add.first);
-      await t.tap(add.first);
+      await t.tap(find.text('Write your own'));
       await t.pumpAndSettle();
       await t.enterText(find.byType(TextField).last, 'Magnesium');
-      await t.tap(find.text('START TRACKING IT'));
+      await t.tap(find.text('ADD QUESTION'));
       await t.pumpAndSettle();
       expect(repo.saves, attempt, reason: 'attempt $attempt reached the repo');
       ScaffoldMessenger.of(t.element(find.byType(JournalCompose)))

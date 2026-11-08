@@ -337,6 +337,16 @@ abstract class LocalRepository {
   Future<void> deleteCustomJournalField(String key) =>
       throw UnimplementedError('re-layer: deleteCustomJournalField');
 
+  /// Every journal field that has ever held a value, so a journal opened for
+  /// the first time after an update still asks what its owner used to log.
+  /// Empty where there is no store behind the repository.
+  Future<List<String>> getJournalMetricFields() async => const [];
+
+  /// Every day's journal fields from [since] (a day label, inclusive) on.
+  Future<Map<String, Map<String, JournalMetricValue>>> getJournalMetricsSince(
+          String since) async =>
+      const {};
+
   // ── menstrual cycle ────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> getCycle() =>
       throw UnimplementedError('re-layer: getCycle');

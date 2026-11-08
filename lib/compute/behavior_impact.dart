@@ -28,6 +28,9 @@ enum BehaviorKind {
   highStress,
   highStrain,
   journalTag,
+
+  /// A yes/no question from the journal, answered either way.
+  journalAnswer,
 }
 
 /// One behavior against Recovery.
@@ -53,7 +56,8 @@ class BehaviorImpact {
   double? get impact =>
       meanYes == null || meanNo == null ? null : meanYes! - meanNo!;
 
-  bool get auto => kind != BehaviorKind.journalTag;
+  bool get auto =>
+      kind != BehaviorKind.journalTag && kind != BehaviorKind.journalAnswer;
 }
 
 /// The middle value of [xs], or null with none.
@@ -194,6 +198,31 @@ List<BehaviorImpact> tagBehaviors({
   ];
 }
 
+/// Each yes/no journal question against Recovery. [answers] is each day's
+/// answers by field, 1 yes and 0 no; a day the question went unanswered is on
+/// neither side, because not answered is not the same as no. Its outcome is
+/// [lagOf] days on, as for a tag.
+List<BehaviorImpact> answerBehaviors({
+  required Map<String, Map<String, double>> answers,
+  required Map<String, double> recovery,
+  required String Function(String key) titleOf,
+  required int Function(String key) lagOf,
+  required String Function(String day, int by) shift,
+}) {
+  final keys = {for (final a in answers.values) ...a.keys};
+  return [
+    for (final k in keys)
+      impactOf(BehaviorKind.journalAnswer, titleOf(k), recovery,
+          yes: [
+            for (final e in answers.entries)
+              if ((e.value[k] ?? 0) >= 1) shift(e.key, lagOf(k)),
+          ],
+          no: [
+            for (final e in answers.entries)
+              if (e.value[k] == 0) shift(e.key, lagOf(k)),
+          ]),
+  ];
+}
 String _titleOf(String tag) => tag
     .split(RegExp(r'[\s_]+'))
     .where((w) => w.isNotEmpty)

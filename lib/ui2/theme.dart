@@ -784,6 +784,141 @@ class DC {
   static const journalEdge = Color(0xFF3B3F44);
 }
 
+/// ── THE JOURNAL ── (`journal_compose.dart`, `select_behaviors_sheet.dart`)
+///
+/// Measured off the reference screenshots: 921 px across = 393 dp, so 2.34 px
+/// to the dp. The journal is always char, so its page and its rows are fixed
+/// colours: the page runs from a warm tan at the top through grey into the
+/// app's near-black, and every row, button and day pill is a veil of white
+/// over it, which is why they warm and cool with the page behind them.
+class JC {
+  // ── the page ──
+  static const pageColors = [
+    Color(0xFFCAAD8D), Color(0xFFCAAD8D), Color(0xFFA2917D), Color(0xFF76736C),
+    Color(0xFF555D60), Color(0xFF384A56), Color(0xFF293946), Color(0xFF1E2B33),
+    Color(0xFF141B21), Color(0xFF111619), Color(0xFF101518),
+  ];
+  static const pageStops = [
+    0.0, .13, .20, .32, .40, .48, .56, .64, .72, .76, 1.0,
+  ];
+  static const foot = Color(0xFF101518);
+
+  static const ink = Color(0xFFFFFFFF);
+  static const label = Color(0xFFBCC1C7);
+  static const dim = Color(0x73FFFFFF);
+  static const hairline = Color(0x1FFFFFFF);
+
+  /// A row card, and a ✕ / ✓ button on it: each a tenth of white.
+  static const card = Color(0x1AFFFFFF);
+  static const button = Color(0x1AFFFFFF);
+  static const chosen = Color(0xFFFFFFFF);
+  static const onChosen = Color(0xFF101518);
+
+  /// The day pills: a veil, a brighter dot, and a white rim on the chosen day.
+  static const pill = Color(0x1FFFFFFF);
+  static const dot = Color(0x57FFFFFF);
+  static const dotLogged = Color(0xE6FFFFFF);
+
+  // ── the SELECT BEHAVIORS sheet ──
+  static const sheetColors = [
+    Color(0xFF2F3D46), Color(0xFF28353D), Color(0xFF222B32), Color(0xFF1B2228),
+    Color(0xFF1A2127),
+  ];
+  static const sheetStops = [0.0, .30, .53, .66, 1.0];
+  static const scrim = Color(0xE6000000);
+  static const grab = Color(0xFF576268);
+  static const search = Color(0xFF131B1E);
+  static const searchEdge = Color(0x0FFFFFFF);
+  static const placeholder = Color(0xFF8C8D91);
+  static const tabOff = Color(0xFFBEC3C7);
+  static const sectionInk = Color(0xFF959AA0);
+  static const question = Color(0xFFBDC2C6);
+  static const box = Color(0xFF67AEE6);
+  static const tickOn = Color(0xFF000000);
+
+  // ── sizes (dp) ──
+  static const gutter = 18.0;
+  static const header = 60.0;
+  static const closeIcon = 36.0;
+  static const editIcon = 28.0;
+  static const pillW = 49.4;
+  static const pillH = 79.0;
+  static const pillGap = 14.0;
+  static const pillDot = 18.0;
+  static const pillRim = 1.5;
+  static const rowH = 63.0;
+  static const rowGap = 10.0;
+  static const rowPad = 14.0;
+  static const answer = 36.0;
+  static const doneH = 52.0;
+  static const doneFoot = 18.0;
+  static const listFoot = 25.0;
+  static const sheetTop = 16.0;
+  static const grabW = 73.4;
+  static const grabH = 5.2;
+  static const searchH = 51.0;
+  static const boxSide = 24.2;
+  static const boxRim = 2.0;
+  static const tick = 26.0;
+  static const tabMin = 96.0;
+  static const tabPad = 20.5;
+  static const tabLine = 2.0;
+  static const pickRowH = 54.4;
+  static const rRow = BorderRadius.all(Radius.circular(13));
+  static const rAnswer = BorderRadius.all(Radius.circular(7));
+  static const rSearch = BorderRadius.all(Radius.circular(13));
+  static const rBox = BorderRadius.all(Radius.circular(3));
+
+  // ── type ──
+  static const _f = F.family;
+  static const _fb = ['Manrope', 'Helvetica Neue', 'Helvetica', 'Arial'];
+
+  /// JOURNAL, SELECT BEHAVIORS, DONE: 13 bold, tracked wide.
+  static const title = TextStyle(
+      fontFamily: _f, fontFamilyFallback: _fb, fontSize: 13, height: 1.2,
+      fontWeight: FontWeight.w700, letterSpacing: 1.0);
+
+  /// TODAY.
+  static const day = TextStyle(
+      fontFamily: _f, fontFamilyFallback: _fb, fontSize: 12, height: 1.2,
+      fontWeight: FontWeight.w700, letterSpacing: 1.8);
+  static const pillDay = TextStyle(
+      fontFamily: _f, fontFamilyFallback: _fb, fontSize: 11.5, height: 1.2,
+      fontWeight: FontWeight.w500, letterSpacing: 0);
+  static const pillDate = TextStyle(
+      fontFamily: _f, fontFamilyFallback: _fb, fontSize: 15.5, height: 1.2,
+      fontWeight: FontWeight.w700, letterSpacing: 0);
+
+  /// "What's happening today, November 7?"
+  static const heading = TextStyle(
+      fontFamily: _f, fontFamilyFallback: _fb, fontSize: 20.5, height: 1.4,
+      fontWeight: FontWeight.w600, letterSpacing: 0);
+
+  /// BEHAVIORS, CURRENTLY SELECTED.
+  static const sectionText = TextStyle(
+      fontFamily: _f, fontFamilyFallback: _fb, fontSize: 10, height: 1.2,
+      fontWeight: FontWeight.w700, letterSpacing: 1.6);
+
+  /// The question on a row, and a behavior's name on the sheet.
+  static const row = TextStyle(
+      fontFamily: _f, fontFamilyFallback: _fb, fontSize: 15, height: 1.25,
+      fontWeight: FontWeight.w500, letterSpacing: 0);
+
+  /// The question under a name on the sheet, and a row's small print.
+  static const sub = TextStyle(
+      fontFamily: _f, fontFamilyFallback: _fb, fontSize: 12.5, height: 1.25,
+      fontWeight: FontWeight.w500, letterSpacing: 0);
+  static const searchText = TextStyle(
+      fontFamily: _f, fontFamilyFallback: _fb, fontSize: 15.5, height: 1.2,
+      fontWeight: FontWeight.w400, letterSpacing: 0);
+  static const tab = TextStyle(
+      fontFamily: _f, fontFamilyFallback: _fb, fontSize: 11, height: 1.2,
+      fontWeight: FontWeight.w700, letterSpacing: 1.2);
+  static const value = TextStyle(
+      fontFamily: _f, fontFamilyFallback: _fb, fontSize: 14, height: 1.2,
+      fontWeight: FontWeight.w600, letterSpacing: 0);
+}
+
 /// ── SPACING ── 4pt base ───────────────────────────────────────────────────
 class S {
   /// Half a step: the 2 pt optical nudge (a text baseline against an icon).
