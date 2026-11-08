@@ -550,6 +550,42 @@ class _SwipeHandleState extends State<SwipeHandle> {
       );
 }
 
+/// A sideways drag that hands back the finger's velocity when it lets go: a
+/// card thrown off a stack (`DailyCardDeck`). A drag that starts vertical stays
+/// with the page's scroll. It has no semantics of its own: whatever it moves
+/// must also be reachable by a tap ([Pressable]), as the deck's badge is.
+class SideDrag extends StatelessWidget {
+  final VoidCallback onStart;
+
+  /// How far the finger moved since the last update, in logical px.
+  final ValueChanged<double> onDrag;
+
+  /// The finger's speed along x as it lifted, px/s (0 for a cancel).
+  final ValueChanged<double> onRelease;
+  final Widget child;
+
+  const SideDrag({
+    super.key,
+    required this.onStart,
+    required this.onDrag,
+    required this.onRelease,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext c) => GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        // The drag's scroll actions would swallow the card's own buttons
+        // into one node; the tap that does the same job carries semantics.
+        excludeFromSemantics: true,
+        onHorizontalDragStart: (_) => onStart(),
+        onHorizontalDragUpdate: (d) => onDrag(d.delta.dx),
+        onHorizontalDragEnd: (d) => onRelease(d.primaryVelocity ?? 0),
+        onHorizontalDragCancel: () => onRelease(0),
+        child: child,
+      );
+}
+
 /// How much a dark card is graded from its top-left corner to its bottom-right.
 enum PanelTone {
   /// A hint of light in one corner: every ordinary card.
