@@ -784,6 +784,84 @@ class DC {
   static const journalEdge = Color(0xFF3B3F44);
 }
 
+/// ── HEALTH MONITOR ── measured off its reference (1.96 px to the dp). Always
+/// char, like the dial screens: the page is a dark ground that lifts to slate
+/// toward the foot, cut by a blue heart-rate line through a black disc.
+class HM {
+  static const bgTop = Color(0xFF0F1014);
+  static const bgMid = Color(0xFF13171C);
+  static const bgLow = Color(0xFF1E242B);
+  static const bgFoot = Color(0xFF3C4854);
+
+  /// The heart-rate line, and the light it throws down onto the page.
+  static const line = Color(0xFF1B9DFC);
+  static const glow = Color(0xFF0F212D);
+  static const disc = Color(0xFF020406);
+  static const discShade = Color(0x99000000);
+  static const heart = Color(0xFF4E4E50);
+  static const bpm = Color(0xFF929292);
+  static const label = Color(0xFFA1A4AA);
+
+  /// A card is a veil of white over the page with a faint lighter rim.
+  static const card = Color(0x1AFFFFFF);
+  static const edge = Color(0x14FFFFFF);
+  static const rim = Color(0x59000000);
+  static const noneChip = Color(0x14FFFFFF);
+
+  static const title = TextStyle(
+      fontFamily: F.family,
+      fontSize: 12.5,
+      height: 1.2,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.7);
+  static const kicker = TextStyle(
+      fontFamily: F.family,
+      fontSize: 11,
+      height: 1.2,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.6);
+  static const caps = TextStyle(
+      fontFamily: F.family,
+      fontSize: 10,
+      height: 1.2,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 2.6);
+  static const name = TextStyle(
+      fontFamily: F.family,
+      fontSize: 11,
+      height: 1.2,
+      fontWeight: FontWeight.w600,
+      letterSpacing: .1);
+  static const unit = TextStyle(
+      fontFamily: F.family,
+      fontSize: 14,
+      height: 1,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0);
+  static const verdict = TextStyle(
+      fontFamily: F.family,
+      fontSize: 11,
+      height: 1.2,
+      fontWeight: FontWeight.w700,
+      letterSpacing: .1);
+  static const hr = TextStyle(
+      fontFamily: F.numerals,
+      fontFamilyFallback: [F.family],
+      fontSize: 42,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0,
+      fontFeatures: [FontFeature.tabularFigures()]);
+  static const value = TextStyle(
+      fontFamily: F.numerals,
+      fontFamilyFallback: [F.family],
+      fontSize: 32,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      letterSpacing: .8,
+      fontFeatures: [FontFeature.tabularFigures()]);
+}
+
 /// ── SPACING ── 4pt base ───────────────────────────────────────────────────
 class S {
   /// Half a step: the 2 pt optical nudge (a text baseline against an icon).
