@@ -549,7 +549,7 @@ class MoreSettingsView extends StatelessWidget {
                           'What may interrupt you, quiet hours, and off '
                               'switches for all of them',
                       onTap: onNotifications),
-                  SetRow(LucideIcons.sparkles, C.purple,
+                  SetRow.brand((t) => CoachMark(size: I.sm, color: t), C.purple,
                       'AI Coach & Gemini settings',
                       sub: 'Configure AI model, Gemini API key, and prompt behavior',
                       onTap: () => goto(c, const CoachSetup())),

@@ -323,7 +323,7 @@ class _FoodAiSheetState extends State<FoodAiSheet> {
           listenable: _note,
           builder: (_, _) => BigButton(
             _busy ? 'Reading…' : 'Estimate',
-            icon: LucideIcons.sparkles,
+            coach: true,
             onTap: _busy || (_photos.isEmpty && _note.text.trim().isEmpty)
                 ? null
                 : _analyze,

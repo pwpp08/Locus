@@ -141,11 +141,11 @@ TrendCard(String label, String value, String unit, String delta,
 
 // D · something the system noticed
 InsightCard(String headline, String reason,
-            {String action = '', IconData icon = LucideIcons.sparkles,
+            {String action = '', IconData? icon /* null: CoachMark */,
              Color color = C.blue, VoidCallback? onTap})
 
 // E · something the user should do
-ActionCard(String title, String meta, String cta, IconData icon, Color color,
+ActionCard(String title, String meta, String cta, IconData? icon, Color color,
            {VoidCallback? onTap})
 
 // F · something absent or uncertain — THE ONLY WAY TO RENDER A MISSING VALUE

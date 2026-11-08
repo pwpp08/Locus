@@ -574,7 +574,7 @@ class _WorkoutsTab extends StatelessWidget {
           for (final (id, icon, label, sub) in const [
             ('hand', LucideIcons.pencil, 'Build it yourself',
                 'Pick the exercises and plan the sets.'),
-            ('ai', LucideIcons.sparkles, 'Generate with AI',
+            ('ai', null, 'Generate with AI',
                 'Describe it or paste your notes.'),
           ])
             Pressable(
@@ -583,7 +583,9 @@ class _WorkoutsTab extends StatelessWidget {
               child: SizedBox(
                 height: S.x12 + S.x2,
                 child: Row(children: [
-                  Icon(icon, size: I.md, color: p.ink2),
+                  icon == null
+                      ? CoachMark(size: I.md, color: p.ink2)
+                      : Icon(icon, size: I.md, color: p.ink2),
                   const SizedBox(width: S.x4),
                   Expanded(
                     child: Column(

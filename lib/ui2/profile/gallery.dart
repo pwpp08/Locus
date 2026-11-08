@@ -323,7 +323,7 @@ Map<String, Widget> componentCases() => {
       ]),
       'round_icon_buttons': Wrap(spacing: S.x3, children: [
         RoundIconButton(LucideIcons.arrowLeft, () {}, 'Back'),
-        RoundIconButton(LucideIcons.sparkles, () {}, 'AI briefing'),
+        RoundIconButton(LucideIcons.share2, () {}, 'Share'),
         RoundIconButton(LucideIcons.settings, () {}, 'Settings',
             tone: ButtonTone.inverse),
         RoundIconButton(LucideIcons.x, () {}, 'Close',
@@ -1533,6 +1533,15 @@ Map<String, Widget> _stateCases() => {
           color: C.domHealth),
       'nav_bar_no_sub': const NavBar('Component gallery'),
       'ai_orb': const AiOrb(),
+      'coach_mark': const Row(mainAxisSize: MainAxisSize.min, children: [
+        CoachMark(size: I.sm, color: C.white),
+        SizedBox(width: S.x3),
+        CoachMark(size: I.md, color: C.white),
+        SizedBox(width: S.x3),
+        CoachMark(color: C.white),
+        SizedBox(width: S.x3),
+        IconChip.coach(C.purple),
+      ]),
       // My Dashboard: a daily metric against its week, a weekly total
       // against last week's, and a metric this app does not produce.
       'dashboard_rows': DashboardRows(

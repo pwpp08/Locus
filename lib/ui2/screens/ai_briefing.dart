@@ -104,7 +104,7 @@ class _AiBriefingScreenState extends State<AiBriefingScreen> {
                               'pick one there is nothing to generate and nothing '
                               'has been sent anywhere.',
                       fix: l?.aiBriefingChooseModel ?? 'Choose a model',
-                      icon: LucideIcons.sparkles,
+                      leading: const IconChip.coach(C.slate, neutral: true),
                       onFix: () => go(c, const CoachSetup()),
                     )
                   else if (b == null)

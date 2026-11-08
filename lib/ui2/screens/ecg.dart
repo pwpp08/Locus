@@ -992,7 +992,7 @@ class _EcgDetailScreenState extends State<EcgDetailScreen> {
             l?.ecgAnalyzeNow ?? 'Analyze now',
             l?.ecgBandReported ?? 'Band-reported result',
             l?.ecgAnalyzeNow ?? 'Analyze now',
-            LucideIcons.sparkles,
+            null, // the coach's mark: the coach reads it
             kCoachAccent,
             onTap: () => _analyze(c),
           ),
