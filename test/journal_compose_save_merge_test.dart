@@ -65,10 +65,14 @@ void main() {
     repo.metrics['water_ml'] = const JournalMetricValue(750);
     repo.tags.add('moment 21:04');
 
-    await t.tap(find.text('SAVE').first);
+    // An edit of this screen's own, so the save has something to write.
+    await t.tap(find.bySemanticsLabel('Yes').first);
+    await t.pumpAndSettle();
+    await t.tap(find.text('DONE').first);
     await t.pumpAndSettle();
 
     expect(repo.metrics['water_ml']?.value, 750);
-    expect(repo.tags, containsAll(['gym', 'moment 21:04']));
+    expect(repo.tags, containsAll(['gym', 'moment 21:04', 'late meal']));
+    expect(repo.metrics['bhv_late_meal']?.value, 1);
   });
 }

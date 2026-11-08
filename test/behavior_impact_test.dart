@@ -85,4 +85,29 @@ void main() {
     expect([for (final b in rankedOf(all)) b.title], ['b', 'a']);
     expect([for (final b in lockedOf(all)) b.title], ['d', 'c']);
   });
+
+  test('a journal yes/no counts its yes and no days, never a skipped one', () {
+    // Days 0-5 answered yes, 6-11 no, 12-15 left blank: the blanks are on
+    // neither side, because not answered is not the same as no.
+    final answers = {
+      for (var i = 0; i < 12; i++) _d(i): {'bhv_sauna': i < 6 ? 1.0 : 0.0},
+      for (var i = 12; i < 16; i++) _d(i): {'mood': 3.0},
+    };
+    final out = {for (var i = 0; i < 17; i++) _d(i): i <= 6 ? 70.0 : 60.0};
+    final b = answerBehaviors(
+      answers: {
+        for (final e in answers.entries)
+          if (e.value.containsKey('bhv_sauna'))
+            e.key: {'bhv_sauna': e.value['bhv_sauna']!},
+      },
+      recovery: out,
+      titleOf: (_) => 'Sauna',
+      lagOf: (_) => 1,
+      shift: (d, by) => _d(int.parse(d.substring(8)) - 1 + by),
+    ).single;
+    expect(b.kind, BehaviorKind.journalAnswer);
+    expect(b.auto, isFalse);
+    expect((b.yes, b.no), (6, 6));
+    expect(b.impact, 10);
+  });
 }

@@ -3864,6 +3864,15 @@ class LocalRepositoryImpl extends LocalRepository {
   Future<void> deleteCustomJournalField(String key) =>
       LocalDb.deleteJournalFieldDef(key);
 
+  @override
+  Future<List<String>> getJournalMetricFields() =>
+      LocalDb.journalMetricFields();
+
+  @override
+  Future<Map<String, Map<String, JournalMetricValue>>> getJournalMetricsSince(
+          String since) =>
+      LocalDb.journalMetricsByDay(sinceDaysEpoch: since);
+
   /// For each distinct tag in the window, compare mean readiness on tagged days
   /// vs the window mean and emit a metric-delta card (only when n_with >= 2).
   @override

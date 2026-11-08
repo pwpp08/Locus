@@ -30,6 +30,7 @@ export 'month_grid.dart';
 export 'movement_lane.dart';
 export 'readiness_detail.dart';
 export 'rough_night.dart';
+export 'select_behaviors_sheet.dart';
 export 'sleep_detail.dart';
 export 'sleep_planner.dart';
 export 'add_activity.dart';

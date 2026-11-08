@@ -937,6 +937,20 @@ A bare sheet over a black scrim: the night's bed and wake, each a date chip and 
 - **Journal tags** come after those, each tag's day moved by its own lag (`journalTagLagDays`, the analytics' table).
 - **Behavior Details** explains the page: an abstract glow where the reference has a photo (we copy no photograph), a text in our own words, and the Explore card with its painted notebook. "Outdoor Time" is omitted because nothing measures it.
 
+### 14.1f The journal (`journal_compose.dart`, `select_behaviors_sheet.dart`, tokens in `theme.dart` `JC`)
+
+Measured off the reference screenshots at 2.34 px per dp; check against them before changing a size.
+
+- **Page:** always char. A full-screen gradient from warm tan (`JC.pageColors`) through grey into the app's near-black. Top bar 60 tall: a hairline ✕ (closes without saving), `JOURNAL` in `JC.title` (13 bold, tracked), the pencil (opens SELECT BEHAVIORS).
+- **Days:** `‹ TODAY ›` (`YESTERDAY`, then `SAT, NOV 1`), the dead-end chevron dim. Under it a strip of day pills, 49.4 × 79, 14 apart, today at the right gutter, scrolling back a month: weekday, date, and an 18 dot that turns white once the day holds anything. The open day wears a 1.5 white rim. Moving to another day writes the one being left.
+- **Heading:** `What's happening today, November 7?` (`What happened yesterday, …`, `What happened on Wednesday, …`) in `JC.heading`.
+- **BEHAVIORS:** the label and a hairline to the edge, then one card per question, 63 tall, radius 13, white at 10 %, 10 apart. A yes/no has ✕ and ✓, 36 square, radius 7, 9 apart; the chosen answer is white with a dark glyph, and tapping it again takes it back to unanswered. A rating has one square per step under the question; an amount has − and + with what is logged (and the last-one time) under the question; weight keeps its typed entry and its trend. NOTES is the same card holding the day's note.
+- **DONE:** a white pill 338 × 52, 18 off the bottom of the screen, the list ending 25 above it.
+- **Storage:** every question is a `journal_metric` field. A yes/no is the habit shape (ceiling one: 1 yes, 0 no, nothing unanswered); built-in numbers keep their keys. A catalogue question that a preset tag used to answer (`JournalBehavior.tag`) keeps the tag in step. The chosen questions are `Prefs` `journal.behaviors`; before anything is chosen the journal asks whatever its owner has logged before, or a starter set. A question answered on a day is shown that day whether chosen or not.
+- **SELECT BEHAVIORS:** a sheet 16 below the status bar, radius 18, its own slate gradient. Grab 73 × 5, the title, a dark search field 51 tall (radius 13) that searches every category, then tabs (All, Custom Behaviors, Drugs & Medication, Hormonal Health, Lifestyle, Mental Wellbeing, Nutrition, Recovery, Sleep, Training) with a 2 underline under the active one, which slides to the middle. CURRENTLY SELECTED and NOT SELECTED, each sorted by name: name in `JC.row`, the question in `JC.sub` grey, a 24.2 checkbox (blue `JC.box` with a dark tick, or a 2 white outline). "Write your own" heads All and Custom (and a search with no match) and opens a compact sheet: the question, how it is answered (yes or no by default, a 1–5 rating, an amount or minutes with unit, step and ceiling), ADD QUESTION. SAVE BEHAVIORS is the DONE pill at 356 wide.
+- **Catalogue:** `kJournalBehaviors` in `journal_fields.dart`, over a hundred generic questions. No product or brand is a behavior.
+- **Behavior Insights:** yes/no answers are compared yes against no (`answerBehaviors`); unanswered days count for neither side.
+
 ### 14.2 Recorded activity (`workout_detail.dart`)
 
 - **Header:** §10.4.

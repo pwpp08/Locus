@@ -696,20 +696,82 @@ Map<String, Widget> _nutritionAndWellnessCases() {
       64, 65, 65, 66, 67, 66, 65, 66, 68, 69, 70, 69, 68, 67, 66, 66, 67, 68,
       69, 68, 67, 67, 68, 69, 70, 71, 70, 69, 68, 68,
     ]),
-    'mood_picker': MoodPicker(value: 4, onChanged: (_) {}),
-    'mood_picker_blank': MoodPicker(onChanged: (_) {}),
-    'field_stepper': Surface(
-        child: Column(children: [
-          FieldStepper(
-              spec: kJournalFieldsByKey['water_ml']!,
-              value: 1500,
-              onChanged: (_) {}),
-          FieldStepper(
-              spec: kJournalFieldsByKey['caffeine_mg']!,
-              value: null,
-              onChanged: (_) {}),
-        ])),
-    'text_field': OsTextField(
+    // The journal is always char; its rows are veils of white, so they are
+    // shown on the page's own foot colour.
+    'journal_rows': AlwaysChar(
+        child: ColoredBox(
+            color: JC.foot,
+            child: Padding(
+                padding: const EdgeInsets.all(S.x4),
+                child: Column(children: [
+                  JournalSectionLabel('BEHAVIORS'),
+                  const SizedBox(height: S.x3),
+                  JournalYesNoRow(
+                      question: 'Ate within two hours of bed?',
+                      value: true,
+                      onChanged: (_) {}),
+                  const SizedBox(height: JC.rowGap),
+                  JournalYesNoRow(
+                      question: 'Spent time outdoors?',
+                      value: null,
+                      onChanged: (_) {}),
+                  const SizedBox(height: JC.rowGap),
+                  JournalRatingRow(
+                      question: 'How was your mood?',
+                      value: 4,
+                      onChanged: (_) {}),
+                  const SizedBox(height: JC.rowGap),
+                  JournalAmountRow(
+                      question: 'How much caffeine did you have?',
+                      spec: kJournalFieldsByKey['caffeine_mg']!,
+                      value: 150,
+                      atMin: 14 * 60 + 30,
+                      onChanged: (_) {},
+                      onTime: () {}),
+                  const SizedBox(height: JC.rowGap),
+                  JournalAmountRow(
+                      question: 'How much water did you drink?',
+                      spec: kJournalFieldsByKey['water_ml']!,
+                      value: null,
+                      onChanged: (_) {}),
+                  const SizedBox(height: S.x4),
+                  Row(children: [
+                    for (final (d, n, on, logged) in [
+                      ('Thu', '5', false, true),
+                      ('Fri', '6', false, false),
+                      ('Sat', '7', true, false),
+                    ]) ...[
+                      JournalDayPill(
+                          weekday: d, date: n, chosen: on, logged: logged),
+                      const SizedBox(width: JC.pillGap),
+                    ],
+                  ]),
+                  const SizedBox(height: S.x4),
+                  const JournalPillButton(label: 'DONE', onTap: null),
+                ])))),
+    'behavior_pick_rows': AlwaysChar(
+        child: ColoredBox(
+            color: JC.foot,
+            child: Padding(
+                padding: const EdgeInsets.all(S.x4),
+                child: Column(children: [
+                  BehaviorPickRow(
+                      name: 'Write your own',
+                      question: 'Add a question of your own',
+                      selected: false,
+                      adds: true,
+                      onTap: () {}),
+                  BehaviorPickRow(
+                      name: 'Outdoor Time',
+                      question: 'Spent time outdoors?',
+                      selected: true,
+                      onTap: () {}),
+                  BehaviorPickRow(
+                      name: 'Air Travel',
+                      question: 'Traveled on a plane?',
+                      selected: false,
+                      onTap: () {}),
+                ])))),    'text_field': OsTextField(
         controller: TextEditingController(text: 'Slept badly, big lunch.'),
         label: 'Anything else',
         lines: 3),

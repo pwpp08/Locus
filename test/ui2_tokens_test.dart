@@ -420,6 +420,9 @@ const _notComponents = {
   'AdvancedScreen',
   'Investigate',
   'JournalCompose', 'JournalFindings',
+  // The journal's pencil sheet: a full-height route over the catalogue that
+  // writes the owner's choice. Its row, BehaviorPickRow, has a gallery case.
+  'SelectBehaviorsSheet',
   'LogFoodSheet', 'FoodAiSheet', 'CalmBreathing',
   // Where the hydration notification lands: a Scaffold route that reads and
   // writes the day's journal metrics. The one control on it — FieldStepper —

@@ -1,38 +1,48 @@
 // Journal — the one place a day's self-report is written.
 //
-// Mood, water, caffeine and alcohol are NOT new concepts here: they are
-// existing `journal_metric` fields (`lib/data/journal_fields.dart`), and this
-// screen is their editor. A parallel "wellness log" model would have split the
-// correlation engine's inputs in half for no gain.
+// A warm page that cools to char, a strip of days, and one row per question
+// the owner chose on the SELECT BEHAVIORS sheet (the pencil). Sizes and
+// colours are measured off the reference screenshots; the tokens are `JC` in
+// theme.dart.
 //
-// Ratings are 1–5 and doses are stepped, both straight off the field spec —
-// the ceiling exists so one mis-tap cannot enter forty coffees and dominate
-// every correlation that field appears in for months.
+// Every question is a `journal_metric` field, so nothing here is a new
+// concept: a yes/no is the habit shape (1 yes, 0 no, nothing unanswered), and
+// mood, water, caffeine, alcohol and weight are the fields they always were.
+// Ratings are 1–5 and doses are stepped straight off the field spec — the
+// ceiling exists so one mis-tap cannot enter forty coffees and dominate every
+// correlation that field appears in for months.
 
-import '../../l10n/display_text.dart';
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../ai/journal_ai.dart';
-import '../../coach/coach_config.dart';
 import '../../data/day_label.dart';
 import '../../data/db.dart';
 import '../../data/journal_fields.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/display_text.dart';
 import '../../state/app_state.dart';
+import '../../state/prefs.dart';
 import '../../state/units_controller.dart';
 import '../ui2.dart';
-import 'coach.dart' show coachReady;
-import 'home_screen.dart' show unitsOf;
 import 'custom_journal_field_sheet.dart';
+import 'home_screen.dart'
+    show monthName, monthShortName, unitsOf, weekdayShortName;
 import 'metric_detail.dart' show detailScaffold;
+import 'select_behaviors_sheet.dart';
+
+/// Where the chosen questions are kept, in the order the journal asks them.
+const kJournalSelectionPref = 'journal.behaviors';
+
+/// How far back the day strip reaches.
+const kJournalStripDays = 30;
 
 class JournalCompose extends StatefulWidget {
   const JournalCompose({super.key, this.date});
 
-  /// The day being written. Defaults to today's LOCAL label — never a UTC one.
+  /// The day it opens on. Defaults to today's LOCAL label — never a UTC one.
   final String? date;
 
   @override
@@ -40,17 +50,25 @@ class JournalCompose extends StatefulWidget {
 }
 
 class _JournalComposeState extends State<JournalCompose> {
-  late final String _date = widget.date ?? todayLabel();
+  late String _date = widget.date ?? todayLabel();
   final _note = TextEditingController();
+  final _strip = ScrollController();
+
+  /// The strip's days, oldest first, ending today.
+  late final List<String> _days = _stripDays(_date);
 
   List<JournalFieldSpec> _specs = const [];
+  List<String> _selected = const [];
   Map<String, JournalMetricValue> _values = {};
   Set<String> _tags = {};
-  // What [_load] read, so [_save] writes only what the user changed here.
+  // What [_openDay] read, so a save writes only what the user changed here.
   Map<String, JournalMetricValue> _loadedValues = const {};
   Set<String> _loadedTags = const {};
+  String _loadedNote = '';
+  final Set<String> _logged = {};
   bool _loading = true;
   bool _saving = false;
+  bool _addingField = false;
 
   @override
   void initState() {
@@ -61,8 +79,42 @@ class _JournalComposeState extends State<JournalCompose> {
   @override
   void dispose() {
     _note.dispose();
+    _strip.dispose();
     super.dispose();
   }
+
+  static List<String> _stripDays(String date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final asked = DateTime.tryParse(date) ?? today;
+    final back = calendarDaysBetween(asked, today).clamp(0, 3650);
+    final n = back + 1 > kJournalStripDays ? back + 1 : kJournalStripDays;
+    // Calendar arithmetic, not 24 h steps: a DST day is 23 or 25 hours long.
+    return [
+      for (var i = n - 1; i >= 0; i--)
+        dayLabelOf(DateTime(today.year, today.month, today.day - i)),
+    ];
+  }
+
+  /// A `getJournal` range that reaches back to [day].
+  String _rangeFor(String day) {
+    final d = DateTime.tryParse(day);
+    if (d == null) return '30d';
+    final now = DateTime.now();
+    final back = calendarDaysBetween(
+      d,
+      DateTime(now.year, now.month, now.day),
+    ).abs();
+    return '${back + 1}d';
+  }
+
+  JournalFieldSpec? _spec(String key) => journalFieldSpec(
+    key,
+    custom: [
+      for (final s in _specs)
+        if (s.custom) s,
+    ],
+  );
 
   Future<void> _load() async {
     final repo = context.read<AppState>().repo;
@@ -71,22 +123,92 @@ class _JournalComposeState extends State<JournalCompose> {
       return;
     }
     final specs = await repo.getJournalFields();
-    final values = await repo.getJournalMetrics(_date);
-    final entries = await repo.getJournal(range: '30d');
-    Map<String, dynamic>? today;
-    for (final e in entries) {
-      if (e['date'] == _date) today = e;
+    final rows = await repo.getJournal(range: _rangeFor(_days.first));
+    final logged = <String>{
+      for (final r in rows)
+        if (((r['tags'] as List?) ?? const []).isNotEmpty ||
+            ((r['note'] as String?) ?? '').trim().isNotEmpty)
+          '${r['date']}',
+    };
+    // The dots: only the recent month is asked, so an old day opened from a
+    // notification does not cost a query per day in between.
+    for (final d in _days.skip(_days.length - kJournalStripDays)) {
+      if (logged.contains(d)) continue;
+      if ((await repo.getJournalMetrics(d)).isNotEmpty) logged.add(d);
+    }
+    var selected = _storedSelection();
+    if (selected == null) {
+      // Never chosen: ask what was logged before, so an update does not hide
+      // a question someone answers every day.
+      final used = await repo.getJournalMetricFields();
+      final tags = {
+        for (final r in rows)
+          ...((r['tags'] as List?) ?? const []).map((t) => '$t'),
+      };
+      selected = <String>[
+        for (final k in used)
+          if (journalFieldSpec(k, custom: specs) != null) k,
+        for (final s in specs)
+          if (s.custom && !used.contains(s.key)) s.key,
+        for (final t in tags)
+          if (journalBehaviorForTag(t) case final b? when !used.contains(b.key))
+            b.key,
+      ];
+      if (selected.isEmpty) selected = [...kJournalStarterBehaviors];
     }
     if (!mounted) return;
     setState(() {
       _specs = specs;
+      _selected = selected!;
+      _logged
+        ..clear()
+        ..addAll(logged);
+    });
+    await _openDay(_date);
+  }
+
+  List<String>? _storedSelection() {
+    final raw = Prefs.getString(kJournalSelectionPref, '');
+    if (raw.isEmpty) return null;
+    try {
+      final j = jsonDecode(raw);
+      if (j is List) return [for (final k in j) '$k'];
+    } catch (_) {
+      /* a broken pref reads as never chosen */
+    }
+    return null;
+  }
+
+  Future<void> _openDay(String day) async {
+    final repo = context.read<AppState>().repo;
+    if (repo == null) return;
+    final values = await repo.getJournalMetrics(day);
+    Map<String, dynamic>? row;
+    for (final e in await repo.getJournal(range: _rangeFor(day))) {
+      if (e['date'] == day) row = e;
+    }
+    if (!mounted) return;
+    setState(() {
+      _date = day;
       _values = {...values};
       _loadedValues = {...values};
-      _tags = {...?(today?['tags'] as List?)?.map((t) => t.toString())};
+      _tags = {...?(row?['tags'] as List?)?.map((t) => t.toString())};
       _loadedTags = {..._tags};
-      _note.text = (today?['note'] as String?) ?? '';
+      _note.text = (row?['note'] as String?) ?? '';
+      _loadedNote = _note.text;
       _loading = false;
     });
+  }
+
+  bool get _dirty {
+    if (_note.text.trim() != _loadedNote.trim()) return true;
+    if (_tags.length != _loadedTags.length || !_tags.containsAll(_loadedTags)) {
+      return true;
+    }
+    for (final k in {..._values.keys, ..._loadedValues.keys}) {
+      if (_values[k] != _loadedValues[k]) return true;
+    }
+    return false;
   }
 
   void _set(String key, double? v) {
@@ -102,59 +224,25 @@ class _JournalComposeState extends State<JournalCompose> {
     });
   }
 
-  bool _addingField = false;
-
-  /// #273 — define + persist a user-invented field, then pick it up.
-  Future<void> _addField() async {
-    if (_addingField) return;
-    final spec = await showCustomJournalFieldSheet(
-      context,
-      existingKeys: _specs.map((f) => f.key).toSet(),
-    );
-    if (spec == null || !mounted) return;
-    final repo = context.read<AppState>().repo;
-    // No repo means the sheet should never have been reachable; say so rather
-    // than eating the tap.
-    if (repo == null) {
-      final l = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(l?.journalComposeNotReady ??
-                'Not ready yet — open the app first.')),
-      );
-      return;
-    }
-    setState(() => _addingField = true);
-    try {
-      try {
-        await repo.postCustomJournalField(spec);
-      } catch (_) {
-        if (!mounted) return;
-        // A failed persist must not read as success — the field would vanish
-        // from the list while the user believes it saved.
-        final l = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(l?.journalComposeSaveFailed ??
-                  'Could not save it — check storage and retry.')),
-        );
-        return;
-      }
-      if (!mounted) return;
-      await _load();
-    } finally {
-      // Every exit, or one failed save disables the button for the session.
-      if (mounted) setState(() => _addingField = false);
-    }
+  /// A yes/no answer. Null takes it back to unanswered. A question that a
+  /// preset tag used to answer keeps that tag in step, so the tag's history and
+  /// everything that reads tags carry on.
+  void _answer(String key, bool? yes) {
+    final tag = kJournalBehaviorsByKey[key]?.tag;
+    _set(key, yes == null ? null : (yes ? 1 : 0));
+    if (tag == null) return;
+    setState(() => yes == true ? _tags.add(tag) : _tags.remove(tag));
   }
 
-  /// MT-06 — when the LAST one landed.
-  ///
-  /// `at_min` has been in the schema, the CSV and the round trip for ages with
-  /// nothing anywhere in the UI that could set it, so it was null for every
-  /// user and the analysis that wants it had nothing to read. The control only
-  /// appears once a dose is logged: a time with no dose is not a fact about
-  /// anything.
+  bool? _yesNoOf(String key) {
+    final v = _values[key];
+    if (v != null) return v.value >= 1;
+    final tag = kJournalBehaviorsByKey[key]?.tag;
+    return tag != null && _tags.contains(tag) ? true : null;
+  }
+
+  /// MT-06 — when the LAST one landed. Only offered once a dose exists: a time
+  /// with no dose is not a fact about anything.
   Future<void> _setTime(String key) async {
     final cur = _values[key];
     if (cur == null) return;
@@ -178,37 +266,81 @@ class _JournalComposeState extends State<JournalCompose> {
     });
   }
 
-  /// Opens the AI chat and, on accept, merges its proposal into whatever the
-  /// day already holds — the merge is [mergeJournalEntry], never a plain
-  /// overwrite of `_tags`/`_note`.
-  Future<void> _openAiChat() async {
-    final cfg = context.read<CoachConfig>();
-    final result = await AppSheet.open<({List<String> tags, String note})>(context,
-      builder: (_) => _JournalAiSheet(config: cfg),
-      scroll: true,
-      bare: true,
+  /// #273 — define + persist a user-written question. Returns it, or null when
+  /// the sheet was closed or the write failed (which says so).
+  Future<JournalFieldSpec?> _writeOwn(BuildContext from) async {
+    if (_addingField) return null;
+    final spec = await showCustomJournalFieldSheet(
+      from,
+      existingKeys: {
+        for (final f in _specs) f.key,
+        for (final b in kJournalBehaviors) b.key,
+      },
     );
-    if (result == null || !mounted) return;
-    final merged = mergeJournalEntry(
-      existingTags: _tags.toList(),
-      existingNote: _note.text,
-      newTags: result.tags,
-      newNote: result.note,
-    );
-    setState(() {
-      _tags = merged.tags.toSet();
-      _note.text = merged.note;
-    });
+    if (spec == null || !mounted) return null;
+    final repo = context.read<AppState>().repo;
+    final l = AppLocalizations.of(context);
+    // No repo means the sheet should never have been reachable; say so rather
+    // than eating the tap.
+    if (repo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l?.journalComposeNotReady ?? 'Not ready yet — open the app first.',
+          ),
+        ),
+      );
+      return null;
+    }
+    setState(() => _addingField = true);
+    try {
+      try {
+        await repo.postCustomJournalField(spec);
+      } catch (_) {
+        if (!mounted) return null;
+        // A failed persist must not read as success — the question would
+        // vanish while the user believes it saved.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              l?.journalComposeSaveFailed ??
+                  'Could not save it — check storage and retry.',
+            ),
+          ),
+        );
+        return null;
+      }
+      final specs = await repo.getJournalFields();
+      if (mounted) setState(() => _specs = specs);
+      return spec;
+    } finally {
+      // Every exit, or one failed save disables the entry for the session.
+      if (mounted) setState(() => _addingField = false);
+    }
   }
 
-  Future<void> _save() async {
+  Future<void> _edit() async {
+    final next = await openSelectBehaviors(
+      context,
+      selected: _selected,
+      custom: [
+        for (final s in _specs)
+          if (s.custom) s,
+      ],
+      onWriteOwn: _writeOwn,
+    );
+    if (next == null || !mounted) return;
+    Prefs.setString(kJournalSelectionPref, jsonEncode(next));
+    setState(() => _selected = next);
+  }
+
+  /// Writes the open day. Both writes REPLACE the day, and the strap's
+  /// double-tap (a glass of water, a moment tag) writes the same day while this
+  /// screen is open, so the day is re-read and only this screen's own edits are
+  /// laid over it — never the snapshot from when it opened.
+  Future<void> _persist() async {
     final repo = context.read<AppState>().repo;
-    if (repo == null) return;
-    setState(() => _saving = true);
-    // Both writes REPLACE the day, and the strap's double-tap (a glass of
-    // water, a moment tag) writes the same day while this screen is open.
-    // Re-read and lay only this screen's own edits over it, or Save puts the
-    // snapshot from when the screen opened back and the tap is lost.
+    if (repo == null || !_dirty) return;
     final metrics = {...await repo.getJournalMetrics(_date)};
     for (final k in {..._loadedValues.keys, ..._values.keys}) {
       final v = _values[k];
@@ -221,15 +353,48 @@ class _JournalComposeState extends State<JournalCompose> {
     }
     await repo.postJournalMetrics(_date, metrics);
     final tags = <String>{};
-    for (final e in await repo.getJournal(range: '30d')) {
+    for (final e in await repo.getJournal(range: _rangeFor(_date))) {
       if (e['date'] == _date) {
-        tags.addAll(((e['tags'] as List?) ?? const []).map((t) => t.toString()));
+        tags.addAll(
+          ((e['tags'] as List?) ?? const []).map((t) => t.toString()),
+        );
       }
     }
     tags
       ..removeAll(_loadedTags.difference(_tags))
       ..addAll(_tags);
     await repo.postJournal(_date, tags.toList(), _note.text.trim());
+    final logged =
+        metrics.isNotEmpty || tags.isNotEmpty || _note.text.trim().isNotEmpty;
+    _loadedValues = {..._values};
+    _loadedTags = {..._tags};
+    _loadedNote = _note.text;
+    if (mounted) {
+      setState(() => logged ? _logged.add(_date) : _logged.remove(_date));
+    }
+  }
+
+  /// Another day: the one being left is written first, the way DONE writes it.
+  Future<void> _goTo(String day) async {
+    if (day == _date || _saving) return;
+    setState(() => _saving = true);
+    try {
+      await _persist();
+      if (!mounted) return;
+      await _openDay(day);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _done() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await _persist();
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
     if (!mounted) return;
     // Today's "How was today?" is already armed; a rated day moves it to
     // tomorrow, and only a re-arm does that.
@@ -237,247 +402,310 @@ class _JournalComposeState extends State<JournalCompose> {
     Navigator.of(context).pop(true);
   }
 
+  /// The questions on the page: the chosen ones in their order, then anything
+  /// the day already holds an answer to, so nothing logged is ever hidden.
+  List<String> get _rows {
+    final out = <String>[
+      for (final k in _selected)
+        if (_spec(k) != null) k,
+    ];
+    for (final k in _values.keys) {
+      if (!out.contains(k) && _spec(k) != null) out.add(k);
+    }
+    for (final t in _tags) {
+      final b = journalBehaviorForTag(t);
+      if (b != null && !out.contains(b.key)) out.add(b.key);
+    }
+    return out;
+  }
+
+  String _question(BuildContext c, String key, JournalFieldSpec spec) {
+    final b = kJournalBehaviorsByKey[key];
+    if (b != null) return uiText(c, b.question);
+    return JournalBehavior.custom(spec).question;
+  }
+
+  Widget _row(BuildContext c, String key) {
+    final spec = _spec(key)!;
+    final q = _question(c, key, spec);
+    if (key == 'weight_kg') {
+      return _WeightRow(
+        question: q,
+        kg: _values[key]?.value,
+        onChanged: (v) => _set(key, v),
+      );
+    }
+    if (spec.isYesNo) {
+      return JournalYesNoRow(
+        question: q,
+        value: _yesNoOf(key),
+        onChanged: (v) => _answer(key, v),
+      );
+    }
+    if (spec.isRating) {
+      return JournalRatingRow(
+        question: q,
+        max: spec.max.round(),
+        value: _values[key]?.value.round(),
+        onChanged: (v) => _set(key, v?.toDouble()),
+      );
+    }
+    return JournalAmountRow(
+      question: q,
+      spec: spec,
+      value: _values[key]?.value,
+      atMin: _values[key]?.atMinuteOfDay,
+      onChanged: (v) => _set(key, v),
+      onTime: spec.hasTime ? () => _setTime(key) : null,
+    );
+  }
+
+  String _dayLabel(AppLocalizations? l, String day) {
+    final d = DateTime.parse(day);
+    final today = todayLabel();
+    if (day == today) return uiText(context, 'TODAY');
+    if (_days.length > 1 && day == _days[_days.length - 2]) {
+      return uiText(context, 'YESTERDAY');
+    }
+    return '${weekdayShortName(d.weekday, l)}, '
+            '${monthShortName(d.month, l)} ${d.day}'
+        .toUpperCase();
+  }
+
+  String _heading(AppLocalizations? l) {
+    final d = DateTime.parse(_date);
+    final when = '${monthName(d.month, l)} ${d.day}';
+    if (_date == todayLabel()) {
+      return uiText(context, "What's happening today, $when?");
+    }
+    if (_days.length > 1 && _date == _days[_days.length - 2]) {
+      return uiText(context, 'What happened yesterday, $when?');
+    }
+    return uiText(
+      context,
+      'What happened on ${_kWeekdays[d.weekday - 1]}, $when?',
+    );
+  }
+
   @override
   Widget build(BuildContext c) {
-    final p = P.of(c);
     final l = AppLocalizations.of(c);
-    return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            NavBar(l?.journalComposeTitle ?? 'Journal',
-                sub: _date, onBack: () => Navigator.of(c).pop()),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView(
-                      padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x8),
-                      children: [
-                        MoodPicker(
-                          value: _values['mood']?.value.round(),
-                          onChanged: (v) => _set('mood', v?.toDouble()),
+    final top = MediaQuery.paddingOf(c).top;
+    final at = _days.indexOf(_date);
+    return AlwaysChar(
+      child: Scaffold(
+        backgroundColor: JC.foot,
+        body: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: JC.pageColors,
+              stops: JC.pageStops,
+            ),
+          ),
+          child: Column(
+            children: [
+              SizedBox(height: top),
+              _Header(
+                title: uiText(c, 'JOURNAL'),
+                onClose: () => Navigator.of(c).pop(),
+                onEdit: _loading ? null : () => unawaited(_edit()),
+              ),
+              const SizedBox(height: S.x1 + S.half + S.hair / 2),
+              _Pager(
+                label: _dayLabel(l, _date),
+                onOlder: at > 0 ? () => unawaited(_goTo(_days[at - 1])) : null,
+                onNewer: at >= 0 && at < _days.length - 1
+                    ? () => unawaited(_goTo(_days[at + 1]))
+                    : null,
+              ),
+              const SizedBox(height: S.x2 + S.half),
+              SizedBox(
+                height: JC.pillH,
+                child: ListView.separated(
+                  controller: _strip,
+                  scrollDirection: Axis.horizontal,
+                  reverse: true,
+                  padding: const EdgeInsets.only(
+                    left: S.x2,
+                    right: JC.gutter + S.half / 4,
+                  ),
+                  itemCount: _days.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: JC.pillGap),
+                  itemBuilder: (_, i) {
+                    final day = _days[_days.length - 1 - i];
+                    final d = DateTime.parse(day);
+                    return JournalDayPill(
+                      weekday: weekdayShortName(d.weekday, l),
+                      date: '${d.day}',
+                      chosen: day == _date,
+                      logged: _logged.contains(day),
+                      onTap: () => unawaited(_goTo(day)),
+                    );
+                  },
+                ),
+              ),
+              Expanded(
+                child: _loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(
+                          JC.gutter,
+                          S.x6 + S.half,
+                          JC.gutter,
+                          0,
                         ),
-                        Section(
-                          l?.journalComposeTodaySection ?? 'Today',
-                          Surface(
-                            pad: const EdgeInsets.symmetric(horizontal: S.x4),
-                            child: Column(
-                              children: [
-                                for (final s in _specs.where(
-                                  (s) => s.key != 'mood',
-                                ))
-                                  // MT-03 — weight is TYPED, not stepped. On a
-                                  // 0.1 kg step a stepper is 700 taps from
-                                  // blank, and the field it writes is the one
-                                  // surface in this app that must never nag: a
-                                  // control nobody can reach is a field nobody
-                                  // fills, which is its own kind of dishonest.
-                                  if (s.key == 'weight_kg')
-                                    _WeightRow(
-                                      kg: _values[s.key]?.value,
-                                      onChanged: (v) => _set(s.key, v),
-                                    )
-                                  else
-                                    FieldStepper(
-                                      spec: s,
-                                      value: _values[s.key]?.value,
-                                      atMin: _values[s.key]?.atMinuteOfDay,
-                                      onChanged: (v) => _set(s.key, v),
-                                      onTime: s.hasTime
-                                          ? () => _setTime(s.key)
-                                          : null,
-                                    ),
-                                  // #273 — custom fields come back. The old
-                                  // UI's "Track something else": define a
-                                  // personal numeric field and it behaves
-                                  // like a built-in everywhere after.
-                                  Pressable(
-                                    // Disabled (null onTap) while a write is
-                                    // in flight: two submits would race the
-                                    // create-only insert below.
-                                    onTap: _addingField
-                                        ? null
-                                        : () => unawaited(_addField()),
-                                    child: Row(
-                                      children: [
-                                        Icon(LucideIcons.plusCircle,
-                                            size: I.md, color: p.ink3),
-                                        const SizedBox(width: S.x2),
-                                        Text(
-                                            l?.journalComposeTrackSomethingElse ??
-                                                'Track something else',
-                                            style:
-                                                F.body.copyWith(color: p.ink3)),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
+                        children: [
+                          Text(
+                            _heading(l),
+                            style: JC.heading.copyWith(color: JC.ink),
                           ),
-                        ),
-                        Section(
-                          // Same English text as day_timeline's section — key
-                          // shared across the two files, not duplicated.
-                          l?.dayTimelineWhatHappenedSection ?? 'What happened',
-                          Wrap(
-                            spacing: S.x2,
-                            runSpacing: S.x2,
-                            children: [
-                              for (final t in kJournalPresetTags)
-                                Pressable(
-                                  onTap: () => setState(
-                                    () => _tags.contains(t)
-                                        ? _tags.remove(t)
-                                        : _tags.add(t),
-                                  ),
-                                  child: Pill(
-                                    journalTagText(c, t),
-                                    _tags.contains(t) ? C.domMind : C.n400,
-                                    icon: _tags.contains(t)
-                                        ? LucideIcons.check
-                                        : null,
-                                  ),
+                          const SizedBox(height: S.x8),
+                          JournalSectionLabel(uiText(c, 'BEHAVIORS')),
+                          const SizedBox(height: S.x3 + S.hair),
+                          for (final k in _rows) ...[
+                            _row(c, k),
+                            const SizedBox(height: JC.rowGap),
+                          ],
+                          if (_rows.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: S.x4),
+                              child: Text(
+                                uiText(
+                                  c,
+                                  'Nothing chosen yet. Tap the pencil to pick what to log.',
                                 ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: S.x5),
-                        if (coachReady(c))
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: S.x2),
-                            child: Pressable(
-                              onTap: () => unawaited(_openAiChat()),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(LucideIcons.sparkles,
-                                      size: I.sm, color: p.on(C.domMind)),
-                                  const SizedBox(width: S.x1),
-                                  Text(
-                                    // Not localized yet — a new entry point,
-                                    // not a copy pass over the whole screen.
-                                    'Talk it through with AI',
-                                    style: F.over
-                                        .copyWith(color: p.on(C.domMind)),
-                                  ),
-                                ],
+                                style: JC.sub.copyWith(color: JC.label),
                               ),
                             ),
+                          const SizedBox(height: S.x5),
+                          JournalSectionLabel(uiText(c, 'NOTES')),
+                          const SizedBox(height: S.x3 + S.hair),
+                          _NoteCard(
+                            controller: _note,
+                            label:
+                                l?.journalComposeAnythingElseLabel ??
+                                'Anything else',
+                            hint:
+                                l?.journalComposeAnythingElseHint ??
+                                'A line about the day.',
                           ),
-                        OsTextField(
-                          controller: _note,
-                          label: l?.journalComposeAnythingElseLabel ?? 'Anything else',
-                          hint: l?.journalComposeAnythingElseHint ??
-                              'A line about the day.',
-                          lines: 4,
-                        ),
-                        const SizedBox(height: S.x6),
-                        BigButton(
-                          _saving
-                              ? (l?.journalComposeSavingLabel ?? 'Saving')
-                              : (l?.actionSave ?? 'Save'),
-                          icon: LucideIcons.check,
-                          color: C.domMind,
-                          onTap: _saving ? null : _save,
-                        ),
-                      ],
-                    ),
-            ),
-          ],
+                          const SizedBox(height: S.x4),
+                        ],
+                      ),
+              ),
+              const SizedBox(height: JC.listFoot),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: JC.gutter + S.x2 + S.hair,
+                ),
+                child: JournalPillButton(
+                  label: _saving
+                      ? (l?.journalComposeSavingLabel ?? 'Saving').toUpperCase()
+                      : uiText(c, 'DONE'),
+                  onTap: _saving || _loading ? null : () => unawaited(_done()),
+                ),
+              ),
+              const SizedBox(height: JC.doneFoot),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// The 1–5 self-report. Five faces, not ten: a ten-point self-report is not
-/// ten distinguishable states, and the extra resolution is noise a rank
-/// correlation then has to see through.
-class MoodPicker extends StatelessWidget {
-  const MoodPicker({super.key, this.value, required this.onChanged});
+const _kWeekdays = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
 
-  final int? value;
+/// ✕ on the left, the title in the middle, the pencil on the right.
+class _Header extends StatelessWidget {
+  const _Header({required this.title, required this.onClose, this.onEdit});
+  final String title;
+  final VoidCallback onClose;
+  final VoidCallback? onEdit;
 
-  /// Null means "clear it". A mis-tap used to be permanent: every face wrote a
-  /// mood and none of them could write absence back, so the only way out of a
-  /// mood you never meant to log was to pick a different wrong one. Tapping
-  /// the selected face again takes it back to not-answered — the same rule the
-  /// [FieldStepper] uses when it steps down off zero.
-  final ValueChanged<int?> onChanged;
+  @override
+  Widget build(BuildContext c) => SizedBox(
+    height: JC.header,
+    width: double.infinity,
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        Text(title, style: JC.title.copyWith(color: JC.ink)),
+        Positioned(
+          left: S.x2 + S.half,
+          width: S.x12,
+          height: S.x12,
+          child: Pressable(
+            semanticLabel: uiText(c, 'Close'),
+            onTap: onClose,
+            child: const SizedBox(
+              width: S.x12,
+              height: S.x12,
+              child: Icon(LucideIcons.xThin, size: JC.closeIcon, color: JC.ink),
+            ),
+          ),
+        ),
+        Positioned(
+          right: S.x2 + S.hair,
+          width: S.x12,
+          height: S.x12,
+          child: Pressable(
+            semanticLabel: uiText(c, 'Choose what to log'),
+            onTap: onEdit,
+            child: const SizedBox(
+              width: S.x12,
+              height: S.x12,
+              child: Icon(
+                LucideIcons.pencilThin,
+                size: JC.editIcon,
+                color: JC.ink,
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
-  static const _faces = [
-    LucideIcons.frown,
-    LucideIcons.annoyed,
-    LucideIcons.meh,
-    LucideIcons.smile,
-    LucideIcons.laugh,
-  ];
-  static const _tints = [C.red, C.orange, C.yellow, C.green, C.green];
+/// `‹ TODAY ›`. A dead end draws its chevron dim.
+class _Pager extends StatelessWidget {
+  const _Pager({required this.label, this.onOlder, this.onNewer});
+  final String label;
+  final VoidCallback? onOlder, onNewer;
 
   @override
   Widget build(BuildContext c) {
-    final p = P.of(c);
-    final l = AppLocalizations.of(c);
-    return Surface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    Widget chevron(IconData icon, VoidCallback? onTap, String what) =>
+        Pressable(
+          semanticLabel: uiText(c, what),
+          onTap: onTap,
+          child: Icon(icon, size: I.lg, color: onTap == null ? JC.dim : JC.ink),
+        );
+    return SizedBox(
+      height: S.tap,
+      width: S.x16 * 2 + S.x12 + S.x4 + S.x1 + S.hair,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          Text(
-            l?.journalComposeHowAreYouFeeling ?? 'How are you feeling?',
-            style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w600),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: chevron(LucideIcons.chevronLeft, onOlder, 'Previous day'),
           ),
-          const SizedBox(height: S.x1),
-          Text(
-            value == null
-                ? (l?.journalComposeNotAnsweredYet ?? 'Not answered yet')
-                : (l?.journalComposeMoodOfFive(value!) ??
-                    'Mood $value of 5 · tap it again to clear'),
-            style: F.cap.copyWith(color: p.ink3),
-          ),
-          const SizedBox(height: S.x4),
-          Row(
-            children: [
-              for (var i = 0; i < 5; i++) ...[
-                Expanded(
-                  child: Pressable(
-                    semanticLabel: value == i + 1
-                        ? (l?.journalComposeMoodOfFiveSelected(i + 1) ??
-                            'Mood ${i + 1} of 5, selected. Activate to clear.')
-                        : (l?.journalComposeMoodOfFiveLabel(i + 1) ??
-                            'Mood ${i + 1} of 5'),
-                    onTap: () => onChanged(value == i + 1 ? null : i + 1),
-                    child: AnimatedContainer(
-                      duration: motion(c, Motion.base),
-                      height: S.tap,
-                      // A Container with a child and no alignment sizes itself
-                      // to that child, and the constraints coming down here are
-                      // LOOSE — so these rendered as narrow pills with even
-                      // gaps, the icon's width instead of the fifth of the row
-                      // the Expanded above had already paid for. A non-null
-                      // alignment makes a Container take the largest size its
-                      // constraints allow, which is the fix and also what
-                      // centres the face.
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        borderRadius: R.rMd,
-                        color: value == i + 1
-                            ? p.fill(_tints[i])
-                            : p.wash(_tints[i]),
-                      ),
-                      child: Icon(
-                        _faces[i],
-                        size: I.md,
-                        color: value == i + 1
-                            ? p.inkOn(p.fill(_tints[i]))
-                            : p.on(_tints[i]),
-                      ),
-                    ),
-                  ),
-                ),
-                if (i < 4) const SizedBox(width: S.x2),
-              ],
-            ],
+          Text(label, style: JC.day.copyWith(color: JC.ink)),
+          Align(
+            alignment: Alignment.centerRight,
+            child: chevron(LucideIcons.chevronRight, onNewer, 'Next day'),
           ),
         ],
       ),
@@ -485,11 +713,261 @@ class MoodPicker extends StatelessWidget {
   }
 }
 
-/// One journal field as a stepper. Handles ratings and doses from the same
-/// spec — the difference is only the step size and the ceiling.
-class FieldStepper extends StatelessWidget {
-  const FieldStepper({
+/// One day in the strip: weekday, date and a dot that fills once the day has
+/// anything logged. The chosen day wears a white rim.
+class JournalDayPill extends StatelessWidget {
+  const JournalDayPill({
     super.key,
+    required this.weekday,
+    required this.date,
+    required this.chosen,
+    required this.logged,
+    this.onTap,
+  });
+
+  final String weekday, date;
+  final bool chosen, logged;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext c) => Pressable(
+    semanticLabel: '$weekday $date',
+    onTap: onTap,
+    child: Container(
+      width: JC.pillW,
+      height: JC.pillH,
+      decoration: const BoxDecoration(color: JC.pill, borderRadius: R.rPill),
+      // Drawn over, not inset: a rim that took layout would nudge the
+      // chosen day's text off its neighbours' line.
+      foregroundDecoration: chosen
+          ? BoxDecoration(
+              borderRadius: R.rPill,
+              border: Border.all(color: JC.ink, width: JC.pillRim),
+            )
+          : null,
+      child: Column(
+        children: [
+          const SizedBox(height: S.x3 + S.half / 4),
+          // A fixed capsule: large text shrinks to fit it rather than spill.
+          Expanded(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.topCenter,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(weekday, style: JC.pillDay.copyWith(color: JC.ink)),
+                  const SizedBox(height: S.x1 / 2),
+                  Text(date, style: JC.pillDate.copyWith(color: JC.ink)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: S.x1),
+          Container(
+            width: JC.pillDot,
+            height: JC.pillDot,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: logged ? JC.dotLogged : JC.dot,
+            ),
+          ),
+          const SizedBox(height: S.x3 - S.hair / 2),
+        ],
+      ),
+    ),
+  );
+}
+
+/// BEHAVIORS ──────────── : the label, then a hairline to the edge.
+class JournalSectionLabel extends StatelessWidget {
+  const JournalSectionLabel(this.text, {super.key, this.color = JC.label});
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext c) => Semantics(
+    header: true,
+    child: Row(
+      children: [
+        Text(text, style: JC.sectionText.copyWith(color: color)),
+        const SizedBox(width: S.x2 + S.half),
+        const Expanded(
+          child: Divider(height: S.hair, thickness: S.hair, color: JC.hairline),
+        ),
+      ],
+    ),
+  );
+}
+
+/// The row card every question sits on.
+class _RowCard extends StatelessWidget {
+  const _RowCard({required this.child, this.vertical = 0});
+  final Widget child;
+  final double vertical;
+
+  @override
+  Widget build(BuildContext c) => Container(
+    constraints: const BoxConstraints(minHeight: JC.rowH),
+    padding: EdgeInsets.fromLTRB(
+      JC.rowPad,
+      vertical,
+      JC.rowPad - (S.tap - JC.answer) / 2,
+      vertical,
+    ),
+    decoration: const BoxDecoration(color: JC.card, borderRadius: JC.rRow),
+    alignment: Alignment.centerLeft,
+    child: child,
+  );
+}
+
+/// One square answer button: a tenth of white, or white with a dark glyph
+/// when it is the chosen answer.
+class _Answer extends StatelessWidget {
+  const _Answer({
+    required this.label,
+    required this.chosen,
+    required this.onTap,
+    this.icon,
+    this.text,
+    this.width = JC.answer,
+  });
+
+  final String label;
+  final bool chosen;
+  final VoidCallback? onTap;
+  final IconData? icon;
+  final String? text;
+  final double width;
+
+  @override
+  Widget build(BuildContext c) {
+    final ink = chosen ? JC.onChosen : (onTap == null ? JC.dim : JC.ink);
+    return Pressable(
+      semanticLabel: label,
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: motion(c, Motion.fast),
+        width: width,
+        height: JC.answer,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: chosen ? JC.chosen : JC.button,
+          borderRadius: JC.rAnswer,
+        ),
+        child: icon != null
+            ? Icon(icon, size: I.sm, color: ink)
+            : Text(text ?? '', style: JC.value.copyWith(color: ink)),
+      ),
+    );
+  }
+}
+
+/// A yes/no question: the question, then ✕ and ✓. Tapping the chosen answer
+/// again takes it back to unanswered — a mis-tap is never permanent.
+class JournalYesNoRow extends StatelessWidget {
+  const JournalYesNoRow({
+    super.key,
+    required this.question,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String question;
+
+  /// Null is unanswered, which is not the same as no.
+  final bool? value;
+  final ValueChanged<bool?> onChanged;
+
+  @override
+  Widget build(BuildContext c) => _RowCard(
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(question, style: JC.row.copyWith(color: JC.ink)),
+        ),
+        const SizedBox(width: S.x2),
+        _Answer(
+          label: uiText(c, 'No'),
+          icon: LucideIcons.xHeavy,
+          chosen: value == false,
+          onTap: () => onChanged(value == false ? null : false),
+        ),
+        const SizedBox(width: S.hair),
+        _Answer(
+          label: uiText(c, 'Yes'),
+          icon: LucideIcons.checkBold,
+          chosen: value == true,
+          onTap: () => onChanged(value == true ? null : true),
+        ),
+      ],
+    ),
+  );
+}
+
+/// A 1–5 self-report: the question, then one square per step. Five, not ten:
+/// a ten-point self-report is not ten distinguishable states. Tapping the
+/// chosen step again clears it.
+class JournalRatingRow extends StatelessWidget {
+  const JournalRatingRow({
+    super.key,
+    required this.question,
+    required this.value,
+    required this.onChanged,
+    this.max = 5,
+  });
+
+  final String question;
+  final int? value;
+  final int max;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext c) => _RowCard(
+    vertical: S.x3 + S.hair,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(question, style: JC.row.copyWith(color: JC.ink)),
+        const SizedBox(height: S.x2),
+        LayoutBuilder(
+          builder: (c, box) {
+            final n = max.clamp(1, 10);
+            // The card's right padding leaves room for a 44 pt target's
+            // slop; a square this wide is its own target, so the row stops
+            // at the visual edge, with 8 pt of air between squares.
+            final w =
+                (box.maxWidth - (S.tap - JC.answer) / 2 - S.x2 * (n - 1)) / n;
+            return Row(
+              children: [
+                for (var i = 1; i <= n; i++) ...[
+                  if (i > 1) const SizedBox(width: S.x2),
+                  _Answer(
+                    label: value == i
+                        ? '$i of $n, selected. Activate to clear.'
+                        : '$i of $n',
+                    text: '$i',
+                    width: w,
+                    chosen: value == i,
+                    onTap: () => onChanged(value == i ? null : i),
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+      ],
+    ),
+  );
+}
+
+/// A dose or a duration: the question and what is logged, then − and +. Null
+/// is NOT zero: "no caffeine today" is a logged zero, "did not say" is an
+/// absence, and the step down from zero is back to absence.
+class JournalAmountRow extends StatelessWidget {
+  const JournalAmountRow({
+    super.key,
+    required this.question,
     required this.spec,
     required this.value,
     required this.onChanged,
@@ -497,81 +975,82 @@ class FieldStepper extends StatelessWidget {
     this.onTime,
   });
 
+  final String question;
   final JournalFieldSpec spec;
-
-  /// Null means the field was left blank, which is NOT zero: "no caffeine
-  /// today" is a logged zero, "did not say" is an absence.
   final double? value;
   final ValueChanged<double?> onChanged;
 
   /// The LAST occurrence, in local minutes past midnight. Null = not said.
   final int? atMin;
 
-  /// Non-null on a field whose spec says timing matters. The row only offers
-  /// it once a dose exists — an hour on its own is not a measurement.
+  /// Non-null on a field whose spec says timing matters; offered once a dose
+  /// exists — an hour on its own is not a measurement.
   final VoidCallback? onTime;
 
   @override
   Widget build(BuildContext c) {
-    final p = P.of(c);
     final l = AppLocalizations.of(c);
     final v = value;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: S.x2),
+    final unit = spec.custom ? spec.unit : uiText(c, spec.unit);
+    final amount = v == null
+        ? (l?.journalComposeNotLogged ?? 'Not logged')
+        : (unit.isEmpty ? spec.format(v) : '${spec.format(v)} $unit');
+    return _RowCard(
+      vertical: S.x2 + S.half,
       child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  spec.custom ? spec.label : uiText(c, spec.label),
-                  style: F.body.copyWith(color: p.ink),
-                ),
-                Text(
-                  v == null
-                      ? (l?.journalComposeNotLogged ?? 'Not logged')
-                      : spec.formatWithUnit(v),
-                  style: F.over.copyWith(color: p.ink3),
-                ),
+                Text(question, style: JC.row.copyWith(color: JC.ink)),
+                const SizedBox(height: S.half),
+                Text(amount, style: JC.sub.copyWith(color: JC.label)),
                 if (v != null && v > 0 && onTime != null)
                   Pressable(
                     semanticLabel:
-                        l?.journalComposeWhenWasLastField(
-                          spec.custom ? spec.label : uiText(c, spec.label),
-                        ) ??
-                        'When was the last ${spec.label}',
+                        l?.journalComposeWhenWasLastField(question) ??
+                        'When was the last one',
                     onTap: onTime,
                     child: Text(
                       atMin == null
                           ? (l?.journalComposeAddTimeOfLastOne ??
-                              'Add the time of the last one')
-                          : (l?.journalComposeLastAt(formatMinuteOfDay(atMin!)) ??
-                              'Last at ${formatMinuteOfDay(atMin!)}'),
-                      style: F.over.copyWith(color: p.on(C.blue)),
+                                'Add the time of the last one')
+                          : (l?.journalComposeLastAt(
+                                  formatMinuteOfDay(atMin!),
+                                ) ??
+                                'Last at ${formatMinuteOfDay(atMin!)}'),
+                      style: JC.sub.copyWith(color: JC.box),
                     ),
                   ),
               ],
             ),
           ),
-          _Step(
-            icon: LucideIcons.minus,
-            // Enabled AT zero on purpose: zero is a logged "none today" and
-            // the step down from it is back to absence. Disabling it there
-            // made that path unreachable and locked a zero the user never
-            // asserted into the correlation inputs.
-            enabled: v != null,
-            onTap: () {
-              final next = (v ?? 0) - spec.step;
-              onChanged(next <= 0 ? (v == 0 ? null : 0) : next);
-            },
-          ),
           const SizedBox(width: S.x2),
-          _Step(
-            icon: LucideIcons.plus,
-            enabled: v == null || v < spec.max,
-            onTap: () =>
-                onChanged(((v ?? 0) + spec.step).clamp(0, spec.max).toDouble()),
+          _Answer(
+            label: l?.journalComposeDecrease ?? 'Decrease',
+            icon: LucideIcons.minusBold,
+            chosen: false,
+            // Enabled AT zero on purpose: zero is a logged "none today" and the
+            // step down from it is back to absence.
+            onTap: v == null
+                ? null
+                : () {
+                    final next = v - spec.step;
+                    onChanged(next <= 0 ? (v == 0 ? null : 0) : next);
+                  },
+          ),
+          const SizedBox(width: S.hair),
+          _Answer(
+            label: l?.journalComposeIncrease ?? 'Increase',
+            icon: LucideIcons.plusBold,
+            chosen: false,
+            onTap: v != null && v >= spec.max
+                ? null
+                : () => onChanged(
+                    ((v ?? 0) + spec.step).clamp(0, spec.max).toDouble(),
+                  ),
           ),
         ],
       ),
@@ -579,29 +1058,56 @@ class FieldStepper extends StatelessWidget {
   }
 }
 
-class _Step extends StatelessWidget {
-  const _Step({required this.icon, required this.enabled, required this.onTap});
-  final IconData icon;
-  final bool enabled;
-  final VoidCallback onTap;
+/// The note, on a row card.
+class _NoteCard extends StatelessWidget {
+  const _NoteCard({
+    required this.controller,
+    required this.label,
+    required this.hint,
+  });
+  final TextEditingController controller;
+  final String label, hint;
 
   @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    final l = AppLocalizations.of(c);
-    return Pressable(
-      semanticLabel: icon == LucideIcons.plus
-          ? (l?.journalComposeIncrease ?? 'Increase')
-          : (l?.journalComposeDecrease ?? 'Decrease'),
-      onTap: enabled ? onTap : null,
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(color: p.card2, borderRadius: R.rSm),
-        child: Icon(icon, size: I.sm, color: enabled ? p.ink2 : p.ink3),
+  Widget build(BuildContext c) => Container(
+    constraints: const BoxConstraints(minHeight: JC.rowH),
+    padding: const EdgeInsets.symmetric(
+      horizontal: JC.rowPad,
+      vertical: S.x4 + S.half,
+    ),
+    decoration: const BoxDecoration(color: JC.card, borderRadius: JC.rRow),
+    child: AppField(
+      controller: controller,
+      semanticLabel: label,
+      hint: hint,
+      maxLines: 4,
+      minLines: 1,
+      bare: true,
+      textStyle: JC.row,
+    ),
+  );
+}
+
+/// The white pill at the foot: DONE here, SAVE BEHAVIORS on the sheet.
+class JournalPillButton extends StatelessWidget {
+  const JournalPillButton({super.key, required this.label, this.onTap});
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext c) => Pressable(
+    onTap: onTap,
+    child: Container(
+      height: JC.doneH,
+      width: double.infinity,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: onTap == null ? JC.dotLogged : JC.chosen,
+        borderRadius: R.rPill,
       ),
-    );
-  }
+      child: Text(label, style: JC.title.copyWith(color: JC.onChosen)),
+    ),
+  );
 }
 
 /// The app's one text input. Lives here rather than in `grammar.dart` because
@@ -633,10 +1139,7 @@ class OsTextField extends StatelessWidget {
         const SizedBox(height: S.x2),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x2),
-          decoration: BoxDecoration(
-            color: p.card2,
-            borderRadius: R.rMd,
-          ),
+          decoration: BoxDecoration(color: p.card2, borderRadius: R.rMd),
           // The label is drawn as a sibling `Text`, which a screen reader reads
           // on the way past and then forgets. Focused, the field itself
           // announced only its HINT — and the hint disappears the moment the
@@ -686,8 +1189,15 @@ class OsTextField extends StatelessWidget {
 const int kWeightTrendDays = 180;
 
 /// One journal row, typed rather than stepped, plus the way into the trend.
+/// One journal row, typed rather than stepped, plus the way into the trend.
 class _WeightRow extends StatelessWidget {
-  const _WeightRow({required this.kg, required this.onChanged});
+  const _WeightRow({
+    required this.question,
+    required this.kg,
+    required this.onChanged,
+  });
+
+  final String question;
 
   /// Today's entry in kilograms, or null when nothing was entered. Null is not
   /// zero and it is not a missed target — it is a day she did not weigh.
@@ -696,65 +1206,59 @@ class _WeightRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext c) {
-    final p = P.of(c);
     final l = AppLocalizations.of(c);
     final u = unitsOf(c);
     final v = kg;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: S.x2),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return _RowCard(
+      vertical: S.x2 + S.half,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l?.journalComposeWeightLabel ?? 'Weight',
-                        style: F.body.copyWith(color: p.ink)),
-                    Text(
-                      v == null
-                          ? (l?.journalComposeNotEntered ?? 'Not entered')
-                          : (l?.journalComposeEnteredNotMeasured(
-                                  u == null ? '${v.toStringAsFixed(1)} kg' : u.weight(v)) ??
-                              '${u == null ? '${v.toStringAsFixed(1)} kg' : u.weight(v)} · entered, not measured'),
-                      style: F.over.copyWith(color: p.ink3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(question, style: JC.row.copyWith(color: JC.ink)),
+                const SizedBox(height: S.half),
+                Text(
+                  v == null
+                      ? (l?.journalComposeNotEntered ?? 'Not entered')
+                      : (l?.journalComposeEnteredNotMeasured(
+                              u == null
+                                  ? '${v.toStringAsFixed(1)} kg'
+                                  : u.weight(v),
+                            ) ??
+                            '${u == null ? '${v.toStringAsFixed(1)} kg' : u.weight(v)} · entered, not measured'),
+                  style: JC.sub.copyWith(color: JC.label),
+                ),
+                Pressable(
+                  semanticLabel:
+                      l?.journalComposeSeeWeightTrend ?? 'See the weight trend',
+                  onTap: () => Navigator.of(c).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const _WeightTrend(),
                     ),
-                  ],
-                ),
-              ),
-              Pressable(
-                semanticLabel: l?.journalComposeEnterWeight ?? 'Enter weight',
-                onTap: () async {
-                  final next = await _askWeight(c, u, v);
-                  if (next != null) onChanged(next.value);
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: S.x3,
-                    vertical: S.x2,
                   ),
-                  decoration: BoxDecoration(color: p.card2, borderRadius: R.rSm),
                   child: Text(
-                    v == null
-                        ? (l?.journalComposeEnter ?? 'Enter')
-                        : (l?.journalComposeChange ?? 'Change'),
-                    style: F.cap.copyWith(color: p.ink2),
+                    l?.journalComposeSeeTheTrend ?? 'See the trend',
+                    style: JC.sub.copyWith(color: JC.box),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          Pressable(
-            semanticLabel: l?.journalComposeSeeWeightTrend ?? 'See the weight trend',
-            onTap: () => Navigator.of(c).push(
-              MaterialPageRoute<void>(builder: (_) => const _WeightTrend()),
-            ),
-            child: Text(
-              l?.journalComposeSeeTheTrend ?? 'See the trend',
-              style: F.over.copyWith(color: p.on(C.blue)),
-            ),
+          const SizedBox(width: S.x2),
+          _Answer(
+            label: l?.journalComposeEnterWeight ?? 'Enter weight',
+            text: v == null
+                ? (l?.journalComposeEnter ?? 'Enter')
+                : (l?.journalComposeChange ?? 'Change'),
+            width: S.x16 + S.x4 + S.x1,
+            chosen: false,
+            onTap: () async {
+              final next = await _askWeight(c, u, v);
+              if (next != null) onChanged(next.value);
+            },
           ),
         ],
       ),
@@ -798,12 +1302,19 @@ class _WeightRow extends StatelessWidget {
         ),
         actions: [
           if (kg != null)
-            BigButton(l?.journalComposeClear ?? 'Clear',
-                soft: true,
-                onTap: () => Navigator.of(dc).pop((value: null))),
-          BigButton(l?.actionCancel ?? 'Cancel',
-              soft: true, onTap: () => Navigator.of(dc).pop()),
-          BigButton(l?.actionSave ?? 'Save', onTap: () {
+            BigButton(
+              l?.journalComposeClear ?? 'Clear',
+              soft: true,
+              onTap: () => Navigator.of(dc).pop((value: null)),
+            ),
+          BigButton(
+            l?.actionCancel ?? 'Cancel',
+            soft: true,
+            onTap: () => Navigator.of(dc).pop(),
+          ),
+          BigButton(
+            l?.actionSave ?? 'Save',
+            onTap: () {
               // A typo is not a blank. Nothing is saved from an unreadable
               // field, and the form says which one rather than storing a hole.
               if (Typed.of(ctrl.text).bad) {
@@ -818,7 +1329,8 @@ class _WeightRow extends StatelessWidget {
                   ? Typed.of(ctrl.text).value
                   : u.weightToKg(ctrl.text);
               Navigator.of(dc).pop((value: kgIn));
-            }),
+            },
+          ),
         ],
       ),
     ).whenComplete(ctrl.dispose);
@@ -892,7 +1404,8 @@ class _WeightTrendState extends State<_WeightTrend> {
       return detailScaffold(c, title, [
         const SizedBox(height: S.x2),
         StatusCard(
-          l?.journalComposeNotEnoughEntriesTitle ?? 'Not enough entries for a trend',
+          l?.journalComposeNotEnoughEntriesTitle ??
+              'Not enough entries for a trend',
           l?.journalComposeNotEnoughEntriesBody ??
               'The line is a seven-day average through what you entered, so it '
                   'needs at least two days. Nothing is filled in between them.',
@@ -929,7 +1442,8 @@ class _WeightTrendState extends State<_WeightTrend> {
           height: 140,
           yAxis: axis,
           xLabels: [days.first, days.last],
-          footnote: l?.journalComposeTrendFootnote ??
+          footnote:
+              l?.journalComposeTrendFootnote ??
               'Entered by you. Days with no entry are left empty.',
           series: vals,
           empty: axis == null ? const NoData() : null,
@@ -953,9 +1467,9 @@ class _WeightTrendState extends State<_WeightTrend> {
       Text(
         l?.journalComposeWeightTrendExplainer(trend.length) ??
             'From you or your scale; the band doesn’t measure weight. The line '
-            'is a 7-day average, because water and food alone move a scale '
-            '1–2 kg. ${trend.length} '
-            '${trend.length == 1 ? 'day' : 'days'} entered.',
+                'is a 7-day average, because water and food alone move a scale '
+                '1–2 kg. ${trend.length} '
+                '${trend.length == 1 ? 'day' : 'days'} entered.',
         style: F.over.copyWith(color: p.ink3, height: 1.5),
       ),
     ]);
@@ -974,223 +1488,5 @@ class _WeightTrendState extends State<_WeightTrend> {
     final day = DateTime(first.year, first.month, first.day + offset);
     final v = trend[dayLabelOf(day)];
     return v == null ? null : show(v);
-  }
-}
-
-// ══════════════════════════ AI JOURNAL CHAT ══════════════════════════
-//
-// The pre-sleep "tell me about your day" chat over [JournalAiEngine]. The
-// model never writes anything: it proposes tags + a note, this sheet shows
-// exactly that proposal, and only a tap on "Add to journal" hands it back to
-// [_JournalComposeState._openAiChat], which merges it with whatever the day
-// already holds via [mergeJournalEntry] — never a plain overwrite.
-class _JournalAiSheet extends StatefulWidget {
-  const _JournalAiSheet({required this.config});
-
-  final CoachConfig config;
-
-  @override
-  State<_JournalAiSheet> createState() => _JournalAiSheetState();
-}
-
-class _JournalAiSheetState extends State<_JournalAiSheet> {
-  late final JournalAiEngine _engine = JournalAiEngine(config: widget.config);
-  final _input = TextEditingController();
-  final _scroll = ScrollController();
-  final _turns = <({bool fromUser, String text})>[];
-  JournalAiTurn? _last;
-  bool _busy = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _input.dispose();
-    _scroll.dispose();
-    super.dispose();
-  }
-
-  Future<void> _send() async {
-    final text = _input.text.trim();
-    if (text.isEmpty || _busy) return;
-    setState(() {
-      _turns.add((fromUser: true, text: text));
-      _input.clear();
-      _busy = true;
-      _error = null;
-    });
-    try {
-      final turn = await _engine.send(text);
-      if (!mounted) return;
-      setState(() {
-        _turns.add((fromUser: false, text: turn.reply));
-        _last = turn;
-        _busy = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      // Not fabricated: a failed turn shows the real error, not a canned
-      // reply pretending the model answered.
-      setState(() {
-        _error = e.toString();
-        _busy = false;
-      });
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients && mounted) {
-        unawaited(_scroll.animateTo(
-          _scroll.position.maxScrollExtent,
-          duration: motion(context, Motion.base),
-          curve: Curves.easeOut,
-        ));
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    final last = _last;
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom),
-      child: SafeArea(
-        top: false,
-        child: Container(
-          height: MediaQuery.of(c).size.height * 0.75,
-          decoration: BoxDecoration(
-            color: p.bg,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(R.lg)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: S.x2),
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(color: p.line, borderRadius: R.rSm),
-              ),
-              const SizedBox(height: S.x3),
-              Text(
-                uiText(c, 'Talk it through'),
-                style: F.head.copyWith(color: p.ink),
-              ),
-              const SizedBox(height: S.x2),
-              Expanded(
-                child: _turns.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(S.x4),
-                          child: Text(
-                            uiText(
-                              c,
-                              'Tell it about your day — it proposes tags and a note, you decide what to keep.',
-                            ),
-                            textAlign: TextAlign.center,
-                            style: F.body.copyWith(color: p.ink3),
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        controller: _scroll,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: S.x4, vertical: S.x2),
-                        itemCount: _turns.length,
-                        itemBuilder: (_, i) {
-                          final t = _turns[i];
-                          return Align(
-                            alignment: t.fromUser
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(vertical: S.x1),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: S.x3, vertical: S.x2),
-                              constraints: BoxConstraints(
-                                  maxWidth: MediaQuery.of(c).size.width * 0.75),
-                              decoration: BoxDecoration(
-                                color: t.fromUser ? p.fill(C.domMind) : p.card2,
-                                borderRadius: R.rMd,
-                              ),
-                              child: Text(
-                                t.text,
-                                style: F.body.copyWith(
-                                  color: t.fromUser ? p.inkOn(p.fill(C.domMind)) : p.ink,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-              if (last != null && last.tags.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x2),
-                  child: Wrap(
-                    spacing: S.x2,
-                    runSpacing: S.x2,
-                    children: [
-                      for (final t in last.tags)
-                        Pill(journalTagText(c, t), C.domMind),
-                    ],
-                  ),
-                ),
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x2),
-                  child: ErrorLine(_error!),
-                ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x2),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: AppField(
-                        controller: _input,
-                        enabled: !_busy,
-                        onSubmitted: (_) => unawaited(_send()),
-                        hint: uiText(c, 'Tell it about your day…'),
-                      ),
-                    ),
-                    const SizedBox(width: S.x2),
-                    Pressable(
-                      onTap: _busy ? null : () => unawaited(_send()),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: p.fill(C.domMind),
-                          borderRadius: R.rMd,
-                        ),
-                        child: _busy
-                            ? SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: p.inkOn(p.fill(C.domMind))),
-                              )
-                            : Icon(LucideIcons.arrowUp,
-                                color: p.inkOn(p.fill(C.domMind))),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x4),
-                child: BigButton(
-                  'Add to journal',
-                  icon: LucideIcons.check,
-                  color: C.domMind,
-                  onTap: last == null
-                      ? null
-                      : () => Navigator.of(c)
-                          .pop((tags: last.tags, note: last.note)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

@@ -193,10 +193,6 @@ class LucideIcons {
   static const IconData smartphone = base.LucideIcons.smartphone300;
   static const IconData smile = base.LucideIcons.smile300;
   static const IconData snowflake = base.LucideIcons.snowflake300;
-  // The coach's mark is CoachMark (marks.dart), never a sparkle. The one use
-  // left is journal_compose.dart's AI section, which is being removed: delete
-  // this line with it.
-  static const IconData sparkles = base.LucideIcons.sparkles300;
   static const IconData sprout = base.LucideIcons.sprout300;
   static const IconData square = base.LucideIcons.square300;
   static const IconData stethoscope = base.LucideIcons.stethoscope300;
@@ -239,4 +235,14 @@ class LucideIcons {
   static const IconData zap = base.LucideIcons.zap300;
   static const IconData zoomIn = base.LucideIcons.zoomIn300;
   static const IconData zoomOut = base.LucideIcons.zoomOut300;
+
+  // The journal's marks, cut where its reference draws them: a hairline ✕ and
+  // pencil in the top bar, heavy ✕ / ✓ / − / + on the answer buttons.
+  static const IconData xThin = base.LucideIcons.x200;
+  static const IconData pencilThin = base.LucideIcons.pencil200;
+  static const IconData xHeavy = base.LucideIcons.x600;
+  static const IconData checkBold = base.LucideIcons.check600;
+  static const IconData minusBold = base.LucideIcons.minus600;
+  static const IconData plusBold = base.LucideIcons.plus600;
+  static const IconData checkHeavy = base.LucideIcons.check500;
 }
