@@ -7,6 +7,7 @@ import 'package:openstrap_edge/compute/manual_session.dart';
 import 'package:openstrap_edge/models/activity_suggestion.dart';
 import 'package:openstrap_edge/state/app_state.dart';
 import 'package:openstrap_edge/ui2/screens/detected_activities.dart';
+import 'package:openstrap_edge/ui2/screens/home/home_my_day.dart';
 import 'package:openstrap_edge/ui2/screens/window_editor.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 import 'package:openstrap_edge/theme/theme_controller.dart';
@@ -43,6 +44,15 @@ class _Repo extends LocalRepository {
     if (fail) throw StateError('offline database');
     return items.length;
   }
+
+  @override
+  Future<List<Map<String, dynamic>>> getSessions({
+    int? from,
+    int? to,
+    bool includeDetected = true,
+  }) async => [
+    {'type': 'Running', 'start_ts': 1787000000, 'end_ts': 1787003600},
+  ];
 
   @override
   Future<List<SessionSpan>> savedSessionSpans() async => [];
@@ -109,17 +119,21 @@ void main() {
     await t.tap(find.text('TRY AGAIN'));
     await t.pumpAndSettle();
     expect(find.text('POSSIBLE NAP'), findsOneWidget);
-    expect(find.text('POSSIBLE WORKOUT'), findsOneWidget);
   });
 
-  testWidgets('confirm and discard remove only the selected item', (t) async {
+  testWidgets('the review lists naps only: a workout waits in My Day', (
+    t,
+  ) async {
+    await pump(t);
+    expect(find.text('POSSIBLE NAP'), findsOneWidget);
+    expect(find.text('POSSIBLE WORKOUT'), findsNothing);
+  });
+
+  testWidgets('confirming a nap leaves the workout pending', (t) async {
     final repo = await pump(t);
     await t.tap(find.text('CONFIRM').first);
     await t.pumpAndSettle();
     expect(repo.items.single.id, 'workout');
-    await t.tap(find.text('NOT A WORKOUT'));
-    await t.pumpAndSettle();
-    expect(repo.items, isEmpty);
     expect(find.text('Nothing to review'), findsOneWidget);
   });
 
@@ -133,60 +147,75 @@ void main() {
     expect(repo.items, hasLength(2));
   });
 
-  testWidgets(
-    'unknown workout stays Other; stale edit shows new proposal before a second save',
-    (t) async {
-      final repo = await pump(t);
-      await t.tap(find.text('CHANGE SPORT'));
+  testWidgets('home card stays up when the count fails to load', (t) async {
+    await pump(t, fail: true, home: const Scaffold(body: DetectedActivitiesCard()));
+    expect(find.text('Detected activities'), findsOneWidget);
+    expect(find.text('Could not load activities. Try again.'), findsOneWidget);
+  });
+
+  group('a detected workout', () {
+    testWidgets('shows in My Day as ACTIVITY, without a made-up strain', (
+      t,
+    ) async {
+      ActivitySuggestion? tapped;
+      await t.pumpWidget(MaterialApp(
+        theme: buildTheme(Brightness.dark),
+        home: Scaffold(
+          body: HomeMyDay(
+            day: '2026-08-19',
+            night: const {},
+            sessions: const [],
+            detected: [proposal('workout', ActivityKind.workout)],
+            onDetected: (s) => tapped = s,
+            onExpand: () {},
+            onSleep: () {},
+            onSession: (_) {},
+            onAdd: () {},
+          ),
+        ),
+      ));
+      expect(find.text('ACTIVITY'), findsOneWidget);
+      // Thirty minutes: its length, the only figure known before it is named.
+      expect(find.text('0:30'), findsOneWidget);
+      await t.tap(find.text('ACTIVITY'));
+      expect(tapped?.id, 'workout');
+    });
+
+    testWidgets('asks what it was, offers the last one, and saves the answer', (
+      t,
+    ) async {
+      final repo = await pump(t, home: const IdentifyActivityScreen());
+      expect(find.text('SELECT YOUR ACTIVITY'), findsOneWidget);
+      expect(find.text('MOST RECENT'), findsOneWidget);
+      expect(find.text('ALL A-Z'), findsOneWidget);
+      await t.tap(find.text('RUNNING').first);
       await t.pumpAndSettle();
-      expect(find.text('Other'), findsOneWidget);
+      expect(repo.savedType, 'running');
+      expect(repo.items.single.id, 'nap');
+    });
+
+    testWidgets('a window that moved is saved at its latest revision', (
+      t,
+    ) async {
+      final repo = await pump(t, home: const IdentifyActivityScreen());
       repo.items[1] = proposal(
         'workout',
         ActivityKind.workout,
         revision: 1,
         shift: 600,
       );
-      await t.tap(find.text('SAVE AND CONFIRM'));
+      await t.tap(find.text('RUNNING').first);
       await t.pumpAndSettle();
-      expect(repo.items, hasLength(2));
-      expect(
-        find.text('The proposal changed. Review the new times.'),
-        findsOneWidget,
-      );
-      await t.tap(find.text('SAVE AND CONFIRM'));
+      expect(repo.savedType, 'running');
+    });
+
+    testWidgets('can be thrown away from the same question', (t) async {
+      final repo = await pump(t, home: const IdentifyActivityScreen());
+      await t.tap(find.byIcon(LucideIcons.trash2));
       await t.pumpAndSettle();
       expect(repo.items.single.id, 'nap');
-      expect(repo.savedType, 'other');
-    },
-  );
+      expect(repo.savedType, isNull);
+    });
 
-  testWidgets('failed stale-proposal reload does not leave save stuck', (
-    t,
-  ) async {
-    final repo = await pump(t);
-    await t.tap(find.text('CHANGE SPORT'));
-    await t.pumpAndSettle();
-    repo.items[1] = proposal(
-      'workout',
-      ActivityKind.workout,
-      revision: 1,
-      shift: 600,
-    );
-    repo.fail = true;
-    await t.tap(find.text('SAVE AND CONFIRM'));
-    await t.pumpAndSettle();
-    expect(repo.items, hasLength(2));
-    repo.fail = false;
-    await t.tap(find.text('SAVE AND CONFIRM'));
-    await t.pumpAndSettle();
-    await t.tap(find.text('SAVE AND CONFIRM'));
-    await t.pumpAndSettle();
-    expect(repo.items.single.id, 'nap');
-  });
-
-  testWidgets('home card stays up when the count fails to load', (t) async {
-    await pump(t, fail: true, home: const Scaffold(body: DetectedActivitiesCard()));
-    expect(find.text('Detected activities'), findsOneWidget);
-    expect(find.text('Could not load activities. Try again.'), findsOneWidget);
   });
 }

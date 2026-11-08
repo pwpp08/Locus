@@ -1016,12 +1016,6 @@ Map<String, Widget> extraCases() => {
           status: ActivityReviewStatus.pending, details: const {}),
         hr: _galleryHr,
         highlighted: true, onConfirm: (a, b) {}, onEdit: () {}, onDiscard: () {}),
-      'activity_proposal_workout': ActivityProposalCard(
-        suggestion: ActivitySuggestion(id: 'workout-fixture', kind: ActivityKind.workout,
-          startTs: 1787157000, endTs: 1787164200, revision: 0,
-          status: ActivityReviewStatus.pending, details: const {}),
-        hr: _galleryHr,
-        onConfirm: (a, b) {}, onEdit: () {}, onDiscard: () {}),
       // The window editor's chart: a night drawn on its heart rate.
       'window_chart': SizedBox(
         height: S.x16 * 2,
@@ -1154,7 +1148,6 @@ Map<String, Widget> extraCases() => {
           'HRV above your usual',
           'Last night\'s HRV of 68 ms was 19% above your 30-day average of '
               '57 ms. Your body is handling its load well.',
-          bars: [52, 58, 49, 61, 55, 60, 68],
           lit: C.dialStrain,
         ),
         DailyCard(
@@ -1771,13 +1764,11 @@ Map<String, Widget> _stateCases() => {
       ]),
       // Two activities too close on a chart to draw apart.
       'mark_count': const MarkCount(2, color: C.white),
-      'all_time_records': const AllTimeRecords(
-        high: '8:50',
-        highDay: 'Nov 7',
-        low: '4:12',
-        lowDay: 'Oct 24',
-        unit: 'hr',
-      ),
+      'scallop_mark': const Row(mainAxisSize: MainAxisSize.min, children: [
+        ScallopMark(StatMark.heartDown, color: PH.gold),
+        SizedBox(width: S.x2),
+        ScallopMark(StatMark.lotus, color: C.recGreen),
+      ]),
       'plus_button': const Row(mainAxisSize: MainAxisSize.min, children: [
         PlusButton(onTap: null),
         SizedBox(width: S.x4),

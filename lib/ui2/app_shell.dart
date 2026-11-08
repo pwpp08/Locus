@@ -308,21 +308,24 @@ class _TabBar extends StatelessWidget {
           );
     // A dark rounded rectangle floating over the tabs. Its only decoration is
     // the rim: a hairline lit at the top-left corner and gone by a third of
-    // the way round, as if one light sat above and to the left. No glow, no
+    // the way round, as if one light sat above and to the left, and dark
+    // everywhere past it. No glow, no
     // shadow. The selected tab carries a soft pool of light at its foot.
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: R.rXxl,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        // An ellipse centred on the corner: long along the top, gone before
+        // the foot of the left side.
+        gradient: RadialGradient(
+          center: Alignment.topLeft,
+          radius: 1,
+          transform: const _RimLight(),
           colors: [
-            C.white.withValues(alpha: .30),
-            C.white.withValues(alpha: .09),
-            C.white.withValues(alpha: .04),
-            C.white.withValues(alpha: .04),
+            C.white.withValues(alpha: .34),
+            C.white.withValues(alpha: .13),
+            C.white.withValues(alpha: 0),
           ],
-          stops: const [0.0, 0.18, 0.45, 1.0],
+          stops: const [0.0, 0.42, 0.8],
         ),
       ),
       child: Padding(
@@ -354,6 +357,18 @@ class _TabBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Stretches the rim's light sideways from the bar's top-left corner.
+class _RimLight extends GradientTransform {
+  const _RimLight();
+
+  @override
+  Matrix4 transform(Rect bounds, {TextDirection? textDirection}) =>
+      Matrix4.identity()
+        ..translateByDouble(bounds.left, bounds.top, 0, 1)
+        ..scaleByDouble(2.4, 1, 1, 1)
+        ..translateByDouble(-bounds.left, -bounds.top, 0, 1);
 }
 
 /// The coach's orb: a dark disc in a lavender-to-teal ring, with the

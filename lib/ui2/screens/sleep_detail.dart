@@ -1177,26 +1177,33 @@ class _NightCardState extends State<_NightCard> {
         const SizedBox(height: S.x3),
         Padding(
           padding: const EdgeInsets.fromLTRB(
-              S.x8 - S.hair, 0, S.x8, 0),
+              S.x8 - S.hair, 0, S.x6 + S.hair, 0),
           child: Row(children: [
             CustomPaint(
                 size: const Size(S.x4, S.x4 + S.hair),
                 painter: _TypicalKeyPaint()),
             const SizedBox(width: S.x3),
             Expanded(
-                child: Text('TYPICAL RANGE',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: F.dLabel.copyWith(color: DC.ink2))),
-            Flexible(
-              child: Text('DURATION',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: F.dLabel.copyWith(color: DC.ink2)),
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: S.x2,
+                children: [
+                  Text('TYPICAL RANGE',
+                      style: F.dLabel.copyWith(color: DC.ink2)),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Text('DURATION',
+                          style: F.dLabel.copyWith(color: DC.ink2)),
+                      const SizedBox(width: S.x2),
+                      Text(clockDur(total <= 0 ? null : total),
+                          style: F.nRow.copyWith(color: DC.ink)),
+                    ]),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: S.x1),
-            Text(clockDur(total <= 0 ? null : total),
-                style: F.nRow.copyWith(color: DC.ink)),
           ]),
         ),
         const SizedBox(height: S.x6 + S.hair),
@@ -1327,7 +1334,7 @@ class _NightPaint extends CustomPainter {
   static const _step = S.x6 - S.hair;
   static const _plotFoot = _top + _step * 7;
   static const _laneTop = _plotFoot + S.x1;
-  static const _laneH = S.x5;
+  static const _laneH = S.x8;
 
   /// Where the dashes end: under the movement lane when there is one.
   static double footOf(bool lane) =>
@@ -1432,14 +1439,22 @@ class _NightPaint extends CustomPainter {
       }
     }
 
+    // What lies beyond the onset and wake lines is faded, so the bpm axis
+    // reads through it and the night is plainly the part being looked at.
+    void windowed(VoidCallback draw) {
+      if (onset == null || wake == null) return draw();
+      paintWindowed(canvas, Rect.fromLTWH(0, 0, w, dashFoot), xOf(onset!),
+          xOf(wake!), draw);
+    }
+
     // Movement, on the same clock, under the 30 line.
     if (lane) {
-      paintMovement(
+      windowed(() => paintMovement(
           canvas,
           Rect.fromLTRB(0, _laneTop, w, _laneTop + _laneH),
           movement,
           xOf,
-          DC.ink.withValues(alpha: dimmed ? .2 : .4));
+          DC.ink.withValues(alpha: dimmed ? .2 : .4)));
       final tp = _tp('MOVEMENT',
           F.num(F.over).copyWith(color: DC.ink3, fontWeight: FontWeight.w600));
       tp.paint(canvas, Offset((w - tp.width) / 2, _laneTop));
@@ -1470,8 +1485,8 @@ class _NightPaint extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = S.hair + .2
       ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(pathOf((_) => true),
-        stroke..color = dimmed ? DC.dim : C.dialSleep);
+    windowed(() => canvas.drawPath(pathOf((_) => true),
+        stroke..color = dimmed ? DC.dim : C.dialSleep));
     if (lit != null && onset != null && wake != null) {
       final span = wake! - onset!;
       bool inRun(int t) {
@@ -1797,12 +1812,11 @@ class _HoursVsNeededCard extends StatelessWidget {
             return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SizedBox(
-                    width: sleepW,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: SizedBox(
-                        width: math.max(sleepW, S.x16 + S.x12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minWidth: sleepW, maxWidth: w),
+                      child: IntrinsicWidth(
                         child: Row(children: [
                           Expanded(
                             child: Text('HOURS OF SLEEP',
@@ -1810,13 +1824,9 @@ class _HoursVsNeededCard extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: F.dLabel.copyWith(color: DC.ink2)),
                           ),
-                          Flexible(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(clockDur(tst),
-                                  style: F.nRow.copyWith(color: DC.ink)),
-                            ),
-                          ),
+                          const SizedBox(width: S.x2),
+                          Text(clockDur(tst),
+                              style: F.nRow.copyWith(color: DC.ink)),
                         ]),
                       ),
                     ),
@@ -1829,7 +1839,7 @@ class _HoursVsNeededCard extends StatelessWidget {
                       height: S.x4 + S.half,
                       decoration: BoxDecoration(
                         borderRadius: const BorderRadius.horizontal(
-                            right: Radius.circular(S.x2)),
+                            right: Radius.circular(S.half)),
                         gradient: LinearGradient(colors: [
                           C.dialSleep.withValues(alpha: .25),
                           C.dialSleep.withValues(alpha: .8),
@@ -1843,7 +1853,7 @@ class _HoursVsNeededCard extends StatelessWidget {
                     height: S.x4 + S.half,
                     child: ClipRRect(
                       borderRadius: const BorderRadius.horizontal(
-                          right: Radius.circular(S.x2)),
+                          right: Radius.circular(S.half)),
                       child: parts == null
                         ? Container(
                             decoration: const BoxDecoration(
@@ -2262,14 +2272,17 @@ class _Raster extends StatelessWidget {
 
   @override
   Widget build(BuildContext c) {
-    return CustomPaint(
-      size: const Size(double.infinity, S.x4 + S.half),
-      painter: _StageBarPaint(
-        share: 0,
-        runs: runs,
-        color: color,
-        t: 1,
-        typical: null,
+    return ClipRRect(
+      borderRadius: R.rSm,
+      child: CustomPaint(
+        size: const Size(double.infinity, S.x4 + S.half),
+        painter: _StageBarPaint(
+          share: 0,
+          runs: runs,
+          color: color,
+          t: 1,
+          typical: null,
+        ),
       ),
     );
   }

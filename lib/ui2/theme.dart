@@ -774,6 +774,32 @@ class DC {
   static const chip = Color(0xFF3A4249);
   static const field = Color(0xFF2E353B);
   static const grab = Color(0xFF56616A);
+
+  /// The daily cards: the halo round a card, and the coin's metal.
+  static const cardHalo = Color(0x4D000000);
+  static const coinHi = Color(0xFF7C7F84);
+  static const coinLo = Color(0xFF4B4E53);
+  static const coinEdgeHi = Color(0xFF5A5D61);
+  static const coinEdgeLo = Color(0xFF2B2D30);
+  static const coinInk = Color(0xFF2F3134);
+  static const coinShine = Color(0x38FFFFFF);
+  static const coinShade = Color(0x73000000);
+
+  /// The week's bars on a recovery card, lit down the left edge.
+  static const barEdge = Color(0xFF696A6E);
+  static const barFace = Color(0xFF595A5E);
+  static const barSide = Color(0xFF514F54);
+
+  /// The goal cards' box.
+  static const boxFront = Color(0xFF4E5256);
+  static const boxInner = Color(0xFF63686C);
+  static const boxLedge = Color(0xFF6E7376);
+  static const boxLidHi = Color(0xFF5B5F62);
+  static const boxLidLo = Color(0xFF494D50);
+  static const boxLidEdge = Color(0xFF3F4346);
+  static const boxInk = Color(0xFF34383B);
+  static const boxGlow = Color(0xFFC277CC);
+  static const boxGlowHi = Color(0xFFE3A6EA);
   static const hurtChip = Color(0x33FFA733);
   static const helpChip = Color(0x3300F19F);
   static const sparkChip = Color(0xFF263B50);
@@ -782,6 +808,170 @@ class DC {
   static const heroGlow = Color(0xFF3A3F49);
   static const journalBody = Color(0xFF5B6065);
   static const journalEdge = Color(0xFF3B3F44);
+}
+
+/// ── PROFILE ── the Data Highlights page, measured off its reference at
+/// 1.5 px to the dp. The ground and cards are the dial screens' ([DC]).
+class PH {
+  static const gold = Color(0xFFF4D694);
+  static const well = Color(0xFF1C2024);
+  static const pill = Color(0xFF33373B);
+  static const hatch = Color(0x3DFFFFFF);
+
+  // The page.
+  static const barHeight = 68.0;
+  static const toHeading = 21.0;
+  static const headingGap = 15.0;
+  static const cardGap = 27.0;
+  static const hair = 2 / 3;
+  static const cardFoot = 9.33;
+
+  // The period switch.
+  static const periodHeight = 44.67;
+  static const periodInset = 4.67;
+
+  // The circles, the streaks and the rows, top to bottom.
+  static const toRings = 28.0;
+  static const ring = 81.33;
+  static const ringStroke = 5.33;
+  static const ringToLabel = 8.0;
+  static const toStreaks = 27.0;
+  static const kickerGap = 9.33;
+  static const toBadges = 19.0;
+  static const streakNudge = 2.67;
+  static const badge = 38.67;
+  static const badgeStroke = 1.1;
+  static const badgeToDays = 9.67;
+  static const toNotable = 26.67;
+  static const toFirstRow = .67;
+  static const rowHeight = 78.0;
+  static const badgeToTitle = 15.33;
+  static const unitGap = 5.0;
+  static const pctGap = 1.0;
+
+  // The detected-activity list.
+  static const pickTop = Color(0xFF1F242A);
+  static const pickGround = Color(0xFF15181D);
+  static const pickHandle = 57.33;
+  static const pickSearch = 43.67;
+  static const pickRow = 50.67;
+  static const pickGap = 7.0;
+  static const pickPad = 14.67;
+  static const ruleToPick = 14.0;
+  static const pickToRule = 18.0;
+
+  // Activity Summary.
+  static const toTotal = 22.67;
+  static const totalGap = 2.67;
+  static const toHeader = 18.67;
+  static const toFirstActivity = 27.33;
+  static const activityLine = 24.0;
+  static const activityIcon = 20.67;
+  static const activityIconGap = 8.67;
+  static const lineToBar = 7.67;
+  static const bar = 9.33;
+  static const barToRule = 27.33;
+  static const ruleToRow = 26.67;
+  static const collapsedRows = 3;
+
+  static const period = TextStyle(
+      fontFamily: F.family,
+      fontFamilyFallback: F._fb,
+      fontSize: 11,
+      height: 1.2,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.05);
+  static const kicker = TextStyle(
+      fontFamily: F.family,
+      fontFamilyFallback: F._fb,
+      fontSize: 11,
+      height: 1.2,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.05);
+  static const figure = TextStyle(
+      fontFamily: F.numerals,
+      fontFamilyFallback: F._nb,
+      fontSize: 23,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      letterSpacing: .3,
+      fontFeatures: [FontFeature.tabularFigures()]);
+  /// A daily card's sentence, set small enough to leave its coin room.
+  static const cardBody = TextStyle(
+      fontFamily: F.family,
+      fontFamilyFallback: F._fb,
+      fontSize: 12.5,
+      height: 16.2 / 12.5,
+      fontWeight: FontWeight.w500);
+
+  /// The sentence of a card that is only words.
+  static const cardWords = TextStyle(
+      fontFamily: F.family,
+      fontFamilyFallback: F._fb,
+      fontSize: 14.5,
+      height: 19.5 / 14.5,
+      fontWeight: FontWeight.w500);
+
+  /// The detected-activity sheet: its title, search box, line and rules.
+  static const pickTitle = TextStyle(
+      fontFamily: F.family,
+      fontFamilyFallback: F._fb,
+      fontSize: 12,
+      height: 1.2,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.2);
+  static const pickField = TextStyle(
+      fontFamily: F.family,
+      fontFamilyFallback: F._fb,
+      fontSize: 12.5,
+      height: 1.2,
+      fontWeight: FontWeight.w500);
+  static const pickNote = TextStyle(
+      fontFamily: F.family,
+      fontFamilyFallback: F._fb,
+      fontSize: 11.5,
+      height: 14.5 / 11.5,
+      fontWeight: FontWeight.w500);
+  static const pickRule = TextStyle(
+      fontFamily: F.family,
+      fontFamilyFallback: F._fb,
+      fontSize: 10,
+      height: 1.2,
+      fontWeight: FontWeight.w700,
+      letterSpacing: .8);
+  static const figureUnit = TextStyle(
+      fontFamily: F.numerals,
+      fontFamilyFallback: F._nb,
+      fontSize: 15,
+      height: 1,
+      fontWeight: FontWeight.w700);
+  static const sub = TextStyle(
+      fontFamily: F.family,
+      fontFamilyFallback: F._fb,
+      fontSize: 12,
+      height: 1.25,
+      fontWeight: FontWeight.w500);
+  static const total = TextStyle(
+      fontFamily: F.numerals,
+      fontFamilyFallback: F._nb,
+      fontSize: 25,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      fontFeatures: [FontFeature.tabularFigures()]);
+  static const count = TextStyle(
+      fontFamily: F.numerals,
+      fontFamilyFallback: F._nb,
+      fontSize: 18,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      fontFeatures: [FontFeature.tabularFigures()]);
+  static const avg = TextStyle(
+      fontFamily: F.numerals,
+      fontFamilyFallback: F._nb,
+      fontSize: 14,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      fontFeatures: [FontFeature.tabularFigures()]);
 }
 
 /// ── HEALTH MONITOR ── measured off its reference (1.96 px to the dp). Always

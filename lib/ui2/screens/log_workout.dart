@@ -1,5 +1,4 @@
-// LOG A WORKOUT — the two places the athlete owns the times, and the review
-// screen the auto-detector has been writing to for months with nobody reading.
+// LOG A WORKOUT — the two places the athlete owns the times.
 //
 // WHY THIS FILE EXISTS AT ALL. `LocalRepository.logManualWorkout` and
 // `setWorkoutWindow` have been implemented, tested and reachable from the
@@ -33,8 +32,6 @@ import 'package:provider/provider.dart';
 
 import '../../compute/manual_session.dart';
 import '../../data/day_label.dart' show calendarDaysBetween;
-import '../../models/activity_suggestion.dart';
-import 'detected_activities.dart';
 import '../../data/db.dart';
 import '../../data/journal_fields.dart' show formatMinuteOfDay;
 import '../../data/local_repository.dart';
@@ -48,60 +45,6 @@ import '../profile/profile.dart' show SetRow, settingsGroup;
 import '../ui2.dart';
 import 'add_activity.dart' show chooseActivity;
 import 'home_screen.dart' show monthShortName, repoOf, weekdayShortName;
-
-/// One detected bout, as this screen needs it. Built straight off a
-/// `workout_suggestions` row.
-class Suggestion {
-  const Suggestion({
-    required this.id,
-    required this.startTs,
-    required this.endTs,
-    this.sport,
-    this.peakBpm,
-    this.avgBpm,
-  });
-
-  final String id;
-  final int startTs, endTs;
-  final String? sport;
-  final int? peakBpm, avgBpm;
-
-  int get durationMin => ((endTs - startTs) / 60).round();
-
-  /// The catalogue entry behind `sport`, when this build knows it. Null is
-  /// carried rather than defaulted so the row can say what it was told.
-  Activity? get activity => activityByName(sport);
-
-  /// Null when the row is malformed — a suggestion with no window is not a
-  /// suggestion, and it must not reach a screen that offers to log it.
-  static Suggestion? from(Map<String, dynamic> r) {
-    final id = r['id'];
-    final s = (r['start_ts'] as num?)?.toInt();
-    final e = (r['end_ts'] as num?)?.toInt();
-    if (id is! String || s == null || e == null || e <= s) return null;
-    return Suggestion(
-      id: id,
-      startTs: s,
-      endTs: e,
-      sport: r['sport'] as String?,
-      peakBpm: (r['peak_bpm'] as num?)?.toInt(),
-      avgBpm: (r['avg_bpm'] as num?)?.toInt(),
-    );
-  }
-}
-
-// ══════════════════ THE REVIEW SCREEN ══════════════════
-
-/// Where "Did you work out?" lands. Every active bout, each with the two
-/// answers that are honest — it happened, or it didn't — and the third that
-/// matters more than either: the window is wrong.
-class WorkoutSuggestionScreen extends DetectedActivitiesScreen {
-  WorkoutSuggestionScreen({super.key, List<Suggestion>? preloaded, super.focusId})
-      : super(preloaded: preloaded?.map((s) => ActivitySuggestion(
-          id: s.id, kind: ActivityKind.workout, startTs: s.startTs, endTs: s.endTs,
-          revision: 0, details: {'sport': s.sport, 'peak_bpm': s.peakBpm, 'avg_bpm': s.avgBpm},
-        )).toList());
-}
 
 /// Today / Yesterday / "Mon 11 Aug", against the real calendar day rather than
 /// a 24-hour subtraction — the day after a spring-forward is 23 hours long.
@@ -121,7 +64,6 @@ class LogWorkout extends StatefulWidget {
   const LogWorkout({
     super.key,
     this.sessionId,
-    this.suggestion,
     this.start,
     this.end,
     this.activity,
@@ -132,7 +74,6 @@ class LogWorkout extends StatefulWidget {
   });
 
   final String? sessionId;
-  final ActivitySuggestion? suggestion;
   final DateTime? start, end;
   final Activity? activity;
 
@@ -163,19 +104,17 @@ class _LogWorkoutState extends State<LogWorkout> {
   List<SessionSpan> _spans = const [];
   bool _saving = false;
   String? _wrote;
-  ActivitySuggestion? _suggestion;
 
   @override
   void initState() {
     super.initState();
-    _suggestion = widget.suggestion;
     final now = widget.now ?? DateTime.now();
     // An hour, ending on the last whole hour. A form that opens on "now to
     // now" is a form whose first state is invalid.
     final defaultEnd = DateTime(now.year, now.month, now.day, now.hour);
     _end = widget.end ?? defaultEnd;
     _start = widget.start ?? _end.subtract(Motion.tick * 3600);
-    _activity = widget.activity ?? (widget.suggestion != null ? const Activity('Other', LucideIcons.activity, C.domMove, Track.duration, null) : quickStart.first);
+    _activity = widget.activity ?? quickStart.first;
     if (widget.spans != null) {
       _spans = widget.spans!;
     } else {
@@ -281,12 +220,6 @@ class _LogWorkoutState extends State<LogWorkout> {
       _wrote = null;
     });
     try {
-      if (_suggestion case final suggestion?) {
-        await repo.confirmActivity(suggestion, startTs: _startSec, endTs: _endSec, workoutType: _activity.typeKey);
-        app?.insightsRevision.value++;
-        if (mounted) nav.pop(true);
-        return;
-      }
       if (widget.importedUuid != null) {
         // The spans this form opened with may still have been loading: check
         // the window against what is saved now, before writing over it.
@@ -337,26 +270,6 @@ class _LogWorkoutState extends State<LogWorkout> {
         return;
       }
       nav.pop(true);
-    } on ActivityReviewException catch (e) {
-      try {
-        final pending = await repo.pendingActivities();
-        if (!mounted) return;
-        for (final latest in pending) {
-          if (latest.id != _suggestion?.id || latest.revision == _suggestion?.revision) {
-            continue;
-          }
-          _suggestion = latest;
-          _start = DateTime.fromMillisecondsSinceEpoch(latest.startTs * 1000);
-          _end = DateTime.fromMillisecondsSinceEpoch(latest.endTs * 1000);
-        }
-      } catch (_) {
-        // Keep the old revision: another save must still recheck it. A failed
-        // reload must not leave the save button permanently busy.
-      } finally {
-        if (mounted) {
-          setState(() { _saving = false; _wrote = e.message; });
-        }
-      }
     } on ManualWindowException catch (e) {
       if (mounted) {
         setState(() { _saving = false; _wrote = e.error.message; });
@@ -445,9 +358,7 @@ class _LogWorkoutState extends State<LogWorkout> {
                 BigButton(
                   _saving
                       ? (l?.logWorkoutSaving ?? 'Saving…')
-                      : widget.suggestion != null
-                          ? (l?.activitySaveConfirm ?? 'Save and confirm')
-                          : retime
+                      : retime
                           ? (l?.logWorkoutSaveNewTimes ?? 'Save the new times')
                           : (l?.logWorkoutLogIt ?? 'Log it'),
                   icon: LucideIcons.check,
@@ -535,16 +446,4 @@ Future<void> scoreImportedWorkout(
       title: l?.logWorkoutScoreWithBand ?? 'Score with band heart rate',
     ),
   ));
-}
-
-/// Pending workouts for the History tab, independent of push preferences.
-Future<List<Suggestion>> activeSuggestions() async {
-  try {
-    return [
-      for (final r in await LocalDb.activeWorkoutSuggestions())
-        ?Suggestion.from(r),
-    ];
-  } catch (_) {
-    return const [];
-  }
 }

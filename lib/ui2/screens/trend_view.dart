@@ -2322,7 +2322,6 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                     ],
                   ),
                 ],
-                _allTimeRecordsCard(c, m, _daily, l),
                 if (m.id == 'strain' && !isDay && _daily != null) ...[
                   const SizedBox(height: S.x8),
                   _StrainBreakdown(bars: bars),
@@ -2378,40 +2377,6 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
             ],
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _allTimeRecordsCard(
-    BuildContext c,
-    TrendMetric m,
-    Map<String, double>? daily,
-    AppLocalizations? l,
-  ) {
-    if (daily == null || daily.length < 2) return const SizedBox.shrink();
-    if (m.id.contains('zone') ||
-        m.kind == TrendKind.stacked ||
-        m.kind == TrendKind.floating ||
-        m.id == 'consistency') {
-      return const SizedBox.shrink();
-    }
-    MapEntry<String, double>? maxEntry;
-    MapEntry<String, double>? minEntry;
-    for (final e in daily.entries) {
-      if (e.value.isNaN || e.value.isInfinite) continue;
-      if (maxEntry == null || e.value > maxEntry.value) maxEntry = e;
-      if (minEntry == null || e.value < minEntry.value) minEntry = e;
-    }
-    if (maxEntry == null || minEntry == null) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(top: S.x6),
-      child: AllTimeRecords(
-        high: trendFormat(m, maxEntry.value),
-        highDay: _shortDate(maxEntry.key, l),
-        low: trendFormat(m, minEntry.value),
-        lowDay: _shortDate(minEntry.key, l),
-        unit: m.unit ?? '',
       ),
     );
   }

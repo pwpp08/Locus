@@ -400,12 +400,12 @@ Bar order, by default: **Home · Strength · (+) · Macros · More**, and the us
 - **AI:** the coach orb (`AiOrb`): a sweep ring round a `card` disc with the `CoachMark`, the glyph scaled to the disc (I.md at 48). It is the coach's mark everywhere: the round button under My Day (56), the chat header (24) and the gutter beside each answer (24).
 - **Customising the bar:** a long press on any tab (or the (+)) opens the **Customise tabs** sheet (`NavBarEditor`): drag to reorder, switch a tab off to hide it, Save, or Reset to default. **Home and More always stay** (they read "Always on"): Home is the way back into the app, More is where Settings live. The (+) sits in the middle of whatever tabs are left. The order is stored in `Prefs.navTabs` (comma-separated `ShellDomain` names; empty means the default; `tabsFromPref` repairs anything unreadable and puts a missing Home or More back). A hidden tab is still built the same way, it just has no button; hiding the tab you are on drops you back on Home.
 - **Banner:** a minimised workout floats as its own `Glass` pill 8 above the bar.
-- **More tab** (`ProfileHomeView`): the photo header, then four groups, **each thing in exactly one place** (here, or in Settings, never both). *Insights & coaching*: AI coach, Habit tracker, Healthspan, Compare with watch, Milestones. *You and your band*: Edit profile, Weight, My devices, Alarm and, on Android only, Band buzzes. *Your data*: Cloud account, Storage, Export and backup. *App*: App updates (its line reads what you have, what is ready or that it is checking; tapping checks now), Check automatically (On/Off), and Settings. This tab is what you open to look at or use; **Settings is only switches and preferences** (notifications and quiet hours, units, time format, the band's step calibration, heart-rate settings, zone alert and double-tap, health-store sync, phone steps, privacy, automation, AI model setup, About). Nothing on this tab is repeated there.
+- **More tab** (`ProfileHomeView`): the photo header, then four groups, **each thing in exactly one place** (here, or in Settings, never both). *Insights & coaching*: AI coach, Habit tracker, Healthspan, Compare with watch. *You and your band*: Edit profile, Weight, My devices, Alarm and, on Android only, Band buzzes. *Your data*: Cloud account, Storage, Export and backup. *App*: App updates (its line reads what you have, what is ready or that it is checking; tapping checks now), Check automatically (On/Off), and Settings. This tab is what you open to look at or use; **Settings is only switches and preferences** (notifications and quiet hours, units, time format, the band's step calibration, heart-rate settings, zone alert and double-tap, health-store sync, phone steps, privacy, automation, AI model setup, About). Nothing on this tab is repeated there.
 
 ### 10.2 Home header
 
 A `Stack` of three things, so the pager sits on the true centre of the screen:
-- **Left:** `ProfileAvatar`, diameter 38.4 (`S.x12 × 0.8`).
+- **Left:** `ProfileAvatar`, diameter 38.4 (`S.x12 × 0.8`). Opens the Profile page (`DataHighlightsScreen`): the period's best scores, streaks, notable stats and activity summary.
 - **Centre:** the `DayPager`.
 - **Right:** device status. Battery reads `78%` in `F.n17` w700 (ink, or `p.on(red)` when low), then 8, then a `StrapIcon` 24 tall. In the strap's gap sits either a 10 px dot (`recGreen` when connected, ink3 when not) or the bobbing orange sync arrow. Tapping it opens My Devices.
 
@@ -571,7 +571,7 @@ As the page scrolls, the dials do not just scroll away. Each ring flies into a c
 
 A stack of small cards, each one thing worth a sentence today, read off stored series by `dailyCardsFor` (`home/home_daily_cards.dart`; every threshold is in `DailyCardRules`). A card appears only when every number it states is stored; "your usual" is the mean of the 30 days before today and needs 7 of them. Overnight cards wait for last night to be scored; recovery cards skip a provisional score. At most five, most important first (`DailyCardKind` order). Hidden when there are none, and on past days.
 
-- **Card** (`DailyCardFace`): the graded `Surface` ground, radius 14, padding 20 (52 on the right, for the badge). Title `F.head` ink, 2, then the sentence in `F.body` w500 ink2 at height 1.35. An optional week of bars (64 × 48, seven bars 4 apart, ink 22 %, today lit in the metric's hue) sits 16 right of the words; a day with nothing stored is left empty.
+- **Card** (`DailyCardFace`): the graded `Surface` ground, radius 14, padding 20 (56 on the right, for the badge). Title `F.dBody` ink. **Most cards are only words**: the sentence in `PH.cardWords` ink2. A picture is kept for what is rare, and its sentence drops to `PH.cardBody`: a **coin** for a record (`hrvBest`, `rhrLowest`, 74 × 85, gold rim, the metric's mark struck in), **slabs** for a turn in the week's recovery (`firstRed`, `backToGreen`, 83 × 92, seven slabs coming toward you, today's in its recovery colour, a day with no score left empty), and an **open box** with light coming out of it for a goal reached (`targetMet`, `stepGoal`, 76 × 74). A soft halo (`DC.cardHalo`, blur 20) on every side.
 - **Badge**: 24 × 46, radius 6, ink 10 %, 8 in from the top and right: a check at `I.sm` over the count of cards left in `F.num(F.body)` ink2. Tapping it throws the top card off. The count rolls (fade and rise, `Motion.base`).
 - **Stack**: the card beneath peeks 10 under the top one, 12 narrower on each side, at 55 %. All cards in the deck are as tall as the tallest; that height eases (`Motion.slow`) when it changes, and to nothing with the gap above it when the last card goes.
 - **Throw**: the top card follows the finger sideways, tilting up to 0.1 rad about its foot. Let go past 35 % of the width, or flicked faster than 700 px/s, and it flies off at the finger's speed (`easeOutCubic`, `Motion.fast`…`Motion.slow`), fading after 45 % of the width, with a `selectionClick`. Anything less springs back (stiffness 420, damping 0.78); a finger can catch it mid-spring. The card beneath rises to full size and fades its words in over the first 60 % of the throw. Reduced motion: the card still follows the finger, and everything after lands at once.
@@ -959,9 +959,9 @@ Measured off the reference screenshots at 2.34 px per dp; check against them bef
 - **HR chart** (216 tall):
   - **Plot:** ground ink 4 % over `bg`. Grid in ink 10 %: a line every 25 bpm and the width in quarters. Tick labels `F.num(F.cap)` ink3 at the left edge, over the grid.
   - **Trace:** a `dialStrain` line at 2 px over a fill from 42 % to 2 %.
-  - **Session edges:** start and end are dashed lines (ink 80 %, 1.5 px, 4/4) with a dot of radius 4 at the foot and the clock time under each.
+  - **Session edges:** start and end are dashed lines (ink 80 %, 1.5 px, 4/4) with a dot of radius 4 at the foot and the clock time under each. Whatever is drawn beyond them is at 28 % (`paintWindowed`), so the axis reads through it.
   - **Finger:** a dotted ink line down the chart and a dot on the reading (an ink disc of radius 10 with a `dialStrain` centre of radius 8).
-  - **Zoom:** pinch to zoom and pan, down to 2 minutes. RESET chip.
+  - **Zoom:** pinch to zoom and pan, down to 2 minutes; a double tap zooms in 2× around the tap, on every chart that pinches. RESET chip.
   - **Lit zone:** when a zone card is selected, the trace turns ink3 at 1.4 px and each stretch in that zone fills in the zone's colour (85 % → 8 %) with a 2 px edge. Consecutive stretches are separated by a thin line in the ground colour.
 - **Legend row:** a `TYPICAL RANGE` key (a box with dashed sides) and `DURATION 0:42:13` (`F.num(F.t2)`).
 - **Zone cards** (zone 5 first):
@@ -1103,7 +1103,7 @@ One page, in the order it is used; no sub-tabs.
 
 - **Never invent a value.** A figure that is missing is `--`. A metric that is missing as a whole is a `StatusCard`: *what* is missing → *why* (the pipeline's own reason first, a measured wear gap next, the screen's fallback last; "Nothing recorded says why" when nothing knows) → *what fixes it* (a button only if pressing it can change the outcome).
 - **Stale is absent.** A number from an earlier night is not shown in today's slot; the reason is shown instead ("Last night is still being worked out.").
-- **No streaks**, no "you have", no severity words on respiratory or illness surfaces. Observations state a pattern against the user's own baseline, never a cause.
+- **No streaks** outside the Profile page's Data Highlights (the longest run in the chosen period, a fact and never a nag), no "you have", no severity words on respiratory or illness surfaces. Observations state a pattern against the user's own baseline, never a cause.
 - **Voice:**
   - Card titles are UPPERCASE `F.caps`.
   - Sentences are sentence case and plain ("Your average HRV this week is 58 ms.").

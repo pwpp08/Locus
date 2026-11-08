@@ -322,9 +322,9 @@ const _notComponents = {
   'TrendViewScreen', 'StressMonitorScreen',
   'ReportIssueScreen',
   // Scaffold routes over the database: the weight trend and its log sheet
-  // (writes a reading), the healthspan and milestones pages.
+  // (writes a reading), the healthspan page and the profile highlights.
   'WeightTrendScreen', 'LogWeightSheet', 'HealthspanScreen',
-  'MilestonesScreen',
+  'DataHighlightsScreen',
   // The two comparison cards need a TrendLoader (database reads) or a whole
   // WorkoutDetail; a gallery case would be a photograph of a fixture.
   'RunningWorkoutComparisonCard',
@@ -453,7 +453,7 @@ const _notComponents = {
   // and write through the repo; the second also asks the OS for a date and a
   // time picker on tap. Covered by `log_workout_test.dart`, which pumps each
   // at a real phone width against injected rows.
-  'WorkoutSuggestionScreen', 'LogWorkout',
+  'IdentifyActivityScreen', 'LogWorkout',
   'DetectedActivitiesScreen', 'StrengthTrainerScreen', 'StrengthRecordScreen', 'StrengthWorkoutScreen', 'PlusMenu',
   'WindowEditor', 'WindowPreview',
   // The activity list is a sheet's whole page; the start screen owns the live

@@ -29,8 +29,8 @@ import 'package:openstrap_edge/ui2/onboarding/pairing.dart';
 import 'package:openstrap_edge/ui2/onboarding/profile_setup.dart';
 import 'package:openstrap_edge/ui2/onboarding/welcome.dart'
     show isEncryptedBackup;
-import 'package:openstrap_edge/ui2/screens/log_workout.dart'
-    show WorkoutSuggestionScreen;
+import 'package:openstrap_edge/ui2/screens/detected_activities.dart'
+    show DetectedActivitiesScreen, IdentifyActivityScreen;
 import 'package:openstrap_edge/ui2/profile/devices.dart';
 import 'package:openstrap_edge/ui2/profile/profile.dart';
 import 'package:openstrap_edge/ui2/screens/nutrition_screen.dart'
@@ -193,13 +193,18 @@ void main() {
       final route = workoutSuggestionRoute(id);
       expect(domainForRoute(route), ShellDomain.today);
       final screen = screenForRoute(route);
-      expect(screen, isA<WorkoutSuggestionScreen>());
-      expect((screen! as WorkoutSuggestionScreen).focusId, id);
-      // A payload from a build that carried no id still reviews everything.
+      expect(screen, isA<IdentifyActivityScreen>());
+      expect((screen! as IdentifyActivityScreen).focusId, id);
+      // A payload from a build that carried no id still asks about the next.
       expect(
-          (screenForRoute(kRouteWorkoutSuggestion)! as WorkoutSuggestionScreen)
+          (screenForRoute(kRouteWorkoutSuggestion)! as IdentifyActivityScreen)
               .focusId,
           isNull);
+      // The newer route says which kind it is about.
+      expect(screenForRoute(activitySuggestionRoute('a', 'workout')),
+          isA<IdentifyActivityScreen>());
+      expect(screenForRoute(activitySuggestionRoute('a', 'nap')),
+          isA<DetectedActivitiesScreen>());
     });
 
     test('the tab index the shell persists round-trips through the enum', () {

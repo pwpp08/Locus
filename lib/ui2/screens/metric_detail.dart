@@ -1516,40 +1516,7 @@ class _MetricDetailState extends State<MetricDetail> {
               ),
             );
           }),
-        _allTimeRecords(c, spec, all),
       ]),
-    );
-  }
-
-  Widget _allTimeRecords(
-    BuildContext c,
-    MetricSpec spec,
-    List<ChartPoint> all,
-  ) {
-    if (all.length < 2) return const SizedBox.shrink();
-    final key = spec.chartKey;
-    if (key == 'wear' || key == 'skin_temp' || key.contains('zone')) {
-      return const SizedBox.shrink();
-    }
-
-    ChartPoint? maxPt;
-    ChartPoint? minPt;
-    for (final pt in all) {
-      if (maxPt == null || pt.v > maxPt.v) maxPt = pt;
-      if (minPt == null || pt.v < minPt.v) minPt = pt;
-    }
-    if (maxPt == null || minPt == null) return const SizedBox.shrink();
-
-    final ub = unitBeside(spec.unit);
-    return Padding(
-      padding: const EdgeInsets.only(top: S.x4),
-      child: AllTimeRecords(
-        high: _fmt(spec, maxPt.v),
-        highDay: axisDay(maxPt.t),
-        low: _fmt(spec, minPt.v),
-        lowDay: axisDay(minPt.t),
-        unit: ub.isEmpty ? '' : uiText(c, ub),
-      ),
     );
   }
 

@@ -605,10 +605,6 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                           _strain(c, p, d),
                           const SizedBox(height: S.x2),
                           _chart(c, p, d),
-                          if (d.strainCurve.isNotEmpty) ...[
-                            const SizedBox(height: S.x2),
-                            _chartKey(p),
-                          ],
                           const SizedBox(height: S.x6),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: S.x4),
@@ -934,35 +930,6 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
             ),
           ),
       ],
-    );
-  }
-
-  // ── what the chart's two lines are ─────────────────────────────────────
-  Widget _chartKey(P p) {
-    Widget key(Color c, String label, String scale) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: S.x4,
-              height: S.half,
-              decoration: BoxDecoration(color: c, borderRadius: R.rSm),
-            ),
-            const SizedBox(width: S.x2),
-            Text(label, style: F.over.copyWith(color: p.ink2)),
-            const SizedBox(width: S.x1),
-            Text(scale, style: F.num(F.over).copyWith(color: p.ink3)),
-          ],
-        );
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: S.x4),
-      child: Wrap(
-        spacing: S.x5,
-        runSpacing: S.x1,
-        children: [
-          key(C.dialStrain, 'HEART RATE', 'bpm, left'),
-          key(p.ink, 'STRAIN', '0–21, right'),
-        ],
-      ),
     );
   }
 
@@ -1548,6 +1515,7 @@ class _ChartPaint extends CustomPainter {
     canvas.save();
     canvas.clipRect(plot.inflate(2));
     if (pts.length >= 2) {
+      paintWindowed(canvas, plot.inflate(2), xOf(d.start), xOf(d.end), () {
       final line = Path()..moveTo(xOf(pts.first.t), yOf(pts.first.v));
       for (final e in pts.skip(1)) {
         line.lineTo(xOf(e.t), yOf(e.v));
@@ -1628,31 +1596,7 @@ class _ChartPaint extends CustomPainter {
           );
         }
       }
-    }
-    // The strain the session built, on the dial's own 0–21 scale: a line
-    // that only climbs, drawn over the heart rate that drove it.
-    final sc = d.strainCurve;
-    if (sc.isNotEmpty) {
-      double sy(double v) => plot.bottom - v.clamp(0, 21) / 21 * plot.height;
-      final path = Path()..moveTo(xOf(d.start), plot.bottom);
-      for (final e in sc) {
-        path.lineTo(xOf(e.t), sy(e.v));
-      }
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = ink
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..strokeJoin = StrokeJoin.round
-          ..strokeCap = StrokeCap.round,
-      );
-      // The figure it reached, at the end of the line.
-      final last = sc.last;
-      final ex = xOf(last.t);
-      if (ex >= 0 && ex <= size.width) {
-        canvas.drawCircle(Offset(ex, sy(last.v)), S.x1, Paint()..color = ink);
-      }
+      });
     }
     canvas.restore();
 
@@ -1665,22 +1609,6 @@ class _ChartPaint extends CustomPainter {
         ink3,
         F.num(F.cap),
       );
-    }
-
-    if (d.strainCurve.isNotEmpty) {
-      for (final v in const [7.0, 14.0, 21.0]) {
-        final tp = _layout(
-          v.round().toString(),
-          F.num(F.over).copyWith(color: ink3, fontWeight: FontWeight.w600),
-        );
-        tp.paint(
-          canvas,
-          Offset(
-            size.width - tp.width - S.x1,
-            plot.bottom - v / 21 * plot.height + S.half,
-          ),
-        );
-      }
     }
 
     // Where the session starts and ends: dashed lines, dots at the foot, and

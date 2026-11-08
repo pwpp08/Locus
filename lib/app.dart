@@ -32,7 +32,6 @@ import 'ui2/screens/calm_breathing.dart';
 import 'ui2/screens/what_changed.dart';
 import 'ui2/screens/home_screen.dart';
 import 'ui2/screens/journal_compose.dart';
-import 'ui2/screens/log_workout.dart';
 import 'ui2/screens/detected_activities.dart';
 import 'ui2/screens/screens.dart'
     show DayStepsDetail, HealthMonitorScreen, ReadinessDetail, SleepDetail;
@@ -468,12 +467,14 @@ Widget? screenForRoute(String route) => switch (routePath(route)) {
       // The medication reminder lands on the checklist itself: Wellness is a
       // pushed page now, so the sub-tab is a constructor argument.
       kRouteMeds => const WellnessScreen(initialTab: WellnessScreen.medsTab),
-      // The detected bout, with the three answers to it: log it, adjust the
-      // times first, or say it never happened. PUSHED by `_consume`, so every
-      // tap builds a fresh one and the id reaches it.
-      kRouteDetectedActivities => DetectedActivitiesScreen(focusId: routeId(route)),
-      kRouteWorkoutSuggestion =>
-        WorkoutSuggestionScreen(focusId: routeId(route)),
+      // A detected workout goes straight to naming it; a nap to its yes or
+      // no. PUSHED by `_consume`, so every tap builds a fresh one and the id
+      // reaches it.
+      kRouteDetectedActivities =>
+        Uri.tryParse(route)?.queryParameters['kind'] == 'workout'
+            ? IdentifyActivityScreen(focusId: routeId(route))
+            : DetectedActivitiesScreen(focusId: routeId(route)),
+      kRouteWorkoutSuggestion => IdentifyActivityScreen(focusId: routeId(route)),
       // Battery, band and sources all live behind this one.
       kRouteProfile => const ProfileHome(),
       // The alarm safety notifications land where either can actually be

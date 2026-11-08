@@ -27,19 +27,6 @@ Future<void> _host(WidgetTester t, Widget w,
 }
 
 void main() {
-  testWidgets('the records card stays compact', (t) async {
-    await _host(
-        t,
-        const AllTimeRecords(
-            high: '1:37',
-            highDay: 'Nov 7',
-            low: '0:00',
-            lowDay: 'Oct 24',
-            unit: 'hr'));
-    expect(t.getSize(find.byType(AllTimeRecords)).height, lessThan(100));
-    expect(t.takeException(), isNull);
-  });
-
   group('TrendCard with a usual range', () {
     Widget card() => TrendCard(
           'Resting heart rate',

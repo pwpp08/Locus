@@ -8856,6 +8856,7 @@ class LocalDb {
       'SELECT r.day_id AS day, '
       "json_extract(r.payload_json, '\$.zones') AS zones, "
       "json_extract(r.payload_json, '\$.hr_stats.avg') AS hr_avg, "
+      "json_extract(r.payload_json, '\$.hr_stats.max') AS hr_max, "
       "json_extract(r.payload_json, '\$.sleep.window.value.spt_sec') AS spt_sec "
       'FROM day_result r $_servedDayJoin '
       'WHERE json_valid(r.payload_json) ORDER BY r.day_id',

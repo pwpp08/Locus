@@ -24,7 +24,6 @@ const _cards = [
     'Recovery is 28%, your first red in 24 scored mornings. One low '
         'morning is a cue to go easy, not a trend.',
     bars: [72, 64, 58, 81, 77, 69, 28],
-    barMax: 100,
     lit: C.recRed,
   ),
   DailyCard(

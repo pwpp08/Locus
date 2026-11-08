@@ -85,6 +85,15 @@ enum StatMark {
   sleepPerf,
   // Behavior Insights' door.
   bulb,
+  // The Profile page's badges.
+  heartDown,
+  heartUp,
+  pulseDown,
+  pulseUp,
+  lotus,
+  lifter,
+  flame,
+  heartbeat,
 }
 
 /// A fine-lined icon for one of the [StatMark]s, drawn on a 24-unit grid.
@@ -118,6 +127,20 @@ class _StatPaint extends CustomPainter {
     ..cubicTo(19.2, 3.9, 21.4, 5.9, 21.4, 8.9)
     ..cubicTo(21.4, 15.4, 12, 20.6, 12, 20.6)
     ..close();
+
+  /// The upright arrow at the right of the grid: pointing up, or down.
+  static void _arrow(Canvas canvas, Paint line, bool up) {
+    const x = 19.8, top = 7.0, foot = 17.6, k = 3.1;
+    canvas.drawLine(const Offset(x, top), const Offset(x, foot), line);
+    final tip = up ? top : foot;
+    final back = up ? top + k : foot - k;
+    canvas.drawPath(
+        Path()
+          ..moveTo(x - k, back)
+          ..lineTo(x, tip)
+          ..lineTo(x + k, back),
+        line);
+  }
 
   /// The crescent of a circle with a second one bitten out of it.
   static Path _moon(Offset c1, double r1, Offset c2, double r2) => Path.combine(
@@ -317,6 +340,95 @@ class _StatPaint extends CustomPainter {
         ]) {
           canvas.drawLine(Offset(a, b), Offset(c, d), line);
         }
+      case StatMark.heartDown:
+      case StatMark.heartUp:
+        // A heart, and beside it the arrow.
+        canvas.save();
+        canvas.translate(-.6, 3.7);
+        canvas.scale(.68);
+        canvas.drawPath(_heart(), Paint.from(line)..strokeWidth = 1.98);
+        canvas.restore();
+        _arrow(canvas, line, mark == StatMark.heartUp);
+      case StatMark.pulseDown:
+      case StatMark.pulseUp:
+        // A beat of the heart trace, and beside it the arrow.
+        canvas.drawPath(
+            Path()
+              ..moveTo(1.6, 13.4)
+              ..lineTo(5, 13.4)
+              ..lineTo(8.2, 6.2)
+              ..lineTo(11.6, 18)
+              ..lineTo(14.2, 11.4),
+            line);
+        _arrow(canvas, line, mark == StatMark.pulseUp);
+      case StatMark.lotus:
+        // A figure sitting cross-legged, hands on the knees.
+        canvas.drawCircle(const Offset(12, 4.4), 2.3, line);
+        canvas.drawPath(
+            Path()
+              ..moveTo(12, 8.6)
+              ..cubicTo(9.6, 8.6, 8.8, 10.2, 7.6, 11.8)
+              ..lineTo(3.8, 15.2)
+              ..moveTo(12, 8.6)
+              ..cubicTo(14.4, 8.6, 15.2, 10.2, 16.4, 11.8)
+              ..lineTo(20.2, 15.2)
+              ..moveTo(9.4, 10.2)
+              ..lineTo(9.8, 15)
+              ..moveTo(14.6, 10.2)
+              ..lineTo(14.2, 15),
+            line);
+        canvas.drawPath(
+            Path()
+              ..moveTo(2.4, 17.2)
+              ..cubicTo(7.6, 16.2, 14.6, 18.6, 18.8, 21)
+              ..moveTo(21.6, 17.2)
+              ..cubicTo(16.4, 16.2, 9.4, 18.6, 5.2, 21),
+            line);
+      case StatMark.lifter:
+        // A barbell held overhead: the bar, its plates, the arms and body.
+        canvas.drawLine(const Offset(3.4, 6.4), const Offset(20.6, 6.4), line);
+        for (final (x, h) in const [
+          (1.8, 1.7),
+          (4.4, 3.1),
+          (19.6, 3.1),
+          (22.2, 1.7),
+        ]) {
+          canvas.drawLine(Offset(x, 6.4 - h), Offset(x, 6.4 + h), line);
+        }
+        canvas.drawPath(
+            Path()
+              ..moveTo(7.6, 6.4)
+              ..lineTo(9.8, 14)
+              ..lineTo(10.6, 21)
+              ..lineTo(13.4, 21)
+              ..lineTo(14.2, 14)
+              ..lineTo(16.4, 6.4),
+            line);
+        canvas.drawCircle(const Offset(12, 10.4), 2, line);
+      case StatMark.flame:
+        canvas.drawPath(
+            Path()
+              ..moveTo(12, 2.4)
+              ..cubicTo(12.6, 6.4, 18.8, 9.4, 18.8, 15)
+              ..cubicTo(18.8, 19, 15.8, 21.7, 12, 21.7)
+              ..cubicTo(8.2, 21.7, 5.2, 19, 5.2, 15)
+              ..cubicTo(5.2, 12.8, 6.3, 11, 7.6, 9.8)
+              ..cubicTo(7.8, 11.8, 8.8, 13, 10.2, 13.4)
+              ..cubicTo(9.4, 9.6, 10, 5.4, 12, 2.4)
+              ..close(),
+            line);
+      case StatMark.heartbeat:
+        // A heart with one beat across it.
+        canvas.drawPath(_heart(), line);
+        canvas.drawPath(
+            Path()
+              ..moveTo(6.4, 11.8)
+              ..lineTo(9.4, 11.8)
+              ..lineTo(11, 8.6)
+              ..lineTo(13.2, 15)
+              ..lineTo(14.6, 11.8)
+              ..lineTo(17.6, 11.8),
+            line);
       case StatMark.sleepPerf:
         // One thin crescent, open at the top right.
         canvas.drawPath(
@@ -333,6 +445,61 @@ class _StatPaint extends CustomPainter {
 
   @override
   bool shouldRepaint(_StatPaint old) => old.mark != mark || old.color != color;
+}
+
+/// A [StatMark] inside a fine scalloped ring, its rim a dimmer [color]: the
+/// Profile page's badges.
+class ScallopMark extends StatelessWidget {
+  final StatMark mark;
+  final Color color;
+  final double size;
+  const ScallopMark(this.mark,
+      {super.key, required this.color, this.size = PH.badge});
+
+  @override
+  Widget build(BuildContext c) => ExcludeSemantics(
+        child: CustomPaint(
+          size: Size.square(size),
+          painter: _ScallopPaint(color.withValues(alpha: .6)),
+          child: SizedBox.square(
+            dimension: size,
+            child: Center(
+              child: StatIcon(mark, color: color, size: size * .57),
+            ),
+          ),
+        ),
+      );
+}
+
+class _ScallopPaint extends CustomPainter {
+  final Color color;
+  _ScallopPaint(this.color);
+
+  static const _lobes = 12, _depth = .055;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final r = size.shortestSide / 2 - PH.badgeStroke / 2;
+    final path = Path();
+    const steps = _lobes * 16;
+    for (var i = 0; i <= steps; i++) {
+      final a = 2 * math.pi * i / steps - math.pi / 2;
+      final d = r * (1 - _depth + _depth * math.cos(_lobes * (a + math.pi / 2)));
+      final p = c + Offset(math.cos(a) * d, math.sin(a) * d);
+      i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
+    }
+    canvas.drawPath(
+        path..close(),
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = PH.badgeStroke
+          ..strokeJoin = StrokeJoin.round);
+  }
+
+  @override
+  bool shouldRepaint(_ScallopPaint old) => old.color != color;
 }
 
 /// The coach's mark: a speech bubble with a heartbeat in it — the coach

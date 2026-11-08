@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../data/day_label.dart' show dayLabelOf;
 import '../../../l10n/app_localizations.dart';
+import '../../../models/activity_suggestion.dart';
 import '../../../state/clock_format.dart' show formatClockOf;
 import '../../grammar.dart' show Pressable, Surface;
 import '../../theme.dart' show C, DC, F, I, P, R, S;
@@ -101,6 +102,11 @@ class HomeMyDay extends StatelessWidget {
   final void Function(Map<String, dynamic> nap)? onNap;
   final VoidCallback? onStart;
 
+  /// Workouts the band found and nobody has named yet, and what tapping one
+  /// does.
+  final List<ActivitySuggestion> detected;
+  final void Function(ActivitySuggestion s)? onDetected;
+
   const HomeMyDay({
     super.key,
     required this.day,
@@ -113,6 +119,8 @@ class HomeMyDay extends StatelessWidget {
     this.onNap,
     required this.onAdd,
     this.onStart,
+    this.detected = const [],
+    this.onDetected,
   });
 
   @override
@@ -155,6 +163,23 @@ class HomeMyDay extends StatelessWidget {
           end: s['end_ts'] as num?,
           day: day,
           onTap: () => onSession(s),
+        ),
+      ));
+    }
+    for (final s in detected) {
+      items.add((
+        start: s.startTs,
+        widget: HomeActivityRow(
+          color: C.blockSession,
+          icon: LucideIcons.personStanding,
+          // No strain yet: that is scored when it is named. Its length is
+          // what is known.
+          value: hMinutes(s.durationMin),
+          name: 'Activity',
+          start: s.startTs,
+          end: s.endTs,
+          day: day,
+          onTap: () => onDetected?.call(s),
         ),
       ));
     }

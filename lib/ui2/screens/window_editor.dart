@@ -1074,7 +1074,7 @@ class _WindowChartPainter extends CustomPainter {
     required this.grid,
   });
 
-  static const _top = S.x8, _bottom = S.x6, _laneH = S.x6;
+  static const _top = S.x8, _bottom = S.x6, _laneH = S.x8;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1136,13 +1136,19 @@ class _WindowChartPainter extends CustomPainter {
       }
       prev = p;
     }
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = line
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6
-        ..strokeJoin = StrokeJoin.round,
+    paintWindowed(
+      canvas,
+      plot.inflate(S.x1),
+      x0,
+      x1,
+      () => canvas.drawPath(
+        path,
+        Paint()
+          ..color = line
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.6
+          ..strokeJoin = StrokeJoin.round,
+      ),
     );
 
     // The movement lane, on the same clock as the line above it.
@@ -1150,8 +1156,14 @@ class _WindowChartPainter extends CustomPainter {
         0, plot.bottom + S.x1, w, plot.bottom + S.x1 + lane);
     if (lane > 0) {
       canvas.drawLine(Offset(0, laneRect.bottom), Offset(w, laneRect.bottom), gp);
-      paintMovement(canvas, laneRect, movement, (t) => xOf(t.round()),
-          ink.withValues(alpha: .45));
+      paintWindowed(
+        canvas,
+        laneRect,
+        x0,
+        x1,
+        () => paintMovement(canvas, laneRect, movement, (t) => xOf(t.round()),
+            ink.withValues(alpha: .45)),
+      );
     }
     final floor = lane > 0 ? laneRect.bottom : plot.bottom;
 

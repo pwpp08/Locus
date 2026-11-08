@@ -90,26 +90,16 @@ enum DailyCardKind {
   stepGoal,
 }
 
-/// One card: a title, a sentence or two, and optionally a week of bars
-/// (oldest first, null where nothing was stored) with the last one lit.
+/// One card: a title and a sentence or two. A card about the week's recovery
+/// also carries that week, oldest first and null where nothing was stored,
+/// with today's bar in [lit].
 class DailyCard {
   final DailyCardKind kind;
   final String title, body;
   final List<double?>? bars;
-
-  /// The top of the bars' scale (0 at the foot): fixed for a score, the
-  /// week's own highest otherwise.
-  final double? barMax;
   final Color? lit;
 
-  const DailyCard(
-    this.kind,
-    this.title,
-    this.body, {
-    this.bars,
-    this.barMax,
-    this.lit,
-  });
+  const DailyCard(this.kind, this.title, this.body, {this.bars, this.lit});
 }
 
 /// The getChart keys the cards read.
@@ -187,9 +177,9 @@ List<DailyCard> dailyCardsFor({
   }
 
   /// Seven days ending today, oldest first.
-  List<double?> week(Map<String, double> m, [double? todayValue]) => [
+  List<double?> week(Map<String, double> m, double todayValue) => [
     for (var i = 6; i >= 1; i--) m[dayBack(i)],
-    todayValue ?? m[today],
+    todayValue,
   ];
 
   String whole(num v) => v.round().toString();
@@ -199,7 +189,6 @@ List<DailyCard> dailyCardsFor({
   final rec = nightIsToday ? recovery : null;
   if (rec != null) {
     final recs = of('recovery');
-    final bars = week(recs, rec);
     if (rec < 34) {
       final last = prior(recs, DailyCardRules.usualDays);
       if (last.length >= DailyCardRules.redFreeMin &&
@@ -211,8 +200,7 @@ List<DailyCard> dailyCardsFor({
             'Recovery is ${whole(rec)}%, your first red in ${last.length} '
                 'scored mornings. One low morning is a cue to go easy, not a '
                 'trend.',
-            bars: bars,
-            barMax: 100,
+            bars: week(recs, rec),
             lit: C.recRed,
           ),
         );
@@ -235,8 +223,7 @@ List<DailyCard> dailyCardsFor({
             'Back in the green',
             'After $run mornings below green, recovery is back at '
                 '${whole(rec)}%.$aim',
-            bars: bars,
-            barMax: 100,
+            bars: week(recs, rec),
             lit: recoveryColor(rec),
           ),
         );
@@ -247,9 +234,6 @@ List<DailyCard> dailyCardsFor({
             'Ready for a big day',
             'Recovery is ${whole(rec)}%, so your body can take real load. '
                 'Aim for a strain around ${one(strainTarget)} today.',
-            bars: bars,
-            barMax: 100,
-            lit: recoveryColor(rec),
           ),
         );
       }
@@ -263,7 +247,6 @@ List<DailyCard> dailyCardsFor({
     final hu = usual(hrv);
     if (h != null) {
       final earlier = before(hrv);
-      final bars = week(hrv);
       if (earlier.length >= DailyCardRules.recordMin &&
           h > earlier.reduce(math.max)) {
         out.add(
@@ -272,8 +255,6 @@ List<DailyCard> dailyCardsFor({
             'Your highest HRV yet',
             '${whole(h)} ms last night is the highest of the '
                 '${earlier.length + 1} nights on record.',
-            bars: bars,
-            lit: C.dialStrain,
           ),
         );
       } else if (hu != null) {
@@ -286,8 +267,6 @@ List<DailyCard> dailyCardsFor({
               'Last night\'s HRV of ${whole(h)} ms was ${whole(pct)}% above '
                   'your 30-day average of ${whole(hu)} ms. Your body is '
                   'handling its load well.',
-              bars: bars,
-              lit: C.dialStrain,
             ),
           );
         } else if (pct <= -DailyCardRules.hrvPct) {
@@ -298,8 +277,6 @@ List<DailyCard> dailyCardsFor({
               'Last night\'s HRV of ${whole(h)} ms was ${whole(-pct)}% under '
                   'your 30-day average of ${whole(hu)} ms. A lighter day '
                   'gives it room to come back.',
-              bars: bars,
-              lit: C.dialStrain,
             ),
           );
         }
@@ -311,7 +288,6 @@ List<DailyCard> dailyCardsFor({
     final ru = usual(rhr);
     if (r != null) {
       final earlier = before(rhr);
-      final bars = week(rhr);
       if (earlier.length >= DailyCardRules.recordMin &&
           r < earlier.reduce(math.min)) {
         out.add(
@@ -320,8 +296,6 @@ List<DailyCard> dailyCardsFor({
             'Your lowest resting heart rate yet',
             '${whole(r)} bpm last night is the lowest of the '
                 '${earlier.length + 1} nights on record.',
-            bars: bars,
-            lit: C.dialStrain,
           ),
         );
       } else if (ru != null) {
@@ -333,8 +307,6 @@ List<DailyCard> dailyCardsFor({
               'Resting heart rate below usual',
               '${whole(r)} bpm last night, ${whole(-diff)} under your 30-day '
                   'average of ${whole(ru)} bpm.',
-              bars: bars,
-              lit: C.dialStrain,
             ),
           );
         } else if (diff >= DailyCardRules.rhrBpm && !illnessShown) {
@@ -345,8 +317,6 @@ List<DailyCard> dailyCardsFor({
               '${whole(r)} bpm last night, ${whole(diff)} over your 30-day '
                   'average of ${whole(ru)} bpm. Worth an easier day if it '
                   'stays up.',
-              bars: bars,
-              lit: C.dialStrain,
             ),
           );
         }
@@ -421,8 +391,6 @@ List<DailyCard> dailyCardsFor({
           'More sleep than you needed',
           'Last night gave you ${hm(tst)} of sleep against a need of '
               '${hm(need)}.',
-          bars: week(of('tst_min')),
-          lit: C.dialSleep,
         ),
       );
     }

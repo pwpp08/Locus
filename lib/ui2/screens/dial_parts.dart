@@ -81,6 +81,10 @@ class DialScaffold extends StatefulWidget {
   /// of a behaviour.
   final Widget? backdrop;
 
+  /// The bar on a flat band of the page's top colour, the list going under
+  /// its foot.
+  final bool band;
+
   const DialScaffold({
     super.key,
     required this.title,
@@ -89,6 +93,7 @@ class DialScaffold extends StatefulWidget {
     this.barHeight = 81,
     this.titleAt = 32,
     this.backdrop,
+    this.band = false,
   });
 
   @override
@@ -123,6 +128,14 @@ class _DialScaffoldState extends State<DialScaffold> {
             ),
           ),
           ?widget.backdrop,
+          if (widget.band)
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              height: MediaQuery.paddingOf(c).top + widget.barHeight,
+              child: const ColoredBox(color: DC.bgTop),
+            ),
           SafeArea(
             bottom: false,
             child: Column(children: [
@@ -443,15 +456,17 @@ Widget dialHeading(String text) => Padding(
 // ── Hatched bars ────────────────────────────────────────────────────────────
 
 /// The slanted stripes every bar runs on.
-void paintHatch(Canvas canvas, Rect r, {double radius = S.x1}) {
+void paintHatch(Canvas canvas, Rect r,
+    {double radius = S.x1,
+    double step = S.x1 + S.hair,
+    Color color = DC.hatchLine}) {
   final rr = RRect.fromRectAndRadius(r, Radius.circular(radius));
   canvas.save();
   canvas.clipRRect(rr);
   canvas.drawRect(r, Paint()..color = DC.hatchBase);
   final line = Paint()
-    ..color = DC.hatchLine
+    ..color = color
     ..strokeWidth = S.half;
-  const step = S.x1 + S.hair;
   for (var x = r.left - r.height; x < r.right + r.height; x += step) {
     canvas.drawLine(
         Offset(x, r.bottom), Offset(x + r.height, r.top), line);
@@ -464,14 +479,17 @@ class HatchBar extends StatelessWidget {
   final double fraction;
   final Color color;
   final double height;
+
+  /// The stripes wider apart and brighter, for a bar this thin.
+  final bool coarse;
   const HatchBar(this.fraction, this.color,
-      {super.key, this.height = S.x4 + S.half});
+      {super.key, this.height = S.x4 + S.half, this.coarse = false});
 
   @override
   Widget build(BuildContext c) {
     return CustomPaint(
       size: Size(double.infinity, height),
-      painter: _HatchBarPaint(fraction, color),
+      painter: _HatchBarPaint(fraction, color, coarse),
     );
   }
 }
@@ -479,12 +497,17 @@ class HatchBar extends StatelessWidget {
 class _HatchBarPaint extends CustomPainter {
   final double fraction;
   final Color color;
-  _HatchBarPaint(this.fraction, this.color);
+  final bool coarse;
+  _HatchBarPaint(this.fraction, this.color, this.coarse);
 
   @override
   void paint(Canvas canvas, Size size) {
     final box = Offset.zero & size;
-    paintHatch(canvas, box);
+    if (coarse) {
+      paintHatch(canvas, box, step: S.x2 + S.hair - .33, color: PH.hatch);
+    } else {
+      paintHatch(canvas, box);
+    }
     final w = size.width * fraction.clamp(0.0, 1.0);
     if (w <= 0) return;
     canvas.drawRRect(
@@ -495,7 +518,7 @@ class _HatchBarPaint extends CustomPainter {
 
   @override
   bool shouldRepaint(_HatchBarPaint old) =>
-      old.fraction != fraction || old.color != color;
+      old.fraction != fraction || old.color != color || old.coarse != coarse;
 }
 
 // ── Seven days ──────────────────────────────────────────────────────────────

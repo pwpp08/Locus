@@ -26,13 +26,13 @@ import '../screens/action_sheet.dart' show openCoach;
 import '../screens/coach.dart' show coachSubtitle;
 import '../screens/healthspan_screen.dart' show HealthspanScreen;
 import '../screens/home_screen.dart' show deviceBatteryOf;
-import '../screens/milestones_screen.dart' show MilestonesScreen;
 import '../screens/watch_compare_screen.dart' show WatchCompareScreen;
 import '../screens/weight_trend_screen.dart' show WeightTrendScreen;
 import '../screens/wellness_screen.dart' show WellnessScreen;
 import '../../updater/update_service.dart';
 import 'alarm.dart' show AlarmScreen;
 import 'band_notifications.dart' show BandNotifications;
+import 'data_highlights.dart' show DataHighlightsScreen;
 import 'data.dart';
 import 'account_screen.dart';
 import 'devices.dart';
@@ -185,8 +185,8 @@ Widget settingsGroup(BuildContext c, String title, List<Widget> rows) {
 Future<void> goto(BuildContext c, Widget w) =>
     Navigator.of(c).push(MaterialPageRoute<void>(builder: (_) => w));
 
-/// The one way into the profile stack. [ProfileAvatar] calls this — profile
-/// is a pushed route, never a tab.
+/// The one way into the profile stack from outside it: profile is a pushed
+/// route, never a tab.
 void openProfile(BuildContext c) => goto(c, const ProfileHome());
 
 /// The account's profile picture: a copy of an image the user picked, kept in
@@ -368,7 +368,7 @@ class ProfileAvatar extends StatelessWidget {
     return Pressable(
       semanticLabel:
           AppLocalizations.of(c)?.homeProfileSettings ?? 'Profile and settings',
-      onTap: () => openProfile(c),
+      onTap: () => goto(c, const DataHighlightsScreen()),
       child: _PhotoCircle(
         size: size,
         fallback: Container(
@@ -566,13 +566,6 @@ class ProfileHomeView extends StatelessWidget {
               'Compare with watch',
               sub: 'Side-by-side data with Apple Watch or Garmin',
               onTap: () => goto(c, const WatchCompareScreen()),
-            ),
-            SetRow(
-              LucideIcons.trophy,
-              C.amber,
-              'Milestones',
-              sub: 'Lifetime achievements and personal records',
-              onTap: () => goto(c, const MilestonesScreen()),
             ),
           ]),
         ],

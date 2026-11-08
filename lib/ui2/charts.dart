@@ -1544,3 +1544,32 @@ class AuroraPainter extends CustomPainter {
   bool shouldRepaint(covariant AuroraPainter o) =>
       o.card != card || o.peak != peak;
 }
+
+/// Runs [draw] twice over [area]: at full strength between [a] and [b], and
+/// faded to [outside] either side of them. What a chart draws beyond a
+/// window's start and end lines, so the axis reads through it and the window
+/// is plainly the part being looked at.
+void paintWindowed(
+  Canvas canvas,
+  Rect area,
+  double a,
+  double b,
+  VoidCallback draw, {
+  double outside = .28,
+}) {
+  final lo = a.clamp(area.left, area.right);
+  final hi = b.clamp(lo, area.right);
+  canvas.save();
+  canvas.clipRect(Rect.fromLTRB(lo, area.top, hi, area.bottom));
+  draw();
+  canvas.restore();
+  for (final side in [
+    Rect.fromLTRB(area.left, area.top, lo, area.bottom),
+    Rect.fromLTRB(hi, area.top, area.right, area.bottom),
+  ]) {
+    if (side.width <= 0) continue;
+    canvas.saveLayer(side, Paint()..color = C.white.withValues(alpha: outside));
+    draw();
+    canvas.restore();
+  }
+}

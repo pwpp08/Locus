@@ -1,13 +1,14 @@
 // Pull to refresh, the Locus way. The word is not on the page: pulling the
 // page down opens a gap at the top and LOCUS slides into it, gray and
 // unfilled. Let go past the line and it holds there while the page waits, and
-// white fills it from left to right. When the refresh is done the page rises
-// again and takes the word up with it, out of sight.
+// only then does white fill it from left to right. When the refresh is done
+// the page rises again and takes the word up with it, out of sight.
 //
 // A sliver, to sit first in a [CustomScrollView] whose physics let the page
 // be pulled past its top ([BouncingScrollPhysics]): the platform's own
 // refresh control paints over the page instead of moving it.
 
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart' show CupertinoSliverRefreshControl, RefreshIndicatorMode;
@@ -22,7 +23,7 @@ import 'theme.dart';
 const ScrollPhysics kPullPhysics =
     AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics());
 
-class LocusPullRefresh extends StatelessWidget {
+class LocusPullRefresh extends StatefulWidget {
   final Future<void> Function() onRefresh;
   const LocusPullRefresh({super.key, required this.onRefresh});
 
@@ -32,23 +33,42 @@ class LocusPullRefresh extends StatelessWidget {
   static const held = S.x16;
 
   @override
+  State<LocusPullRefresh> createState() => _LocusPullRefreshState();
+}
+
+class _LocusPullRefreshState extends State<LocusPullRefresh> {
+  /// Completes when the finger has let go of the pull that started the work.
+  Completer<void>? _released;
+
+  @override
   Widget build(BuildContext c) {
     // The write-on is never cut short by a fast refresh: the page waits for
-    // the whole word to be white (plus a beat to see it) before it lets go,
-    // and never waits longer than [Motion.refreshCap] for the work itself, so the word
-    // always goes back up.
+    // the finger to let go and the whole word to be white (plus a beat to see
+    // it) before it lets go itself, and never waits longer than
+    // [Motion.refreshCap] for the work or the finger, so the word always goes
+    // back up.
     final minimum = motion(c, Motion.write + Motion.slow);
     return CupertinoSliverRefreshControl(
-      refreshTriggerPullDistance: trigger,
-      refreshIndicatorExtent: held,
+      refreshTriggerPullDistance: LocusPullRefresh.trigger,
+      refreshIndicatorExtent: LocusPullRefresh.held,
       onRefresh: () async {
+        final released = _released = Completer<void>();
         await Future.wait([
-          onRefresh().timeout(Motion.refreshCap, onTimeout: () {}),
-          Future<void>.delayed(minimum),
+          widget.onRefresh().timeout(Motion.refreshCap, onTimeout: () {}),
+          released.future
+              .timeout(Motion.refreshCap, onTimeout: () {})
+              .then((_) => Future<void>.delayed(minimum)),
         ]);
       },
-      builder: (c, mode, pulled, trigger, extent) =>
-          _LocusPullMark(mode: mode, pulled: pulled, trigger: trigger),
+      builder: (c, mode, pulled, trigger, extent) {
+        // The control leaves `armed` for `refresh` once the page settles back
+        // to its held height, which is the finger having let go.
+        if (mode == RefreshIndicatorMode.refresh &&
+            _released?.isCompleted == false) {
+          _released!.complete();
+        }
+        return _LocusPullMark(mode: mode, pulled: pulled, trigger: trigger);
+      },
     );
   }
 }
@@ -72,11 +92,10 @@ class _LocusPullMarkState extends State<_LocusPullMark>
   void initState() {
     super.initState();
     _c = AnimationController(vsync: this, duration: Motion.write);
-    // A hard pull can build this already armed (or already refreshing), with
-    // no earlier state to change from: fill from here.
-    if (widget.mode == RefreshIndicatorMode.armed ||
-        widget.mode == RefreshIndicatorMode.refresh) {
-      _armed = widget.mode == RefreshIndicatorMode.armed;
+    _armed = widget.mode == RefreshIndicatorMode.armed;
+    // A pull let go in one flick can build this already refreshing, with no
+    // earlier state to change from: fill from here.
+    if (widget.mode == RefreshIndicatorMode.refresh) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _c.value == 0 && !_c.isAnimating) _fill();
       });
@@ -95,13 +114,8 @@ class _LocusPullMarkState extends State<_LocusPullMark>
     final m = widget.mode;
     // A tick under the finger the moment the pull is enough.
     final armed = m == RefreshIndicatorMode.armed;
-    if (armed && !_armed) {
-      HapticFeedback.selectionClick();
-      // The white starts filling the moment the pull is enough, under the
-      // finger, not after it lets go: by release it is already under way.
-      _fill();
-    }
-    // Let go in one flick, never having been seen armed: fill from the start.
+    if (armed && !_armed) HapticFeedback.selectionClick();
+    // The finger has let go: only now does the white fill the word.
     if (m == RefreshIndicatorMode.refresh && _c.value == 0 && !_c.isAnimating) {
       _fill();
     }

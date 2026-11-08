@@ -21,6 +21,10 @@ import 'home_daily_cards.dart';
 const _peek = S.x2 + S.half;
 const _inset = S.x3;
 
+/// The air over the deck and under it.
+const _above = S.x6;
+const _below = S.x5;
+
 /// A throw: this fast (px/s) away from rest, or this share of the width.
 const _flingSpeed = 700.0;
 const _throwShare = .35;
@@ -183,7 +187,8 @@ class _DailyCardDeckState extends State<DailyCardDeck>
       );
       return Positioned.fill(
         key: ValueKey(card.kind),
-        top: S.x4,
+        top: _above,
+        bottom: _below,
         child: Transform(
           alignment: Alignment.bottomCenter,
           transform: Matrix4.translationValues(top ? x : 0, dy, 0)
@@ -221,7 +226,7 @@ class _DailyCardDeckState extends State<DailyCardDeck>
             n == 0
                 ? const SizedBox(width: double.infinity)
                 : Padding(
-                    padding: const EdgeInsets.only(top: S.x4),
+                    padding: const EdgeInsets.only(top: _above, bottom: _below),
                     child: Stack(
                       children: [
                         for (final card in live)
@@ -244,13 +249,13 @@ class _DailyCardDeckState extends State<DailyCardDeck>
   }
 }
 
-/// One daily card: the title and its sentence, a week of bars when the card
-/// has them, and the badge that puts it away with the count of cards left.
+/// One daily card: the title and its sentence, a picture if it is one of the
+/// few that earn one, and the badge that puts it away with the count left.
 class DailyCardFace extends StatelessWidget {
   final DailyCard card;
   final int count;
 
-  /// How much of the words, bars and badge show (the card beneath fades its
+  /// How much of the words, picture and badge show (the card beneath fades its
   /// in as it rises).
   final double content;
 
@@ -268,7 +273,7 @@ class DailyCardFace extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    final bars = card.bars;
+    final art = _artOf(card);
     // Clamped like the tab labels: a badge that grew with the words would
     // sit on top of them.
     final badge = MediaQuery.withClampedTextScaling(
@@ -315,17 +320,25 @@ class DailyCardFace extends StatelessWidget {
     );
     return Container(
       width: double.infinity,
-      decoration: panelDecoration(c),
+      decoration: panelDecoration(c).copyWith(
+        boxShadow: const [
+          BoxShadow(
+            color: DC.cardHalo,
+            blurRadius: S.x5,
+            spreadRadius: S.hair,
+          ),
+        ],
+      ),
       child: Opacity(
         opacity: content.clamp(0.0, 1.0),
         child: Stack(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 S.x5,
-                S.x5,
-                S.x2 + S.x6 + S.x5,
-                S.x5,
+                art?.pad ?? S.x5,
+                art?.right ?? S.x12 + S.x2,
+                art?.pad ?? S.x5,
               ),
               child: Align(
                 alignment: Alignment.centerLeft,
@@ -337,34 +350,20 @@ class DailyCardFace extends StatelessWidget {
                         children: [
                           Text(
                             card.title,
-                            style: F.head.copyWith(color: p.ink),
+                            style: F.dBody.copyWith(color: p.ink),
                           ),
-                          const SizedBox(height: S.half),
+                          SizedBox(height: art == null ? S.half : S.x1),
                           Text(
                             card.body,
-                            style: F.body.copyWith(
-                              color: p.ink2,
-                              fontWeight: FontWeight.w500,
-                              height: 1.35,
-                            ),
+                            style: (art == null ? PH.cardWords : PH.cardBody)
+                                .copyWith(color: p.ink2),
                           ),
                         ],
                       ),
                     ),
-                    if (bars != null) ...[
-                      const SizedBox(width: S.x4),
-                      ExcludeSemantics(
-                        // The sentence beside it says the numbers.
-                        child: CustomPaint(
-                          size: const Size(S.x16, S.x12),
-                          painter: _WeekBars(
-                            bars,
-                            card.barMax,
-                            p.ink.withValues(alpha: .22),
-                            card.lit ?? p.ink,
-                          ),
-                        ),
-                      ),
+                    if (art != null) ...[
+                      SizedBox(width: art.gap),
+                      art.picture,
                     ],
                   ],
                 ),
@@ -388,39 +387,328 @@ class DailyCardFace extends StatelessWidget {
   }
 }
 
-/// A week of bars from the foot, the last one lit; a day with nothing stored
-/// is left empty.
-class _WeekBars extends CustomPainter {
+/// A picture beside a card's words: how far it stands from them and from the
+/// card's right edge, and the air above and below it.
+typedef _Art = ({Widget picture, double gap, double right, double pad});
+
+/// Most cards are only words. A picture is kept for what is rare: a record, a
+/// turn in the week's recovery, a goal reached.
+_Art? _artOf(DailyCard card) {
+  _Art coin(IconData icon) => (
+    picture: _Coin(icon),
+    gap: S.x4,
+    right: S.x10 + S.x1 + S.hair,
+    pad: S.x5,
+  );
+  return switch (card.kind) {
+    DailyCardKind.hrvBest => coin(LucideIcons.activity),
+    DailyCardKind.rhrLowest => coin(LucideIcons.heartPulse),
+    DailyCardKind.firstRed || DailyCardKind.backToGreen when card.bars != null => (
+      picture: _WeekBars(card.bars!, card.lit ?? C.recRed),
+      gap: S.x6 + S.x1,
+      right: S.x12 + S.x1,
+      pad: S.x6 + S.hair,
+    ),
+    DailyCardKind.targetMet || DailyCardKind.stepGoal => (
+      picture: const _Box(),
+      gap: S.x5,
+      right: S.x12 + S.x2 + S.hair,
+      pad: S.x5,
+    ),
+    _ => null,
+  };
+}
+
+/// A week of recovery as slabs coming toward you: each a little wider and
+/// lower than the last, today's in its colour. A day with no score has no slab.
+class _WeekBars extends StatelessWidget {
   final List<double?> values;
-  final double? max;
-  final Color base, lit;
-  _WeekBars(this.values, this.max, this.base, this.lit);
+  final Color lit;
+  const _WeekBars(this.values, this.lit);
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final top =
-        max ??
-        values.whereType<double>().fold<double>(0, (a, b) => math.max(a, b));
-    if (top <= 0 || values.isEmpty) return;
-    const gap = S.x1;
-    final w = (size.width - gap * (values.length - 1)) / values.length;
-    for (var i = 0; i < values.length; i++) {
+  Widget build(BuildContext c) => ExcludeSemantics(
+    child: CustomPaint(
+      size: _WeekBarsPaint.size,
+      painter: _WeekBarsPaint(values, lit),
+    ),
+  );
+}
+
+class _WeekBarsPaint extends CustomPainter {
+  final List<double?> values;
+  final Color lit;
+  _WeekBarsPaint(this.values, this.lit);
+
+  static const size = Size(83, 92);
+
+  // Seven slabs, measured off the reference, oldest first.
+  static const _left = [0.0, 10.5, 21.0, 32.6, 44.7, 57.7, 71.8];
+  static const _wide = [6.1, 6.3, 7.6, 7.7, 8.9, 10.3, 11.2];
+  static const _foot = [76.5, 78.5, 80.5, 83.0, 85.8, 89.0, 91.0];
+
+  /// A score of 100, and how far each foot leans down to the right.
+  static const _full = 86.0;
+  static const _lean = .12;
+
+  @override
+  void paint(Canvas canvas, Size _) {
+    final today = values.length - 1;
+    for (var i = 0; i < values.length && i < _left.length; i++) {
       final v = values[i];
-      if (v == null || v <= 0) continue;
-      final h = math.max(w, size.height * (v / top).clamp(0.0, 1.0));
-      final r = Rect.fromLTWH(i * (w + gap), size.height - h, w, h);
-      canvas.drawRRect(
-        RRect.fromRectAndCorners(
-          r,
-          topLeft: const Radius.circular(R.sm / 3),
-          topRight: const Radius.circular(R.sm / 3),
-        ),
-        Paint()..color = i == values.length - 1 ? lit : base,
+      if (v == null) continue;
+      final x = _left[i], w = _wide[i], foot = _foot[i];
+      final top = foot - math.max(w, _full * (v / 100).clamp(0.0, 1.0));
+      final drop = w * _lean;
+      const r = S.half;
+      final slab = Path()
+        ..moveTo(x, top + r)
+        ..quadraticBezierTo(x, top, x + r, top)
+        ..lineTo(x + w - r, top)
+        ..quadraticBezierTo(x + w, top, x + w, top + r)
+        ..lineTo(x + w, foot + drop)
+        ..lineTo(x, foot - drop)
+        ..close();
+      final box = slab.getBounds();
+      canvas.drawPath(
+        slab,
+        Paint()
+          ..shader = LinearGradient(
+            colors: i == today
+                ? [
+                    Color.lerp(lit, DC.coinEdgeLo, .2)!,
+                    Color.lerp(lit, DC.coinEdgeLo, .35)!,
+                  ]
+                : const [DC.barEdge, DC.barFace, DC.barSide],
+          ).createShader(box),
       );
     }
   }
 
   @override
-  bool shouldRepaint(_WeekBars o) =>
-      o.values != values || o.max != max || o.base != base || o.lit != lit;
+  bool shouldRepaint(_WeekBarsPaint o) => o.values != values || o.lit != lit;
+}
+
+/// A box with its lid slid back and the light coming out of it: a goal reached.
+class _Box extends StatelessWidget {
+  const _Box();
+
+  @override
+  Widget build(BuildContext c) => ExcludeSemantics(
+    child: CustomPaint(size: _BoxPaint.size, painter: const _BoxPaint()),
+  );
+}
+
+class _BoxPaint extends CustomPainter {
+  const _BoxPaint();
+
+  static const size = Size(76, 74);
+
+  // The corners, measured off the reference.
+  static const _backLeft = Offset(0, 17.5);
+  static const _lowLeft = Offset(0, 48.7);
+  static const _foot = Offset(24.5, 73.5);
+  static const _lowRight = Offset(66.4, 61.7);
+  static const _highRight = Offset(66.4, 32.2);
+  static const _seam = Offset(33.4, 38.1);
+  static const _ledge = Offset(24, 41);
+  static const _lid = [
+    Offset(9.8, 6.8),
+    Offset(49.3, 0),
+    Offset(73.3, 25.1),
+    Offset(34, 32.8),
+  ];
+  static const _lidDeep = 5.6;
+  static const _slot = [
+    Offset(3.3, 17.5),
+    Offset(12.2, 15.7),
+    _seam,
+    _ledge,
+  ];
+
+  Path _poly(List<Offset> pts) => Path()..addPolygon(pts, true);
+
+  @override
+  void paint(Canvas canvas, Size _) {
+    // Inside, seen past the lid, with the strip of light down it.
+    canvas.drawPath(
+      _poly(const [_backLeft, Offset(12.2, 15.7), _seam, _ledge, _lowLeft]),
+      Paint()..color = DC.boxInner,
+    );
+    canvas.drawPath(
+      _poly(const [Offset(0, 39), _ledge, _seam, Offset(24, 41.8), _lowLeft]),
+      Paint()..color = DC.boxLedge,
+    );
+    final slot = _poly(_slot);
+    canvas.drawPath(
+      slot,
+      Paint()
+        ..color = DC.boxGlow
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, S.x1),
+    );
+    canvas.drawPath(
+      slot,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [DC.boxGlow, DC.boxGlowHi],
+        ).createShader(slot.getBounds()),
+    );
+    // The two faces toward you.
+    final front = _poly(const [
+      _lowLeft,
+      _foot,
+      _lowRight,
+      _highRight,
+      _seam,
+      _ledge,
+    ]);
+    canvas.drawPath(front, Paint()..color = DC.boxFront);
+    // The lid: its edge, then its top with the mark struck into it.
+    final deep = const Offset(0, _lidDeep);
+    canvas.drawPath(
+      _poly([_lid[3], _lid[2], _lid[2] + deep, _lid[3] + deep]),
+      Paint()..color = DC.boxLidEdge,
+    );
+    final lid = _poly(_lid);
+    canvas.drawPath(
+      lid,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [DC.boxLidHi, DC.boxLidLo],
+        ).createShader(lid.getBounds()),
+    );
+    canvas.drawOval(
+      Rect.fromCenter(center: const Offset(42.2, 15.3), width: 26, height: 14.6),
+      Paint()
+        ..color = DC.boxInk
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = S.hair * .8,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BoxPaint o) => false;
+}
+
+/// A metal coin, seen a little from the side: a thick dark edge, a brushed
+/// face with a gold rim, and the record's mark struck into it.
+class _Coin extends StatelessWidget {
+  final IconData icon;
+  const _Coin(this.icon);
+  static const _size = Size(S.x16 + S.x2 + S.x1, S.x16 + S.x4 + S.hair);
+
+  /// Where the face sits in the coin's box, and how far it leans.
+  static const _face = Offset(S.x8 + S.hair, S.x10 + S.hair / 2);
+  static const _lean = .16;
+
+  @override
+  Widget build(BuildContext c) {
+    return ExcludeSemantics(
+      child: CustomPaint(
+        size: _size,
+        painter: _CoinPaint(PH.gold),
+        child: SizedBox.fromSize(
+          size: _size,
+          child: Stack(
+            children: [
+              Positioned(
+                left: _face.dx - I.xl / 2,
+                top: _face.dy - I.xl / 2,
+                child: Transform.rotate(
+                  angle: _lean,
+                  child: Icon(
+                    icon,
+                    size: I.xl,
+                    color: DC.coinInk,
+                    shadows: const [
+                      Shadow(
+                        color: DC.coinShine,
+                        offset: Offset(S.hair * .8, S.hair * .8),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CoinPaint extends CustomPainter {
+  final Color rim;
+  _CoinPaint(this.rim);
+
+  static const _rx = 31.0, _ry = 38.0;
+  static const _depth = 9;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.translate(_Coin._face.dx, _Coin._face.dy);
+    canvas.rotate(_Coin._lean);
+    Rect oval(double inset, [Offset at = Offset.zero]) => Rect.fromCenter(
+      center: at,
+      width: (_rx - inset) * 2,
+      height: (_ry - inset) * 2,
+    );
+
+    canvas.drawOval(
+      oval(-S.x1, const Offset(S.x2, S.x1)),
+      Paint()
+        ..color = DC.coinShade
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, S.x2 - S.hair),
+    );
+    // The edge: the face's outline repeated back to the right.
+    for (var i = _depth; i >= 1; i--) {
+      canvas.drawOval(
+        oval(0, Offset(i * 1.15, i * .2)),
+        Paint()
+          ..color = Color.lerp(DC.coinEdgeHi, DC.coinEdgeLo, i / _depth)!,
+      );
+    }
+    final face = oval(0);
+    canvas.drawOval(
+      face,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [DC.coinHi, DC.coinLo],
+        ).createShader(face),
+    );
+    canvas.drawOval(
+      oval(S.hair / 2 + .3),
+      Paint()
+        ..color = rim
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6,
+    );
+    // The sunk middle: shaded the other way, its lip caught by the light.
+    final well = oval(S.x2 - S.hair);
+    canvas.drawOval(
+      well,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [DC.coinLo, DC.coinHi],
+        ).createShader(well),
+    );
+    canvas.drawOval(
+      well,
+      Paint()
+        ..color = DC.coinShade
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = S.hair,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_CoinPaint o) => o.rim != rim;
 }

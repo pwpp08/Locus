@@ -51,17 +51,23 @@ void main() {
     expect(runs, 1);
   });
 
-  testWidgets('the white starts filling under the finger, before release',
+  testWidgets('the white waits under the finger and fills once released',
       (t) async {
     await pump(t, () async {});
     final g = await t.startGesture(const Offset(200, 300));
     await g.moveBy(const Offset(0, 300)); // well past the line
     await t.pump(const Duration(milliseconds: 50)); // built, armed
-    await t.pump(const Duration(milliseconds: 50)); // the animation's first tick
+    await t.pump(const Duration(milliseconds: 50));
     await t.pump(const Duration(milliseconds: 400));
-    final fill = t.widget<WordmarkFill>(find.byType(WordmarkFill)).fill;
-    expect(fill, greaterThan(0), reason: 'filling while still held');
+    double fill() => t.widget<WordmarkFill>(find.byType(WordmarkFill)).fill;
+    expect(fill(), 0, reason: 'still gray while the finger holds it');
     await g.up();
+    var filled = 0.0;
+    for (var i = 0; i < 12 && filled == 0; i++) {
+      await t.pump(const Duration(milliseconds: 100));
+      filled = fill();
+    }
+    expect(filled, greaterThan(0), reason: 'filling once let go');
     // Let the refresh run out its hold, so nothing is left pending.
     for (var i = 0; i < 30; i++) {
       await t.pump(const Duration(milliseconds: 100));

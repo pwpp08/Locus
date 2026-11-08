@@ -834,6 +834,7 @@ class _NapChartPainter extends CustomPainter {
     canvas.save();
     canvas.clipRect(plot.inflate(2));
     if (pts.length >= 2) {
+      paintWindowed(canvas, plot.inflate(2), n0, n1, () {
       final line = Path()..moveTo(xOf(pts.first.t), yOf(pts.first.v));
       for (final e in pts.skip(1)) {
         line.lineTo(xOf(e.t), yOf(e.v));
@@ -861,6 +862,7 @@ class _NapChartPainter extends CustomPainter {
           ..strokeWidth = 2
           ..strokeJoin = StrokeJoin.round,
       );
+      });
     }
     canvas.restore();
 
@@ -872,7 +874,8 @@ class _NapChartPainter extends CustomPainter {
     if (hasLane) {
       final lane = Rect.fromLTRB(0, laneTop, size.width, laneTop + _laneH);
       canvas.drawLine(Offset(0, lane.bottom), Offset(size.width, lane.bottom), gp);
-      paintMovement(canvas, lane, d.movement, xOf, ink.withValues(alpha: .45));
+      paintWindowed(canvas, lane, n0, n1,
+          () => paintMovement(canvas, lane, d.movement, xOf, ink.withValues(alpha: .45)));
       // Centred: the nap's two edges are dashed down the sides.
       final tp = _layout('MOVEMENT',
           F.num(F.over).copyWith(color: ink3, fontWeight: FontWeight.w600));

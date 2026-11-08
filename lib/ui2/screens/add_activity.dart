@@ -77,6 +77,39 @@ Future<ActivityChoice?> chooseActivity(BuildContext c, {bool sleep = true}) =>
       bare: true,
     );
 
+/// What the detected-activity list hands back: which activity it was, or
+/// that it was not one at all.
+typedef DetectedAnswer = ({Activity? activity, bool discard});
+
+/// The line above the list when the band found something it cannot name.
+const kDetectedNote =
+    "We picked up an activity but couldn't tell which one. Name it and we'll "
+    'recognize it better next time.';
+
+/// The activity list for a detected workout: straight to the question, the
+/// last thing logged first. Null when it was closed.
+Future<DetectedAnswer?> chooseDetectedActivity(
+  BuildContext c, {
+  Activity? recent,
+}) => AppSheet.open<DetectedAnswer>(
+  c,
+  builder: (sheet) => _SheetFrame(
+    compact: true,
+    child: ActivityChooser(
+      sleep: false,
+      note: kDetectedNote,
+      recent: recent,
+      onPick: (r) =>
+          Navigator.of(sheet).pop((activity: r.activity, discard: false)),
+      onDiscard: () =>
+          Navigator.of(sheet).pop((activity: null, discard: true)),
+      onBack: () => Navigator.of(sheet).pop(),
+    ),
+  ),
+  scroll: true,
+  bare: true,
+);
+
 /// A sleep is the night it ends on, re-derived from the window; a nap is a
 /// manual nap on the day it starts, and the day's naps re-read. The one write
 /// behind Add Activity's Sleep tab and the end of a started sleep or nap.
@@ -109,36 +142,41 @@ Future<void> saveRestWindow(
 /// The sheet's ground: lit at the top, a handle, then [child].
 class _SheetFrame extends StatelessWidget {
   final Widget child;
-  const _SheetFrame({required this.child});
+
+  /// Taller, with the shorter handle of the detected-activity sheet.
+  final bool compact;
+  const _SheetFrame({required this.child, this.compact = false});
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    final top = Color.alphaBlend(C.dialSleep.withValues(alpha: .10), p.card);
+    final top = compact
+        ? PH.pickTop
+        : Color.alphaBlend(C.dialSleep.withValues(alpha: .10), p.card);
     return FractionallySizedBox(
-      heightFactor: .825,
+      heightFactor: compact ? .92 : .825,
       alignment: Alignment.bottomCenter,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(R.xxl + S.x3),
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(compact ? R.xxl : R.xxl + S.x3),
           ),
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [top, p.bg],
+            colors: [top, compact ? PH.pickGround : p.bg],
             stops: const [0, .55],
           ),
         ),
         padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(c).bottom),
         child: Column(
           children: [
-            const SizedBox(height: S.x5),
+            SizedBox(height: compact ? S.x4 : S.x5),
             Container(
-              width: S.x16 + S.x4,
-              height: S.x1,
+              width: compact ? PH.pickHandle : S.x16 + S.x4,
+              height: compact ? S.half + S.hair : S.x1,
               decoration: BoxDecoration(
-                color: p.ink.withValues(alpha: .22),
+                color: p.ink.withValues(alpha: compact ? .18 : .22),
                 borderRadius: R.rPill,
               ),
             ),
@@ -585,6 +623,8 @@ Widget _sheetHeader(
   String title, {
   required IconData leading,
   required VoidCallback onLeading,
+  Widget? trailing,
+  TextStyle? titleStyle,
 }) {
   return Padding(
     padding: const EdgeInsets.fromLTRB(S.x3, S.x3, S.x3, 0),
@@ -593,6 +633,18 @@ Widget _sheetHeader(
       child: Stack(
         alignment: Alignment.center,
         children: [
+          Semantics(
+            header: true,
+            child: Text(
+              title.toUpperCase(),
+              style: (titleStyle ??
+                      F.body.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.6,
+                      ))
+                  .copyWith(color: p.ink),
+            ),
+          ),
           Align(
             alignment: Alignment.centerLeft,
             child: Pressable(
@@ -605,17 +657,8 @@ Widget _sheetHeader(
               ),
             ),
           ),
-          Semantics(
-            header: true,
-            child: Text(
-              title.toUpperCase(),
-              style: F.body.copyWith(
-                color: p.ink,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.6,
-              ),
-            ),
-          ),
+          if (trailing != null)
+            Align(alignment: Alignment.centerRight, child: trailing),
         ],
       ),
     ),
@@ -643,12 +686,23 @@ class ActivityChooser extends StatefulWidget {
   /// A close cross in the corner rather than a back chevron.
   final bool close;
 
+  /// The detected-activity form of the list: this line in place of the tabs,
+  /// [recent] on a row of its own above the rest, and the rows smaller.
+  final String? note;
+  final Activity? recent;
+
+  /// With [note]: a bin in the corner, for what was not an activity at all.
+  final VoidCallback? onDiscard;
+
   const ActivityChooser({
     super.key,
     required this.onPick,
     required this.onBack,
     this.sleep = true,
     this.close = false,
+    this.note,
+    this.recent,
+    this.onDiscard,
   });
 
   @override
@@ -668,6 +722,8 @@ class _ActivityChooserState extends State<ActivityChooser> {
     if (widget.sleep) 'Sleep',
   ];
 
+  bool get _detected => widget.note != null;
+
   Widget _row(
     BuildContext c,
     P p,
@@ -675,36 +731,54 @@ class _ActivityChooserState extends State<ActivityChooser> {
     String name,
     VoidCallback onTap,
   ) => Padding(
-    padding: const EdgeInsets.only(bottom: S.x3),
+    padding: EdgeInsets.only(bottom: _detected ? PH.pickGap : S.x3),
     child: Pressable(
       onTap: onTap,
       semanticLabel: name,
       child: Container(
-        height: S.x16 + S.x3,
-        padding: const EdgeInsets.symmetric(horizontal: S.x5),
+        height: _detected ? PH.pickRow : S.x16 + S.x3,
+        padding: EdgeInsets.symmetric(
+          horizontal: _detected ? PH.pickPad : S.x5,
+        ),
         decoration: BoxDecoration(
-          color: p.ink.withValues(alpha: .09),
-          borderRadius: R.rXl,
+          color: p.ink.withValues(alpha: _detected ? .06 : .09),
+          borderRadius: _detected ? R.rMd : R.rXl,
         ),
         child: Row(
           children: [
             SizedBox(
-              width: S.x8,
-              child: Icon(icon, size: I.lg, color: p.ink3),
+              width: _detected ? I.md : S.x8,
+              child: Icon(
+                icon,
+                size: _detected ? I.md : I.lg,
+                color: p.ink3,
+              ),
             ),
-            const SizedBox(width: S.x5),
+            SizedBox(width: _detected ? PH.pickPad : S.x5),
             Expanded(
               child: Text(
                 name.toUpperCase(),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: F.caps.copyWith(color: p.ink),
+                style: _detected
+                    ? PH.kicker.copyWith(color: p.ink)
+                    : F.caps.copyWith(color: p.ink),
               ),
             ),
           ],
         ),
       ),
     ),
+  );
+
+  Widget _detectedRule(P p, String text) => Row(
+    children: [
+      Text(text, style: PH.pickRule.copyWith(color: p.ink3)),
+      const SizedBox(width: S.x3),
+      Expanded(
+        child: Container(height: PH.hair, color: p.ink.withValues(alpha: .12)),
+      ),
+    ],
   );
 
   @override
@@ -736,6 +810,26 @@ class _ActivityChooserState extends State<ActivityChooser> {
     ];
     final pinned = sleepTab ? const [] : sleeps;
     final empty = sleepTab ? sleeps.isEmpty : items.isEmpty && pinned.isEmpty;
+    // The detected form's list opens with these, and they scroll with it.
+    final recent = widget.recent;
+    final head = <Widget>[
+      if (_detected) ...[
+        if (recent != null && q.isEmpty) ...[
+          _detectedRule(p, 'MOST RECENT'),
+          const SizedBox(height: PH.ruleToPick),
+          _row(
+            c,
+            p,
+            recent.icon,
+            recent.displayName(c),
+            () => widget.onPick((activity: recent, sleep: null)),
+          ),
+          const SizedBox(height: PH.pickToRule),
+        ],
+        _detectedRule(p, 'ALL A-Z'),
+        const SizedBox(height: PH.ruleToPick),
+      ],
+    ];
     return Column(
       children: [
         _sheetHeader(
@@ -744,21 +838,77 @@ class _ActivityChooserState extends State<ActivityChooser> {
           'Select your activity',
           leading: widget.close ? LucideIcons.x : LucideIcons.chevronLeft,
           onLeading: widget.onBack,
+          titleStyle: _detected ? PH.pickTitle : null,
+          trailing: widget.onDiscard == null
+              ? null
+              : Pressable(
+                  onTap: widget.onDiscard,
+                  semanticLabel:
+                      AppLocalizations.of(c)?.activityNotAWorkout ??
+                      'Not a workout',
+                  child: SizedBox(
+                    width: S.tap,
+                    height: S.tap,
+                    child: Icon(LucideIcons.trash2, size: I.md, color: p.ink3),
+                  ),
+                ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(S.x4, S.x5, S.x4, S.x3),
-          child: Container(
-            decoration: BoxDecoration(
-              color: C.char.withValues(alpha: .55),
-              borderRadius: R.rXl,
-            ),
-            child: AppField(
-              autofocus: false,
-              onChanged: (v) => setState(() => _q = v),
-              hint: 'Search for Activities',
-            ),
+          padding: EdgeInsets.fromLTRB(
+            S.x4,
+            _detected ? S.x2 + S.hair : S.x5,
+            S.x4,
+            _detected ? 0 : S.x3,
           ),
+          child: _detected
+              ? Container(
+                  height: PH.pickSearch,
+                  padding: const EdgeInsets.symmetric(horizontal: S.x3 + S.half),
+                  decoration: BoxDecoration(
+                    color: PH.pickGround,
+                    borderRadius: R.rMd,
+                    border: Border.all(
+                      color: p.ink.withValues(alpha: .08),
+                      width: PH.hair,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(LucideIcons.search, size: I.sm, color: p.ink2),
+                      const SizedBox(width: S.x2),
+                      Expanded(
+                        child: AppField(
+                          bare: true,
+                          semanticLabel: 'Search for Activities',
+                          textStyle: PH.pickField,
+                          onChanged: (v) => setState(() => _q = v),
+                          hint: 'Search for Activities',
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : Container(
+                  decoration: BoxDecoration(
+                    color: C.char.withValues(alpha: .55),
+                    borderRadius: R.rXl,
+                  ),
+                  child: AppField(
+                    autofocus: false,
+                    onChanged: (v) => setState(() => _q = v),
+                    hint: 'Search for Activities',
+                  ),
+                ),
         ),
+        if (widget.note case final note?)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(S.x4, S.x3, S.x4, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(note, style: PH.pickNote.copyWith(color: p.ink2)),
+            ),
+          )
+        else
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: S.x4),
           child: Row(
@@ -798,10 +948,11 @@ class _ActivityChooserState extends State<ActivityChooser> {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x2),
-          child: _rule(p, sleepTab ? 'Sleep' : 'All A-Z'),
-        ),
+        if (!_detected)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x2),
+            child: _rule(p, sleepTab ? 'Sleep' : 'All A-Z'),
+          ),
         Expanded(
           child: empty
               ? Padding(
@@ -826,15 +977,22 @@ class _ActivityChooserState extends State<ActivityChooser> {
                   ],
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x6),
-                  itemCount: pinned.length + items.length,
+                  padding: EdgeInsets.fromLTRB(
+                    S.x4,
+                    _detected ? S.x1 : S.x2,
+                    S.x4,
+                    S.x6,
+                  ),
+                  itemCount: head.length + pinned.length + items.length,
                   itemBuilder: (_, n) {
-                    if (n < pinned.length) {
-                      final (k, icon, name) = pinned[n];
+                    if (n < head.length) return head[n];
+                    final at = n - head.length;
+                    if (at < pinned.length) {
+                      final (k, icon, name) = pinned[at];
                       return _row(c, p, icon, name,
                           () => widget.onPick((activity: null, sleep: k)));
                     }
-                    final i = n - pinned.length;
+                    final i = at - pinned.length;
                     final a = items[i];
                     return _row(
                       c,

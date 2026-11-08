@@ -7,7 +7,7 @@
 //   * Smooth 7-day EWMA trend line over real entered weights.
 //   * Honest gaps: days without an entry are not silently interpolated.
 //   * Interactive scrubber to inspect any day in the window.
-//   * All-time stats card (Current, Lowest, Highest, Total logged).
+//   * Stats card (Current, Total logged).
 //   * Direct "Log weight" action.
 
 import 'dart:math' as math;
@@ -159,15 +159,6 @@ class _WeightTrendScreenState extends State<WeightTrendScreen> {
     final scrubbedTrend = _scrubIndex != null
         ? trendWindowVals[_scrubIndex!]
         : null;
-
-    // All-time stats
-    final allTimeVals = [for (final v in _byDay.values) toUserUnit(v)];
-    final minVal = allTimeVals.isNotEmpty
-        ? allTimeVals.reduce(math.min)
-        : currentVal;
-    final maxVal = allTimeVals.isNotEmpty
-        ? allTimeVals.reduce(math.max)
-        : currentVal;
 
     final axis = present.isNotEmpty
         ? AxisSpec.of(present, ticks: 3, format: (v) => v.toStringAsFixed(1))
@@ -504,18 +495,6 @@ class _WeightTrendScreenState extends State<WeightTrendScreen> {
                           currentVal != null
                               ? currentVal.toStringAsFixed(1)
                               : '--',
-                          unit,
-                        ),
-                        _statTile(
-                          p,
-                          'LOWEST',
-                          minVal != null ? minVal.toStringAsFixed(1) : '--',
-                          unit,
-                        ),
-                        _statTile(
-                          p,
-                          'HIGHEST',
-                          maxVal != null ? maxVal.toStringAsFixed(1) : '--',
                           unit,
                         ),
                         _statTile(

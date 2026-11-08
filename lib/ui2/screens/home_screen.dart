@@ -32,6 +32,7 @@ import '../profile/alarm.dart'
         AlarmArmState,
         alarmArmOf,
         alarmDoor;
+import '../../models/activity_suggestion.dart';
 import '../profile/profile.dart' show ProfileAvatar;
 import '../profile/wearable_numbers.dart'
     show WearableCells, kHomeWearableRows;
@@ -399,6 +400,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   Map<String, dynamic> _night = const {};
   List<Map<String, dynamic>> _sessions = const [];
   List<Map<String, dynamic>> _naps = const [];
+  List<ActivitySuggestion> _detected = const [];
   StressMonitorData? _stress;
   HealthGlance? _health;
   StressSource? _stressSource;
@@ -418,6 +420,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     var night = const <String, dynamic>{};
     var sessions = const <Map<String, dynamic>>[];
     var naps = const <Map<String, dynamic>>[];
+    var detected = const <ActivitySuggestion>[];
     try {
       night = await repo.getDaySleepV2(day);
     } catch (_) {}
@@ -433,6 +436,15 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         ]..sort((a, b) => ((a['start_ts'] as num?) ?? 0)
             .compareTo((b['start_ts'] as num?) ?? 0));
       }
+    } catch (_) {}
+    try {
+      detected = [
+        for (final s in await repo.pendingActivities())
+          if (s.kind == ActivityKind.workout &&
+              dayLabelOf(DateTime.fromMillisecondsSinceEpoch(s.startTs * 1000)) ==
+                  day)
+            s,
+      ];
     } catch (_) {}
     try {
       final nd = await repo.getDayNaps(day);
@@ -493,6 +505,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     _night = night;
     _sessions = sessions;
     _naps = naps;
+    _detected = detected;
     _daily = daily;
     _firstDay = first;
     _loadStress(repo, day);
@@ -753,6 +766,10 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         night: _night,
         sessions: _sessions,
         naps: _naps,
+        detected: _detected,
+        onDetected: (s) async {
+          if (await identifyDetected(c, s) && mounted) _load();
+        },
         onExpand: () => go(
             c,
             DayHeartScreen(

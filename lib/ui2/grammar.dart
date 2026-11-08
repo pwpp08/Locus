@@ -35,7 +35,8 @@ import '../l10n/presentation_text.dart';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
-import 'package:flutter/gestures.dart' show ScaleGestureRecognizer;
+import 'package:flutter/gestures.dart'
+    show ScaleGestureRecognizer, kDoubleTapSlop, kDoubleTapTimeout, kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'lucide.dart';
@@ -187,7 +188,8 @@ class Scrubber extends StatelessWidget {
   final bool yieldToScroll;
 
   /// Not a hold: two fingers on the strip stop the scrub and report a pinch
-  /// instead, so a chart can zoom.
+  /// instead, so a chart can zoom. A double tap reports the same pinch, a
+  /// doubling around the tap.
   final PinchCallback? onPinch;
 
   const Scrubber({
@@ -279,7 +281,63 @@ class _StripPointer extends StatefulWidget {
   State<_StripPointer> createState() => _StripPointerState();
 }
 
-class _StripPointerState extends State<_StripPointer> {
+class _StripPointerState extends State<_StripPointer>
+    with SingleTickerProviderStateMixin {
+  /// How far one double tap zooms in.
+  static const _doubleTapZoom = 2.0;
+
+  /// Made by the first double tap: most strips never see one.
+  AnimationController? _zoom;
+
+  Duration? _lastTapAt;
+  Offset? _lastTap;
+
+  @override
+  void dispose() {
+    _zoom?.dispose();
+    super.dispose();
+  }
+
+  /// The pinch a two-finger spread would have made, around [at].
+  void _doubleTap(Offset at) {
+    if (_zoom?.isAnimating ?? false) return;
+    final focal = widget.width <= 0 ? .5 : (at.dx / widget.width).clamp(0.0, 1.0);
+    void update(double t) => widget.onPinch?.call(PinchPhase.update,
+        1 + (_doubleTapZoom - 1) * Ease.standard.transform(t), focal, 0);
+    widget.onPinch?.call(PinchPhase.start, 1, focal, 0);
+    final d = motion(context, Motion.slow);
+    if (d == Duration.zero) {
+      update(1);
+      widget.onPinch?.call(PinchPhase.end, 1, 0, 0);
+      return;
+    }
+    final zoom = _zoom ??= AnimationController(vsync: this);
+    void tick() => update(zoom.value);
+    zoom
+      ..duration = d
+      ..addListener(tick)
+      ..forward(from: 0).whenCompleteOrCancel(() {
+        zoom.removeListener(tick);
+        if (mounted) widget.onPinch?.call(PinchPhase.end, 1, 0, 0);
+      });
+  }
+
+  /// [up] ended a finger that stayed put: a second one close behind the last,
+  /// and in about the same place, is a double tap.
+  void _tapped(PointerUpEvent up) {
+    final at = _lastTapAt, was = _lastTap;
+    if (at != null &&
+        was != null &&
+        up.timeStamp - at <= kDoubleTapTimeout &&
+        (up.localPosition - was).distance <= kDoubleTapSlop) {
+      _lastTapAt = _lastTap = null;
+      _doubleTap(up.localPosition);
+      return;
+    }
+    _lastTapAt = up.timeStamp;
+    _lastTap = up.localPosition;
+  }
+
   int? _pointer;
   Offset? _down;
   bool _yielded = false;
@@ -377,7 +435,18 @@ class _StripPointerState extends State<_StripPointer> {
           }
           widget.onSet(e.localPosition);
         },
-        onPointerUp: (e) => _finish(e.pointer),
+        onPointerUp: (e) {
+          final down = _down;
+          if (widget.onPinch != null &&
+              e.pointer == _pointer &&
+              !_pinching &&
+              !_yielded &&
+              down != null &&
+              (e.localPosition - down).distance <= kTouchSlop) {
+            _tapped(e);
+          }
+          _finish(e.pointer);
+        },
         onPointerCancel: (e) => _finish(e.pointer),
         child: widget.child,
       );

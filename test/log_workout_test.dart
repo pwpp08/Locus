@@ -17,7 +17,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/compute/manual_session.dart';
 import 'package:openstrap_edge/ui2/activity/catalogue.dart';
 import 'package:openstrap_edge/ui2/screens/log_workout.dart';
-import 'package:openstrap_edge/ui2/screens/detected_activities.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
 /// A real phone, and tall enough that nothing under test is below the fold —
@@ -38,85 +37,7 @@ final _now = DateTime(2026, 8, 19, 21);
 final _start = DateTime(2026, 8, 19, 18, 30);
 final _end = DateTime(2026, 8, 19, 19, 31);
 
-Suggestion _sug({String id = 'a', int? avg = 148, int? peak = 171}) =>
-    Suggestion(
-      id: id,
-      startTs: _start.millisecondsSinceEpoch ~/ 1000,
-      endTs: _end.millisecondsSinceEpoch ~/ 1000,
-      sport: 'running',
-      avgBpm: avg,
-      peakBpm: peak,
-    );
-
 void main() {
-  group('the detected-activity review', () {
-    testWidgets('draws the bout, its window and all three answers', (t) async {
-      await _pump(t, WorkoutSuggestionScreen(preloaded: [_sug()]));
-
-      expect(find.text('DETECTED ACTIVITIES'), findsOneWidget);
-      expect(find.text('POSSIBLE WORKOUT'), findsOneWidget);
-      // The WINDOW, not just a start time — the whole reason to open this
-      // screen is to see whether the detector clipped it.
-      expect(find.textContaining('6:30 PM'), findsOneWidget);
-      expect(find.textContaining('7:31 PM'), findsOneWidget);
-      expect(find.textContaining('61 min'), findsOneWidget);
-      // Every answer is reachable, including the one that matters most.
-      expect(find.text('CONFIRM'), findsOneWidget);
-      expect(find.text('CHANGE SPORT'), findsOneWidget);
-      expect(find.text('NOT A WORKOUT'), findsOneWidget);
-      // and it never prints a strain or a calorie figure it has not scored
-      expect(find.textContaining('strain'), findsNothing);
-    });
-
-    testWidgets('an empty review says so, and never as a bare dash', (t) async {
-      await _pump(t, WorkoutSuggestionScreen(preloaded: []));
-      expect(find.text('Nothing to review'), findsOneWidget);
-      expect(find.text('—'), findsNothing);
-    });
-
-    testWidgets('a reviewed notification target leaves pending items visible', (t) async {
-      await _pump(t, WorkoutSuggestionScreen(
-        preloaded: [_sug(), _sug(id: 'b')],
-        focusId: 'gone',
-      ));
-      expect(find.text('CONFIRM'), findsNWidgets(2));
-      expect(find.text('Nothing to review'), findsNothing);
-      final cards = t.widgetList<ActivityProposalCard>(find.byType(ActivityProposalCard));
-      expect(cards.any((c) => c.highlighted), isFalse);
-    });
-
-    testWidgets('notification highlights the bout and keeps the other pending items',
-        (t) async {
-      await _pump(
-        t,
-        WorkoutSuggestionScreen(
-          preloaded: [_sug(), _sug(id: 'b', avg: 96, peak: 110)],
-          focusId: 'b',
-        ),
-      );
-      expect(find.text('CONFIRM'), findsNWidgets(2));
-      final cards = t.widgetList<ActivityProposalCard>(find.byType(ActivityProposalCard)).toList();
-      expect(cards.singleWhere((c) => c.highlighted).suggestion.id, 'b');
-    });
-
-    testWidgets('nothing overflows at 2x text', (t) async {
-      t.view.physicalSize = const Size(390 * 3, 3000 * 3);
-      t.view.devicePixelRatio = 3;
-      addTearDown(t.view.reset);
-      await t.pumpWidget(MediaQuery(
-        data: const MediaQueryData(textScaler: TextScaler.linear(2)),
-        child: MaterialApp(
-          theme: buildTheme(Brightness.dark),
-          home: WorkoutSuggestionScreen(preloaded: [_sug(), _sug(id: 'b')]),
-        ),
-      ));
-      await t.pumpAndSettle();
-      // An overflow paints its stripe and reports through the harness rather
-      // than failing the pump, so it has to be taken to be seen.
-      expect(t.takeException(), isNull);
-    });
-  });
-
   group('the manual-entry form', () {
     testWidgets('opens on a valid window and offers to save it', (t) async {
       await _pump(t, LogWorkout(now: _now));
