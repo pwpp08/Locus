@@ -110,24 +110,29 @@ Food and medications are NOT in SQL. Use `get_nutrition(date)` and
 `get_medications()`.
 
 # SHOWING DATA
-Three or more numbers over time is a picture, not a paragraph. Build figures
-ONLY from rows you fetched this turn.
-- `plot_chart(type, title, x_labels, series, unit)` — simple bar|line|area.
-  Values are plain numbers (62, not "62 ms"); null ONLY for a real gap.
-- `render(type, title, …)` — the app draws these natively:
-  • line | area | bar | multi_series — {x_labels, series:[{name, values}], unit}
-  • lanes — {series:[{name, values}], …} two or three quantities in DIFFERENT
-    units, each on its own lane with its own scale (e.g. HR against HRV)
-  • hypnogram — {segments:[{start, end, stage}]}, epoch seconds
-  • zone_bar — {zones:[five numbers], title} minutes in HR zones 1–5
-  • gauge — {value, min, max, unit} one bounded number
-  • kpi_grid — {cards:[{label, value, unit, baseline}]} two to four headline numbers
-  • heatmap — {weeks:[[7 numbers, Mon→Sun]], unit} a calendar; null for a day
-    with no data
-  • table — {columns:[…], rows:[[…]]} small, non-time data only
-  Nothing else renders. Do not ask for a scatter, a pie or a sankey.
-- NEVER print a figure as JSON or inside a code fence. It renders as an
-  unreadable grey block. Call the tool.
+Three or more numbers over time is a picture, not a paragraph. Every run_sql
+result carries a `query_id`. Figures are drawn with `render`:
+- line | area | bar | multi_series | lanes | table — pass
+  data: {query: <query_id>, x: "date", y: ["hrv"], names: ["HRV"]} and a unit.
+  The app reads the numbers from that query. Do not type them out. ROUND and
+  aggregate in the SQL. `lanes` is two or three quantities in DIFFERENT units.
+  A table takes data: {query: <query_id>, columns: ["date", "hrv"]}.
+- line | area | bar | multi_series can also carry, when it helps the reading:
+  • baseline: {value, label} a dashed line, such as their 30-day average
+  • normal_range: {min, max, label} a shaded band of THEIR OWN usual range
+  • markers: [{x, label}] up to three events, x must be one of the x values
+  Fetch these with run_sql first. Never use population norms.
+- hypnogram — {segments:[{start, end, stage}]}, epoch seconds
+- zone_bar — {zones:[five numbers]} minutes in HR zones 1–5
+- gauge — {value, min, max, unit} one bounded number
+- kpi_grid — {cards:[{label, value, unit, baseline}]} two to four headline numbers
+- heatmap — {weeks:[[7 numbers, Mon→Sun]], unit} a calendar; null for a day
+  with no data
+Nothing else renders. Do not ask for a scatter, a pie or a sankey.
+If a figure comes back "not drawn", read the reason and fix it, or say plainly
+that there is no data. Never describe a figure that was not drawn.
+NEVER print a figure as JSON or inside a code fence. It renders as an
+unreadable grey block. Call the tool.
 
 # WRITING DATA
 Every write below asks the user to confirm first, with a summary of exactly

@@ -78,13 +78,118 @@ List<String> _xLabels(dynamic raw) {
 
 /// The axis every painter in one figure shares. Null when nothing is finite,
 /// which is the signal to render the frame's empty state.
-AxisSpec? _axisFor(Iterable<List<double?>> series) {
+AxisSpec? _axisFor(
+  Iterable<List<double?>> series, {
+  List<double> alsoShow = const [],
+}) {
   final flat = [
     for (final s in series)
       for (final v in s)
         if (v != null && v.isFinite) v,
   ];
-  return flat.isEmpty ? null : AxisSpec.of(flat, format: axisFixedOrInt);
+  if (flat.isEmpty) return null;
+  flat.addAll(alsoShow);
+  return AxisSpec.of(flat, format: axisFixedOrInt);
+}
+
+// ── annotations ──────────────────────────────────────────────────────────────
+
+/// A figure's reference line, usual range and events, read from its spec.
+class _Notes {
+  final (double, String)? baseline;
+  final (double, double, String)? range;
+  final List<(int, String)> markers;
+  const _Notes(this.baseline, this.range, this.markers);
+
+  factory _Notes.of(Map<String, dynamic> spec) {
+    final b = spec['baseline'], r = spec['normal_range'];
+    final bv = b is Map ? _num(b['value']) : null;
+    final lo = r is Map ? _num(r['min']) : null;
+    final hi = r is Map ? _num(r['max']) : null;
+    final labels = [
+      for (final e in _list(spec['x_labels'] ?? spec['labels'] ?? spec['x']))
+        _str(e),
+    ];
+    return _Notes(
+      bv == null ? null : (bv, _str((b as Map)['label'])),
+      lo == null || hi == null ? null : (lo, hi, _str((r as Map)['label'])),
+      [
+        for (final m in _list(spec['markers']).whereType<Map>())
+          if (labels.contains(_str(m['x'])))
+            (labels.indexOf(_str(m['x'])), _str(m['label'])),
+      ],
+    );
+  }
+
+  bool get isEmpty => baseline == null && range == null && markers.isEmpty;
+
+  List<double> get values => [
+    ?baseline?.$1,
+    ?range?.$1,
+    ?range?.$2,
+  ];
+
+  List<(String, Color)> legend(P p) => [
+    if (baseline case final b?) (b.$2, p.ink2),
+    if (range case final r?) (r.$3, p.on(C.teal)),
+    for (final m in markers) (m.$2, p.on(C.orange)),
+  ];
+}
+
+/// Draws [_Notes] on the same scale as the chart beneath it.
+class _NotesPainter extends CustomPainter {
+  final _Notes notes;
+  final AxisSpec axis;
+  final int points;
+
+  /// Bars sit in the middle of a slot, line points on its edges.
+  final bool slotted;
+  final Color line, band, mark;
+  const _NotesPainter(
+    this.notes,
+    this.axis,
+    this.points, {
+    required this.slotted,
+    required this.line,
+    required this.band,
+    required this.mark,
+  });
+
+  @override
+  void paint(Canvas cv, Size s) {
+    double y(double v) => s.height - axis.t(v) * s.height;
+    if (notes.range case final r?) {
+      cv.drawRect(
+        Rect.fromLTRB(0, y(r.$2), s.width, y(r.$1)),
+        Paint()..color = band.withValues(alpha: .14),
+      );
+    }
+    if (notes.baseline case final b?) {
+      final at = y(b.$1);
+      final paint = Paint()
+        ..color = line
+        ..strokeWidth = S.hair * 2;
+      for (var x = 0.0; x < s.width; x += S.x2) {
+        cv.drawLine(Offset(x, at), Offset(x + S.x1, at), paint);
+      }
+    }
+    if (points < 1) return;
+    final paint = Paint()
+      ..color = mark.withValues(alpha: .6)
+      ..strokeWidth = S.hair;
+    for (final (i, _) in notes.markers) {
+      final x = slotted
+          ? (i + .5) / points * s.width
+          : (points == 1 ? 0.0 : i / (points - 1) * s.width);
+      cv.drawLine(Offset(x, S.x1), Offset(x, s.height), paint);
+      cv.drawCircle(Offset(x, S.x1), S.x1, Paint()..color = mark);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_NotesPainter o) =>
+      o.notes != notes || o.axis != axis || o.points != points ||
+      o.line != line || o.band != band || o.mark != mark;
 }
 
 // ── the figure ───────────────────────────────────────────────────────────────
@@ -173,7 +278,11 @@ class CoachFigure extends StatelessWidget {
   // to when nobody gives it an axis.
   Widget _lines(BuildContext c, P p, String title, String unit) {
     final series = _seriesOf(spec);
-    final axis = _axisFor(series.map((s) => s.values));
+    final notes = _Notes.of(spec);
+    final axis = _axisFor(
+      series.map((s) => s.values),
+      alsoShow: notes.values,
+    );
     if (axis == null) {
       return _frame(c, title, unit, const SizedBox.shrink(), empty: const NoData());
     }
@@ -200,28 +309,52 @@ class CoachFigure extends StatelessWidget {
                 ),
               ),
             ),
+          if (!notes.isEmpty)
+            Positioned.fill(
+              child: _notesLayer(p, notes, axis, series.first.values.length),
+            ),
         ],
       ),
       yAxis: axis,
       xLabels: _xLabels(spec['x_labels'] ?? spec['labels'] ?? spec['x']),
-      legend: series.length < 2
-          ? const []
-          : [
-              for (var i = 0; i < series.length; i++)
-                (
-                  series[i].name.isEmpty
-                      ? (l?.coachFiguresSeriesN(i + 1) ?? 'Series ${i + 1}')
-                      : series[i].name,
-                  inks[i % inks.length],
-                ),
-            ],
+      legend: [
+        if (series.length > 1)
+          for (var i = 0; i < series.length; i++)
+            (
+              series[i].name.isEmpty
+                  ? (l?.coachFiguresSeriesN(i + 1) ?? 'Series ${i + 1}')
+                  : series[i].name,
+              inks[i % inks.length],
+            ),
+        ...notes.legend(p),
+      ],
       series: series.length == 1 ? series.first.values : const [],
     );
   }
 
   // ── bars ───────────────────────────────────────────────────────────────────
+  Widget _notesLayer(
+    P p,
+    _Notes notes,
+    AxisSpec axis,
+    int points, {
+    bool slotted = false,
+  }) => CustomPaint(
+    size: Size.infinite,
+    painter: _NotesPainter(
+      notes,
+      axis,
+      points,
+      slotted: slotted,
+      line: p.ink2,
+      band: p.on(C.teal),
+      mark: p.on(C.orange),
+    ),
+  );
+
   Widget _bars(BuildContext c, P p, String title, String unit) {
     final series = _seriesOf(spec);
+    final notes = _Notes.of(spec);
     final d = series.isEmpty ? _values(spec['values']) : series.first.values;
     // Bars are measured from a baseline; a bar axis that does not include zero
     // is the truncated-axis lie with the truncation hidden.
@@ -231,7 +364,11 @@ class CoachFigure extends StatelessWidget {
     ];
     final axis = finite.isEmpty
         ? null
-        : AxisSpec.of(finite, floor: 0, format: axisFixedOrInt);
+        : AxisSpec.of(
+            [...finite, ...notes.values],
+            floor: 0,
+            format: axisFixedOrInt,
+          );
     if (axis == null) {
       return _frame(c, title, unit, const SizedBox.shrink(), empty: const NoData());
     }
@@ -239,12 +376,23 @@ class CoachFigure extends StatelessWidget {
       c,
       title,
       unit,
-      CustomPaint(
-        size: Size.infinite,
-        painter: Bars(d, p.on(C.blue), axis: axis),
+      Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              size: Size.infinite,
+              painter: Bars(d, p.on(C.blue), axis: axis),
+            ),
+          ),
+          if (!notes.isEmpty)
+            Positioned.fill(
+              child: _notesLayer(p, notes, axis, d.length, slotted: true),
+            ),
+        ],
       ),
       yAxis: axis,
       xLabels: _xLabels(spec['x_labels'] ?? spec['labels'] ?? spec['x']),
+      legend: notes.legend(p),
       series: d,
     );
   }

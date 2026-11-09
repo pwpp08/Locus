@@ -3,7 +3,7 @@
 // tools (writes require user confirmation), and streams items back to the UI.
 //
 // Data flow: user asks → model calls data tools (we read via the LocalRepository
-// seam) → model reasons → optionally calls plot_chart with a figure it built →
+// seam) → model reasons → optionally calls render with a figure →
 // optionally proposes an action (we confirm) → model returns the final text.
 //
 // CLOUD EXCISED: the data tools used to hit the authed backend via ApiClient. They
@@ -27,6 +27,7 @@ import 'coach_chat_completions.dart';
 import 'coach_config.dart';
 import 'coach_db.dart';
 import 'coach_prompt.dart';
+import 'coach_figure_spec.dart';
 import 'coach_responses.dart';
 
 // ── value types ──────────────────────────────────────────────────────────────
@@ -193,6 +194,8 @@ class CoachEngine {
   // Serializable display transcript (text bubbles + charts) shown in the UI.
   final List<CoachItem> transcript = [];
 
+  final FigureBook _figures = FigureBook();
+
   /// Test seams for the history-trimming invariant. `_history` is private and
   /// the trim only runs deep inside the tool-calling loop, so there is no other
   /// way to pin the orphaned-`tool` edge case without a live provider.
@@ -313,7 +316,7 @@ class CoachEngine {
     }
   }
 
-  void reset() { _history.clear(); transcript.clear(); }
+  void reset() { _history.clear(); transcript.clear(); _figures.clear(); }
   bool get hasHistory => _history.isNotEmpty;
 
   Future<Directory> _dir() => getApplicationDocumentsDirectory();
@@ -352,6 +355,7 @@ class CoachEngine {
     _createdAt = 0;
     _history.clear();
     transcript.clear();
+    _figures.clear();
   }
 
   /// Open a conversation with an answer the app already has (today's
@@ -619,7 +623,7 @@ class CoachEngine {
   }
 
   // Some providers (esp. ones with shaky tool-calling) sometimes answer with a
-  // fenced JSON code block instead of actually calling plot_chart/render — that
+  // fenced JSON code block instead of actually calling render — that
   // renders as an unexplained grey code block in the UI (GptMarkdown's default
   // code-field styling), not a chart. Detect a chart/render JSON payload inside
   // any fence and draw it as a real figure instead; leave real code fences (rare,
@@ -993,37 +997,33 @@ class CoachEngine {
       switch (name) {
         // data — one read-only SQL tool over the derived views
         case 'run_sql':
-          return await CoachDb.runCoachSql('${args['sql'] ?? ''}',
-              today: await _todayReadiness());
+          List<Map<String, Object?>>? rows;
+          final out = await CoachDb.runCoachSql('${args['sql'] ?? ''}',
+              today: await _todayReadiness(), onRows: (r) => rows = r);
+          return _figures.noteQuery(out, rows);
 
         // data — the two stores that are NOT in the SQL views. Widening
         // `coach_db`'s allow-list to reach them would trade a structural btree
         // gate for a text-level one; a typed read tool costs nothing.
         case 'get_today':
-          return jsonEncode(todayHeadlineOf(await api.getToday()));
+          return _figures.note(jsonEncode(todayHeadlineOf(await api.getToday())));
         case 'get_nutrition':
-          return await CoachActions.nutritionDay(
-              await LocalDb.instance, args['date']);
+          return _figures.note(await CoachActions.nutritionDay(
+              await LocalDb.instance, args['date']));
         case 'get_medications':
-          return await CoachActions.medications(await LocalDb.instance);
+          return _figures.note(await CoachActions.medications(await LocalDb.instance));
         // data — one saved ECG reading, by id. Bound query + bounded payload;
         // the packet tables stay unreachable through run_sql.
         case 'get_ecg_reading':
-          return await CoachActions.ecgReading(
-              await LocalDb.instance, args['reading_id']);
+          return _figures.note(await CoachActions.ecgReading(
+              await LocalDb.instance, args['reading_id']));
 
-        // plot — legacy bar/line/area figure
-        case 'plot_chart':
-          final spec = ChartSpec.tryParse(args);
-          if (spec == null) return 'Could not parse figure; check the schema.';
-          onItem(CoachItem.chart(spec));
-          return 'Chart rendered for the user.';
-
-        // render — rich typed widget spec ({type, title?, ...payload})
+        // render — checked and filled in by FigureBook; the result is saved
         case 'render':
-          if (args['type'] == null) return 'render needs a "type" field.';
-          onItem(CoachItem.render(Map<String, dynamic>.from(args)));
-          return 'Rendered "${args['type']}" for the user.';
+          final figure = _figures.prepare(args);
+          if (figure.spec == null) return figure.error!;
+          onItem(CoachItem.render(figure.spec!));
+          return 'Rendered "${figure.spec!['type']}" for the user.';
 
         // actions (confirmed)
         case 'log_journal':
@@ -1141,7 +1141,6 @@ class CoachEngine {
       case 'get_today': return 'Reading today…';
       case 'get_nutrition': return 'Reading your food log…';
       case 'get_medications': return 'Reading your medications…';
-      case 'plot_chart': return 'Plotting…';
       case 'render': return 'Rendering ${args['type'] ?? 'figure'}…';
       default: return 'Working…';
     }
@@ -1207,33 +1206,12 @@ class CoachEngine {
         'SELECT *. Results are capped at 200 rows.',
         {'sql': {'type': 'string', 'description': 'a single SELECT statement'}},
         ['sql']),
-    _fn('plot_chart', 'Render a simple chart from data you fetched (bar/line/area). Build the figure yourself.', {
-      'type': {'type': 'string', 'enum': ['bar', 'line', 'area']},
-      'title': {'type': 'string'},
-      'x_labels': {'type': 'array', 'items': {'type': 'string'}},
-      'series': {'type': 'array', 'items': {'type': 'object', 'properties': {
-        'name': {'type': 'string'},
-        'values': {'type': 'array', 'items': {'type': ['number', 'null']}},
-      }}},
-      'unit': {'type': 'string'},
-      'note': {'type': 'string'},
-    }, ['type', 'x_labels', 'series']),
     _fn('render',
-        'Render a RICH figure from data you fetched. Pick a "type" and provide its '
-        'payload. Types: line/area/bar/multi_series {x_labels,series:[{name,values}],unit}; '
-        'scatter {points:[{x,y,label?}],x_label,y_label}; '
-        'dual_axis {x_labels,left:{name,values,unit},right:{name,values,unit}}; '
-        'stacked_zone_bar {x_labels,zones:[{name,values}]}; '
-        'hypnogram {segments:[{start,end,stage}]} (stage∈wake|light|deep|rem, epoch sec); '
-        'kpi_grid {cards:[{label,value,unit?,delta?,baseline?,spark?:[n]}]}; '
-        'gauge {value,min?,max?,label?,unit?}; '
-        'heatmap {rows:[label],cols:[label],values:[[n]],unit?}; '
-        'range_band {label,value,min,max,unit?}; '
-        'table {columns:[..],rows:[[..]]}. Always include a "title".',
-        {
-          'type': {'type': 'string'},
-          'title': {'type': 'string'},
-        }, ['type']),
+        'Draw a figure the app renders natively. For line, area, bar, '
+        'multi_series, lanes and table, pass data with the query_id from '
+        'run_sql and its column names; the app reads the values itself.',
+        figureProperties,
+        ['type', 'title']),
     _fn('get_nutrition',
         'Read one day of food. Returns every entry and the day totals as the '
         'app computes them (a total over an entry with no numbers is a FLOOR '

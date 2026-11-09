@@ -529,7 +529,9 @@ class CoachDb {
   /// v_metric is otherwise whatever the last derive wrote, which mid-sync is a
   /// partial night — the 2 Home once froze on.
   static Future<String> runCoachSql(String llmSql,
-      {int rowCap = 200, ({String day, num? readiness})? today}) async {
+      {int rowCap = 200,
+      ({String day, num? readiness})? today,
+      void Function(List<Map<String, Object?>> rows)? onRows}) async {
     String sql;
     try {
       sql = guardAndPrepare(llmSql, rowCap: rowCap);
@@ -544,7 +546,7 @@ class CoachDb {
     _sqlTail = turn.future;
     await previous;
     try {
-      return await _runServed(sql, rowCap, today);
+      return await _runServed(sql, rowCap, today, onRows);
     } finally {
       turn.complete();
     }
@@ -553,7 +555,8 @@ class CoachDb {
   static Future<void> _sqlTail = Future<void>.value();
 
   static Future<String> _runServed(String sql, int rowCap,
-      ({String day, num? readiness})? today) async {
+      ({String day, num? readiness})? today,
+      void Function(List<Map<String, Object?>> rows)? onRows) async {
     try {
       final db = await _readonly();
       await LocalDb.refreshSessionScoreMask();
@@ -583,6 +586,7 @@ class CoachDb {
             'or simplify the query.'});
       }
       final shown = rows.take(rowCap).toList();
+      onRows?.call(shown);
       final out = <String, dynamic>{
         'columns': shown.isEmpty ? <String>[] : shown.first.keys.toList(),
         'rows': shown,

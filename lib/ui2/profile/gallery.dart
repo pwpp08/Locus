@@ -527,6 +527,11 @@ Map<String, Widget> _coachFigureCases() => {
         'values': [62, 58, null, 71, 66, 69, 74],
       },
     ],
+    'baseline': {'value': 64, 'label': '30-day average'},
+    'normal_range': {'min': 56, 'max': 72, 'label': 'Your usual range'},
+    'markers': [
+      {'x': '7 Aug', 'label': 'Long run'},
+    ],
   }),
   'coach_fig_kpis': const CoachFigure(spec: {
     'type': 'kpi_grid',
