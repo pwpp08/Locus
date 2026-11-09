@@ -27,6 +27,7 @@ import 'package:flutter/foundation.dart';
 import 'package:health/health.dart';
 
 import '../data/db.dart';
+import 'health_read_access.dart';
 
 /// Stable `imported_measurement.kind` keys. Written to the database, so they
 /// are contract: rename one and every stored row orphans.
@@ -114,18 +115,8 @@ class ImportedMeasurementImporter {
   ];
 
   /// READ only. This app writes none of these and never will.
-  Future<bool> requestPermission() async {
-    try {
-      await _health.configure();
-      final perms = [for (final _ in types) HealthDataAccess.READ];
-      final already = await _health.hasPermissions(types, permissions: perms);
-      if (already == true) return true;
-      return await _health.requestAuthorization(types, permissions: perms);
-    } catch (e) {
-      debugPrint('[imported_measurement] permission: $e');
-      return false;
-    }
-  }
+  Future<bool> requestPermission() =>
+      requestAnyHealthRead(_health, types);
 
   /// Read the recent window and store what is there. Returns how many rows
   /// landed; 0 covers an empty store, a denied permission and a locked device
@@ -141,10 +132,11 @@ class ImportedMeasurementImporter {
         : end.subtract(const Duration(days: 30));
     try {
       await _health.configure();
-      final points = await _health.getHealthDataFromTypes(
+      final points = await readEachHealthType(
+        _health,
         types: types,
-        startTime: start,
-        endTime: end,
+        start: start,
+        end: end,
       );
       return LocalDb.putImportedMeasurements(rowsFrom(points));
     } catch (e) {

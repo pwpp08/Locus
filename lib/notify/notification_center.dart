@@ -439,6 +439,28 @@ class NotificationCenter {
   /// already written changes daily, and a repeat would go on asking after the
   /// journal was filled in. Re-armed on every foreground pass, and once the day
   /// has any rating in it the caller moves it to tomorrow.
+  /// Ask for the journal once at [at], from the journal page's "later".
+  /// False when notifications are not allowed, so nothing was set.
+  Future<bool> remindJournalAt(DateTime at) async {
+    final svc = NotificationService.instance;
+    if (!await svc.ensurePermission()) return false;
+    await svc.ensureTimezone();
+    await svc.scheduleOnce(
+      id: NotificationService.idCheckInLater,
+      category: NotifCategory.reminders,
+      title: 'Your journal',
+      body: 'You asked to be reminded. A minute of it.',
+      at: at,
+      route: kRouteJournalCompose,
+    );
+    return true;
+  }
+
+  /// Ask once for notification permission, for a reminder just turned on.
+  Future<void> askForPermission() async {
+    await NotificationService.instance.ensurePermission();
+  }
+
   Future<void> _armCheckIn(NotificationService svc, DateTime at) async {
     await svc.scheduleOnce(
       id: NotificationService.idCheckIn,
@@ -715,6 +737,8 @@ class NotificationCenter {
   /// never after it. A 01:00 bedtime must not produce a midnight prompt.
   static int? checkInMinute(NotificationPrefs prefs, double? bedtimeMinOfDay) {
     if (!prefs.checkInEnabled) return null;
+    // A time the person picked is the time, quiet hours or not.
+    if (prefs.checkInAtMin case final picked?) return picked;
     var t = bedtimeMinOfDay == null
         ? checkInFallbackMin
         : bedtimeMinOfDay.round() - checkInBeforeBedMin;

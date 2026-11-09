@@ -28,6 +28,7 @@ import '../../state/prefs.dart';
 import '../../state/units_controller.dart';
 import '../ui2.dart';
 import 'custom_journal_field_sheet.dart';
+import 'journal_reminder_sheet.dart';
 import 'home_screen.dart'
     show monthName, monthShortName, unitsOf, weekdayShortName;
 import 'metric_detail.dart' show detailScaffold;
@@ -519,6 +520,7 @@ class _JournalComposeState extends State<JournalCompose> {
                 title: uiText(c, 'JOURNAL'),
                 onClose: widget.embedded ? null : () => Navigator.of(c).pop(),
                 onEdit: _loading ? null : () => unawaited(_edit()),
+                onBell: () => unawaited(showJournalReminderSheet(c)),
               ),
               const SizedBox(height: S.x1 + S.half + S.hair / 2),
               _Pager(
@@ -636,10 +638,16 @@ const _kWeekdays = [
 
 /// ✕ on the left, the title in the middle, the pencil on the right.
 class _Header extends StatelessWidget {
-  const _Header({required this.title, required this.onClose, this.onEdit});
+  const _Header({
+    required this.title,
+    required this.onClose,
+    this.onEdit,
+    this.onBell,
+  });
   final String title;
   final VoidCallback? onClose;
   final VoidCallback? onEdit;
+  final VoidCallback? onBell;
 
   @override
   Widget build(BuildContext c) => SizedBox(
@@ -660,6 +668,20 @@ class _Header extends StatelessWidget {
               width: S.x12,
               height: S.x12,
               child: Icon(LucideIcons.xThin, size: JC.closeIcon, color: JC.ink),
+            ),
+          ),
+        ),
+        Positioned(
+          right: S.x12,
+          width: S.x12,
+          height: S.x12,
+          child: Pressable(
+            semanticLabel: uiText(c, 'Journal reminders'),
+            onTap: onBell,
+            child: const SizedBox(
+              width: S.x12,
+              height: S.x12,
+              child: Icon(LucideIcons.bell, size: JC.editIcon, color: JC.ink),
             ),
           ),
         ),

@@ -17,6 +17,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:health/health.dart';
+import 'health_read_access.dart';
 
 /// What a read found. Every field is nullable: an empty health store, a denied
 /// permission and a never-recorded metric are all "we don't know", and none of
@@ -114,23 +115,8 @@ class HealthProfileImporter {
   ];
 
   /// Ask for READ access. Safe to call repeatedly.
-  Future<bool> requestPermission() async {
-    try {
-      await _health.configure();
-      final already = await _health.hasPermissions(
-        types,
-        permissions: [for (final _ in types) HealthDataAccess.READ],
-      );
-      if (already == true) return true;
-      return await _health.requestAuthorization(
-        types,
-        permissions: [for (final _ in types) HealthDataAccess.READ],
-      );
-    } catch (e) {
-      debugPrint('[health_profile] permission: $e');
-      return false;
-    }
-  }
+  Future<bool> requestPermission() =>
+      requestAnyHealthRead(_health, types);
 
   /// Read the most recent value of each field.
   ///
@@ -157,10 +143,11 @@ class HealthProfileImporter {
       final start = _isApple
           ? DateTime(end.year - 1, end.month, end.day)
           : end.subtract(const Duration(days: 30));
-      final points = await _health.getHealthDataFromTypes(
+      final points = await readEachHealthType(
+        _health,
         types: types,
-        startTime: start,
-        endTime: end,
+        start: start,
+        end: end,
       );
       return _snapshotFrom(points, now: end);
     } catch (e) {

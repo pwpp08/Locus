@@ -23,6 +23,7 @@ import 'package:flutter/foundation.dart';
 import 'package:health/health.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'health_read_access.dart';
 import 'health_rhr_seed.dart' show isOwnHealthSample;
 
 /// Samsung Health's Android package — what Health Connect reports as the
@@ -201,19 +202,7 @@ class WatchCompareReader {
   ];
 
   /// READ only — this view never writes anything.
-  Future<bool> requestPermission() async {
-    try {
-      await _health.configure();
-      final perms = [for (final _ in types) HealthDataAccess.READ];
-      final already =
-          await _health.hasPermissions(types, permissions: perms);
-      if (already == true) return true;
-      return await _health.requestAuthorization(types, permissions: perms);
-    } catch (e) {
-      debugPrint('[watch_compare] permission: $e');
-      return false;
-    }
-  }
+  Future<bool> requestPermission() => requestAnyHealthRead(_health, types);
 
   Future<String> _ownId() async {
     try {
@@ -232,32 +221,19 @@ class WatchCompareReader {
     // Without our own id we cannot drop what this app wrote, and a band
     // compared with itself is the one result this screen must never show.
     if (own.isEmpty) return const [];
-    final pts = <HealthDataPoint>[];
-    // Read type by type: one type the provider refuses (an undeclared or
-    // denied permission) must not blank every other row.
-    for (final t in types) {
-      try {
-        pts.addAll(await _health.getHealthDataFromTypes(
-            types: [t], startTime: start, endTime: end));
-      } catch (e) {
-        debugPrint('[watch_compare] read $t: $e');
-      }
-    }
+    final pts =
+        await readEachHealthType(_health, types: types, start: start, end: end);
     return [
       for (final p in pts)
         if (!isOwnHealthSample(p.sourceId, p.sourceName, own)) p,
     ];
   }
 
-  /// Every app that wrote heart rate or sleep in the window, most samples
+  /// Every app that wrote anything in the window, most samples
   /// first — the candidates for "the other watch".
   Future<List<String>> sources(DateTime start, DateTime end) async {
     final counts = <String, int>{};
     for (final p in await _read(start, end)) {
-      if (p.type != HealthDataType.HEART_RATE &&
-          p.type != HealthDataType.SLEEP_SESSION) {
-        continue;
-      }
       final s = _sourceOf(p);
       if (s.isEmpty) continue;
       counts[s] = (counts[s] ?? 0) + 1;

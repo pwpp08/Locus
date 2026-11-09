@@ -130,6 +130,7 @@ class NotificationService {
   static const int idAlarmNightCheck = 2008; // scheduled daily, one-shot 19:00
   static const int idStillness = 2200; // provisional one-shot ("time to move", issue #123)
   static const int idCheckIn = 2201; // daily ("how was today?" → the journal)
+  static const int idCheckInLater = 2202; // one-off "remind me later" (journal)
 
   /// Slot band [idMedsBase .. idMedsBase + maxMedSlots) — one ONE-SHOT per
   /// scheduled dose that is still upcoming, armed by
@@ -199,6 +200,7 @@ class NotificationService {
     idWindDown,
     idStillness,
     idCheckIn,
+    idCheckInLater,
     idAlarmNightCheck,
   };
 

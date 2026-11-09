@@ -88,9 +88,10 @@ void main() {
       // The read is wrapped in its own try/catch, so a stub that returns
       // nothing still exercises the window calculation.
       return importer.read(now: DateTime(2026, 8, 9)).then((_) {
-        expect(windows, hasLength(1));
+        expect(windows, isNotEmpty);
+        expect(windows.toSet(), hasLength(1)); // one read per type, same window
         expect(
-          windows.single.$2.difference(windows.single.$1).inDays,
+          windows.first.$2.difference(windows.first.$1).inDays,
           30,
         );
       });
@@ -103,11 +104,12 @@ void main() {
         health: _RecordingHealth(windows),
       );
       return importer.read(now: DateTime(2026, 8, 9)).then((_) {
-        expect(windows, hasLength(1));
+        expect(windows, isNotEmpty);
+        expect(windows.toSet(), hasLength(1)); // one read per type, same window
         // Wide enough to find a value someone records occasionally, narrow
         // enough that an ancient reading cannot overwrite a current profile.
         // Pinned exactly: a year-difference check passes for any date in 2025.
-        expect(windows.single.$1, DateTime(2025, 8, 9));
+        expect(windows.first.$1, DateTime(2025, 8, 9));
       });
     });
   });

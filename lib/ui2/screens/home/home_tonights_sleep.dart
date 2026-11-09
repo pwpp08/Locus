@@ -26,7 +26,7 @@ class HomeTonightsSleep extends StatelessWidget {
     final (String status, Color dot) = at == null
         ? ('ALARM OFF', p.ink3)
         : switch (state) {
-            AlarmArmState.confirmed => ('ALARM ON', C.recGreen),
+            AlarmArmState.confirmed => ('CONFIRMED', C.recGreen),
             AlarmArmState.pending => ('SENDING TO BAND', C.recYellow),
             AlarmArmState.unknown => ('NOT CONFIRMED', C.recYellow),
             AlarmArmState.none => ('ALARM OFF', p.ink3),

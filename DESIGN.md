@@ -1098,6 +1098,12 @@ The Health tab (`health_tab.dart`) is two pages under a small `AGE | JOURNAL` sw
 
 ---
 
+### 14.8a Energy reserve (`home/home_energy.dart`, Home)
+
+The level, a 46-tick bar, the wake level, the day's line on 0-100 with 33 / 67 guides, CHARGED and DRAINED tiles and any effort listed under them. Green from 67, yellow from 34, red under it. Estimated from recovery, sleep and heart-rate reserve (`compute/energy_reserve.dart`); any missing input hides the card.
+
+---
+
 ## 15. Honesty and copy
 
 - **Never invent a value.** A figure that is missing is `--`. A metric that is missing as a whole is a `StatusCard`: *what* is missing → *why* (the pipeline's own reason first, a measured wear gap next, the screen's fallback last; "Nothing recorded says why" when nothing knows) → *what fixes it* (a button only if pressing it can change the outcome).

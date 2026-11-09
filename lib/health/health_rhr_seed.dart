@@ -38,6 +38,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../data/db.dart';
 import '../data/day_label.dart';
+import 'health_read_access.dart';
 
 /// `baselines` key for the shadow seed. Deliberately NOT one of the keys the
 /// derivation engine reads — a grep for this string should find this file, its
@@ -174,23 +175,8 @@ class RhrSeedImporter {
   /// path asks for WRITE on four types; this deliberately does not widen that
   /// request — a permission sheet listing more than the feature uses is how a
   /// user learns not to trust the sheet.
-  Future<bool> requestPermission() async {
-    try {
-      await _health.configure();
-      final already = await _health.hasPermissions(
-        types,
-        permissions: const [HealthDataAccess.READ],
-      );
-      if (already == true) return true;
-      return await _health.requestAuthorization(
-        types,
-        permissions: const [HealthDataAccess.READ],
-      );
-    } catch (e) {
-      debugPrint('[rhr_seed] permission: $e');
-      return false;
-    }
-  }
+  Future<bool> requestPermission() =>
+      requestAnyHealthRead(_health, types);
 
   /// Read the history window and fold it into a shadow baseline.
   ///
@@ -211,10 +197,11 @@ class RhrSeedImporter {
     List<HealthDataPoint> points;
     try {
       await _health.configure();
-      points = await _health.getHealthDataFromTypes(
+      points = await readEachHealthType(
+        _health,
         types: types,
-        startTime: start,
-        endTime: end,
+        start: start,
+        end: end,
       );
     } catch (e) {
       debugPrint('[rhr_seed] read: $e');

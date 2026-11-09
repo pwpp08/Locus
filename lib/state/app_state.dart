@@ -3416,7 +3416,7 @@ class AppState extends ChangeNotifier {
   void _ingestLiveMagsAt(proto.ImuFrame f, int nowMs) {
     final mags = f.mags;
     if (mags.isEmpty) return;
-    _feedAlarmShake(mags, nowMs);
+    _feedAlarmShake(f, nowMs);
     // `e` is this frame's 1 Hz-equivalent ENMO (mean |a| − 1 g), read below by
     // the stillness nudge and the posture check. Computed for EVERY frame:
     // those two are about wear and movement, not about steps, so neither gate
@@ -4572,17 +4572,43 @@ class AppState extends ChangeNotifier {
   }
 
   /// Fed every live accel frame while the watch is open.
-  void _feedAlarmShake(List<double> mags, int nowMs) {
-    if (!_shakeWatching) return;
+  void _feedAlarmShake(proto.ImuFrame f, int nowMs) {
+    if (!_shakeWatching || _shakeStopping) return;
     _shakeFrames++;
-    if (!_shakeDetector.add(mags, nowMs)) return;
+    if (!_shakeDetector.add(f.mags, nowMs, xs: f.xs, ys: f.ys, zs: f.zs)) {
+      return;
+    }
     _log('[alarm] wrist shake — stopping the buzz');
     _shakeStopped = true;
-    _endAlarmShakeWatch();
-    unawaited(engine.stopHaptics().catchError((Object e) {
-      _log('[alarm] stop-haptics failed: $e');
-    }));
+    _shakeStopping = true;
+    unawaited(_stopBuzzAfterShake());
     unawaited(DeviceActions.perform('dismiss_phone_alarm'));
+  }
+
+  bool _shakeStopping = false;
+
+  /// Stop the buzz and make sure of it. One STOP_HAPTICS can be lost, or land
+  /// between two rounds of the alarm's pattern, and the watch used to close
+  /// the moment it was sent, so the shake got exactly one try. So ask up to
+  /// three times until the band reports the buzz ended; if it never does,
+  /// cancel the armed alarm itself and arm the next occurrence again.
+  Future<void> _stopBuzzAfterShake() async {
+    final before = engine.hapticsTerminations;
+    try {
+      for (var i = 0; i < 3 && !_disposed; i++) {
+        await engine.stopHaptics();
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+        if (engine.hapticsTerminations != before) return;
+      }
+      _log('[alarm] no end-of-buzz from the band — cancelling the alarm');
+      await engine.disableAlarm();
+      await _armNextAlarmOccurrence(force: true);
+    } catch (e) {
+      _log('[alarm] stopping the buzz failed: $e');
+    } finally {
+      _shakeStopping = false;
+      if (!_disposed) _endAlarmShakeWatch();
+    }
   }
 
   Future<void> _armNextAlarmOccurrence({int? firedEpoch, bool force = false}) async {

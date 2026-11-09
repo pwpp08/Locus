@@ -89,6 +89,8 @@ final _rules = <_Rule>[
       _tokenFile,
       'lib/ui2/screens/home_screen.dart',
       'lib/ui2/screens/start_activity.dart',
+      // Remind-me-later delays: a wall-clock offset, not an animation.
+      'lib/ui2/screens/journal_reminder_sheet.dart',
     },
   ),
   _Rule(
@@ -331,7 +333,6 @@ const _notComponents = {
   'DataHighlightsScreen',
   // The two comparison cards need a TrendLoader (database reads) or a whole
   // WorkoutDetail; a gallery case would be a photograph of a fixture.
-  'RunningWorkoutComparisonCard',
   'MyDevices', 'MyDevicesView', 'DeviceDetail', 'DeviceDetailView', 'RePair',
   // The strap-buzz relay picker: a Scaffold route over a live
   // NotificationRelay, whose list is whatever the OS notification stream has

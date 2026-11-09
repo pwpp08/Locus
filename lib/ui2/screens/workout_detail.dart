@@ -20,11 +20,9 @@ import '../../data/local_repository.dart';
 import '../../gps/route_models.dart';
 import '../../state/app_state.dart';
 import '../../state/clock_format.dart';
-import '../../state/units_controller.dart';
 import '../activity/catalogue.dart';
 import '../activity/share.dart' show ShareSheet;
 import '../activity/tiles.dart';
-import '../components/metric_comparison_card.dart';
 import '../ui2.dart';
 import 'home_screen.dart' show repoOf, unitsOf;
 import 'add_activity.dart' show openEditActivity;
@@ -619,16 +617,6 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                                 if (d.route != null) ...[
                                   const SizedBox(height: S.x6),
                                   _RouteCard(d: d, onShare: () => _share()),
-                                ],
-                                if (d.type.toLowerCase().contains('run') ||
-                                    a.name.toLowerCase() == 'running') ...[
-                                  const SizedBox(height: S.x6),
-                                  RunningWorkoutComparisonCard(
-                                    detail: d,
-                                    units:
-                                        unitsOf(c) ??
-                                        UnitsController.seed(UnitSystem.metric),
-                                  ),
                                 ],
                                 const SizedBox(height: S.x8),
                                 _keyStatsHead(p),

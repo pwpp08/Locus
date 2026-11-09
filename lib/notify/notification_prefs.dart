@@ -85,6 +85,9 @@ class NotificationPrefs {
   /// fires because yesterday is blank is a streak wearing a different hat.
   final bool checkInEnabled;
 
+  /// The minute of day the daily check-in is asked at. Null: before bedtime.
+  final int? checkInAtMin;
+
   /// The low-battery alert threshold, in percent. DeviceAlerts used to
   /// hard-code 15%; this is the same alert with the number in the user's
   /// hands. Read back by DeviceAlerts through its own persisted store (same
@@ -141,6 +144,7 @@ class NotificationPrefs {
     this.movementEnabled = false,
     this.medsEnabled = false,
     this.checkInEnabled = false,
+    this.checkInAtMin,
     this.batteryAlertPct = batteryPctDefault,
     this.stepGoalEnabled = true,
     this.windDownEnabled = false,
@@ -163,6 +167,7 @@ class NotificationPrefs {
   static const _kMovement = 'notif_movement';
   static const _kMeds = 'notif_meds';
   static const _kCheckIn = 'notif_checkin';
+  static const _kCheckInAt = 'notif_checkin_at';
 
   /// The low-battery alert threshold's persisted key. PUBLIC because
   /// DeviceAlerts reads it back through its own store seam on headless BLE
@@ -193,6 +198,7 @@ class NotificationPrefs {
       movementEnabled: p.getBool(_kMovement) ?? false,
       medsEnabled: p.getBool(_kMeds) ?? false,
       checkInEnabled: p.getBool(_kCheckIn) ?? false,
+      checkInAtMin: p.getInt(_kCheckInAt),
       batteryAlertPct: ((p.getInt(_kBatteryPct) ?? batteryPctDefault)
               .clamp(batteryPctMin, batteryPctMax))
           .toInt(),
@@ -220,6 +226,7 @@ class NotificationPrefs {
     await p.setBool(_kMovement, movementEnabled);
     await p.setBool(_kMeds, medsEnabled);
     await p.setBool(_kCheckIn, checkInEnabled);
+    if (checkInAtMin case final m?) await p.setInt(_kCheckInAt, m);
     await p.setInt(
         _kBatteryPct, batteryAlertPct.clamp(batteryPctMin, batteryPctMax).toInt());
     await p.setBool(_kStepGoal, stepGoalEnabled);
@@ -244,6 +251,7 @@ class NotificationPrefs {
     bool? movementEnabled,
     bool? medsEnabled,
     bool? checkInEnabled,
+    int? checkInAtMin,
     int? batteryAlertPct,
     bool? stepGoalEnabled,
     bool? windDownEnabled,
@@ -267,6 +275,7 @@ class NotificationPrefs {
         movementEnabled: movementEnabled ?? this.movementEnabled,
         medsEnabled: medsEnabled ?? this.medsEnabled,
         checkInEnabled: checkInEnabled ?? this.checkInEnabled,
+        checkInAtMin: checkInAtMin ?? this.checkInAtMin,
         batteryAlertPct: batteryAlertPct ?? this.batteryAlertPct,
         stepGoalEnabled: stepGoalEnabled ?? this.stepGoalEnabled,
         windDownEnabled: windDownEnabled ?? this.windDownEnabled,

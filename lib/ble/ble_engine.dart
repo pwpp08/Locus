@@ -2221,6 +2221,11 @@ class BleEngine {
   String? _lastHapticsTermination;
   int? _lastHapticsTerminationTs;
 
+  /// Bumped each time the band reports a buzz has ended, so a caller that
+  /// asked for a stop can tell whether it happened.
+  int get hapticsTerminations => _hapticsTerminations;
+  int _hapticsTerminations = 0;
+
   // ── reconnect/offload policy ────────────────────────────────────────────────
   // Marginal-radio + post-bond-loop persist ACROSS reconnects (they count
   // consecutive bad cycles), so they live for the engine's lifetime and self-reset
@@ -6486,6 +6491,7 @@ class BleEngine {
         _lastHapticsTermination =
             f['haptics_termination'] as String? ?? 'unknown';
         _lastHapticsTerminationTs = event.tsEpoch;
+        _hapticsTerminations++;
         _log('[ALARM] haptics terminated: cause=$_lastHapticsTermination '
             'code=${f['haptics_termination_code']} ts=${event.tsEpoch}');
         return;

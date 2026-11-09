@@ -44,6 +44,8 @@ import 'day_heart.dart';
 import 'detected_activities.dart';
 import 'health_monitor.dart'
     show HealthGlance, HealthMonitorScreen, healthGlanceOf;
+import '../../compute/energy_reserve.dart';
+import 'home/home_energy.dart';
 import 'home/home_card_deck.dart';
 import 'home/home_cards.dart';
 import 'home/home_daily_cards.dart';
@@ -497,7 +499,42 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         cards = await loadDailyCards(d, loader.series);
       } catch (_) {}
     }
+    EnergyReserve? energy;
+    final midnightAt = DateTime.parse(day);
+    final midnight = midnightAt.millisecondsSinceEpoch ~/ 1000;
+    if (day == todayLabel()) {
+      try {
+        final timeline = await repo.getDayTimeline(day);
+        final strain = await repo.getDayStrain(day);
+        final overview = await repo.getDayOverview(day);
+        final sleep = await repo.getDaySleepV2(day);
+        final custom = Prefs.getInt('custom_max_hr', 0);
+        final hasNight = sleep['has_sleep'] == true;
+        energy = energyReserve(
+          hr: [
+            for (final e in (timeline['hr'] as List?) ?? const [])
+              if (e is Map && e['t'] is num && e['v'] is num)
+                ((e['t'] as num).round(), (e['v'] as num).toDouble()),
+          ],
+          onsetTs: hasNight ? (sleep['onset_ts'] as num?)?.round() : null,
+          wakeTs: hasNight ? (sleep['wake_ts'] as num?)?.round() : null,
+          recovery: daily['recovery']?[day],
+          restingHr: (overview['resting_hr'] as num?)?.toDouble(),
+          maxHr: custom > 0
+              ? custom.toDouble()
+              : (strain['max_hr_used'] as num?)?.toDouble(),
+          midnight: midnight,
+          naps: [
+            for (final n in naps)
+              if (n['start'] is num && n['end'] is num)
+                ((n['start'] as num).round(), (n['end'] as num).round()),
+          ],
+        );
+      } catch (_) {}
+    }
     if (!mounted) return;
+    _energy = energy;
+    _energyMidnight = midnight;
     _cards = cards;
     _layers = layers;
     _spans = spans;
@@ -514,6 +551,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     }).catchError((Object _) {}));
   }
 
+  EnergyReserve? _energy;
+  int _energyMidnight = 0;
   Map<String, Map<String, double>> _daily = const {};
   List<DailyCard> _cards = const [];
   Map<String, List<Map<String, double>>> _layers = const {};
@@ -813,6 +852,11 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             alarm: alarm,
           );
         }),
+      ],
+
+      if (isToday && _energy != null) ...[
+        const SizedBox(height: S.x3),
+        EnergyReserveCard(data: _energy!, midnight: _energyMidnight),
       ],
 
       _SectionHead(

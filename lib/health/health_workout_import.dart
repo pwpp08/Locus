@@ -49,6 +49,7 @@ import 'package:health/health.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../data/db.dart';
+import 'health_read_access.dart';
 
 /// Apple-only bridge to `HKWorkoutRoute`. Implemented in
 /// ios/Runner/HealthRoutes.swift; absent on Android by design.
@@ -304,19 +305,8 @@ class HealthWorkoutImporter {
     }
   }
 
-  Future<bool> requestPermission() async {
-    try {
-      await _health.configure();
-      final perms = [for (final _ in _readTypes) HealthDataAccess.READ];
-      final already =
-          await _health.hasPermissions(_readTypes, permissions: perms);
-      if (already == true) return true;
-      return await _health.requestAuthorization(_readTypes, permissions: perms);
-    } catch (e) {
-      debugPrint('[imported_workout] permission: $e');
-      return false;
-    }
-  }
+  Future<bool> requestPermission() =>
+      requestAnyHealthRead(_health, _readTypes);
 
   /// Read the window, store the workouts, then fetch each one's route on Apple.
   ///
@@ -336,10 +326,11 @@ class HealthWorkoutImporter {
     final ownSources = <String>{}, ownUuids = <String>{};
     try {
       await _health.configure();
-      final points = await _health.getHealthDataFromTypes(
+      final points = await readEachHealthType(
+        _health,
         types: types,
-        startTime: start,
-        endTime: end,
+        start: start,
+        end: end,
       );
       String? ownApp;
       try {

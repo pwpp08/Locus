@@ -183,6 +183,9 @@ class SleepPlannerScreen extends StatefulWidget {
 }
 
 class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
+  /// The page's natural height above the dock: below this it scales down.
+  static const double _minBodyH = 500;
+
   SleepPlan? _plan;
 
   @override
@@ -342,7 +345,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(
-                  horizontal: S.x3, vertical: S.x4),
+                  horizontal: S.x3, vertical: S.x3),
               decoration: BoxDecoration(
                 color: Color.alphaBlend(C.slate.withValues(alpha: .35), p.bg),
                 borderRadius: R.rSm,
@@ -394,11 +397,18 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
         SafeArea(
           child: Column(children: [
             Expanded(
-              // Sized to sit on one screen with the dock under it: it only
-              // scrolls on a phone too short for that.
-              child: ListView(
+              // One fixed page. The spare height is shared between the
+              // groups; a phone too short for it scales the page down rather
+              // than scrolling it.
+              child: LayoutBuilder(builder: (c, box) => FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  width: box.maxWidth,
+                  height: box.maxHeight < _minBodyH ? _minBodyH : box.maxHeight,
+                  child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: S.x4),
-                  children: [
+                  child: Column(children: [
                 Row(children: [
                   Pressable(
                     onTap: () => Navigator.of(c).maybePop(),
@@ -496,7 +506,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                     ),
                   ),
                 ]),
-                const SizedBox(height: S.x4),
+                const Spacer(flex: 1),
                 Center(
                   child: Container(
                     width: S.x10 + S.x1,
@@ -510,7 +520,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                         painter: LocusMarkPainter(ink: p.ink)),
                   ),
                 ),
-                const SizedBox(height: S.x8),
+                const Spacer(flex: 2),
                 // Three lines high whatever it says, so what is under it does
                 // not move when the sentence changes length.
                 ConstrainedBox(
@@ -525,7 +535,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                             height: 1.3)),
                   ),
                 ),
-                const SizedBox(height: S.x6),
+                const Spacer(flex: 2),
                 Center(
                   child: Text('TOMORROW I WANT TO',
                       style: F.over.copyWith(
@@ -538,7 +548,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                     semanticLabel: 'Planner goal',
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: S.x10, vertical: S.x4),
+                          horizontal: S.x8, vertical: S.x3),
                       decoration: BoxDecoration(
                         color: Color.alphaBlend(C.char.withValues(alpha: .5), p.bg),
                         borderRadius: R.rPill,
@@ -547,14 +557,14 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                       child: Text(
                           goal == 'consistent' ? 'STAY CONSISTENT' : 'REACH MY SLEEP NEED',
                           textAlign: TextAlign.center,
-                          style: F.body.copyWith(
+                          style: F.caps.copyWith(
                               color: p.ink,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.2)),
                     ),
                   ),
                 ),
-                const SizedBox(height: S.x16),
+                const Spacer(flex: 3),
                 _PlannerBar(
                   bed: bed,
                   wake: wake,
@@ -566,14 +576,17 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                   alarmOn: planAlarm != null,
                   onWake: () => _pickWake(wake),
                 ),
-                const SizedBox(height: S.x2),
+                const Spacer(flex: 1),
               ]),
+                  ),
+                ),
+              )),
             ),
             // The alarm dock.
             Container(
               width: double.infinity,
               padding: EdgeInsets.fromLTRB(
-                  S.x3, S.x4, S.x3, S.x4 + MediaQuery.paddingOf(c).bottom),
+                  S.x3, S.x3, S.x3, S.x3 + MediaQuery.paddingOf(c).bottom),
               decoration: BoxDecoration(
                 color: Color.alphaBlend(C.slate.withValues(alpha: .45), p.bg),
                 borderRadius:
@@ -599,13 +612,21 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.6)),
                   ),
+                  if (armedAt != null && alarm?.$2 == AlarmArmState.confirmed) ...[
+                    Icon(LucideIcons.badgeCheck, size: I.sm, color: C.green),
+                    const SizedBox(width: S.x1),
+                    Text('CONFIRMED',
+                        style: F.over.copyWith(
+                            color: C.green, fontWeight: FontWeight.w800)),
+                    const SizedBox(width: S.x3),
+                  ],
                   AppSwitch(
                     planAlarm != null,
                     (v) => _toggleAlarm(v, wake),
                     semanticLabel: 'Alarm',
                   ),
                 ]),
-                const SizedBox(height: S.x4),
+                const SizedBox(height: S.x3),
                 Row(children: [
                   dockButton('ALARM SET TO', armedAt == null ? 'OFF' : clock(armedAt),
                       () => planAlarm != null && wake != null

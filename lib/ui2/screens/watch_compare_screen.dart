@@ -4,9 +4,11 @@
 // are never blended into anything the band measured.
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../data/day_label.dart';
 import '../../health/watch_compare.dart';
+import '../../state/app_state.dart';
 import '../ui2.dart';
 import 'home_screen.dart' show repoOf;
 import 'metric_detail.dart' show detailScaffold;
@@ -45,7 +47,8 @@ class _BandDay {
 
 enum _Span { day, night }
 
-class _WatchCompareScreenState extends State<WatchCompareScreen> {
+class _WatchCompareScreenState extends State<WatchCompareScreen>
+    with WidgetsBindingObserver {
   late final WatchCompareReader _reader =
       widget.reader ?? WatchCompareReader();
 
@@ -62,8 +65,24 @@ class _WatchCompareScreenState extends State<WatchCompareScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _init());
   }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Back from Health Connect's own screen: look again.
+    if (state == AppLifecycleState.resumed && _permitted == false) _init();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  Future<void> _openHealthConnect() =>
+      context.read<AppState>().openHealthConnect();
 
   Future<void> _init() async {
     final ok = await _reader.requestPermission();
@@ -164,8 +183,9 @@ class _WatchCompareScreenState extends State<WatchCompareScreen> {
 
   static String _sourceLabel(String s) => switch (s) {
         kSamsungHealthPackage => 'Galaxy Watch (Samsung Health)',
-        'com.google.android.apps.fitness' => 'Google Fit',
-        'com.fitbit.FitbitMobile' => 'Fitbit',
+        'com.google.android.apps.fitness' => 'Google Health',
+        'com.fitbit.FitbitMobile' => 'Google Health (Fitbit)',
+        'com.google.android.apps.adm' => 'Pixel Watch',
         'com.garmin.android.apps.connectmobile' => 'Garmin Connect',
         _ => s,
       };
@@ -187,10 +207,10 @@ class _WatchCompareScreenState extends State<WatchCompareScreen> {
         StatusCard(
           'Health Connect access needed',
           'Allow this app to read heart rate, sleep and steps in Health '
-              'Connect. Samsung Health must also be set to sync to Health '
-              'Connect (Samsung Health › Settings › Health Connect).',
-          fix: 'Try again',
-          onFix: _init,
+              'Connect. The app your watch uses must also be set to sync there, '
+              'in its own settings.',
+          fix: 'Open Health Connect',
+          onFix: _openHealthConnect,
           icon: LucideIcons.heartHandshake,
         )
       else if (_loading)
@@ -205,8 +225,9 @@ class _WatchCompareScreenState extends State<WatchCompareScreen> {
         StatusCard(
           'No other watch data for this day',
           'Nothing from another app is in Health Connect for this day. In '
-              'Samsung Health, turn on Settings › Health Connect sync, then '
-              'open Samsung Health once so it pushes the latest data.',
+              'the app your watch uses (Samsung Health, Google Health, Garmin '
+              'Connect), turn on Health Connect sync, then open it once so '
+              'it pushes the latest data.',
           icon: LucideIcons.watch,
         )
       else ...[

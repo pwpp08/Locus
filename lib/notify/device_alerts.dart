@@ -387,6 +387,9 @@ class DeviceAlerts {
             // FiredKeyStore's retention sweep can reach it.
             kind: 'band_charging:${chargingTs ?? nowSec}',
             title: 'Charging',
+            body: batteryPct == null
+                ? 'Your band is on the charger.'
+                : 'Your band is at ${batteryPct.round()}%.',
           )));
         if (dropped) {
           _chargeShownDay = shownBefore;

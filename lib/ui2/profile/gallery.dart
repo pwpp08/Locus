@@ -62,6 +62,8 @@ import '../ui2.dart';
 import 'devices.dart';
 import 'profile.dart';
 import 'wearable_numbers.dart';
+import '../../compute/energy_reserve.dart';
+import '../screens/home/home_energy.dart';
 
 /// A deterministic series — a gallery cannot depend on random data.
 final _series =
@@ -661,6 +663,23 @@ Map<String, Widget> _chartCases() {
 /// that has not come due yet.
 Map<String, Widget> _nutritionAndWellnessCases() {
   return {
+    'energy_reserve': EnergyReserveCard(
+      midnight: 1786665600,
+      data: EnergyReserve(
+        level: 33,
+        wokeLevel: 79,
+        wokeTs: 1786665600 + 6 * 3600,
+        charged: 38,
+        drained: 46,
+        points: [
+          (1786665600, 41),
+          (1786665600 + 6 * 3600, 79),
+          (1786665600 + 12 * 3600, 60),
+          (1786665600 + 22 * 3600, 33),
+        ],
+        activities: [EnergyEvent(1786665600 + 12 * 3600, -20)],
+      ),
+    ),
     // `.preview`, because the gallery has no band and no Provider. The numbers
     // are a fixture and are shaped like one — a resting wobble, not a workout.
     'live_hr_card': const LiveHrCard.preview(hr: 68, trace: [
