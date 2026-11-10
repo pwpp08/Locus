@@ -64,6 +64,26 @@ void main() {
       });
     });
 
+    test('the first alarm is the wake time, over one typed in the planner',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      await Prefs.ensureLoaded();
+      Prefs.setInt(Prefs.sleepPlannerWakeMin, 8 * 60);
+      addTearDown(() => Prefs.setInt(Prefs.sleepPlannerWakeMin, -1));
+      const plan = SleepPlan(usualWakeMin: 7 * 60 + 5, inBedMin: 510);
+      const later = AlarmItem(id: 'b', hour: 6, minute: 45, days: {1, 2, 3, 4, 5});
+      // Two alarms tomorrow: the earlier one wins.
+      expect(plannedWakeMin(plan, null, items: [later, weekdays], now: now),
+          6 * 60 + 17);
+      expect(firstAlarmWakeMin(null, items: [later, weekdays], now: now),
+          6 * 60 + 17);
+      // No schedule, but the band has one armed: that is the wake time.
+      final armed = (DateTime(2026, 8, 18, 5, 50), AlarmArmState.confirmed);
+      expect(plannedWakeMin(plan, armed, items: const [], now: now), 5 * 60 + 50);
+      // No alarm at all: the typed one stands.
+      expect(plannedWakeMin(plan, null, items: const [], now: now), 8 * 60);
+    });
+
     test('a disabled alarm does not count', () {
       expect(
           scheduledWakeMin([weekdays.copyWith(enabled: false)], now), isNull);

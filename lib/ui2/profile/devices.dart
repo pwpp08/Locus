@@ -63,6 +63,8 @@ import '../../ble/session_link.dart' show SessionLink;
 import '../../ble/ultrahuman_link.dart' show UltrahumanLink;
 import '../../ble/band_status_l10n.dart' show localizedBandStatus;
 import '../../ble/ble_state.dart' show BandStatus, kMaxConcurrentSecondaryLinks;
+import '../../compute/derive_scheduler.dart'
+    show DeriveHold, DeriveJobKind, DeriveStatus;
 import '../../compute/inputs/canonical.dart' show columnFor, flagOnOrPrimary;
 import '../../data/day_label.dart' show todayLabel;
 import '../../data/db.dart' show LocalDb;
@@ -1116,6 +1118,7 @@ class _MyDevicesState extends State<MyDevices> {
   Widget _build(BuildContext c, AppState app, Set<String> liveAdapterIds) {
     return MyDevicesView(
       bandForecast: _forecast,
+      derive: app.deriveStatus,
       sources: rankSources(liveSources(app, liveAdapterIds: liveAdapterIds)),
       // The band row's dot says connected or not. That covers six different
       // problems with six different fixes, and a user cannot fix a problem the
@@ -1299,9 +1302,13 @@ class MyDevicesView extends StatelessWidget {
   /// `loadBatteryForecast`, for the "days left" line on the band's card.
   final BatteryForecast? bandForecast;
 
+  /// The derive queue (`AppState.deriveStatus`): what is being calculated.
+  final DeriveStatus? derive;
+
   const MyDevicesView({
     super.key,
     this.bandForecast,
+    this.derive,
     this.sources = const [],
     this.onPair,
     this.onAddSensor,
@@ -1346,6 +1353,35 @@ class MyDevicesView extends StatelessWidget {
                   Center(child: syncedThroughLine(c, todayLabel(), l)),
                   const SizedBox(height: S.x4),
                 ],
+                // What is being calculated, here rather than on Home, where
+                // a bare "Calculating" sat under the date most of the time.
+                if (derive != null)
+                  if (deriveStatusText(derive!, (d) => formatDay(DateTime.parse(d), l))
+                      case (final title, final detail)) ...[
+                    Surface(
+                      pad: const EdgeInsets.all(S.x4),
+                      child: Row(children: [
+                        SizedBox.square(
+                          dimension: S.x4,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: p.ink3),
+                        ),
+                        const SizedBox(width: S.x3),
+                        Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(title,
+                                    style: F.body.copyWith(
+                                        color: p.ink, fontWeight: FontWeight.w600)),
+                                const SizedBox(height: S.half),
+                                Text(detail, style: F.cap.copyWith(color: p.ink3)),
+                              ]),
+                        ),
+                      ]),
+                    ),
+                    const SizedBox(height: S.x3),
+                  ],
                 // FIRST, in the tier-2 slot the missing band would occupy —
                 // not appended under the phone. Someone who has just forgotten
                 // a band is here to add one, and the row they can see is not
@@ -1428,6 +1464,41 @@ class MyDevicesView extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// What the derive queue is doing, as a title and a detail line; null when
+/// there is nothing to calculate. [dayName] turns a `YYYY-MM-DD` into words.
+(String, String)? deriveStatusText(
+    DeriveStatus s, String Function(String day) dayName) {
+  final p = s.progress;
+  switch (s.running) {
+    case DeriveJobKind.heavy:
+      return (
+        'Calculating sleep, recovery and strain',
+        p == null
+            ? 'Finding the days the new band data changes'
+            : p.$3 == 1
+                ? 'Working out ${dayName(p.$1)}'
+                : '${dayName(p.$1)} done, ${p.$2} of ${p.$3} days',
+      );
+    case DeriveJobKind.light:
+      return (
+        p == null ? 'Updating the latest day' : 'Updating ${dayName(p.$1)}',
+        'Strain, heart rate and steps from the newest band data',
+      );
+    case null:
+      if (!s.pendingLight && !s.pendingHeavy) return null;
+      final what = s.pendingHeavy
+          ? 'Sleep, recovery and strain'
+          : 'The latest day\u2019s numbers';
+      final when = switch (s.hold) {
+        DeriveHold.capture => 'once the band has finished sending',
+        DeriveHold.workout => 'when your workout ends',
+        DeriveHold.background => 'when the app is open',
+        DeriveHold.none => 'in a few seconds',
+      };
+      return ('Calculation queued', '$what, $when');
   }
 }
 

@@ -7,6 +7,7 @@ import 'package:openstrap_edge/gps/route_models.dart';
 import 'package:openstrap_edge/ui2/activity/catalogue.dart';
 import 'package:openstrap_edge/ui2/screens/day_heart.dart';
 import 'package:openstrap_edge/ui2/screens/workout_detail.dart';
+import 'package:openstrap_edge/ui2/screens/window_editor.dart' show HrPoint;
 import 'package:openstrap_edge/ui2/ui2.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -95,6 +96,27 @@ WorkoutDetail _detail() {
 }
 
 void main() {
+  test('a lit zone is coloured exactly where the drawn line is inside it', () {
+    // Zone 2 is 121-140 bpm. The line climbs 110 → 130 over 0..100 s, holds,
+    // then climbs to 150 by 300 s.
+    const lo = [100, 121, 141, 162, 182];
+    final pts = <HrPoint>[
+      (t: 0, v: 110.0),
+      (t: 100, v: 130.0),
+      (t: 200, v: 130.0),
+      (t: 300, v: 150.0),
+    ];
+    final spans = zoneSpans(pts, lo, 1)!;
+    expect(spans, hasLength(1), reason: 'one unbroken stretch of the line');
+    expect(spans.single.$1, closeTo(55, 1e-9), reason: 'crosses 121 at 55 s');
+    expect(spans.single.$2, closeTo(255, 1e-9), reason: 'leaves at 141 at 255 s');
+    // The top zone has no upper edge.
+    final z5 = zoneSpans([(t: 0, v: 170.0), (t: 10, v: 190.0)], lo, 4)!;
+    expect(z5.single.$1, closeTo(6, 1e-9));
+    expect(z5.single.$2, 10);
+    expect(zoneSpans(pts, null, 1), isNull, reason: 'no edges, no claim');
+  });
+
   setUpAll(loadAppFonts);
   setUp(() => SharedPreferences.setMockInitialValues({}));
 

@@ -363,8 +363,9 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
     return (_scroll.offset / (_headerFull - _headerSmall)).clamp(0.0, 1.0);
   }
 
-  // The list keeps the drag: this only watches where the finger is, so the
-  // blob deforms under a touch that also scrolls the page.
+  // This only watches where the finger is. A touch that lands on the blob is
+  // claimed by [_blobGrab], so the page does not scroll under it: playing
+  // with the blob used to drag the page along.
   Offset? _unit(Offset pos, double width, double top) {
     final (d, c) = _pose(_t, width, top);
     final u = (pos - c) / (d / 2);
@@ -461,6 +462,7 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
             ),
           ),
         ),
+        _blobGrab(top, width),
         // Above the overlay: these two must stay tappable.
         Positioned(
           top: top + S.x1,
@@ -504,6 +506,23 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
       ),
     );
   }
+
+  /// A circle over the blob, wherever it is posed, that wins every touch
+  /// landing on it the moment it lands: the list's drag never gets it. The
+  /// blob still reads the finger through [TouchWatcher].
+  Widget _blobGrab(double top, double width) => AnimatedBuilder(
+    animation: _scroll,
+    builder: (_, _) {
+      final (d, c) = _pose(_t, width, top);
+      return Positioned(
+        left: c.dx - d / 2,
+        top: c.dy - d / 2,
+        width: d,
+        height: d,
+        child: const ClipOval(child: TouchClaim()),
+      );
+    },
+  );
 
   Widget _pager(BuildContext c, double top) {
     final week = _week!;

@@ -64,6 +64,7 @@ import 'plus_menu.dart';
 import 'readiness_detail.dart';
 import 'recovery_calendar.dart' show openRecoveryCalendar;
 import 'sleep_detail.dart';
+import 'sleep_planner.dart' show alarmItemsOf, firstAlarmWakeMin;
 import 'start_activity.dart';
 import 'strain_recovery_card.dart';
 import 'strength_trainer.dart';
@@ -581,7 +582,6 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
               alignment: AlignmentDirectional.centerEnd,
               child: _DeviceStatus()),
         ]),
-        if (derivingOf(c)) const _Calculating(),
       ]),
     );
   }
@@ -840,15 +840,15 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         const SizedBox(height: S.x3),
         Builder(builder: (c) {
           final alarm = alarmArmOfContext(c);
-          // The wake time is the alarm's when one is set, else the
-          // recommended one — never a separately typed wake time.
-          final at = alarm?.$1;
-          final wake = at != null
-              ? at.hour * 60 + at.minute
-              : d.plan.usualWakeMin;
+          // The wake time is the first alarm when one is set (the same rule
+          // the Sleep Planner plans by), else the recommended one.
+          final items = alarmItemsOf(c);
+          final first = firstAlarmWakeMin(alarm, items: items);
+          final wake = first ?? d.plan.usualWakeMin;
           return _TonightsSleep(
             bedtimeMin: d.plan.bedtimeFor(wake) ?? d.bedtime.value?.round(),
-            wakeMin: at == null ? wake : null,
+            wakeMin: alarm?.$1 == null ? wake : null,
+            wakeIsAlarm: first != null,
             alarm: alarm,
           );
         }),
@@ -1143,24 +1143,3 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   }
 }
 
-/// The small line under the date picker while the app is working the numbers
-/// out. It takes its own height, so the page below moves down a few pixels.
-class _Calculating extends StatelessWidget {
-  const _Calculating();
-
-  @override
-  Widget build(BuildContext c) {
-    final ink = P.of(c).ink3;
-    return Padding(
-      padding: const EdgeInsets.only(top: S.x2),
-      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        SizedBox.square(
-          dimension: S.x3,
-          child: CircularProgressIndicator(strokeWidth: 1.5, color: ink),
-        ),
-        const SizedBox(width: S.x2),
-        Text('Calculating', style: F.cap.copyWith(color: ink)),
-      ]),
-    );
-  }
-}

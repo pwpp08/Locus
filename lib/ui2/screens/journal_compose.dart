@@ -522,51 +522,65 @@ class _JournalComposeState extends State<JournalCompose> {
                 onEdit: _loading ? null : () => unawaited(_edit()),
                 onBell: () => unawaited(showJournalReminderSheet(c)),
               ),
-              const SizedBox(height: S.x1 + S.half + S.hair / 2),
-              _Pager(
-                label: _dayLabel(l, _date),
-                onOlder: at > 0 ? () => unawaited(_goTo(_days[at - 1])) : null,
-                onNewer: at >= 0 && at < _days.length - 1
-                    ? () => unawaited(_goTo(_days[at + 1]))
-                    : null,
-              ),
-              const SizedBox(height: S.x2 + S.half),
-              SizedBox(
-                height: JC.pillH,
-                child: ListView.separated(
-                  controller: _strip,
-                  scrollDirection: Axis.horizontal,
-                  reverse: true,
-                  padding: const EdgeInsets.only(
-                    left: S.x2,
-                    right: JC.gutter + S.half / 4,
-                  ),
-                  itemCount: _days.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: JC.pillGap),
-                  itemBuilder: (_, i) {
-                    final day = _days[_days.length - 1 - i];
-                    final d = DateTime.parse(day);
-                    return JournalDayPill(
-                      weekday: weekdayShortName(d.weekday, l),
-                      date: '${d.day}',
-                      chosen: day == _date,
-                      logged: _logged.contains(day),
-                      onTap: () => unawaited(_goTo(day)),
-                    );
-                  },
-                ),
-              ),
+              // Only the top bar stays put. The day pager and the strip of
+              // day pills scroll away with the questions, so a long list gets
+              // the whole screen once it is under way.
               Expanded(
-                child: _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : ListView(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    const SizedBox(height: S.x1 + S.half + S.hair / 2),
+                    _Pager(
+                      label: _dayLabel(l, _date),
+                      onOlder:
+                          at > 0 ? () => unawaited(_goTo(_days[at - 1])) : null,
+                      onNewer: at >= 0 && at < _days.length - 1
+                          ? () => unawaited(_goTo(_days[at + 1]))
+                          : null,
+                    ),
+                    const SizedBox(height: S.x2 + S.half),
+                    SizedBox(
+                      height: JC.pillH,
+                      child: ListView.separated(
+                        controller: _strip,
+                        scrollDirection: Axis.horizontal,
+                        reverse: true,
+                        padding: const EdgeInsets.only(
+                          left: S.x2,
+                          right: JC.gutter + S.half / 4,
+                        ),
+                        itemCount: _days.length,
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(width: JC.pillGap),
+                        itemBuilder: (_, i) {
+                          final day = _days[_days.length - 1 - i];
+                          final d = DateTime.parse(day);
+                          return JournalDayPill(
+                            weekday: weekdayShortName(d.weekday, l),
+                            date: '${d.day}',
+                            chosen: day == _date,
+                            logged: _logged.contains(day),
+                            onTap: () => unawaited(_goTo(day)),
+                          );
+                        },
+                      ),
+                    ),
+                    if (_loading)
+                      const Padding(
+                        padding: EdgeInsets.only(top: S.x16),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else
+                      Padding(
                         padding: const EdgeInsets.fromLTRB(
                           JC.gutter,
                           S.x6 + S.half,
                           JC.gutter,
                           0,
                         ),
-                        children: [
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
                           Text(
                             _heading(l),
                             style: JC.heading.copyWith(color: JC.ink),
@@ -602,8 +616,11 @@ class _JournalComposeState extends State<JournalCompose> {
                                 'A line about the day.',
                           ),
                           const SizedBox(height: S.x4),
-                        ],
+                          ],
+                        ),
                       ),
+                  ],
+                ),
               ),
               const SizedBox(height: JC.listFoot),
               Padding(

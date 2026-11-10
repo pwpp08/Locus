@@ -10,12 +10,14 @@ class GestureController {
     required Future<void> Function() onMarkMoment,
     required Future<void> Function() onWorkoutToggle,
     required Future<void> Function() onLogWater,
+    void Function()? onFired,
   }) : _dispatcher = GestureDispatcher(
           settings: settings,
           log: log,
           onMarkMoment: onMarkMoment,
           onWorkoutToggle: onWorkoutToggle,
           onLogWater: onLogWater,
+          onFired: onFired,
         );
 
   /// Built with the controller, as AppState built it in its constructor.

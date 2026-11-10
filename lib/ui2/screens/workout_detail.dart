@@ -1430,6 +1430,44 @@ class _WorkoutChart extends StatelessWidget {
   }
 }
 
+/// Where the drawn line is inside zone [z], as epoch-second spans: each
+/// segment between two points is cut where it crosses the zone's edges,
+/// linearly, as the line itself is drawn. Null without zone edges.
+@visibleForTesting
+List<(double, double)>? zoneSpans(List<HrPoint> pts, List<int>? zoneLo, int z) {
+  if (zoneLo == null || z >= zoneLo.length) return null;
+  final lo = zoneLo[z].toDouble();
+  final hi = z + 1 < zoneLo.length ? zoneLo[z + 1].toDouble() : double.infinity;
+  final out = <(double, double)>[];
+  void add(double a, double b) {
+    if (b <= a) return;
+    // Touching spans are one stretch of the line.
+    if (out.isNotEmpty && a - out.last.$2 < 1) {
+      out[out.length - 1] = (out.last.$1, b);
+    } else {
+      out.add((a, b));
+    }
+  }
+
+  for (var i = 0; i + 1 < pts.length; i++) {
+    final p = pts[i], q = pts[i + 1];
+    final dv = q.v - p.v, dt = (q.t - p.t).toDouble();
+    double s0, s1;
+    if (dv == 0) {
+      if (p.v < lo || p.v >= hi) continue;
+      s0 = 0;
+      s1 = 1;
+    } else {
+      final a = (lo - p.v) / dv, b = (hi - p.v) / dv;
+      s0 = math.max(0, math.min(a, b));
+      s1 = math.min(1, math.max(a, b));
+    }
+    if (s1 <= s0) continue;
+    add(p.t + s0 * dt, p.t + s1 * dt);
+  }
+  return out;
+}
+
 class _ChartPaint extends CustomPainter {
   final WorkoutDetail d;
   final int? zone;
@@ -1555,26 +1593,28 @@ class _ChartPaint extends CustomPainter {
         final edge = Paint()
           ..color = col
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2;
-        for (final (ra, rb) in d.zoneRuns[z]) {
-          if (rb < v0 || ra > v1) continue;
-          final seg = [
-            for (final e in pts)
-              if (e.t >= ra && e.t <= rb) e,
-          ];
-          if (seg.isEmpty) continue;
-          final x0 = xOf(ra), x1 = math.max(xOf(rb), x0 + 1.5);
-          final top = Path()..moveTo(x0, yOf(seg.first.v));
-          for (final e in seg) {
-            top.lineTo(xOf(e.t), yOf(e.v));
-          }
-          top.lineTo(x1, yOf(seg.last.v));
-          final area = Path.from(top)
-            ..lineTo(x1, plot.bottom)
-            ..lineTo(x0, plot.bottom)
-            ..close();
-          canvas.drawPath(area, shade);
-          canvas.drawPath(top, edge);
+          ..strokeWidth = 2
+          ..strokeJoin = StrokeJoin.round;
+        // The area under the line itself, coloured only where the line is in
+        // the zone. The runs used to be filled from their own start and end
+        // with flat caps, so the colour stepped off the line wherever the
+        // drawn points and the zone's per-second runs disagreed.
+        final under = Path.from(line)
+          ..lineTo(xOf(pts.last.t), plot.bottom)
+          ..lineTo(xOf(pts.first.t), plot.bottom)
+          ..close();
+        final spans = zoneSpans(pts, d.zoneLo, z) ??
+            [
+              for (final (ra, rb) in d.zoneRuns[z])
+                if (rb >= v0 && ra <= v1) (ra.toDouble(), rb.toDouble()),
+            ];
+        for (final (ta, tb) in spans) {
+          final x0 = xOf(ta), x1 = math.max(xOf(tb), x0 + 1.5);
+          canvas.save();
+          canvas.clipRect(Rect.fromLTRB(x0, plot.top - S.x1, x1, plot.bottom));
+          canvas.drawPath(under, shade);
+          canvas.drawPath(line, edge);
+          canvas.restore();
           canvas.drawLine(
             Offset(x1, plot.top),
             Offset(x1, plot.bottom),

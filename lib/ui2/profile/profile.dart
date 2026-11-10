@@ -23,13 +23,12 @@ import '../../state/prefs.dart';
 import '../../state/units_controller.dart';
 import '../ui2.dart';
 import '../screens/action_sheet.dart' show openCoach;
-import '../screens/coach.dart' show coachSubtitle;
 import '../screens/locus_age.dart' show LocusAgeScreen;
 import 'storage_screen.dart' show StorageScreen;
 import '../screens/home_screen.dart' show deviceBatteryOf;
 import '../screens/watch_compare_screen.dart' show WatchCompareScreen;
 import '../screens/weight_trend_screen.dart' show WeightTrendScreen;
-import '../screens/wellness_screen.dart' show WellnessScreen;
+import '../screens/journal_compose.dart' show JournalCompose;
 import '../../updater/update_service.dart';
 import 'alarm.dart' show AlarmScreen;
 import 'band_notifications.dart' show BandNotifications;
@@ -177,6 +176,112 @@ Widget settingsGroup(BuildContext c, String title, List<Widget> rows) {
           ),
       ],
     ),
+  );
+}
+
+/// One row of the More tab: a card of its own, an outline glyph, the name in
+/// spaced caps, and at most a short value on the right. Measured off the
+/// reference: 60 tall, 12 apart, radius 14, a 24 glyph 16 in from the edge
+/// and the name 20 after it. No sub-line: the name says what is behind it.
+class MoreRow extends StatelessWidget {
+  final IconData? icon;
+
+  /// A brand mark in place of [icon], drawn at the glyph's size and tint.
+  final Widget Function(Color tint, double size)? glyph;
+
+  /// A small second glyph on the main one's lower right (a gear on a band:
+  /// "the band's settings").
+  final IconData? badge;
+  final String title, value;
+  final VoidCallback? onTap;
+
+  const MoreRow(IconData this.icon, this.title,
+      {super.key, this.badge, this.value = '', this.onTap})
+      : glyph = null;
+
+  const MoreRow.brand(this.glyph, this.title,
+      {super.key, this.badge, this.value = '', this.onTap})
+      : icon = null;
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final ink = p.ink2;
+    Widget mark = glyph != null
+        ? glyph!(ink, I.lg)
+        : Icon(icon, size: I.lg, color: ink);
+    if (badge != null) {
+      mark = SizedBox.square(
+        dimension: I.lg + S.x1,
+        child: Stack(children: [
+          Positioned(left: 0, top: 0, child: mark),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.all(S.half),
+              decoration: BoxDecoration(color: p.card, shape: BoxShape.circle),
+              child: Icon(badge, size: I.sm - S.x1, color: ink),
+            ),
+          ),
+        ]),
+      );
+    }
+    return Pressable(
+      onTap: onTap,
+      semanticLabel: value.isEmpty ? title : '$title, $value',
+      child: Container(
+        height: S.x16 - S.x1,
+        padding: const EdgeInsets.symmetric(horizontal: S.x4),
+        decoration: BoxDecoration(
+          borderRadius: R.rXl,
+          // Lit from the top left, like the reference's cards.
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color.alphaBlend(p.ink.withValues(alpha: .05), p.card),
+              p.card,
+            ],
+          ),
+        ),
+        child: Row(children: [
+          SizedBox(width: I.lg + S.x1, child: Center(child: mark)),
+          const SizedBox(width: S.x5 - S.x1),
+          Expanded(
+            child: Text(title.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: F.cap.copyWith(
+                    color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+          ),
+          if (value.isNotEmpty) ...[
+            const SizedBox(width: S.x2),
+            Text(value, style: F.cap.copyWith(color: p.ink3)),
+          ],
+        ]),
+      ),
+    );
+  }
+}
+
+/// A titled run of [MoreRow]s: the title in spaced caps, the rows 12 apart.
+Widget moreGroup(BuildContext c, String title, List<Widget> rows) {
+  final p = P.of(c);
+  return Padding(
+    padding: const EdgeInsets.only(top: S.x6),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Padding(
+        padding: const EdgeInsets.only(left: S.x1, bottom: S.x3),
+        child: Text(title.toUpperCase(),
+            style: F.caps.copyWith(
+                color: p.ink2, fontWeight: FontWeight.w700, letterSpacing: 1.6)),
+      ),
+      for (var i = 0; i < rows.length; i++) ...[
+        if (i > 0) const SizedBox(height: S.x3),
+        rows[i],
+      ],
+    ]),
   );
 }
 
@@ -536,146 +641,69 @@ class ProfileHomeView extends StatelessWidget {
         const SizedBox(height: S.x4),
         ProfilePhotoHeader(name: s?.name),
         const SizedBox(height: S.x2),
-        if (tab) ...[
-          settingsGroup(c, 'Insights & coaching', [
-            SetRow.brand(
-              (t) => CoachMark(size: I.sm, color: t),
-              C.purple,
-              AppLocalizations.of(c)?.profileAiCoach ?? 'AI coach',
-              sub:
-                  coachSubtitle(c) ??
-                  'Chat, recommendations and daily briefings',
-              onTap: () => openCoach(c),
-            ),
-            SetRow(
-              LucideIcons.calendarDays,
-              C.green,
-              'Habit tracker',
-              sub: 'Daily habits, journals and impacts',
-              onTap: () => goto(c, const WellnessScreen(initialTab: 2)),
-            ),
-            SetRow(
-              LucideIcons.activity,
-              C.blue,
-              'Locus Age',
-              sub: 'How old your habits and fitness make you',
-              onTap: () => goto(c, const LocusAgeScreen(page: true)),
-            ),
-            SetRow(
-              LucideIcons.watch,
-              C.lavender,
-              'Compare with watch',
-              sub: 'Side-by-side data with Apple Watch or Garmin',
-              onTap: () => goto(c, const WatchCompareScreen()),
-            ),
-          ]),
-        ],
-        // Each thing is on this tab or in Settings, never both. This tab is
-        // what you open to look at or use (you, your band, your data, the
-        // app); Settings is the switches and preferences behind them.
-        settingsGroup(c, 'You and your band', [
-          SetRow(
-            LucideIcons.userPen,
-            C.purple,
-            l?.profileEditProfile ?? 'Edit profile',
-            sub: l?.profileEditProfileSub ?? 'Sex, age, height, weight',
-            onTap: onEdit,
-          ),
-          SetRow(
-            LucideIcons.scale,
-            C.dialStrain,
-            'Weight',
-            sub: s?.weight != null
-                ? '${s!.weight} · 7-day trend and history'
-                : 'Trend and history',
-            onTap: () => goto(c, const WeightTrendScreen()),
-          ),
-          // The band's battery rides the devices row: Profile is
-          // where "is my band all right?" is asked from every tab.
-          Builder(
-            builder: (c) {
-              final battery = deviceBatteryOf(c);
-              return SetRow(
-                LucideIcons.watch,
-                C.blue,
-                l?.profileMyDevices ?? 'My devices',
-                sub: [
-                  if (s != null)
-                    l?.profileSourcesCount(s.sources) ??
-                        '${s.sources} source${s.sources == 1 ? '' : 's'}',
-                  if (battery != null)
-                    l?.profileBandBattery(battery.$1.round()) ??
-                        'Band ${battery.$1.round()}%',
-                ].join(' · '),
-                onTap: onDevices,
-              );
-            },
-          ),
-          SetRow(
-            LucideIcons.alarmClock,
-            C.lavender,
-            l?.settingsAlarmRowTitle ?? 'Alarm',
-            sub:
-                l?.settingsAlarmRowSub ??
-                'Buzzes on your wrist, on the band’s own clock',
-            onTap: () => goto(c, const AlarmScreen()),
-          ),
+        // Ordered by what people come here for: their data first, then who
+        // they are, the band, the health tools, and the app itself. Each
+        // thing is on this tab or in Settings, never both: this tab is what
+        // you open to look at or use; Settings is the switches behind them.
+        moreGroup(c, l?.profileYourDataGroup ?? 'Your data', [
+          // Export straight from here: it used to be five taps deep.
+          MoreRow(LucideIcons.hardDriveDownload,
+              l?.profileExportRow ?? 'Export and backup',
+              onTap: onExport),
+          MoreRow(LucideIcons.cloud, 'Cloud account',
+              onTap: () => goto(c, const AccountScreen())),
+          MoreRow(LucideIcons.database, l?.profileStorage ?? 'Storage',
+              value: s?.storageBytes == null ? '' : formatBytes(s!.storageBytes!),
+              onTap: () => goto(c, const StorageScreen())),
+        ]),
+        moreGroup(c, 'Profile', [
+          MoreRow(LucideIcons.userRound, l?.profileEditProfile ?? 'Edit profile',
+              onTap: onEdit),
+          MoreRow(LucideIcons.scale, 'Weight',
+              value: s?.weight ?? '',
+              onTap: () => goto(c, const WeightTrendScreen())),
+        ]),
+        moreGroup(c, 'Band', [
+          // The band's battery rides the devices row: this is where "is my
+          // band all right?" is asked from every tab.
+          Builder(builder: (c) {
+            final battery = deviceBatteryOf(c);
+            return MoreRow(LucideIcons.watch, l?.profileMyDevices ?? 'My devices',
+                badge: LucideIcons.settings,
+                value: battery == null ? '' : '${battery.$1.round()}%',
+                onTap: onDevices);
+          }),
+          MoreRow(LucideIcons.alarmClock, l?.settingsAlarmRowTitle ?? 'Alarm',
+              onTap: () => goto(c, const AlarmScreen())),
           if (onBuzz != null)
-            SetRow(
-              LucideIcons.bellRing,
-              C.purple,
-              'Band buzzes',
-              sub: 'Calls, Google Tasks and the apps that make the strap buzz',
-              onTap: onBuzz,
-            ),
+            MoreRow(LucideIcons.vibrate, 'Band buzzes', onTap: onBuzz),
         ]),
-        settingsGroup(c, l?.profileYourDataGroup ?? 'Your data', [
-          SetRow(
-            LucideIcons.cloud,
-            C.blue,
-            'Cloud account',
-            sub: 'Sign in to sync, back up and restore',
-            onTap: () => goto(c, const AccountScreen()),
-          ),
-          SetRow(
-            LucideIcons.database,
-            C.green,
-            l?.profileStorage ?? 'Storage',
-            value: s?.storageBytes == null ? '' : formatBytes(s!.storageBytes!),
-            onTap: () => goto(c, const StorageScreen()),
-          ),
-          // Export straight from here: it used to be five taps deep,
-          // behind a row named for its position ("More settings").
-          SetRow(
-            LucideIcons.download,
-            C.green,
-            l?.profileExportRow ?? 'Export and backup',
-            sub:
-                l?.profileExportRowSub ??
-                'Spreadsheets, a full copy, and bringing history in',
-            onTap: onExport,
-          ),
-        ]),
-        settingsGroup(c, 'App', [
+        if (tab)
+          moreGroup(c, 'Health & coaching', [
+            MoreRow(LucideIcons.notebookPen, 'Journal',
+                onTap: () => goto(c, const JournalCompose())),
+            MoreRow(LucideIcons.hourglass, 'Locus Age',
+                onTap: () => goto(c, const LocusAgeScreen(page: true))),
+            MoreRow.brand((t, size) => CoachMark(size: size, color: t),
+                AppLocalizations.of(c)?.profileAiCoach ?? 'AI coach',
+                onTap: () => openCoach(c)),
+            MoreRow(LucideIcons.gitCompareArrows, 'Compare with watch',
+                onTap: () => goto(c, const WatchCompareScreen())),
+          ]),
+        moreGroup(c, 'App', [
+          MoreRow(LucideIcons.settings, 'Settings', onTap: onSettings),
           if (onUpdates != null)
             AnimatedBuilder(
               animation: UpdateService.instance,
               builder: (c, _) {
                 final u = UpdateService.instance;
-                return SetRow(
-                  LucideIcons.downloadCloud,
-                  C.blue,
-                  'App updates',
-                  sub: u.isChecking
-                      ? 'Checking\u2026'
-                      : u.hasUpdate
-                          ? '${u.latestRelease?.label ?? 'A newer build'} is ready to install'
-                          : (u.currentBuild.isEmpty
-                              ? 'Look for a newer build'
-                              : 'You have ${u.currentBuild}'),
-                  value: u.hasUpdate ? 'Update' : '',
-                  onTap: u.isChecking ? null : onUpdates,
-                );
+                return MoreRow(LucideIcons.downloadCloud, 'App updates',
+                    value: u.isChecking
+                        ? 'Checking\u2026'
+                        : u.hasUpdate
+                            ? 'Update ready'
+                            : u.currentBuild,
+                    onTap: u.isChecking ? null : onUpdates);
               },
             ),
           if (onUpdates != null)
@@ -683,26 +711,13 @@ class ProfileHomeView extends StatelessWidget {
               animation: UpdateService.instance,
               builder: (c, _) {
                 final u = UpdateService.instance;
-                return SetRow(
-                  LucideIcons.refreshCw,
-                  C.green,
-                  'Check automatically',
-                  sub: 'When the app opens, at most every few hours',
-                  value: u.autoCheckEnabled
-                      ? (l?.stateOn ?? 'On')
-                      : (l?.stateOff ?? 'Off'),
-                  chevron: false,
-                  onTap: () => u.setAutoCheckEnabled(!u.autoCheckEnabled),
-                );
+                return MoreRow(LucideIcons.refreshCw, 'Check automatically',
+                    value: u.autoCheckEnabled
+                        ? (l?.stateOn ?? 'On')
+                        : (l?.stateOff ?? 'Off'),
+                    onTap: () => u.setAutoCheckEnabled(!u.autoCheckEnabled));
               },
             ),
-          SetRow(
-            LucideIcons.settings,
-            C.n500,
-            'Settings',
-            sub: 'Notifications, units, privacy, quiet hours and more',
-            onTap: onSettings,
-          ),
         ]),
       ],
     );

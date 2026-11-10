@@ -36,7 +36,12 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/gestures.dart'
-    show ScaleGestureRecognizer, kDoubleTapSlop, kDoubleTapTimeout, kTouchSlop;
+    show
+        EagerGestureRecognizer,
+        ScaleGestureRecognizer,
+        kDoubleTapSlop,
+        kDoubleTapTimeout,
+        kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'lucide.dart';
@@ -4132,6 +4137,26 @@ class AuroraTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// An invisible area that wins every touch landing on it the moment it
+/// lands, so a scrolling ancestor never gets the drag. For a thing the finger
+/// plays with (the Locus Age blob), read through a [TouchWatcher] around it.
+/// It holds no action, so it adds no semantics and no hit size rule.
+class TouchClaim extends StatelessWidget {
+  const TouchClaim({super.key});
+
+  @override
+  Widget build(BuildContext context) => RawGestureDetector(
+        behavior: HitTestBehavior.opaque,
+        gestures: {
+          EagerGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<EagerGestureRecognizer>(
+            EagerGestureRecognizer.new,
+            (_) {},
+          ),
+        },
+      );
 }
 
 /// Reports where a finger is without taking part in the gesture, so what is

@@ -14,9 +14,17 @@ class HomeTonightsSleep extends StatelessWidget {
   /// The recommended wake time (minute of day), shown when no alarm is set:
   /// a bedtime alone left the night without its other end.
   final int? wakeMin;
+
+  /// [wakeMin] is an alarm on My Schedule the band has not armed yet, not a
+  /// recommendation.
+  final bool wakeIsAlarm;
   final (DateTime?, AlarmArmState)? alarm;
   const HomeTonightsSleep(
-      {super.key, required this.bedtimeMin, this.wakeMin, required this.alarm});
+      {super.key,
+      required this.bedtimeMin,
+      this.wakeMin,
+      this.wakeIsAlarm = false,
+      required this.alarm});
 
   @override
   Widget build(BuildContext c) {
@@ -78,14 +86,16 @@ class HomeTonightsSleep extends StatelessWidget {
           ),
           Expanded(
             child: half(
-              at == null ? LucideIcons.sunrise : LucideIcons.alarmClock,
+              at == null && !wakeIsAlarm
+                  ? LucideIcons.sunrise
+                  : LucideIcons.alarmClock,
               at != null
                   ? formatClockOf(at)
                   : wakeMin == null
                       ? '--'
                       : clock(wakeMin!),
               at == null && wakeMin != null
-                  ? Text('RECOMMENDED\nWAKE',
+                  ? Text(wakeIsAlarm ? 'NOT ON THE\nBAND YET' : 'RECOMMENDED\nWAKE',
                       textAlign: TextAlign.center,
                       style: F.over.copyWith(color: p.ink3, letterSpacing: .4))
                   : Row(mainAxisSize: MainAxisSize.min, children: [

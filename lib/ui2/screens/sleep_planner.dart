@@ -145,20 +145,28 @@ int? scheduledWakeMin(Iterable<AlarmItem> items, DateTime now) {
   return best;
 }
 
-/// The wake time the planner plans to: the one you set here, else the one your
-/// schedule has for the next wake day, else your usual wake time. On a day the
-/// schedule leaves out, the most recent wake time stands and the alarm is off.
-int? plannedWakeMin(SleepPlan plan, (DateTime?, AlarmArmState)? alarm,
+/// The first alarm of the next wake day: the earliest on My Schedule, else
+/// the one the band has armed. Null with no alarm at all.
+int? firstAlarmWakeMin((DateTime?, AlarmArmState)? alarm,
     {Iterable<AlarmItem>? items, DateTime? now}) {
-  final set = Prefs.getInt(Prefs.sleepPlannerWakeMin, -1);
-  if (set >= 0) return set;
   if (items != null) {
     final scheduled = scheduledWakeMin(items, now ?? DateTime.now());
     if (scheduled != null) return scheduled;
-    return plan.usualWakeMin;
   }
   final at = alarm?.$1;
-  if (at != null) return at.hour * 60 + at.minute;
+  return at == null ? null : at.hour * 60 + at.minute;
+}
+
+/// The wake time the planner plans to. An alarm wins: the first one set is
+/// the wake time, on the planner and on Home alike (a wake time typed here
+/// used to override the alarm, so the two screens planned different nights).
+/// With no alarm, the one typed here, else your usual wake time.
+int? plannedWakeMin(SleepPlan plan, (DateTime?, AlarmArmState)? alarm,
+    {Iterable<AlarmItem>? items, DateTime? now}) {
+  final first = firstAlarmWakeMin(alarm, items: items, now: now);
+  if (first != null) return first;
+  final set = Prefs.getInt(Prefs.sleepPlannerWakeMin, -1);
+  if (set >= 0) return set;
   return plan.usualWakeMin;
 }
 

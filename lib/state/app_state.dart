@@ -1540,6 +1540,7 @@ class AppState extends ChangeNotifier {
       onMarkMoment: _markMomentFromGesture,
       onWorkoutToggle: _toggleWorkoutFromGesture,
       onLogWater: _logWaterFromGesture,
+      onFired: _confirmGesture,
     );
     engine = BleEngine(
       onRecord: _onRecord,
@@ -1691,6 +1692,7 @@ class AppState extends ChangeNotifier {
       onMarkMoment: _markMomentFromGesture,
       onWorkoutToggle: _toggleWorkoutFromGesture,
       onLogWater: _logWaterFromGesture,
+      onFired: _confirmGesture,
     );
     this.engine = engine ??
         BleEngine(
@@ -5040,6 +5042,11 @@ class AppState extends ChangeNotifier {
     await engine.runAlarm();
   }
 
+  /// A double-tap was acted on: one short buzz on the band, where the tap was
+  /// made (the phone is often in a pocket), so the wearer knows it registered.
+  /// The phone's haptic is the action's own, played when it succeeds.
+  void _confirmGesture() => unawaited(buzzBand());
+
   /// Pulse the strap so it can be heard/felt during a find-my-strap hunt.
   /// Unlike [testAlarmBuzz] this NEVER throws — the hunt screen fires it on a
   /// timer and a momentary disconnect must not surface as an error dialog.
@@ -5306,6 +5313,15 @@ class AppState extends ChangeNotifier {
   /// only because a caller may want to say "about to" rather than "is".
   bool get derivePending =>
       _deriveScheduler.pendingLight || _deriveScheduler.pendingHeavy;
+
+  /// The derive queue in detail, for My sources.
+  DeriveStatus get deriveStatus => (
+        running: _deriveScheduler.runningKind,
+        pendingLight: _deriveScheduler.pendingLight,
+        pendingHeavy: _deriveScheduler.pendingHeavy,
+        hold: _deriveScheduler.hold,
+        progress: _deriveCoordinator.dayProgress,
+      );
 
   Future<bool> bluetoothReady() async {
     if (!await FlutterBluePlus.isSupported) return false;

@@ -2011,6 +2011,26 @@ Map<String, Widget> _listCases() => {
               danger: true, onTap: () {}),
         ]),
       ),
+      // Invisible by design: the outline only shows where it claims touches.
+      'touch_claim': Container(
+        width: S.x16,
+        height: S.x16,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: C.green),
+        ),
+        child: const ClipOval(child: TouchClaim()),
+      ),
+      'more_row': Builder(
+        builder: (c) => moreGroup(c, 'More tab rows', [
+          MoreRow(LucideIcons.hardDriveDownload, 'Export and backup',
+              onTap: () {}),
+          MoreRow(LucideIcons.watch, 'My devices',
+              badge: LucideIcons.settings, value: '84%', onTap: () {}),
+          MoreRow(LucideIcons.database, 'Storage',
+              value: '1.24 GB', onTap: () {}),
+        ]),
+      ),
       'source_row': Column(children: [
         SourceRow(
           HealthSource(

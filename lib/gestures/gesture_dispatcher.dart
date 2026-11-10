@@ -25,12 +25,18 @@ class GestureDispatcher {
   final Future<void> Function()? onWorkoutToggle;
   final Future<void> Function()? onLogWater;
 
+  /// Called once per tap that is acted on, before the action runs, so the
+  /// wearer feels that the tap landed (AppState buzzes the band). A tap that
+  /// was stale, debounced or mapped to nothing gets no buzz.
+  final void Function()? onFired;
+
   GestureDispatcher({
     required this.settings,
     this.log,
     this.onMarkMoment,
     this.onWorkoutToggle,
     this.onLogWater,
+    this.onFired,
   });
 
   static const int _doubleTapEventId = 14; // EventId.doubleTap
@@ -66,6 +72,7 @@ class GestureDispatcher {
     _lastFiredMs = nowMs;
 
     log?.call('[gesture] double-tap → ${action.id}');
+    onFired?.call();
     if (action.isInApp) {
       switch (action) {
         case DeviceAction.markMoment:

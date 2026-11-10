@@ -36,12 +36,12 @@ void main() {
         onBuzz: () => taps.add('buzz'),
       ),
     );
-    expect(find.text('Settings'), findsOneWidget);
-    expect(find.text('App updates'), findsOneWidget);
-    expect(find.text('Check automatically'), findsOneWidget);
-    expect(find.text('Band buzzes'), findsOneWidget);
+    expect(find.text('SETTINGS'), findsOneWidget);
+    expect(find.text('APP UPDATES'), findsOneWidget);
+    expect(find.text('CHECK AUTOMATICALLY'), findsOneWidget);
+    expect(find.text('BAND BUZZES'), findsOneWidget);
 
-    for (final row in ['Settings', 'App updates', 'Band buzzes']) {
+    for (final row in ['SETTINGS', 'APP UPDATES', 'BAND BUZZES']) {
       await t.ensureVisible(find.text(row));
       await t.tap(find.text(row));
       await t.pump();
@@ -55,8 +55,8 @@ void main() {
       t,
       ProfileHomeView(tab: true, onSettings: () {}, onUpdates: () {}),
     );
-    expect(find.text('Settings'), findsOneWidget);
-    expect(find.text('Band buzzes'), findsNothing);
+    expect(find.text('SETTINGS'), findsOneWidget);
+    expect(find.text('BAND BUZZES'), findsNothing);
   });
 
   testWidgets('what lives on More is not repeated in Settings', (t) async {

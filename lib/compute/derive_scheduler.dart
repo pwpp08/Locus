@@ -5,6 +5,20 @@ import '../data/db.dart';
 
 enum DeriveJobKind { light, heavy }
 
+/// Why queued derive work is not running yet.
+enum DeriveHold { none, capture, workout, background }
+
+/// What the derive queue is doing, for the one screen that says so (My
+/// sources): the pass running now, what is queued, what holds it, and how far
+/// a multi-day pass has got (the day just finished, its index, the total).
+typedef DeriveStatus = ({
+  DeriveJobKind? running,
+  bool pendingLight,
+  bool pendingHeavy,
+  DeriveHold hold,
+  (String, int, int)? progress,
+});
+
 /// Serializes derive work behind the capture pipeline using durable queued jobs.
 ///
 /// While an offload is active we persist intent in `compute_jobs` and defer the
@@ -75,6 +89,7 @@ class DeriveScheduler {
   // tier, not blocked here.) Held exactly like _offloadActive.
   bool _background = false;
   bool _running = false;
+  DeriveJobKind? _runningKind;
   bool _pendingLight = false;
   bool _pendingHeavy = false;
   Timer? _timer;
@@ -88,6 +103,14 @@ class DeriveScheduler {
 
   bool get offloadActive => _offloadActive;
   bool get running => _running;
+  DeriveJobKind? get runningKind => _running ? _runningKind : null;
+  DeriveHold get hold => _offloadActive
+      ? DeriveHold.capture
+      : _workoutHeld
+          ? DeriveHold.workout
+          : _background
+              ? DeriveHold.background
+              : DeriveHold.none;
   bool get pendingLight => _pendingLight;
   bool get pendingHeavy => _pendingHeavy;
 
@@ -248,6 +271,7 @@ class DeriveScheduler {
     }
     final kind = _parseKind(job['type']?.toString());
     _running = true;
+    _runningKind = kind;
     await _refreshSnapshot();
     log('[derive-scheduler] running ${kind == DeriveJobKind.heavy ? "heavy" : "light"} pass');
     try {

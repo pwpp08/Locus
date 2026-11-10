@@ -74,6 +74,10 @@ class DeriveCoordinator {
     onChanged: _notify,
   );
 
+  /// The running pass's last finished day, its index and the pass's day
+  /// count; null between passes.
+  (String, int, int)? dayProgress;
+
   /// Bumped whenever stored insights change so listeners can re-query without a
   /// full ChangeNotifier repaint.
   final ValueNotifier<int> insightsRevision = ValueNotifier<int>(0);
@@ -92,6 +96,7 @@ class DeriveCoordinator {
   /// Refreshes the UI when results land so screens re-read the fresh derived rows.
   Future<void> afterDrain({bool heavy = false}) async {
     final mode = heavy ? 'heavy' : 'light';
+    dayProgress = null;
     try {
       // Context for whatever crash/ANR report comes next — the derivation
       // engine's heavy per-day compute is isolate-offloaded, but the
@@ -108,6 +113,7 @@ class DeriveCoordinator {
           _profile(),
           heavy: heavy,
           onDayDone: (day, index, total) async {
+            dayProgress = (day, index, total);
             if (index == total || index == 1 || index % 3 == 0) {
               _notify();
             }
@@ -188,6 +194,7 @@ class DeriveCoordinator {
       // fatal: the app keeps running, but this is worth knowing about.
       TelemetryService.instance.recordNonFatal(e, st, reason: 'post_drain_failed');
     } finally {
+      dayProgress = null;
       TelemetryService.instance.setContext('derive_active', false);
     }
   }

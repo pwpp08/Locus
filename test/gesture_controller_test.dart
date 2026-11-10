@@ -56,4 +56,30 @@ void main() {
     controller.onEvent(14, now.millisecondsSinceEpoch ~/ 1000, 'third');
     expect(waterCalls, 1);
   });
+
+  test('a tap that is acted on is felt once; stale, debounced and unmapped '
+      'taps are not', () {
+    final settings = GestureSettings()..doubleTap = DeviceAction.markMoment;
+    var felt = 0;
+    final controller = GestureController(
+      settings: settings,
+      log: (_) {},
+      onMarkMoment: () async {},
+      onWorkoutToggle: () async {},
+      onLogWater: () async {},
+      onFired: () => felt++,
+    );
+    int ts() => now.millisecondsSinceEpoch ~/ 1000;
+
+    controller.onEvent(14, ts(), 'tap');
+    expect(felt, 1);
+    controller.onEvent(14, ts(), 'the same tap again');
+    expect(felt, 1, reason: 'debounced');
+    now = now.add(const Duration(seconds: 3));
+    controller.onEvent(14, ts() - 60, 'drained from flash');
+    expect(felt, 1, reason: 'stale');
+    settings.doubleTap = DeviceAction.none;
+    controller.onEvent(14, ts(), 'mapped to nothing');
+    expect(felt, 1, reason: 'nothing to confirm');
+  });
 }

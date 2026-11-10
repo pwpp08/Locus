@@ -400,7 +400,9 @@ Bar order, by default: **Home · Health · (+) · Strength · More**, and the us
 - **AI:** the coach orb (`AiOrb`): a sweep ring round a `card` disc with the `CoachMark`, the glyph scaled to the disc (I.md at 48). It is the coach's mark everywhere: the round button under My Day (56), the chat header (24) and the gutter beside each answer (24).
 - **Customising the bar:** a long press on any tab (or the (+)) opens the **Customise tabs** sheet (`NavBarEditor`): drag to reorder, switch a tab off to hide it, Save, or Reset to default. **Home and More always stay** (they read "Always on"): Home is the way back into the app, More is where Settings live. The (+) sits in the middle of whatever tabs are left. The order is stored in `Prefs.navTabs` (comma-separated `ShellDomain` names; empty means the default; `tabsFromPref` repairs anything unreadable and puts a missing Home or More back). A hidden tab is still built the same way, it just has no button; hiding the tab you are on drops you back on Home.
 - **Banner:** a minimised workout floats as its own `Glass` pill 8 above the bar.
-- **More tab** (`ProfileHomeView`): the photo header, then four groups, **each thing in exactly one place** (here, or in Settings, never both). *Insights & coaching*: AI coach, Habit tracker, Healthspan, Compare with watch. *You and your band*: Edit profile, Weight, My devices, Alarm and, on Android only, Band buzzes. *Your data*: Cloud account, Storage, Export and backup. *App*: App updates (its line reads what you have, what is ready or that it is checking; tapping checks now), Check automatically (On/Off), and Settings. This tab is what you open to look at or use; **Settings is only switches and preferences** (notifications and quiet hours, units, time format, the band's step calibration, heart-rate settings, zone alert and double-tap, health-store sync, phone steps, privacy, automation, AI model setup, About). Nothing on this tab is repeated there.
+- **More tab** (`ProfileHomeView`): the photo header, then five groups in the order people come for them, **each thing in exactly one place** (here, or in Settings, never both). *Your data*: Export and backup, Cloud account, Storage (its size on the right). *Profile*: Edit profile, Weight. *Band*: My devices (a watch with a small gear badge; battery % on the right), Alarm and, on Android only, Band buzzes. *Health & coaching* (tab only): Journal, Locus Age, AI coach, Compare with watch. *App*: Settings, App updates (its value reads what you have, what is ready or that it is checking; tapping checks now), Check automatically (On/Off). This tab is what you open to look at or use; **Settings is only switches and preferences** (notifications and quiet hours, units, time format, the band's step calibration, heart-rate settings, zone alert and double-tap (a double tap on the band that runs its action is felt: the band buzzes once, and the action plays its own phone haptic when it succeeds; a tap that is ignored gives nothing), health-store sync, phone steps, privacy, automation, AI model setup, About). Nothing on this tab is repeated there.
+  - **`MoreRow`**: each row is a card of its own, **60 tall, 12 apart**, `R.rXl` (14), padding 16, a faint top-left gradient (ink 5 % over `card` → `card`). A 24 outline glyph in ink2 (in a 28 box), 20, then the name in **spaced caps** (`F.cap` w800, tracking 1.5, ink), and at most a short value at the right in `F.cap` ink3. No sub-line. `MoreRow.brand` takes a brand mark (the coach) in place of the glyph; `badge` adds a 11 glyph on a `card` disc at the glyph's lower right.
+  - **`moreGroup`**: 24 above, the title in `F.caps` w700 ink2 tracked 1.6, 12, then the rows.
 
 ### 10.2 Home header
 
@@ -408,6 +410,7 @@ A `Stack` of three things, so the pager sits on the true centre of the screen:
 - **Left:** `ProfileAvatar`, diameter 38.4 (`S.x12 × 0.8`). Opens the Profile page (`DataHighlightsScreen`): the period's best scores, streaks, notable stats and activity summary.
 - **Centre:** the `DayPager`.
 - **Right:** device status. Battery reads `78%` in `F.n17` w700 (ink, or `p.on(red)` when low), then 8, then a `StrapIcon` 24 tall. In the strap's gap sits either a 10 px dot (`recGreen` when connected, ink3 when not) or the bobbing orange sync arrow. Tapping it opens My Devices.
+- Nothing sits under the header while numbers are being worked out: what is calculating is on **My sources** (§14.9).
 
 ### 10.3 `DayPager`: `< TODAY >`
 
@@ -596,7 +599,9 @@ A stack of small cards, each one thing worth a sentence today, read off stored s
   - **Two halves** with a `- - - -` between them (ink3, 16 down). Each half is an icon at I.lg in ink2, 8, and a time in `F.n24` w700. Under that:
     - Left: `RECOMMENDED\nBEDTIME` in `F.over` w700 ink2.
     - Right, with an alarm: the alarm's time, an 8 px status dot and its word: `ALARM ON` (green), `SENDING TO BAND` or `NOT CONFIRMED` (yellow).
-    - Right, with no alarm: the **recommended wake** time (sunrise icon) over `RECOMMENDED WAKE`. There is no separately typed wake time: the alarm is the wake time, else the recommendation, and the bedtime is counted back from it.
+    - Right, with an alarm on My Schedule the band has not armed yet: that alarm's time (alarm-clock icon) over `NOT ON THE BAND YET`.
+    - Right, with no alarm: the **recommended wake** time (sunrise icon) over `RECOMMENDED WAKE`.
+    - **The first alarm is the wake time**: the next one to ring from My Schedule, else the one armed on the band. Only with no alarm does the Sleep Planner's typed wake time count, and then the usual wake. The bedtime is counted back from it, here and in the planner.
   - Then 16, and the SET / EDIT ALARM button.
 
 ### 11.1a Pull to refresh (`pull_refresh.dart`)
@@ -942,6 +947,7 @@ A bare sheet over a black scrim: the night's bed and wake, each a date chip and 
 Measured off the reference screenshots at 2.34 px per dp; check against them before changing a size.
 
 - **Page:** always char. A full-screen gradient from warm tan (`JC.pageColors`) through grey into the app's near-black. Top bar 60 tall: a hairline ✕ (closes without saving), `JOURNAL` in `JC.title` (13 bold, tracked), the pencil (opens SELECT BEHAVIORS).
+- **Only the top bar stays put.** The day pager, the pill strip and everything under them scroll up with the page.
 - **Days:** `‹ TODAY ›` (`YESTERDAY`, then `SAT, NOV 1`), the dead-end chevron dim. Under it a strip of day pills, 49.4 × 79, 14 apart, today at the right gutter, scrolling back a month: weekday, date, and an 18 dot that turns white once the day holds anything. The open day wears a 1.5 white rim. Moving to another day writes the one being left.
 - **Heading:** `What's happening today, November 7?` (`What happened yesterday, …`, `What happened on Wednesday, …`) in `JC.heading`.
 - **BEHAVIORS:** the label and a hairline to the edge, then one card per question, 63 tall, radius 13, white at 10 %, 10 apart. A yes/no has ✕ and ✓, 36 square, radius 7, 9 apart; the chosen answer is white with a dark glyph, and tapping it again takes it back to unanswered. A rating has one square per step under the question; an amount has − and + with what is logged (and the last-one time) under the question; weight keeps its typed entry and its trend. NOTES is the same card holding the day's note.
@@ -962,7 +968,7 @@ Measured off the reference screenshots at 2.34 px per dp; check against them bef
   - **Session edges:** start and end are dashed lines (ink 80 %, 1.5 px, 4/4) with a dot of radius 4 at the foot and the clock time under each. Whatever is drawn beyond them is at 28 % (`paintWindowed`), so the axis reads through it.
   - **Finger:** a dotted ink line down the chart and a dot on the reading (an ink disc of radius 10 with a `dialStrain` centre of radius 8).
   - **Zoom:** pinch to zoom and pan, down to 2 minutes; a double tap zooms in 2× around the tap, on every chart that pinches. RESET chip.
-  - **Lit zone:** when a zone card is selected, the trace turns ink3 at 1.4 px and each stretch in that zone fills in the zone's colour (85 % → 8 %) with a 2 px edge. Consecutive stretches are separated by a thin line in the ground colour.
+  - **Lit zone:** when a zone card is selected, the trace turns ink3 at 1.4 px and each stretch in that zone fills in the zone's colour (85 % → 8 %) with a 2 px edge. The stretches are cut where the **drawn line** crosses the zone's edges (`zoneSpans`, interpolated between points), and the fill is the area under the line itself clipped to them, so the colour follows the line exactly. Consecutive stretches are separated by a thin line in the ground colour.
 - **Legend row:** a `TYPICAL RANGE` key (a box with dashed sides) and `DURATION 0:42:13` (`F.num(F.t2)`).
 - **Zone cards** (zone 5 first):
   - `card`, radius 12, padding 18/20. `ZONE 3`, the bpm range, and the percentage in the zone's colour, all `F.caps` w800/w700 with tracking. On the right, the time in `F.num(F.t2)` with `:ss` in `F.num(F.body)` ink3.
@@ -1089,7 +1095,7 @@ The whole session as exercise cards, each with its own set table. Sizes are the 
 The Health tab (`health_tab.dart`) is two pages under a small `AGE | JOURNAL` switch, always char, painted up behind the status bar.
 
 - **Header:** `NEXT UPDATE IN n DAYS` and a week pager. Weeks run Sunday to Saturday and only finished ones are shown. Unlocked weeks only; while locked there is no pager.
-- **The blob:** 274 across at rest, a `BlobSim` of 72 spring nodes and 340 specks, stepped by a ticker and painted through its own notifier so no widget rebuilds. A finger pulls the rim toward it and scatters the specks; a tap gives way and ripples. The list keeps the drag (`TouchWatcher` only reports the finger). Reduced motion: the ticker never starts.
+- **The blob:** 274 across at rest, a `BlobSim` of 72 spring nodes and 340 specks, stepped by a ticker and painted through its own notifier so no widget rebuilds. A finger pulls the rim toward it and scatters the specks; a tap gives way and ripples. **A finger that lands on the blob does not scroll the page**: an eager recognizer over the blob's circle wins the arena. A drag that starts anywhere else scrolls as usual. Reduced motion: the ticker never starts.
 - **Tone** is how the age compares: older blue to mint, a little younger teal, 4 or more years younger green, no reading slate.
 - **Scrolling** shrinks it to 100 at the top between `YEARS OLDER` and `PACE OF AGING`. The header fills solid behind it so the rows slide under.
 - **Below:** the calibrating banner while history is under six weeks, the pace strip (−1.0x to 3.0x, needle and number above it), the week's note, then Sleep, Strain and Fitness rows and the two trend charts.
@@ -1184,6 +1190,7 @@ Every new public widget needs a case in `lib/ui2/profile/gallery.dart` (or an en
 
 ### 14.9 My sources and the band's page (`profile/devices.dart`)
 
+- **Calculating:** under the synced-through line, while the derive queue has work, one `Surface` (padding 16): a 16 spinner (ink3, 2 wide), 12, then a title in `F.body` w600 and a detail in `F.cap` ink3 (`deriveStatusText`). Running a full pass: `Calculating sleep, recovery and strain` / `Tue, Nov 4 done, 2 of 5 days`. Running the light pass: `Updating the latest day` / strain, heart rate and steps from the newest band data. Queued: `Calculation queued` / what, and what it waits for (the band to finish sending, the workout to end, the app to be open, or a few seconds).
 - **My sources** lists LIVE sources, each a `SourceRow`. Under the band's row sits `BandStats`, one `Surface` of three rows, so nobody has to open the band to read them: **Battery** (the percentage, and under it only how long is left: "about 3 days left", or "Charging"), **Last data**, and **Calibration** (the band generation, value only). The band's percentage is therefore not repeated on its `SourceRow`. There is **no quality ladder** on this screen; the tier is still named by the pill on each row and by the tier card on a source's own page.
 - **The band's page** keeps Name, Worn on, Battery (same line as above: no charge history, no millivolts), Last data, Calibration (value only, no explanation), Buzz the band and Forget. **No heart-rate row**: the live heart rate is on Home and the monitors, and the page no longer holds the live stream open.
 
