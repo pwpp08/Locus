@@ -1021,59 +1021,86 @@ class PH {
       fontFeatures: [FontFeature.tabularFigures()]);
 }
 
-/// ── HEALTH MONITOR ── measured off its reference (1.96 px to the dp). Always
-/// char, like the dial screens: the page is a dark ground that lifts to slate
-/// toward the foot, cut by a blue heart-rate line through a black disc.
+/// ── HEALTH MONITOR ── measured off its reference (1180 px across = 393 dp,
+/// so 3 px to the dp). Always char: the page runs from slate at the top to
+/// near-black at the foot, and every card is a veil of white over it, which is
+/// why the cards darken down the page with it.
 class HM {
-  static const bgTop = Color(0xFF0F1014);
-  static const bgMid = Color(0xFF13171C);
-  static const bgLow = Color(0xFF1E242B);
-  static const bgFoot = Color(0xFF3C4854);
+  static const page = [
+    Color(0xFF282F37), Color(0xFF1E2327), Color(0xFF15181D), Color(0xFF0E1215),
+  ];
+  static const pageStops = [0.0, .26, .47, 1.0];
+  static const foot = Color(0xFF0E1215);
 
-  /// The heart-rate line, and the light it throws down onto the page.
-  static const line = Color(0xFF1B9DFC);
-  static const glow = Color(0xFF0F212D);
-  static const disc = Color(0xFF020406);
-  static const discShade = Color(0x99000000);
-  static const heart = Color(0xFF4E4E50);
-  static const bpm = Color(0xFF929292);
-  static const label = Color(0xFFA1A4AA);
+  /// The heart-rate line, its heart and the light it throws down the grid.
+  static const line = Color(0xFF4A8DD1);
+  static const heart = Color(0xFF3F90E0);
+  static const glow = Color(0x214A8DD1);
+  static const grid = Color(0x0BFFFFFF);
+  static const dash = Color(0xFF9CA1A5);
 
-  /// A card is a veil of white over the page with a faint lighter rim.
+  /// BPM and the zone line under the number.
+  static const caption = Color(0xFFC4C8CB);
+
+  /// An unlit zone segment: a veil over the page.
+  static const segment = Color(0x17FFFFFF);
+
+  /// A card's veil and the faint light along its top edge.
   static const card = Color(0x1AFFFFFF);
-  static const edge = Color(0x14FFFFFF);
-  static const rim = Color(0x59000000);
+  static const cardTop = Color(0x0AFFFFFF);
+  static const label = Color(0xFFC6C8CC);
+  static const icon = Color(0xFF9EA2A5);
+
+  /// The verdict pill inside the usual range, and with no range to read.
+  static const withinChip = Color(0xFF334C46);
+  static const within = Color(0xFF72E2A8);
   static const noneChip = Color(0x14FFFFFF);
 
+  static const shareIcon = Color(0xFF6E6F71);
+  static const footnote = Color(0xFF626669);
+
   static const title = TextStyle(
+      fontFamily: F.family,
+      fontSize: 13,
+      height: 1.2,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 2);
+  static const kicker = TextStyle(
       fontFamily: F.family,
       fontSize: 12.5,
       height: 1.2,
       fontWeight: FontWeight.w700,
-      letterSpacing: 1.7);
-  static const kicker = TextStyle(
-      fontFamily: F.family,
-      fontSize: 11,
-      height: 1.2,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 1.6);
+      letterSpacing: 1.9);
   static const caps = TextStyle(
       fontFamily: F.family,
       fontSize: 10,
       height: 1.2,
       fontWeight: FontWeight.w700,
-      letterSpacing: 2.6);
+      letterSpacing: 1.4);
+  static const zone = TextStyle(
+      fontFamily: F.family,
+      fontSize: 13,
+      height: 1.2,
+      fontWeight: FontWeight.w500,
+      letterSpacing: .2);
   static const name = TextStyle(
       fontFamily: F.family,
-      fontSize: 11,
-      height: 1.2,
-      fontWeight: FontWeight.w600,
-      letterSpacing: .1);
+      fontSize: 10,
+      height: 1.5,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.5);
   static const unit = TextStyle(
       fontFamily: F.family,
-      fontSize: 14,
+      fontSize: 15,
       height: 1,
       fontWeight: FontWeight.w600,
+      letterSpacing: 0);
+  static const percent = TextStyle(
+      fontFamily: F.numerals,
+      fontFamilyFallback: [F.family],
+      fontSize: 24,
+      height: 1,
+      fontWeight: FontWeight.w700,
       letterSpacing: 0);
   static const verdict = TextStyle(
       fontFamily: F.family,
@@ -1081,21 +1108,25 @@ class HM {
       height: 1.2,
       fontWeight: FontWeight.w700,
       letterSpacing: .1);
-  static const hr = TextStyle(
-      fontFamily: F.numerals,
-      fontFamilyFallback: [F.family],
-      fontSize: 42,
-      height: 1,
+  static const share = TextStyle(
+      fontFamily: F.family,
+      fontSize: 13,
+      height: 1.2,
       fontWeight: FontWeight.w700,
-      letterSpacing: 0,
-      fontFeatures: [FontFeature.tabularFigures()]);
+      letterSpacing: 2);
+  static const note = TextStyle(
+      fontFamily: F.family,
+      fontSize: 13,
+      height: 1.3,
+      fontWeight: FontWeight.w400,
+      letterSpacing: 0);
   static const value = TextStyle(
       fontFamily: F.numerals,
       fontFamilyFallback: [F.family],
-      fontSize: 32,
+      fontSize: 34,
       height: 1,
       fontWeight: FontWeight.w700,
-      letterSpacing: .8,
+      letterSpacing: .4,
       fontFeatures: [FontFeature.tabularFigures()]);
 }
 

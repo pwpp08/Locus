@@ -18,6 +18,7 @@ class LucideIcons {
   static const IconData annoyed = base.LucideIcons.annoyed300;
   static const IconData appWindow = base.LucideIcons.appWindow300;
   static const IconData apple = base.LucideIcons.apple300;
+  static const IconData arrowDown = base.LucideIcons.arrowDown300;
   static const IconData arrowDownRight = base.LucideIcons.arrowDownRight300;
   static const IconData arrowLeft = base.LucideIcons.arrowLeft300;
   static const IconData arrowRight = base.LucideIcons.arrowRight300;
@@ -246,4 +247,5 @@ class LucideIcons {
   static const IconData minusBold = base.LucideIcons.minus600;
   static const IconData plusBold = base.LucideIcons.plus600;
   static const IconData checkHeavy = base.LucideIcons.check500;
+  static const IconData share = base.LucideIcons.share300;
 }

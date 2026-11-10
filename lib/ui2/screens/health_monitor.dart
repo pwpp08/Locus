@@ -1,22 +1,26 @@
-// HEALTH MONITOR — the live heart rate as a line through a disc, then the four
-// overnight vitals, each against your own usual range.
+// HEALTH MONITOR — the heart rate over a faint grid, then the five overnight
+// vitals in a two-column grid, each against your own usual range, then a card
+// that shares them as text.
 //
 // Every tile has three states and only three: a value inside your range, a
 // value far out on the harmful side (WHOOP's rule, whoopMonitorReading), and
-// "No data". A dash is the absence —
-// the overnight block is refused when it is a held-over night rather than
-// today's ([overnightMetric]), so a tile never shows last week's reading as
-// this morning's.
+// "No data". A dash is the absence — the overnight block is refused when it
+// is a held-over night rather than today's ([overnightMetric]), so a tile never
+// shows last week's reading as this morning's.
 //
-// The disc holds the live beat while the band streams. Without one it holds
-// the last heart rate the day actually recorded, labelled with its time, or a
-// dash — never a guess — and then the line lies flat and the disc is still.
+// Blood oxygen is a ring's own overnight figure, when a ring owns the night.
+// The band's SpO2 byte is recorded for research only and never shown here.
+//
+// The number is the live beat while the band streams, and the heart beats
+// with it. Without one it is the last heart rate the day actually recorded,
+// labelled with its time, or a dash — never a guess — and the line lies flat.
 
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../compute/whoop_scores.dart' show whoopMonitorReading;
 import '../../data/day_label.dart';
@@ -26,7 +30,6 @@ import '../../state/app_state.dart';
 import '../ui2.dart';
 import 'home_screen.dart';
 import 'metric_detail.dart';
-import 'start_activity.dart' show HeartPainter;
 import 'trend_view.dart'
     show TrendViewScreen, kSkinTempTrend, trendMetricOf;
 
@@ -35,7 +38,7 @@ typedef _Range = ({double lo, double hi, bool flagged});
 /// One vital's reading and where it sits against the usual range.
 class _Vital {
   final String key, label, value, unit;
-  final IconData icon;
+  final Widget Function(Color) icon;
 
   /// Null: no reading. Otherwise inside / above / below the usual range, or
   /// null [side] when there is a reading but no range to hold it against yet.
@@ -48,9 +51,16 @@ class _Vital {
   final double? raw;
   final int places;
 
-  /// The range's unit when it is not the shown value's (skin temperature is
-  /// shown in °C but ranged in SD).
-  final String rangeUnit;
+  /// The range is held in another unit than the value is shown in (skin
+  /// temperature shown in °C, ranged in SD): the pill names the verdict and
+  /// writes no numbers, rather than numbers in a unit the tile never shows.
+  final bool rangeElsewhere;
+
+  /// Written after EACH range number (SpO2: "95% - 100%").
+  final String eachUnit;
+
+  /// A signed range, written "−0.6 to +0.7".
+  final bool signed;
 
   const _Vital(this.key, this.label, this.icon,
       {this.value = '',
@@ -60,8 +70,41 @@ class _Vital {
       this.range,
       this.raw,
       this.places = 0,
-      this.rangeUnit = ''});
+      this.rangeElsewhere = false,
+      this.eachUnit = '',
+      this.signed = false});
+
+  /// The pill's words.
+  String get verdict {
+    final r = range, x = raw;
+    if (!present) return 'No data';
+    if (r == null || x == null) return 'No baseline';
+    String n(double v) =>
+        '${signed ? (v < 0 ? '−' : '+') : (v < 0 ? '−' : '')}'
+        '${v.abs().toStringAsFixed(places)}$eachUnit';
+    if (rangeElsewhere) {
+      return x > r.hi ? 'elevated' : x < r.lo ? 'low' : 'within usual range';
+    }
+    if (x > r.hi) return 'elevated > ${n(r.hi)}';
+    if (x < r.lo) return 'low < ${n(r.lo)}';
+    return signed
+        ? 'within ${n(r.lo)} to ${n(r.hi)}'
+        : 'within ${n(r.lo)} - ${n(r.hi)}';
+  }
 }
+
+const _respLabel = 'Respiratory Rate';
+const _spo2Label = 'Blood Oxygen\n(SpO₂)';
+const _skinLabel = 'Skin Temp\n(from baseline)';
+
+/// The five tiles with nothing in them, in their order.
+final List<_Vital> _emptyVitals = [
+  _Vital('resp_rate', _respLabel, (c) => _Glyph(_lungs, c)),
+  _Vital('spo2', _spo2Label, (c) => _Glyph(_drop, c)),
+  _Vital('resting_hr', 'RHR', (c) => _Glyph(_restingHeart, c)),
+  _Vital('hrv', 'HRV', (c) => _Glyph(_pulse, c)),
+  _Vital('skin_temp', _skinLabel, (c) => _Glyph(_thermometer, c)),
+];
 
 class _MonitorData {
   final List<_Vital> vitals;
@@ -101,6 +144,10 @@ class _MonitorData {
     final skinC = skinZ == null
         ? null
         : ((skinRaw is Map ? skinRaw['dev_c'] : null) as num?)?.toDouble();
+    num? spo2;
+    try {
+      spo2 = await repo.getNightSpo2(todayLabel());
+    } catch (_) {}
 
     String signed(double v, int places) =>
         '${v >= 0 ? '+' : '−'}${v.abs().toStringAsFixed(places)}';
@@ -109,10 +156,16 @@ class _MonitorData {
     final rhrR = await rangeOf('resting_hr', rhr?.toDouble(), harmfulUp: true);
     final hrvR = await rangeOf('hrv', hrv?.toDouble(), harmfulUp: false);
     final skinR = await rangeOf('skin_temp', skinZ?.toDouble(), harmfulUp: true);
+    // Blood oxygen holds against the usual healthy band, not a personal one:
+    // a ring's nightly figure sits at the top of its scale, so a personal
+    // "middle half" would flag ordinary nights.
+    final _Range? spo2R =
+        spo2 == null ? null : (lo: 95, hi: 100, flagged: spo2 < 95);
 
+    final e = _emptyVitals;
     return _MonitorData(
       vitals: [
-        _Vital('resp_rate', 'Respiratory Rate', LucideIcons.wind,
+        _Vital('resp_rate', _respLabel, e[0].icon,
             present: resp != null,
             value: resp == null ? '' : resp.toStringAsFixed(1),
             unit: 'rpm',
@@ -120,21 +173,29 @@ class _MonitorData {
             range: respR,
             raw: resp?.toDouble(),
             places: 1),
-        _Vital('resting_hr', 'RHR', LucideIcons.heartPulse,
+        _Vital('spo2', _spo2Label, e[1].icon,
+            present: spo2 != null,
+            value: spo2 == null ? '' : '${spo2.round()}',
+            unit: '%',
+            side: sideOf(spo2R, harmfulUp: false),
+            range: spo2R,
+            raw: spo2?.toDouble(),
+            eachUnit: '%'),
+        _Vital('resting_hr', 'RHR', e[2].icon,
             present: rhr != null,
             value: rhr == null ? '' : '${rhr.round()}',
             unit: 'bpm',
             side: sideOf(rhrR, harmfulUp: true),
             range: rhrR,
             raw: rhr?.toDouble()),
-        _Vital('hrv', 'HRV', LucideIcons.activity,
+        _Vital('hrv', 'HRV', e[3].icon,
             present: hrv != null,
             value: hrv == null ? '' : '${hrv.round()}',
             unit: 'ms',
             side: sideOf(hrvR, harmfulUp: false),
             range: hrvR,
             raw: hrv?.toDouble()),
-        _Vital('skin_temp', 'Skin Temp (from baseline)', LucideIcons.thermometer,
+        _Vital('skin_temp', _skinLabel, e[4].icon,
             present: skinZ != null,
             value: skinZ == null
                 ? ''
@@ -146,7 +207,8 @@ class _MonitorData {
             range: skinR,
             raw: skinZ?.toDouble(),
             places: 1,
-            rangeUnit: skinC != null ? ' SD' : ''),
+            signed: true,
+            rangeElsewhere: skinC != null),
       ],
     );
   }
@@ -185,14 +247,35 @@ Future<_Recorded?> _lastRecorded(BuildContext c) async {
   return null;
 }
 
-// The page's measured geometry, in dp from the top of the safe area.
-const double _barH = S.x10;
-const double _heroH = 186;
-const double _discY = 111;
-const double _lineY = 118.5;
-const double _disc = 110;
-const double _cardH = 144;
-const double _cardPad = S.x4 - S.hair;
+/// The zone table's lower edges (zones 1..5), or null without one.
+Future<List<int>?> _zoneEdges(BuildContext c) async {
+  try {
+    final z = (await repoOf(c)?.getZones())?['zones'];
+    if (z is! List || z.length != 5) return null;
+    return [for (final e in z) ((e as Map)['lo'] as num).round()];
+  } catch (_) {
+    return null;
+  }
+}
+
+/// 0 below zone 1, else the zone whose lower edge [bpm] has reached.
+int _zoneOf(int bpm, List<int> edges) {
+  var z = 0;
+  for (var i = 0; i < edges.length; i++) {
+    if (bpm >= edges[i]) z = i + 1;
+  }
+  return z;
+}
+
+// The page's measured geometry, in dp (3 px to the dp on the reference).
+const double _barH = S.x16;
+const double _heroH = 168.7;
+const double _gridTop = 7, _gridBottom = 142, _cell = 15;
+const double _lineY = 88.3;
+const double _dotFromRight = 32.7;
+const double _dashTop = 14.3, _dashBottom = 131;
+const double _tilePadX = S.x2 + S.half;
+const double _tileRadius = S.x2 + S.half;
 
 class HealthMonitorScreen extends StatefulWidget {
   const HealthMonitorScreen({super.key});
@@ -205,6 +288,7 @@ class _HealthMonitorScreenState extends State<HealthMonitorScreen> {
   AppState? _liveHrOwner;
   _MonitorData? _d;
   _Recorded? _recorded;
+  List<int>? _zones;
 
   @override
   void initState() {
@@ -220,7 +304,10 @@ class _HealthMonitorScreenState extends State<HealthMonitorScreen> {
       if (!mounted) return;
       setState(() => _d = d);
       final r = await _lastRecorded(context).catchError((_) => null);
-      if (mounted && r != null) setState(() => _recorded = r);
+      if (!mounted) return;
+      if (r != null) setState(() => _recorded = r);
+      final z = await _zoneEdges(context);
+      if (mounted && z != null) setState(() => _zones = z);
     });
   }
 
@@ -232,27 +319,20 @@ class _HealthMonitorScreenState extends State<HealthMonitorScreen> {
 
   @override
   Widget build(BuildContext c) {
-    // No repository (goldens) loads no vitals: the four tiles still stand,
+    // No repository (goldens) loads no vitals: the five tiles still stand,
     // each saying it has no data.
     final loaded = _d?.vitals ?? const [];
-    final vitals = loaded.isNotEmpty
-        ? loaded
-        : const [
-          _Vital('resp_rate', 'Respiratory Rate', LucideIcons.wind),
-          _Vital('resting_hr', 'RHR', LucideIcons.heartPulse),
-          _Vital('hrv', 'HRV', LucideIcons.activity),
-          _Vital('skin_temp', 'Skin Temp (from baseline)', LucideIcons.thermometer),
-        ];
+    final vitals = loaded.isNotEmpty ? loaded : _emptyVitals;
     return AlwaysChar(
       child: Scaffold(
-        backgroundColor: HM.bgFoot,
+        backgroundColor: HM.foot,
         body: DecoratedBox(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              stops: [0, .33, .6, 1],
-              colors: [HM.bgTop, HM.bgMid, HM.bgLow, HM.bgFoot],
+              stops: HM.pageStops,
+              colors: HM.page,
             ),
           ),
           child: SafeArea(
@@ -261,27 +341,16 @@ class _HealthMonitorScreenState extends State<HealthMonitorScreen> {
               padding: const EdgeInsets.only(bottom: S.x16),
               children: [
                 const _Bar(),
-                _Hero(recorded: _recorded),
-                const _Kicker(),
-                const SizedBox(height: S.x8),
+                _Hero(recorded: _recorded, zones: _zones),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: S.x4),
                   child: Column(children: [
                     for (var i = 0; i < vitals.length; i += 2) ...[
                       if (i > 0) const SizedBox(height: S.x3),
-                      IntrinsicHeight(
-                        child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(child: _VitalTile(vitals[i])),
-                              const SizedBox(width: S.x3),
-                              Expanded(
-                                  child: i + 1 < vitals.length
-                                      ? _VitalTile(vitals[i + 1])
-                                      : const SizedBox.shrink()),
-                            ]),
-                      ),
+                      _TileRow(vitals.sublist(i, math.min(i + 2, vitals.length))),
                     ],
+                    const SizedBox(height: S.x10),
+                    _ShareCard(vitals: vitals, recorded: _recorded),
                   ]),
                 ),
               ],
@@ -293,7 +362,7 @@ class _HealthMonitorScreenState extends State<HealthMonitorScreen> {
   }
 }
 
-/// The close × and the title, centred in tracked capitals.
+/// The back chevron and the title, centred in tracked capitals.
 class _Bar extends StatelessWidget {
   const _Bar();
 
@@ -306,8 +375,9 @@ class _Bar extends StatelessWidget {
           left: S.x4,
           child: Pressable(
             onTap: () => Navigator.of(c).maybePop(),
-            semanticLabel: 'Close',
-            child: const Icon(LucideIcons.x, size: I.xl, color: DC.pure),
+            semanticLabel: 'Back',
+            child: const Icon(LucideIcons.chevronLeft,
+                size: S.x10 + S.x1, color: DC.pure),
           ),
         ),
         Text('HEALTH MONITOR', style: HM.title.copyWith(color: DC.pure)),
@@ -316,9 +386,9 @@ class _Bar extends StatelessWidget {
   }
 }
 
-/// The beat's clock: how far through the current beat the disc is, and how far
-/// the line has slid since the newest reading. One ticker feeds it; the
-/// painter listens, so a frame repaints the hero and nothing else.
+/// The beat's clock: how far through the current beat the heart is, and how
+/// far the line has slid since the newest reading. One ticker feeds it; the
+/// painters listen, so a frame repaints the hero and nothing else.
 class _Clock extends ChangeNotifier {
   double beat = 0, slide = 0;
   void set(double b, double s) {
@@ -328,10 +398,12 @@ class _Clock extends ChangeNotifier {
   }
 }
 
-/// The line, the disc and the number in it.
+/// HEART RATE, the heart, the number, BPM and the zone, over the grid and
+/// its line.
 class _Hero extends StatefulWidget {
   final _Recorded? recorded;
-  const _Hero({this.recorded});
+  final List<int>? zones;
+  const _Hero({this.recorded, this.zones});
 
   @override
   State<_Hero> createState() => _HeroState();
@@ -396,9 +468,12 @@ class _HeroState extends State<_Hero> with SingleTickerProviderStateMixin {
 
     final rec = widget.recorded;
     final shown = hr ?? rec?.bpm;
+    // Under the number: the live zone, else when the shown rate was recorded,
+    // else why there is none.
+    final edges = widget.zones;
     final String note;
     if (hr != null) {
-      note = '';
+      note = edges == null ? '' : 'Zone ${_zoneOf(hr, edges)}';
     } else if (rec != null) {
       final at = DateTime.fromMillisecondsSinceEpoch(rec.at * 1000);
       final day = dayLabelOf(at) == todayLabel()
@@ -412,6 +487,7 @@ class _HeroState extends State<_Hero> with SingleTickerProviderStateMixin {
               ? 'Device Disconnected'
               : 'Waiting for a reading';
     }
+    final zone = hr != null && edges != null ? _zoneOf(hr, edges) : 0;
 
     return SizedBox(
       height: _heroH,
@@ -419,7 +495,7 @@ class _HeroState extends State<_Hero> with SingleTickerProviderStateMixin {
         Positioned.fill(
           child: RepaintBoundary(
             child: CustomPaint(
-              painter: _HeroPaint(
+              painter: _GridPaint(
                 trace: hr == null ? const [] : trace,
                 clock: _clock,
                 live: moving,
@@ -428,244 +504,359 @@ class _HeroState extends State<_Hero> with SingleTickerProviderStateMixin {
           ),
         ),
         Positioned(
-          left: 0,
-          right: 0,
-          top: _discY - HM.hr.fontSize! / 2,
+          left: S.x6,
+          right: S.x4,
+          top: _HeroText.labelTop,
           child: Semantics(
             label: shown == null
                 ? 'Heart rate: no reading. $note'
                 : 'Heart rate $shown beats per minute. $note',
             excludeSemantics: true,
-            child: Column(children: [
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('HEART RATE', style: HM.kicker.copyWith(color: DC.pure)),
+              const SizedBox(height: _HeroText.labelToHeart),
+              Transform.translate(
+                offset: const Offset(_HeroText.heartNudge, 0),
+                child: SizedBox(
+                  width: _HeroText.heartW,
+                  height: _HeroText.heartH,
+                  child: CustomPaint(painter: _BeatingHeart(_clock, moving)),
+                ),
+              ),
+              const SizedBox(height: _HeroText.heartToValue),
               Text(shown == null ? '--' : '$shown',
-                  style: HM.hr.copyWith(color: DC.pure)),
-              const SizedBox(height: S.half),
-              Text('BPM', style: HM.caps.copyWith(color: HM.bpm)),
+                  style: HM.value.copyWith(color: DC.pure)),
+              const SizedBox(height: _HeroText.valueToBpm),
+              Text('BPM', style: HM.caps.copyWith(color: HM.caption)),
+              const SizedBox(height: _HeroText.bpmToNote),
+              Text(note,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: HM.zone.copyWith(color: HM.caption)),
             ]),
           ),
         ),
-        if (note.isNotEmpty)
-          Positioned(
-            left: S.x4,
-            right: S.x4,
-            top: _discY + _disc / 2 + S.x1,
-            child: Text(note,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: F.over.copyWith(color: DC.ink3, fontWeight: FontWeight.w600)),
-          ),
+        Positioned(
+          left: S.x6,
+          top: _gridBottom,
+          child: _ZoneBars(zone),
+        ),
       ]),
     );
   }
 }
 
-/// The glow under the line, the line (the live trace, or flat), and the
-/// disc with its heart, swelling on each beat.
-class _HeroPaint extends CustomPainter {
+/// The hero's text rhythm, measured off the reference's cap heights.
+abstract final class _HeroText {
+  static const labelTop = S.x2 + S.hair;
+  static const labelToHeart = 8.7;
+  // The heart's own size and its small step left of the text's edge, as
+  // traced (22.28 x 19.1 dp, 1.27 dp left of the label).
+  static const heartW = 22.28, heartH = 19.1, heartNudge = -1.27;
+  static const heartToValue = 6.2;
+  static const valueToBpm = S.x1 - S.hair;
+  static const bpmToNote = S.x3;
+}
+
+/// The heart, swelling a little on each beat while the beat is live.
+class _BeatingHeart extends CustomPainter {
+  final _Clock clock;
+  final bool live;
+  _BeatingHeart(this.clock, this.live) : super(repaint: clock);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final e = live ? .5 - .5 * math.cos(clock.beat * 2 * math.pi) : 0.0;
+    canvas.save();
+    canvas.translate(size.width / 2, size.height / 2);
+    canvas.scale(1 + .08 * e);
+    canvas.translate(-size.width / 2, -size.height / 2);
+    canvas.drawPath(_heartShape(size), Paint()..color = HM.heart);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_BeatingHeart old) => old.live != live || old.clock != clock;
+}
+
+/// The hero's heart, traced off the reference: its right half from the notch
+/// round to the tip, in its own box (0..1 across and down). The left half is
+/// the mirror. Within 0.4 px of the trace at 3x.
+const _heartHalf = [
+    (0.500, 0.166),
+    (0.525, 0.158),
+    (0.606, 0.065),
+    (0.660, 0.023),
+    (0.687, 0.011),
+    (0.715, 0.006),
+    (0.766, 0.012),
+    (0.801, 0.028),
+    (0.832, 0.051),
+    (0.871, 0.088),
+    (0.906, 0.131),
+    (0.956, 0.202),
+    (0.978, 0.241),
+    (0.993, 0.284),
+    (0.997, 0.330),
+    (0.996, 0.361),
+    (0.987, 0.408),
+    (0.976, 0.437),
+    (0.951, 0.478),
+    (0.874, 0.579),
+    (0.783, 0.691),
+    (0.748, 0.743),
+    (0.688, 0.819),
+    (0.570, 0.960),
+    (0.549, 0.983),
+    (0.537, 0.991),
+    (0.500, 1.000),
+];
+
+Path _heartShape(Size size) {
+  final w = size.width, h = size.height;
+  final right = [for (final (x, y) in _heartHalf) Offset(x * w, y * h)];
+  final path = Path()..moveTo(right.first.dx, right.first.dy);
+  for (final o in right.skip(1)) {
+    path.lineTo(o.dx, o.dy);
+  }
+  for (final o in right.reversed.skip(1)) {
+    path.lineTo(w - o.dx, o.dy);
+  }
+  return path..close();
+}
+
+/// Five segments, the current zone's lit in its own colour.
+class _ZoneBars extends StatelessWidget {
+  final int zone;
+  const _ZoneBars(this.zone);
+
+  static const _zoneColors = [
+    C.refZone1, C.refZone2, C.refZone3, C.refZone4, C.refZone5,
+  ];
+
+  @override
+  Widget build(BuildContext c) {
+    return Row(children: [
+      for (var i = 0; i < 5; i++) ...[
+        if (i > 0) const SizedBox(width: S.half),
+        Container(
+          width: S.x5,
+          height: S.half,
+          color: zone == i + 1 ? _zoneColors[i] : HM.segment,
+        ),
+      ],
+    ]);
+  }
+}
+
+/// The grid, the glow under the line, the line (the live trace, or flat) up
+/// to the dot, and the dashed line through the dot.
+class _GridPaint extends CustomPainter {
   final List<int> trace;
   final _Clock clock;
   final bool live;
-  _HeroPaint({required this.trace, required this.clock, required this.live})
+  _GridPaint({required this.trace, required this.clock, required this.live})
       : super(repaint: clock);
 
-  /// Readings across the full width, and the most a reading moves the line.
+  /// Readings across the line, and the most a reading moves it.
   static const _slots = 40;
-  static const _reach = S.x2 + S.half;
+  static const _reach = S.x3;
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
-    canvas.clipRect(Offset.zero & size);
-    final glow = Rect.fromLTWH(0, _lineY, w, S.x16);
-    canvas.drawRect(
-        glow,
-        Paint()
-          ..shader = const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            stops: [0, .55, 1],
-            colors: [HM.glow, HM.glow, Color(0x00000000)],
-          ).createShader(glow));
+    final grid = Paint()
+      ..color = HM.grid
+      ..strokeWidth = S.hair;
+    for (var x = 0.0; x <= w; x += _cell) {
+      canvas.drawLine(Offset(x, _gridTop), Offset(x, _gridBottom), grid);
+    }
+    for (var y = _gridTop; y <= _gridBottom + .1; y += _cell) {
+      canvas.drawLine(Offset(0, y), Offset(w, y), grid);
+    }
 
-    final line = Paint()
-      ..color = HM.line
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = S.hair + S.hair / 2
-      ..strokeCap = StrokeCap.round;
+    final dotX = w - _dotFromRight;
+    // The line fades in from the left, under the text.
+    final fade = LinearGradient(
+      // Only the mask's alpha is read.
+      colors: const [Color(0x00000000), DC.scrim],
+      stops: const [.17, .38],
+    ).createShader(Rect.fromLTWH(0, 0, w, size.height));
+
+    final pts = <Offset>[];
     if (trace.length < 2) {
-      canvas.drawLine(Offset(0, _lineY), Offset(w, _lineY), line);
+      pts.addAll([Offset(0, _lineY), Offset(dotX, _lineY)]);
     } else {
       final t = trace.length > _slots + 1
           ? trace.sublist(trace.length - _slots - 1)
           : trace;
       final mean = t.reduce((a, b) => a + b) / t.length;
-      final step = w / _slots;
+      final step = dotX / _slots;
       final n = t.length;
-      final pts = [
-        for (var i = 0; i < n; i++)
-          Offset(w - (n - 1 - i + (live ? clock.slide : 0)) * step,
-              _lineY - ((t[i] - mean) * .8).clamp(-_reach, _reach)),
-      ];
-      final path = Path()
-        ..moveTo(0, _lineY)
-        ..lineTo(math.max(0, pts.first.dx - step), _lineY);
-      var prev = Offset(math.max(0, pts.first.dx - step), _lineY);
-      for (final p in pts) {
-        final mid = Offset((prev.dx + p.dx) / 2, (prev.dy + p.dy) / 2);
-        path.quadraticBezierTo(prev.dx, prev.dy, mid.dx, mid.dy);
-        prev = p;
+      pts.add(Offset(0, _lineY));
+      for (var i = 0; i < n; i++) {
+        pts.add(Offset(
+            math.max(0, dotX - (n - 1 - i + (live ? clock.slide : 0)) * step),
+            _lineY - ((t[i] - mean) * .8).clamp(-_reach, _reach)));
       }
-      path.lineTo(prev.dx, prev.dy);
-      if (prev.dx < w) path.lineTo(w, prev.dy);
-      canvas.drawPath(path, line);
+      pts.add(Offset(dotX, pts.last.dy));
     }
+    final path = Path()..moveTo(pts.first.dx, pts.first.dy);
+    var prev = pts.first;
+    for (final p in pts.skip(1)) {
+      final mid = Offset((prev.dx + p.dx) / 2, (prev.dy + p.dy) / 2);
+      path.quadraticBezierTo(prev.dx, prev.dy, mid.dx, mid.dy);
+      prev = p;
+    }
+    path.lineTo(prev.dx, prev.dy);
 
-    // A beat swells fast and settles: half the beat out, half back.
-    final e = live ? .5 - .5 * math.cos(clock.beat * 2 * math.pi) : 0.0;
-    final c = Offset(w / 2, _discY);
-    if (live) {
-      canvas.drawCircle(
-          c,
-          _disc / 2 * (1 + .38 * e),
-          Paint()
-            ..color = HM.line.withValues(alpha: .16 * (1 - e))
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, S.x1));
-    }
-    canvas.drawCircle(
-        c,
-        _disc / 2 + S.x1,
+    canvas.saveLayer(Offset.zero & size, Paint());
+    final under = Path.from(path)
+      ..lineTo(dotX, _lineY + S.x10 + S.x1)
+      ..lineTo(0, _lineY + S.x10 + S.x1)
+      ..close();
+    canvas.drawPath(
+        under,
         Paint()
-          ..color = HM.discShade
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, S.x1 + S.half));
-    canvas.save();
-    canvas.translate(c.dx, c.dy);
-    canvas.scale(1 + .035 * e);
-    canvas.drawCircle(Offset.zero, _disc / 2, Paint()..color = HM.disc);
-    const heart = S.x4 + S.x1 - S.hair;
-    canvas.translate(-heart / 2, -_disc / 2 + S.x4);
-    HeartPainter(HM.heart).paint(canvas, const Size.square(heart));
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [HM.glow, Color(0x00000000)],
+          ).createShader(
+              Rect.fromLTWH(0, _lineY, w, S.x10 + S.x1)));
+    canvas.drawPath(
+        path,
+        Paint()
+          ..color = HM.line
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = S.half
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round);
+    canvas.drawRect(Offset.zero & size, Paint()
+      ..blendMode = BlendMode.dstIn
+      ..shader = fade);
     canvas.restore();
+
+    final dash = Paint()
+      ..color = HM.dash
+      ..strokeWidth = S.hair * .7;
+    for (var y = _dashTop; y < _dashBottom; y += S.x1 + S.hair) {
+      canvas.drawLine(Offset(dotX, y), Offset(dotX, math.min(y + S.x1 - S.hair, _dashBottom)), dash);
+    }
+    canvas.drawCircle(Offset(dotX, prev.dy), S.x1, Paint()..color = DC.pure);
   }
 
   @override
-  bool shouldRepaint(_HeroPaint old) =>
+  bool shouldRepaint(_GridPaint old) =>
       !identical(old.trace, trace) || old.live != live || old.clock != clock;
 }
 
-/// LAST NIGHT'S READINGS, and the (?) that says what the ranges are.
-class _Kicker extends StatelessWidget {
-  const _Kicker();
+/// Two tiles side by side, as tall as the taller. A one-line label beside a
+/// wrapped one sits level with the middle of it; every number then sits a
+/// fixed step under its own label, as on the reference.
+class _TileRow extends StatelessWidget {
+  final List<_Vital> pair;
+  const _TileRow(this.pair);
 
   @override
   Widget build(BuildContext c) {
-    return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const SizedBox(width: S.x3 - S.hair),
-      Text("LAST NIGHT'S READINGS", style: HM.kicker.copyWith(color: DC.pure)),
-      Pressable(
-        onTap: () => AppSheet.show<void>(c,
-            title: 'Health Monitor',
-            child: Text(
-                'Each reading is last night\'s, held against your own usual '
-                'range: the middle half of your last 30 nights. A reading a '
-                'little outside it stays green; only one far out on the '
-                'harmful side is marked. A range needs 14 nights first.',
-                style: F.dBody.copyWith(color: P.of(c).ink2))),
-        semanticLabel: 'About these readings',
-        child: const Icon(LucideIcons.circleHelp,
-            size: I.md, color: DC.ink3),
-      ),
-    ]);
+    final besideWrap = pair.any((v) => v.label.contains('\n'));
+    return IntrinsicHeight(
+      child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Expanded(child: _VitalTile(pair[0], besideWrap: besideWrap)),
+        const SizedBox(width: S.x3),
+        Expanded(
+            child: pair.length > 1
+                ? _VitalTile(pair[1], besideWrap: besideWrap)
+                : const SizedBox.shrink()),
+      ]),
+    );
   }
 }
 
 class _VitalTile extends StatelessWidget {
   final _Vital v;
-  const _VitalTile(this.v);
-
-  String _n(double x) =>
-      '${x < 0 ? '−' : ''}${x.abs().toStringAsFixed(v.places)}';
+  final bool besideWrap;
+  const _VitalTile(this.v, {required this.besideWrap});
 
   @override
   Widget build(BuildContext c) {
     final r = v.range, raw = v.raw;
-    final (String word, Color ink, Color chip, bool check) = !v.present
-        ? ('No data', DC.ink3, HM.noneChip, false)
-        : r == null || raw == null
-            ? ('No baseline', DC.ink3, HM.noneChip, false)
-            : (
-                raw > r.hi
-                    ? 'elevated > ${_n(r.hi)}${v.rangeUnit}'
-                    : raw < r.lo
-                        ? 'low < ${_n(r.lo)}${v.rangeUnit}'
-                        : 'within ${_n(r.lo)} - ${_n(r.hi)}${v.rangeUnit}',
-                r.flagged ? C.poor : C.optimal,
-                r.flagged ? DC.hurtChip : DC.helpChip,
-                !r.flagged,
-              );
+    final word = v.verdict;
+    final wraps = v.label.contains('\n');
+    final (Color ink, Color chip, bool check) = !v.present || r == null || raw == null
+        ? (DC.ink3, HM.noneChip, false)
+        : r.flagged
+            ? (C.poor, DC.hurtChip, false)
+            : (HM.within, HM.withinChip, true);
+    // A ring's blood oxygen has no chart of its own to open.
+    final opens = v.key != 'spo2';
     return Pressable(
       // The chart Home's dashboard row opens for the same metric; skin
       // temperature has a trend of its own that only this tile opens.
-      onTap: () => go(
-          c,
-          trendMetricOf(v.key) != null || v.key == kSkinTempTrend.id
-              ? TrendViewScreen(initial: v.key)
-              : MetricDetail(v.key)),
-      semanticLabel: '${v.label}. ${v.present ? '${v.value} ${v.unit}. ' : ''}$word',
+      onTap: !opens
+          ? null
+          : () => go(
+              c,
+              trendMetricOf(v.key) != null || v.key == kSkinTempTrend.id
+                  ? TrendViewScreen(initial: v.key)
+                  : MetricDetail(v.key)),
+      semanticLabel: '${v.label.replaceAll('\n', ' ')}. '
+          '${v.present ? '${v.value} ${v.unit}. ' : ''}$word',
       child: Container(
-        constraints: const BoxConstraints(minHeight: _cardH),
-        padding: const EdgeInsets.all(_cardPad),
-        decoration: BoxDecoration(
+        padding: const EdgeInsets.fromLTRB(
+            _tilePadX, S.x2, _tilePadX, S.x2 + S.half),
+        decoration: const BoxDecoration(
           color: HM.card,
-          borderRadius: R.rSm,
-          border: Border.all(color: HM.edge, width: S.hair),
-          boxShadow: const [
-            BoxShadow(color: HM.rim, blurRadius: S.half, spreadRadius: S.hair / 2),
-          ],
+          borderRadius: BorderRadius.all(Radius.circular(_tileRadius)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Icon(v.icon, size: I.lg, color: HM.label),
-                const SizedBox(width: S.x3 - S.hair),
-                Expanded(
-                    child: Text(v.label.toUpperCase(),
-                        style: HM.name.copyWith(color: HM.label))),
-              ]),
-              const SizedBox(height: S.x3 + S.half),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Flexible(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(v.present ? v.value : '--',
-                          style: HM.value.copyWith(color: DC.pure)),
-                    ),
-                  ),
-                  if (v.present && v.unit.isNotEmpty) ...[
-                    const SizedBox(width: S.hair),
-                    Text(v.unit, style: HM.unit.copyWith(color: DC.pure)),
-                  ],
-                ],
-              ),
+            if (!wraps)
+              SizedBox(height: besideWrap ? _Tile.besideWrap : _Tile.alone),
+            Row(children: [
+              SizedBox(width: I.md, child: Center(child: v.icon(HM.icon))),
+              const SizedBox(width: S.x2),
+              Expanded(
+                  child: Text(v.label.toUpperCase(),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: HM.name.copyWith(color: HM.label))),
             ]),
-            const SizedBox(height: S.x4),
+            SizedBox(height: wraps ? _Tile.wrapToValue : _Tile.headerToValue),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(v.present ? v.value : '--',
+                        style: HM.value.copyWith(color: DC.pure)),
+                  ),
+                ),
+                if (v.present && v.unit.isNotEmpty) ...[
+                  const SizedBox(width: S.x1),
+                  Text(v.unit,
+                      style: (v.unit == '%' ? HM.percent : HM.unit)
+                          .copyWith(color: DC.pure)),
+                ],
+              ],
+            ),
+            const SizedBox(height: _Tile.valueToChip),
             Container(
-              height: S.x5 + S.half,
-              padding: const EdgeInsets.symmetric(horizontal: S.x2),
+              height: _Tile.chip,
+              padding: EdgeInsets.fromLTRB(check ? S.half + S.hair : S.x1 + S.hair, 0,
+                  S.x1 + S.hair, 0),
               decoration: BoxDecoration(
                   color: chip,
-                  borderRadius: const BorderRadius.all(Radius.circular(S.half))),
+                  borderRadius: const BorderRadius.all(Radius.circular(S.half + S.hair))),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 if (check) ...[
-                  Icon(LucideIcons.check, size: I.sm - S.x1, color: ink),
-                  const SizedBox(width: S.x1 + S.hair),
+                  Icon(LucideIcons.check, size: I.sm - S.x1 - S.hair, color: ink),
+                  const SizedBox(width: S.half),
                 ],
                 Flexible(
                   child: FittedBox(
@@ -682,4 +873,250 @@ class _VitalTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A tile's rhythm, measured off the reference.
+abstract final class _Tile {
+  /// Above a one-line label: alone in its row, and beside a wrapped one.
+  static const alone = S.half + S.hair;
+  static const besideWrap = S.x1 + S.hair;
+  static const headerToValue = S.x4 + S.half;
+  static const wrapToValue = S.x4;
+  static const valueToChip = S.x4 + S.hair;
+  static const chip = S.x4 + S.half;
+}
+
+/// SHARE YOUR HEALTH REPORT: the readings as text, through the system sheet.
+class _ShareCard extends StatelessWidget {
+  final List<_Vital> vitals;
+  final _Recorded? recorded;
+  const _ShareCard({required this.vitals, this.recorded});
+
+  String _report() {
+    final lines = [
+      'Health report, ${todayLabel()}',
+      '',
+      for (final v in vitals)
+        '${v.label.replaceAll('\n', ' ')}: '
+            '${v.present ? '${v.value} ${v.unit} (${v.verdict})' : 'no data'}',
+      if (recorded != null) 'Heart rate: last recorded ${recorded!.bpm} bpm',
+      '',
+      'Each reading is last night\'s, held against my own usual range (the '
+          'middle half of my last 30 nights). Measured by a consumer '
+          'wearable; not a medical device.',
+    ];
+    return lines.join('\n');
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Pressable(
+        onTap: () => Share.share(_report(), subject: 'Health report'),
+        semanticLabel: 'Share your health report',
+        child: Container(
+          height: S.x12 + S.x2,
+          padding: const EdgeInsets.symmetric(horizontal: S.x4 - S.hair),
+          decoration: const BoxDecoration(
+            color: HM.card,
+            borderRadius: BorderRadius.all(Radius.circular(_tileRadius)),
+          ),
+          child: Row(children: [
+            const _Glyph(_share, HM.shareIcon, size: S.x6 + S.half),
+            const SizedBox(width: S.x4 - S.hair),
+            Expanded(
+              child: Text('SHARE YOUR HEALTH REPORT',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: HM.share.copyWith(color: DC.pure)),
+            ),
+          ]),
+        ),
+      ),
+      const SizedBox(height: S.x3),
+      Padding(
+        padding: const EdgeInsets.only(left: S.hair),
+        child: Text('These readings as text, to send to your doctor',
+            style: HM.note.copyWith(color: HM.footnote)),
+      ),
+    ]);
+  }
+}
+
+/// A line icon drawn on a 24-unit square, in the reference's hand: strokes
+/// 1.4 units wide, round ends and joins.
+class _Glyph extends StatelessWidget {
+  final void Function(Canvas, Paint) draw;
+  final Color color;
+  final double size;
+  const _Glyph(this.draw, this.color, {this.size = I.md});
+
+  @override
+  Widget build(BuildContext c) =>
+      CustomPaint(size: Size.square(size), painter: _GlyphPaint(draw, color));
+}
+
+class _GlyphPaint extends CustomPainter {
+  final void Function(Canvas, Paint) draw;
+  final Color color;
+  _GlyphPaint(this.draw, this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 24, size.height / 24);
+    draw(
+        canvas,
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_GlyphPaint old) => old.color != color || old.draw != draw;
+}
+
+/// Two lobes either side of a windpipe that forks into them.
+void _lungs(Canvas c, Paint p) {
+  Path lobe(double Function(double) x) => Path()
+    ..moveTo(x(10), 7.6)
+    ..cubicTo(x(10), 6, x(9.2), 5, x(8), 5)
+    ..cubicTo(x(6.6), 5, x(5.8), 6.2, x(5.2), 7.6)
+    ..cubicTo(x(3.6), 10.6, x(1.8), 13.6, x(1.8), 16.8)
+    ..cubicTo(x(1.8), 19.2, x(3.2), 20.4, x(5.6), 20.4)
+    ..cubicTo(x(8.4), 20.4, x(10), 19.4, x(10), 17.2)
+    ..close();
+  double id(double v) => v;
+  double mirror(double v) => 24 - v;
+  c.drawPath(lobe(id), p);
+  c.drawPath(lobe(mirror), p);
+  c.drawLine(const Offset(12, 3.4), const Offset(12, 10.6), p);
+  for (final x in [id, mirror]) {
+    c.drawPath(
+        Path()
+          ..moveTo(x(12), 9.6)
+          ..quadraticBezierTo(x(12), 11.4, x(7.8), 14),
+        p);
+    c.drawLine(Offset(x(7.4), 11.8), Offset(x(10), 11.8), p);
+  }
+}
+
+/// A drop, a glint low in it, and two bubbles rising off its shoulder.
+void _drop(Canvas c, Paint p) {
+  const cx = 9.0, cy = 16.4, r = 5.6, tipY = 4.8;
+  // The sides leave the bulb on its tangents to the tip.
+  final a = math.asin(r / (cy - tipY));
+  c.drawPath(
+      Path()
+        ..moveTo(cx, tipY)
+        ..lineTo(cx - r * math.cos(a), cy - r * math.sin(a))
+        ..arcTo(Rect.fromCircle(center: const Offset(cx, cy), radius: r),
+            math.pi + a, -(math.pi + 2 * a), false)
+        ..close(),
+      p);
+  c.drawLine(const Offset(7.9, 19.4), const Offset(10.2, 18.8), p);
+  c.drawCircle(const Offset(15, 3.6), 2.1, p);
+  c.drawCircle(const Offset(18.6, 8.2), 1.2, p);
+}
+
+/// A heart with an arrow down beside it, cut clear of the arrow's head.
+void _restingHeart(Canvas c, Paint p) {
+  c.saveLayer(const Rect.fromLTWH(-2, -2, 28, 28), Paint());
+  // Lobes of radius r; the sides run tangent from them to the tip.
+  const l = 1.2, t = 6.0, r = 3.9, cx = l + 2 * r;
+  const back = math.pi + math.pi / 4 - math.pi / 12;
+  c.drawPath(
+      Path()
+        ..moveTo(cx, t + r * .7)
+        ..arcTo(Rect.fromCircle(center: const Offset(l + r, t + r), radius: r),
+            -math.pi / 12, -back, false)
+        ..lineTo(cx, t + r * (2 + math.sqrt2))
+        ..arcTo(
+            Rect.fromCircle(center: const Offset(l + 3 * r, t + r), radius: r),
+            math.pi / 4, -back, false)
+        ..close(),
+      p);
+  final arrow = Path()
+    ..moveTo(19.4, 9.4)
+    ..lineTo(19.4, 19.4)
+    ..moveTo(15.6, 15.6)
+    ..lineTo(19.4, 19.4)
+    ..lineTo(23.2, 15.6);
+  c.drawPath(
+      arrow,
+      Paint.from(p)
+        ..strokeWidth = p.strokeWidth * 3
+        ..blendMode = BlendMode.clear);
+  c.drawPath(arrow, p);
+  c.restore();
+}
+
+/// A beat traced as a hollow ribbon: flat, a dip, a spike, flat again.
+void _pulse(Canvas c, Paint p) {
+  final line = Path()
+    ..moveTo(2.4, 12)
+    ..lineTo(7.4, 12)
+    ..lineTo(8.8, 18.6)
+    ..lineTo(16.2, 5.2)
+    ..lineTo(17.2, 12)
+    ..lineTo(21.6, 12);
+  c.saveLayer(const Rect.fromLTWH(-2, -2, 28, 28), Paint());
+  c.drawPath(line, Paint.from(p)..strokeWidth = 4.6);
+  c.drawPath(
+      line,
+      Paint.from(p)
+        ..strokeWidth = 4.6 - 2 * p.strokeWidth
+        ..blendMode = BlendMode.clear);
+  c.restore();
+}
+
+/// A tube into a bulb, the column of mercury down its middle.
+void _thermometer(Canvas c, Paint p) {
+  const cx = 12.0, hw = 2.8, top = 1.8, by = 18.2, br = 4.9;
+  final dy = math.sqrt(br * br - hw * hw);
+  final a = math.atan2(-dy, hw);
+  c.drawPath(
+      Path()
+        ..moveTo(cx - hw, by - dy)
+        ..lineTo(cx - hw, top + hw)
+        ..arcToPoint(const Offset(cx + hw, top + hw),
+            radius: const Radius.circular(hw))
+        ..lineTo(cx + hw, by - dy)
+        ..arcTo(Rect.fromCircle(center: const Offset(cx, by), radius: br), a,
+            math.pi - 2 * a, false)
+        ..close(),
+      p);
+  c.drawLine(const Offset(cx, 8.6), const Offset(cx, by - 1.2), p);
+  c.drawCircle(const Offset(cx, by), 1.1, p);
+}
+
+/// An open-topped box with an arrow rising out of it.
+void _share(Canvas c, Paint p) {
+  const l = 2.6, r = 21.4, t = 9.2, b = 22.6;
+  const k = Radius.circular(2.4);
+  c.drawPath(
+      Path()
+        ..moveTo(7.2, t)
+        ..lineTo(l + 2.4, t)
+        ..arcToPoint(const Offset(l, t + 2.4), radius: k, clockwise: false)
+        ..lineTo(l, b - 2.4)
+        ..arcToPoint(const Offset(l + 2.4, b), radius: k, clockwise: false)
+        ..lineTo(r - 2.4, b)
+        ..arcToPoint(const Offset(r, b - 2.4), radius: k, clockwise: false)
+        ..lineTo(r, t + 2.4)
+        ..arcToPoint(const Offset(r - 2.4, t), radius: k, clockwise: false)
+        ..lineTo(16.8, t),
+      p);
+  c.drawPath(
+      Path()
+        ..moveTo(12, 15.4)
+        ..lineTo(12, 1.6)
+        ..moveTo(7.6, 6)
+        ..lineTo(12, 1.6)
+        ..lineTo(16.4, 6),
+      p);
 }

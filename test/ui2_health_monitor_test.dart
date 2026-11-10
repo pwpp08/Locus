@@ -1,8 +1,8 @@
-// Health Monitor: the disc and the four vitals.
+// Health Monitor: the heart rate and the five vitals.
 //
 // Pins the honesty rules the redesign must keep: a verdict pill only ever
 // states the user's own range numbers, a reading far out on the harmful side
-// takes the warning colour, an absent vital says "No data", and the disc shows
+// takes the warning colour, an absent vital says "No data", and the hero shows
 // the live beat, else the day's last recorded heart rate with its time, else a
 // dash. It also pins that the beat only runs while there is one to follow and
 // motion is allowed.
@@ -80,6 +80,24 @@ class _Repo extends LocalRepository {
       };
 }
 
+/// A gen5 night: skin temperature shown in °C, its range held in SD.
+class _SkinRepo extends _Repo {
+  @override
+  Future<Map<String, dynamic>> getToday() async => {
+        ...await super.getToday(),
+        'skin_temp': {
+          'value': .2, 'dev_c': .5, 'confidence': .8, 'tier': 'RELATIVE',
+        },
+      };
+
+  @override
+  Future<Map<String, dynamic>> getChart(String metric,
+          {int? from, int? to, Set<String> signals = const {}}) async =>
+      metric == 'skin_temp'
+          ? _chart(_nights(0, .8, .2))
+          : super.getChart(metric, from: from, to: to, signals: signals);
+}
+
 String _range(List<double> s, {required bool up, int places = 0}) {
   final r = whoopMonitorReading(s.last, s.sublist(0, s.length - 1), harmfulUp: up)!;
   String n(double x) => x.toStringAsFixed(places);
@@ -127,12 +145,23 @@ void main() {
     // RHR 70 against ~52: far out on the harmful side → the warning colour.
     expect(_inkOf(t, rhr), C.poor);
     // HRV up is not the harmful side: green, however high.
-    expect(_inkOf(t, hrv), C.optimal);
-    // No skin reading at all: no number, no range.
-    expect(find.text('No data'), findsOneWidget);
+    expect(_inkOf(t, hrv), HM.within);
+    // No skin reading and no ring's blood oxygen: no number, no range.
+    expect(find.text('No data'), findsNWidgets(2));
   });
 
-  testWidgets('no live beat: the last recorded rate, labelled, and a still disc',
+  testWidgets('a °C skin reading never shows its SD range', (t) async {
+    final app = AppState.forTesting()..repo = _SkinRepo();
+    addTearDown(app.dispose);
+    await _pump(t, app);
+
+    expect(find.text('+0.5'), findsOneWidget);
+    expect(find.text('°C'), findsOneWidget);
+    expect(find.text('within usual range'), findsOneWidget);
+    expect(find.textContaining('SD'), findsNothing);
+  });
+
+  testWidgets('no live beat: the last recorded rate, labelled, and a still heart',
       (t) async {
     final app = AppState.forTesting()..repo = _Repo();
     addTearDown(app.dispose);
@@ -143,13 +172,13 @@ void main() {
     expect(SchedulerBinding.instance.transientCallbackCount, 0);
   });
 
-  testWidgets('nothing recorded: a dash and four tiles of No data', (t) async {
+  testWidgets('nothing recorded: a dash and five tiles of No data', (t) async {
     final app = AppState.forTesting()..repo = _Repo(empty: true);
     addTearDown(app.dispose);
     await _pump(t, app);
 
-    expect(find.text('--'), findsNWidgets(5));
-    expect(find.text('No data'), findsNWidgets(4));
+    expect(find.text('--'), findsNWidgets(6));
+    expect(find.text('No data'), findsNWidgets(5));
     expect(find.textContaining('Last recorded'), findsNothing);
   });
 

@@ -121,6 +121,11 @@ abstract class LocalRepository {
   /// 28-day session intensity distribution.
   Future<Map<String, dynamic>> getZones() =>
       throw UnimplementedError('re-layer: getZones');
+
+  /// A night's blood oxygen, %, when a wearable that reports one (a ring)
+  /// owns [date]; null otherwise, including on every band night: the band's
+  /// own SpO2 byte is unvalidated and is never served (see Sample.g4Byte82).
+  Future<num?> getNightSpo2(String date) async => null;
   Future<Map<String, dynamic>> getDaySleep(String date) =>
       throw UnimplementedError('re-layer: getDaySleep');
   Future<Map<String, dynamic>> getDayTimeline(String date) =>

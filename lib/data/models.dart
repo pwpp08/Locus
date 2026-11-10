@@ -152,6 +152,20 @@ class Sample {
   /// (analytics `band_offset.dart`) — never to create, extend or stage one.
   final int? bandSleepState;
 
+  /// Two gen4 v24 record fields kept RAW for research — GEN4 v24 ONLY.
+  ///
+  /// [g4Word72] is the signed i16 at inner[72] (frame[76]); [g4Byte82] the
+  /// byte at inner[82] (frame[86]). A public trace of WHOOP 4 firmware
+  /// 41.17.4.0 (alex-holovach/life, docs/TEMPERATURE.md and
+  /// RESPIRATION-OXYGEN.md) reads the first as the skin sensor in tenths of a
+  /// °C (700 = no reading) and the second as the strap's own SpO2 result
+  /// (70-100 %, 0 none, other values status codes, 98 ambiguous). Neither has
+  /// been checked against a thermometer or an oximeter, so the columns are
+  /// named for their offsets and NOTHING reads them as a temperature or a
+  /// saturation. Stored so a few real nights can show whether the trace holds.
+  final int? g4Word72;
+  final int? g4Byte82;
+
   Sample({
     required this.tsEpoch,
     required this.counter,
@@ -177,6 +191,8 @@ class Sample {
     this.dynAccelG,
     this.tsSubsec,
     this.bandSleepState,
+    this.g4Word72,
+    this.g4Byte82,
   });
 
   /// Copy with an overridden [tsEpoch] — used by the clock-offset salvage path
@@ -208,6 +224,8 @@ class Sample {
     dynAccelG: dynAccelG,
     tsSubsec: tsSubsec,
     bandSleepState: bandSleepState,
+    g4Word72: g4Word72,
+    g4Byte82: g4Byte82,
   );
 
   bool get hasDecodedOneHz =>
@@ -253,8 +271,29 @@ class Sample {
       dynAccelG: (m['dyn_accel_g'] as num?)?.toDouble(),
       tsSubsec: (m['ts_subsec'] as num?)?.toInt(),
       bandSleepState: (m['band_sleep_state'] as num?)?.toInt(),
+      g4Word72: (m['g4_i16_72'] as num?)?.toInt(),
+      g4Byte82: (m['g4_u8_82'] as num?)?.toInt(),
     );
   }
+}
+
+/// [Sample.g4Word72] and [Sample.g4Byte82] out of a gen4 record's raw tail
+/// (`R24.rawTail`, hex, starting at inner[13]). Both null for anything but a
+/// v24 record, or a tail too short to hold them.
+({int? word72, int? byte82}) gen4ResearchFields(
+    int histVersion, String rawTailHex) {
+  const none = (word72: null, byte82: null);
+  if (histVersion != 24) return none;
+  int? byteAt(int inner) {
+    final i = (inner - 13) * 2;
+    if (i < 0 || i + 2 > rawTailHex.length) return null;
+    return int.tryParse(rawTailHex.substring(i, i + 2), radix: 16);
+  }
+
+  final lo = byteAt(72), hi = byteAt(73), b = byteAt(82);
+  if (lo == null || hi == null || b == null) return none;
+  final u = lo | hi << 8;
+  return (word72: u >= 0x8000 ? u - 0x10000 : u, byte82: b);
 }
 
 /// A raw historical record exactly as it came off the band — the source of truth.

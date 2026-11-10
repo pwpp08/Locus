@@ -22,7 +22,7 @@ import '../compute/derivation_engine.dart';
 import '../compute/findings.dart' show servedReadiness;
 import '../compute/hr_max.dart';
 import '../compute/inputs/canonical.dart'
-    show deviceFlagOn, withoutWearableEstimates;
+    show MetricClass, dayCells, deviceFlagOn, withoutWearableEstimates;
 import '../compute/manual_session.dart';
 import '../compute/onehz_pipeline.dart' show kUnknownAbsenceNote, needInputNote;
 import '../compute/profile.dart';
@@ -4496,6 +4496,12 @@ class LocalRepositoryImpl extends LocalRepository {
   }
 
   // ── TS-03 / TS-04 / TS-05 — the zones screen ───────────────────────────────
+
+  @override
+  Future<num?> getNightSpo2(String date) async {
+    final c = (await dayCells(date))?['spo2'];
+    return c?['class'] == MetricClass.unavailable.name ? null : c?['value'] as num?;
+  }
 
   /// Everything the zones screen draws: the observed ceiling and where it came
   /// from, the zone edges and WHICH TWO NUMBERS they were anchored on, and —

@@ -1554,6 +1554,14 @@ class LocalDb {
       // See Sample.bandSleepState for the evidence that it varies and means
       // what it says.
       'band_sleep_state': 'INTEGER',
+      // Two gen4 v24 fields kept raw for research: the i16 at inner[72] and
+      // the byte at inner[82]. A firmware trace names them the skin sensor
+      // (tenths of °C) and the strap's own SpO2 result; nobody has checked
+      // either against a reference, so they are named for their offsets and
+      // nothing reads them. See Sample.g4Word72. Not a ladder rung, same as
+      // `dyn_accel_g` above.
+      'g4_i16_72': 'INTEGER',
+      'g4_u8_82': 'INTEGER',
     };
     final have = await _columnsOf(db, 'decoded_onehz');
     if (have.isEmpty) return; // table not created yet — the DDL carries them
@@ -6638,6 +6646,8 @@ class LocalDb {
             // into NULL at the write, not here — see _queueDecodedOneHz.
             ambientRaw: r.ambientRaw,
             tsSubsec: r.tsSubsec,
+            g4Word72: gen4ResearchFields(r.histVersion, r.rawTail).word72,
+            g4Byte82: gen4ResearchFields(r.histVersion, r.rawTail).byte82,
           );
         }
       } catch (_) {}
@@ -6759,6 +6769,9 @@ class LocalDb {
       // everything the mid-ladder backfill can replay — but omitted-when-null
       // regardless, for the same reason.
       'band_sleep_state': ?decoded.bandSleepState,
+      // Research-only gen4 fields; omitted when null like the two above.
+      'g4_i16_72': ?decoded.g4Word72,
+      'g4_u8_82': ?decoded.g4Byte82,
       // 0 IS THE ABSENT SENTINEL, NOT A READING. records.dart:501 emits
       // `ambientRaw: optical ? u16@70 : 0`, so every unconfirmed record version
       // reports 0 — writing that through would turn "we did not read the

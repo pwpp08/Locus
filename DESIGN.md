@@ -1060,6 +1060,21 @@ With band notifications on and permitted, two phone events have a buzz pattern o
 - `0.0` and `3.0` are written under the two ends.
 - `stressColor(score)` interpolates the four stops.
 
+### 14.5a Health Monitor (`health_monitor.dart`, tokens in `theme.dart` `HM`)
+
+Measured off a 1180 px reference (3 px to the dp) and checked against a 3× render of the screen. Always char.
+
+- **Page.** A gradient `HM.page` (slate `#282F37` → `#0E1215`, stops 0 / .26 / .47 / 1). Bar 64 tall: a 41 dp chevron at the left, "HEALTH MONITOR" centred in `HM.title` (13 w700, tracking 2).
+- **Hero** (168.7 tall). A 15 dp grid (`HM.grid`, white 4 %) from 7 to 142. The heart-rate line (`HM.line`, 2 dp) runs at 88.3, fading in from about 17 % of the width under the text, with a 13 % glow under it. It ends in an 8 dp white dot 32.7 from the right edge, on a dashed vertical (`HM.dash`, 3 on, 2 off, from 14.3 to 131). While live, the line is the live trace and slides.
+- **Hero text** (left 24). "HEART RATE" in `HM.kicker`. Under it, the heart: traced off the reference (`_heartHalf`, mirrored), 22.28 × 19.1, `HM.heart` `#3F90E0`, 1.27 left of the text edge. It swells 8 % on each beat while live and motion is on. Then the number in `HM.value` (D-DIN 34), BPM in `HM.caps` (`HM.caption`), and under that the zone ("Zone N" from the zone table) or, without a live beat, "Last recorded HH:MM" / "No Device Paired" / "Device Disconnected" / "Waiting for a reading". Five 20 × 2 zone segments at 142; only the current zone's is lit, in its zone colour.
+- **Tiles.** Two columns, 16 margins, 12 gutter, 12 between rows, radius 10, `HM.card` veil, padding 10 / 8 / 10 / 10. The header is a 20 dp line icon (`_Glyph`: 24-unit square, 1.4 strokes, round ends, `HM.icon`), 8 gap, then the label in caps (`HM.name`, 10 w700, tracking 1.5, line 1.5).
+  - A one-line label sits 3 dp lower when its row has a wrapped one. A number sits 18 under a one-line label and 16 under a wrapped one, so a row's numbers are not level, as on the reference. The row is as tall as its taller tile.
+  - Value in `HM.value`, unit in `HM.unit` (15 w600; "%" in D-DIN 24). The pill is 17 below: 18 tall, radius 3, `HM.verdict` 11 w700. Inside the range: a check and `HM.within` on `HM.withinChip`. Far out on the harmful side: `C.poor` on `DC.hurtChip`. No data: `DC.ink3` on `HM.noneChip`.
+  - Order: Respiratory Rate, Blood Oxygen (SpO₂), RHR, HRV, Skin Temp (from baseline).
+  - The pill writes the range in the value's own unit and never names a unit the tile does not show. Skin temperature shown in °C is ranged in SD, so its pill says "within usual range" / "elevated" / "low" with no numbers.
+  - Blood oxygen is a ring's nightly figure (`getNightSpo2`) held against 95–100 %. The band's SpO2 byte is recorded for research only and never shown.
+- **Share.** A 56-tall card 40 below the tiles: share glyph (26) and "SHARE YOUR HEALTH REPORT" in `HM.share`. It shares the readings as plain text through the system sheet. The footnote under it is in `HM.note` / `HM.footnote`.
+
 ### 14.6 Nap (`nap_detail.dart`)
 
 Laid out like a recorded activity: the header on the LEFT (back chevron, the lounger mark, "NAP", the window), TIME ASLEEP in `C.dialSleep` `F.n34`, the heart rate filled in `C.dialSleep` as an activity's is in strain blue, the movement lane under it, then KEY STATISTICS as compact cards (`F.num(F.head)`): in bed, asleep, average and lowest heart rate (lowest whole minute), moving %. **No stages.** The pipeline stores a nap as a window and its minutes asleep; a stage split, wake events, latency, efficiency bands and "typical ranges" would all be invented, and so would "this nap reduced your sleep need by N minutes" (the sleep coach's applied credit is not the raw nap minutes).

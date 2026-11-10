@@ -5747,6 +5747,9 @@ class BleEngine {
           // Same field, same offset, same omission on this side: the record's
           // sub-second was decoded and thrown away here too.
           tsSubsec: r.tsSubsec,
+          // Research-only, read by nothing: see Sample.g4Word72.
+          g4Word72: gen4ResearchFields(r.histVersion, r.rawTail).word72,
+          g4Byte82: gen4ResearchFields(r.histVersion, r.rawTail).byte82,
         );
       }
     } else if (recType == Record.r10) {
