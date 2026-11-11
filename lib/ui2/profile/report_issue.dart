@@ -250,7 +250,7 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
                       onTap: () => setState(() => _category = e.key),
                       semanticLabel: e.value,
                       child: Pill(e.value,
-                          e.key == _category ? C.green : C.n500,
+                          e.key == _category ? C.optimal : C.n500,
                           icon: e.key == _category ? LucideIcons.check : null),
                     ),
                 ]),
@@ -261,7 +261,7 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
                     l.reportDescriptionHint,
                     lines: 4, max: 4000),
                 settingsGroup(c, l.reportAttachGroup, [
-                  SetRow(LucideIcons.image, C.blue,
+                  SetRow(LucideIcons.image, C.dialStrain,
                       _shot == null
                           ? l.reportScreenshotRow
                           : l.reportScreenshotRemove,
@@ -271,7 +271,7 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
                           : _shot == null
                               ? _pickShot
                               : () => setState(() => _shot = null)),
-                  SetRow(LucideIcons.database, C.red, l.reportDatabaseRow,
+                  SetRow(LucideIcons.database, C.dialStrain, l.reportDatabaseRow,
                       sub: _full
                           ? l.reportDatabaseCovered
                           : l.reportDatabaseWarning,
@@ -282,7 +282,7 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
                       onTap: _busy || _full
                           ? null
                           : () => setState(() => _db = !_db)),
-                  SetRow(LucideIcons.database, C.red, l.reportFullDatabaseRow,
+                  SetRow(LucideIcons.database, C.dialStrain, l.reportFullDatabaseRow,
                       sub: l.reportFullDatabaseWarning,
                       trailing: AppSwitch(_full, _busy ? null : (v) => setState(() => _full = v)),
                       chevron: false,
@@ -296,7 +296,9 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
                       database: draft.includeDatabase,
                       fullDatabase: draft.fullDatabase))
                     SetRow(LucideIcons.fileText, C.n500, path,
-                        sub: describeReportFile(l, path), chevron: false),
+                        sub: describeReportFile(l, path),
+                        keepCase: true,
+                        chevron: false),
                 ]),
                 const SizedBox(height: S.x2),
                 Text(l.reportIncludedNote,
@@ -364,6 +366,7 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
                   settingsGroup(c, l.reportMyReportsGroup, [
                     for (final r in _reports.reversed)
                       SetRow(LucideIcons.fileText, C.n500, r.id,
+                          keepCase: true,
                           sub: l.reportMyReportsSub(
                               date.formatMediumDate(r.expiresAt.toLocal())),
                           value: l.reportDelete,

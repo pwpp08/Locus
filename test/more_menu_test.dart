@@ -62,17 +62,17 @@ void main() {
   testWidgets('what lives on More is not repeated in Settings', (t) async {
     await pump(t, const MoreSettingsView(version: '0.11.4', devMode: false));
     for (final moved in [
-      'Alarm',
-      'Cloud account & sync',
-      'Export, backup, import',
-      'Compare with another watch',
-      'Check for updates',
-      'Check automatically',
+      'ALARM',
+      'CLOUD ACCOUNT',
+      'EXPORT AND BACKUP',
+      'COMPARE WITH WATCH',
+      'CHECK FOR UPDATES',
+      'CHECK AUTOMATICALLY',
     ]) {
       expect(find.text(moved), findsNothing, reason: '$moved moved to More');
     }
     // Settings keeps what is a preference, not a destination.
-    expect(find.text('Units'), findsOneWidget);
-    expect(find.text('Heart rate settings'), findsOneWidget);
+    expect(find.text('UNITS'), findsOneWidget);
+    expect(find.text('HEART RATE ZONES'), findsOneWidget);
   });
 }

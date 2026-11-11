@@ -10,8 +10,8 @@ void main() {
       dayStart: 1000,
       hr: [for (var i = 0; i < 10; i++) i.toDouble()],
       movement: [for (var i = 0; i < 10; i++) i.isEven ? i / 10 : null],
-      rest: const [(0, 4, C.blue)],
-      work: const [(6, 9, C.orange), (9, 10, C.orange)],
+      rest: const [(0, 4, C.dialStrain)],
+      work: const [(6, 9, C.strainDown), (9, 10, C.strainDown)],
     );
 
     test('slices every lane and re-bases the clock', () {
@@ -24,8 +24,8 @@ void main() {
 
     test('clips spans to the window instead of dropping them', () {
       final w = g.window(3, 8);
-      expect(w.rest, [(0, 1, C.blue)]);
-      expect(w.work, [(3, 5, C.orange)]);
+      expect(w.rest, [(0, 1, C.dialStrain)]);
+      expect(w.work, [(3, 5, C.strainDown)]);
     });
   });
 

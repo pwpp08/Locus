@@ -35,7 +35,7 @@ void main() {
           '',
           'as of today',
           const [55, 54, 56, 55, 58],
-          C.red,
+          C.dialStrain,
           band: const UsualRange(53, 57),
           latest: 58,
           higherBetter: false,
@@ -70,7 +70,7 @@ void main() {
       var opened = 0;
       await _host(
           t,
-          TrendCard('HRV', '48', 'ms', '', '', const [50, 48], C.green,
+          TrendCard('HRV', '48', 'ms', '', '', const [50, 48], C.optimal,
               band: const UsualRange(45, 55),
               latest: 48,
               dayOf: (i) => 'Day $i',

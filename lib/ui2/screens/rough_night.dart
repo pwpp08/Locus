@@ -435,7 +435,7 @@ class _RoughNightCardState extends State<RoughNightCard> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(LucideIcons.moonStar, size: I.md, color: p.on(C.indigo)),
+              Icon(LucideIcons.moonStar, size: I.md, color: p.on(C.dialSleep)),
               const SizedBox(width: S.x3),
               Expanded(
                 child: Text(
@@ -475,7 +475,7 @@ class _RoughNightCardState extends State<RoughNightCard> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(LucideIcons.dot, size: I.sm, color: p.on(C.indigo)),
+                Icon(LucideIcons.dot, size: I.sm, color: p.on(C.dialSleep)),
                 const SizedBox(width: S.x2),
                 Expanded(
                   child: Text(
@@ -502,7 +502,7 @@ class _RoughNightCardState extends State<RoughNightCard> {
         BigButton(
           l?.roughNightTellWhatHappened ?? 'Tell it what happened',
           icon: LucideIcons.messageSquarePlus,
-          color: C.indigo,
+          color: C.dialSleep,
           soft: true,
           onTap: () => _setAsk('on'),
         )
@@ -536,7 +536,7 @@ class _RoughNightCardState extends State<RoughNightCard> {
             ),
               child: Pill(
                 journalTagText(c, t),
-                _picked.contains(t) ? C.domMind : C.n400,
+                _picked.contains(t) ? C.stressLow : C.n400,
                 icon: _picked.contains(t) ? LucideIcons.check : null,
               ),
             ),
@@ -548,7 +548,7 @@ class _RoughNightCardState extends State<RoughNightCard> {
           ? (l?.roughNightSaving ?? 'Saving')
           : (l?.roughNightLogIt ?? 'Log it for that night'),
       icon: LucideIcons.check,
-      color: C.domMind,
+      color: C.stressLow,
       onTap: _saving || _picked.isEmpty ? null : _save,
     ),
     const SizedBox(height: S.x3),
@@ -560,7 +560,7 @@ class _RoughNightCardState extends State<RoughNightCard> {
       ),
       child: Text(
         l?.roughNightAddHowMuch ?? 'Add how much',
-        style: F.cap.copyWith(color: p.on(C.domMind)),
+        style: F.cap.copyWith(color: p.on(C.stressLow)),
       ),
     ),
     const SizedBox(height: S.x2),

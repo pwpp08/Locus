@@ -126,20 +126,7 @@ Contributor tiers are `[C.poor, p.ink3, C.optimal]` = poor / sufficient / optima
 
 **Other:** sync arrow (amber `#FFB547`); coach orb ring `#7E57C2 → #3FA7B5 → #7E57C2` (sweep), also the edge of the strength trainer's AI card; sleep-plan panel `C.mint #DFF8EF` with char ink; cycle tracking `C.rose #FF7A9A`; food `C.foodRed #E61C24` (`C.domFood`: the Macros tab's one accent; protein is the strain blue and "over" the warning orange so neither can be mistaken for it); `C.lavender #A99BFF` only on `AuroraTile`, the hypnogram's light-sleep lane and the strength milestone ring. Volt `#B1F002` is spent only on the active tab pill, the `AppSwitch` on-track and Material `primary` in dark: never a button, a dot, a chip or a chart.
 
-**Legacy names.** Older code still names the pre-redesign accents. Each resolves in `theme.dart` to a redesign hue by what it was used for, so writing one is never off-palette, but new code names the redesign token directly:
-
-| Legacy name | Resolves to | Meaning |
-|---|---|---|
-| `C.green` | `C.optimal` | good |
-| `C.red`, `C.coral` | `C.dialStrain` | the old red names, **no longer red**: red words and red lines on a dark card are lightened by `P.on` until they read as salmon pink, which the product rejected. Heart-rate marks and icon chips are the strain blue. |
-| `C.danger` | `C.foodRed` `#E61C24` | **the one red for destructive actions and errors**: a SOLID fill under white ink (`ButtonTone.danger`, 4.6:1), the 2 px error ring on a field, and the mark in `ErrorLine`. Never the colour of words. The recovery dial's low band (`C.recRed`) is the only other red. |
-| `C.blue`, `C.sky`, `C.purple`, `C.domMove`, `C.domHealth`, `C.domHome` | `C.dialStrain` | strain, activity, heart |
-| `C.indigo`, `C.domSleep` | `C.dialSleep` | sleep |
-| `C.teal`, `C.aqua`, `C.sage`, `C.domMind` | `C.stressLow` | calm, mind |
-| `C.orange` | `C.strainDown` | warning, worse |
-| `C.yellow` | `C.recYellow` | middle, pending |
-| `C.pink` | `C.rose` | cycle |
-| `C.domFood` | `C.foodRed` | food |
+**No legacy names.** The pre-redesign accent names (`C.green`, `C.red`, `C.coral`, `C.blue`, `C.sky`, `C.purple`, `C.indigo`, `C.teal`, `C.aqua`, `C.sage`, `C.orange`, `C.yellow`, `C.pink` and the `C.dom…` domain accents) are deleted; every call site names the redesign token for what it means. `C.danger` (`#E61C24`) stays: **the one red for destructive actions and errors**, a SOLID fill under white ink (`ButtonTone.danger`, 4.6:1), the 2 px error ring on a field, the mark in `ErrorLine` and a destructive row's glyph. Never the colour of words. The recovery dial's low band (`C.recRed`) is the only other red.
 
 Every activity in the catalogue is `C.dialStrain`; the HR-zone ramp everywhere (`ZoneRows`, zone cards, stacks) is `refZone1…5`.
 
@@ -400,7 +387,11 @@ Bar order, by default: **Home · Health · (+) · Strength · More**, and the us
 - **AI:** the coach orb (`AiOrb`): a sweep ring round a `card` disc with the `CoachMark`, the glyph scaled to the disc (I.md at 48). It is the coach's mark everywhere: the round button under My Day (56), the chat header (24) and the gutter beside each answer (24).
 - **Customising the bar:** a long press on any tab (or the (+)) opens the **Customise tabs** sheet (`NavBarEditor`): drag to reorder, switch a tab off to hide it, Save, or Reset to default. **Home and More always stay** (they read "Always on"): Home is the way back into the app, More is where Settings live. The (+) sits in the middle of whatever tabs are left. The order is stored in `Prefs.navTabs` (comma-separated `ShellDomain` names; empty means the default; `tabsFromPref` repairs anything unreadable and puts a missing Home or More back). A hidden tab is still built the same way, it just has no button; hiding the tab you are on drops you back on Home.
 - **Banner:** a minimised workout floats as its own `Glass` pill 8 above the bar.
-- **More tab** (`ProfileHomeView`): the photo header, then five groups in the order people come for them, **each thing in exactly one place** (here, or in Settings, never both). *Your data*: Export and backup, Cloud account, Storage (its size on the right). *Profile*: Edit profile, Weight. *Band*: My devices (a watch with a small gear badge; battery % on the right), Alarm and, on Android only, Band buzzes. *Health & coaching* (tab only): Journal, Locus Age, AI coach, Compare with watch. *App*: Settings, App updates (its value reads what you have, what is ready or that it is checking; tapping checks now), Check automatically (On/Off). This tab is what you open to look at or use; **Settings is only switches and preferences** (notifications and quiet hours, units, time format, the band's step calibration, heart-rate settings, zone alert and double-tap (a double tap on the band that runs its action is felt: the band buzzes once, and the action plays its own phone haptic when it succeeds; a tap that is ignored gives nothing), health-store sync, phone steps, privacy, automation, AI model setup, About). Nothing on this tab is repeated there.
+- **More tab** (`ProfileHomeView`): the photo header, then five groups in the order people come for them, **each thing in exactly one place** (here, or in Settings, never both). *Your data*: Export and backup, Cloud account, Storage (its size on the right). *Profile*: Edit profile, Weight. *Band*: My devices (a watch with a small gear badge; battery % on the right), Alarm and, on Android only, Band buzzes. *Health & coaching* (tab only): Journal, Locus Age, AI coach, Compare with watch. *App*: Settings, App updates (its value reads what you have, what is ready or that it is checking; tapping checks now), Check automatically (On/Off). This tab is what you open to look at or use; **Settings is only switches and preferences**. Nothing on this tab is repeated there.
+  - **Settings** (`MoreSettingsView`), groups named for the question they answer, in this order: *Band* (Heart rate zones, HR zone alert with its target zone 1–5 under it while it is on, Double-tap (a double tap on the band that runs its action is felt: the band buzzes once, and the action plays its own phone haptic when it succeeds; a tap that is ignored gives nothing), Step counter). *Display* (Appearance: System / Light / Dark; Units: Metric / Imperial; Time format: System / 24-hour / 12-hour). *Notifications* (the door to the notifications screen). *Tracking* (Cycle tracking, phone Steps). *Connected apps* (Write to Apple Health / Health Connect, Import WHOOP data, AI coach, Tasker and Shortcuts). *Privacy* (Crash reports, and the health-data contribution where it applies). *Help and about* (Report an issue, Check for updates where the build can, Notices and licences, Version: seven taps reveal *Developer*). Then, alone at the foot, **Reset all data**: a compact `ButtonTone.danger` button over one line saying it asks first.
+  - **Notifications** (`NotificationSettingsView`): *Health* (health exceptions, recovery ready, weekly lookback), *Band and alarm* (band alerts and the battery level they fire at, alarm not confirmed, no-alarm check-in), *Activity* (detected workouts, detected naps, movement nudge, step goal), *Reminders* (wind-down, medication, daily check-in, water and its interval), *Quiet hours*.
+  - **`SetRow`** and **`settingsGroup`** (every settings-style list: Settings, notifications, devices, data, the band's pages): the More tab's anatomy. Each row is a card of its own (`moreCard`: `R.rXl`, the ink 5 % → `card` gradient), at least 60 tall, 12 apart, padding 16 across and 12 down; a 24 outline glyph in ink2 (a destructive row's glyph is `C.danger`; its words stay ink), 20, the name in spaced caps (`F.cap` w800, tracking 1.5) with an optional line under it in `F.over` ink3. On the right: an `AppSwitch` for an on/off setting (`switchValue`; the row and the switch do the same thing), a value in `F.cap` ink3, or a `chevronRight` at I.md ink3 when the row is a door. The group title is the `moreGroup` one: `F.caps` w700 ink2 tracked 1.6, 24 above, 12 below.
+  - **`SetChoice`**: a setting with a few named choices. The glyph and name as on a `SetRow`, then the choices as a full-width `RangeSegments` under them, so every option is in sight.
   - **`MoreRow`**: each row is a card of its own, **60 tall, 12 apart**, `R.rXl` (14), padding 16, a faint top-left gradient (ink 5 % over `card` → `card`). A 24 outline glyph in ink2 (in a 28 box), 20, then the name in **spaced caps** (`F.cap` w800, tracking 1.5, ink), and at most a short value at the right in `F.cap` ink3. No sub-line. `MoreRow.brand` takes a brand mark (the coach) in place of the glyph; `badge` adds a 11 glyph on a `card` disc at the glyph's lower right.
   - **`moreGroup`**: 24 above, the title in `F.caps` w700 ink2 tracked 1.6, 12, then the rows.
 
@@ -452,7 +443,7 @@ The workout screen uses its own header: `BoldChevron` 20, the activity icon at I
 
 | Control | Spec |
 |---|---|
-| `BigButton` | minimum height 56 (`S.x12 + S.x2`), full width, pill, padding 20/12, label **uppercased** in `F.body` w800 tracking 1.4 (2 lines max), optional icon I.md + 8. **Primary is the ink pill**: `p.ink` ground with `p.bg` type (white with dark type on the dark page). A `color` other than the legacy green makes it a hue fill under `inkOn` (the strain-blue pill). `soft` is ink 9 % with ink type. `inverse` is the `p.inverse` pill. `danger` is red type on ink 9 %. `round` is a 56 circle. `busy` swaps the icon for a 16 spinner. | A `compact` button is one line, scaled down to fit and never broken mid-word; where three answers would not fit abreast, the primary one takes its own line and the others share the next. `ButtonTone.danger` is a solid `C.danger` pill with white ink.
+| `BigButton` | minimum height 56 (`S.x12 + S.x2`), full width, pill, padding 20/12, label **uppercased** in `F.body` w800 tracking 1.4 (2 lines max), optional icon I.md + 8. **Primary is the ink pill**: `p.ink` ground with `p.bg` type (white with dark type on the dark page). A `color` other than `C.optimal` makes it a hue fill under `inkOn` (the strain-blue pill). `soft` is ink 9 % with ink type. `inverse` is the `p.inverse` pill. `danger` is red type on ink 9 %. `round` is a 56 circle. `busy` swaps the icon for a 16 spinner. | A `compact` button is one line, scaled down to fit and never broken mid-word; where three answers would not fit abreast, the primary one takes its own line and the others share the next. `ButtonTone.danger` is a solid `C.danger` pill with white ink.
 | Home day buttons (ADD / START ACTIVITY) | height 52, ink 9 %, radius 12, icon I.md + 8 + `F.caps` tracking .6, `FittedBox` |
 | Alarm button | `card2`, radius 8, 16 vertical padding, pencil I.md + 12 + `F.caps` |
 | `PlusButton` | 44 square (`S.x10 + S.x1`), radius 8, ink fill with a `plus` at I.md in `bg` colour. Open state: ink 12 % with an `x` at I.lg in ink. |
@@ -462,9 +453,10 @@ The workout screen uses its own header: `BoldChevron` 20, the activity icon at I
 | `RoundIconButton` | a bare glyph at I.lg in a 48 target, no disc (like the reference close and back marks). `inverse` keeps a `p.inverse` disc and `glass` a frosted one, for a control over imagery. Label required |
 | `AppSwitch` | Material switch: on is a volt track with a char thumb, off is `track` with an ink3 thumb, no outline |
 | `AppField` | label `F.cap` ink2 above, a gap of 8, then a field filled `card2` with radius 8 and padding 16/12, no border. Focused: a 2 px ink ring (never volt). Error: a 2 px `C.danger` ring and the message in ink. `bare` drops the box. |
+| `pickDate` (`date_picker.dart`) | a sheet laid out as the recovery calendar: grab handle, the title in `F.t2`, `BoldChevron`s (16, ink; dead at 22 %) either side of `NOVEMBER 2026` in `F.num(F.head)` w800 tracking 1.2, the weekdays in `F.caps` w800 ink3, the days in `F.n17` w700 (ink2; today and the chosen day ink; out of range ink 22 % and not tappable), the chosen one on an ink 12 % square of radius 12. Replaces Material's date picker everywhere. |
 | `SubTabs` | Trend View's range segments, scrolling: a track of char 50 % over `bg`, radius 14, padding 4, 44 + 8 tall (scaled with text); items padding 16, no gap. The chosen one is lifted out as a `card` fill, radius 12, label uppercased in `F.caps` ink; the rest ink3; a disabled one ink3 at 45 %. A scroll hint replaces the chevron. |
 | `Pill` | a chip: padding 8/4, radius 6, `p.wash(hue)` with `p.on(hue)` text, `F.cap` w700 |
-| Selection chips (sex, weekdays, step targets) | radius 12, uppercased `F.caps`. Selected: `p.ink` ground with `p.bg` type. Unselected: ink 9 % with ink2 type. No borders |
+| Selection chips (sex, weekdays) | radius 12, uppercased `F.caps`. Selected: `p.ink` ground with `p.bg` type. Unselected: ink 9 % with ink2 type. No borders |
 
 ### 10.7 Overlays
 
@@ -873,10 +865,10 @@ Opened from a dashboard row, a week card chevron, or a detail screen. One metric
 
 ### 14.1 Strain detail (`activity/day_strain.dart`)
 
-- **Day pager** under the NavBar.
-- **Ring:**
-  - Side `min(84 % of the width, 346)`, stroke 6.4 % of the side, track `p.track`, a `dialStrain` arc with a round cap.
-  - The **30-day average** is a white tick across the ring, exactly as long as the ring is thick (15 % of the stroke wide, butt cap).
+- **No day pager:** the NavBar names the day (`SUN, MAY 18`); the ring sits straight under it.
+- **Ring** (`Ring` from `charts.dart`, the home dial's painter):
+  - Side `min(84 % of the width, 346)`, stroke 6.1 % of the side, track `p.track`, a `dialStrain` arc that starts square at the top and ends in a round cap.
+  - **The strain target** that morning's recovery set (`whoopStrainTarget`): its range is a lighter stretch of the track (ink 24 % over `track`) from low to high, and its optimal a white tick across the ring, as long as the ring is thick and 26 % of the stroke wide. Both draw under the day's arc. No recovery that morning, no band and no tick.
   - Inside: `LOCUS` (wordmark, ink3), the value in `F.n80`, and `STRAIN` in `F.caps` tracking 2.2. The whole block scales to fit inside the ring.
 - **Caret** (20 × 8, ink 5 % over `bg`, with an ink 9 % edge) pointing up at the ring from the **rich stats panel**.
 - **Stats panel:** four rows (zones 1–3, zones 4–5, strength time, steps).
@@ -890,6 +882,7 @@ Opened from a dashboard row, a week card chevron, or a detail screen. One metric
 - **Weekly Trends:** one card per metric (strain, zones 1–3, zones 4–5, steps, calories).
   - Each card: radius 12, padding 16. The title in `F.caps` w700 with a chevron (I.lg ink2) that opens Trend View on that metric. A small readout for the touched or newest day. A legend of 10 swatches for stacks. A **192-tall column chart** with no gutter and no ticks, value labels in ink, and the newest day highlighted at rest. Each card scrubs on its own.
 - **Strain through the day** (`ScrubLine`, 0–21 axis, `dialStrain`) with its own readout. The trace is **2.5** wide, the HRV chart's weight. Each of the day's activities is a tinted span (its catalogue colour at 16 %) with its icon in a small disc of that colour above it, at the top of the plot.
+- **Today's projection** (`compute/strain_projection.dart`): from now to midnight, a dotted `dialStrain` line (round dots 2.5 across, 5 apart along the line). It is where the last 14 days went from this minute on: each earlier day's load gained after now (strain is a log of load, so the sum is taken in load), averaged and added to today's load so far. It needs three earlier days with a whole curve; otherwise there is no line. Scrubbing past now reads the projection (`18:00 · projected`), and the footnote says how many days it came from.
 - **Strain never falls through a day.** The headline and the curve are the analytics' net curve held at its running peak (`compute/strain_peak.dart`, `kAlgoVersion` 115): effort once earned stays earned. Peak HR and Worn under the curve sit inset `S.x5`, under the plot rather than the axis.
 - **Time in zones** and **What this is made of** (`card2` panel, `F.cap` ink3). The zones card's link, "How these are set", opens **Heart rate settings** (the same screen Settings opens: personalized zones, resting and max HR). There is no second zones screen.
 
@@ -1112,6 +1105,10 @@ The whole session as exercise cards, each with its own set table. Sizes are the 
 - **⋯ opens a sheet:** **Minimise** first (the session lives on `LiveDraft`; the bar above the tab bar brings it back, as does Android back), then Swap, Add, Skip exercise, Log the rest as bodyweight, and Effort (RPE) 6 to 10.
 - Starting from a saved workout carries its plan (rows) and its name into the session.
 
+### 14.7a The Health tab (`health_tab.dart`)
+
+Age and Journal behind one `RangeSegments` (`AGE` / `JOURNAL`, the default 179 wide, 44 tall), centred at the top over the page; each page starts under it and paints up behind it. The tab keeps the page last shown while the app runs; a fresh launch opens on Age.
+
 ### 14.8 Locus Age (`locus_age.dart`, `locus_blob.dart`, in the Health tab)
 
 The Health tab (`health_tab.dart`) is two pages under a small `AGE | JOURNAL` switch, always char, painted up behind the status bar.
@@ -1190,11 +1187,12 @@ Two dial screens (§14.1a: `DialScaffold`, `dialCard`, page margin 18).
 | `GestureDetector` / `InkWell` / `Listener` / `RawGestureDetector` | `Pressable`, `Scrubber`, `DialScrubber`, `SwipeHandle` |
 | `BackdropFilter(` | `Glass` |
 | `TextButton`, `AlertDialog(`, `showModalBottomSheet(`, `TextField(`, `Switch(` | `TextAction`, `AppDialog`, `AppSheet`, `AppField`, `AppSwitch` |
+| `SegmentedButton`, `DropdownButton`, `FilledButton` / `ElevatedButton` / `OutlinedButton`, `IconButton`, `showDatePicker` / `showTimePicker`, `SwitchListTile` and the other Material list tiles | `RangeSegments`, an `AppSheet` list, `BigButton` / `TextAction`, `RoundIconButton`, `pickDate` / `pickTime`, `SetRow(switchValue:)` |
 | numeric `Icon(size:)` | `I.*` |
 | numeric `EdgeInsets` | `S.*` |
-| `Image.asset(` | `Art.*` |
+| `Image.asset(` | nothing: the app has no bundled pictures (Lucide and `marks.dart`) |
 
-Every new public widget needs a case in `lib/ui2/profile/gallery.dart` (or an entry in `_notComponents` if it is a screen), and every ui2 file is exported from `lib/ui2/ui2.dart`.
+No file is exempt (`_pendingOverhaul` is empty). Every new public widget needs a case in `lib/ui2/profile/gallery.dart` (or an entry in `_notComponents` if it is a screen), and every ui2 file is exported from `lib/ui2/ui2.dart`.
 
 **Checklist for a new screen or chart:**
 1. `final p = P.of(c);` first. Tokens only.
@@ -1207,7 +1205,6 @@ Every new public widget needs a case in `lib/ui2/profile/gallery.dart` (or an en
 
 **Known gaps** (fix them when you touch the area):
 - The hypnogram and `MetricDetail` charts still use their own scrubbing and guide lines rather than `ScrubArea`.
-- The Recovery and Sleep dial detail screens have not been redrawn against references yet. Strain detail is the model to follow.
 - The share posters (`activity/poster.dart`) keep their own art direction (sport-tinted gradients over a map or photo): they are exported images, not app chrome.
 - The hypnogram keeps its lavender lane ramp, and the drawn `Art` SVGs keep their baked-in hues.
 - Some screens write their own 24-hour `H:mm` clock (`_ActivityCard` on the strain page) instead of following the user's 12/24 h choice through `formatClockOf`.
@@ -1217,11 +1214,17 @@ Every new public widget needs a case in `lib/ui2/profile/gallery.dart` (or an en
 
 ## 18. Imagery
 
-- Images are bundled and offline; nothing is fetched at runtime. A screen never writes an asset path: it uses `Art.<slot>.image()` (`theme.dart`), which draws nothing, never a broken-image icon, when a file is missing.
-- All imagery is a flat, hand-cut SVG silhouette (ring, watch, chest strap, workout, wellness, sleep, food, heart) in one cream and one data hue, on a 400 × 400 viewBox, centred. There are no bitmap device photographs. The welcome and pairing screens show no device at all: their stage (`BandStage`) is a rich `Surface` with the Locus mark writing itself in the dial colours (60 % of the stage's height) over the wordmark, 20 below it. The sensor rows in the device picker are icon rows.
-- Art is decorative unless given a `semanticLabel`. It never carries another maker's logo or name: devices are generic.
+- **No drawn pictures.** The old SVG silhouettes (`Art`: ring, watch, chest strap, workout, wellness, sleep, food, heart) are deleted, and so is `StatusCard.art`: an empty state is the card's Lucide glyph and its words. Nothing is fetched at runtime. There are no bitmap device photographs. The welcome and pairing screens show no device at all: their stage (`BandStage`) is a rich `Surface` with the Locus mark writing itself in the dial colours (60 % of the stage's height) over the wordmark, 20 below it. The sensor rows in the device picker are icon rows.
+- Nothing drawn carries another maker's logo or name: devices are generic glyphs.
 - Exercise photos come from the bundled Free Exercise DB (public domain, credited in `NOTICE.md`), cover-cropped 192 × 128 JPEG thumbnails, with a dumbbell tile as the placeholder.
 - The `AuroraTile` grain is `assets/images/grain.png` tiled at 4 % opacity, painted once behind a `RepaintBoundary`.
+
+### 14.8c Rebuilt on the system (band battery, step counter, cloud account, compare devices)
+
+- **Band battery** (`battery_detail_screen.dart`, from the battery line on Home and My devices): a `Surface` with `BATTERY NOW` as a big `ScrubReadout`, a 8-tall bar (`track`; ink, `recGreen` while charging, `strainDown` at 20 % or under) and the time left; `RangeSegments` DAY / WEEK; a `ScrubLine` of the band's battery samples (15-minute slots over 24 h, hourly over 7 days, an hour without one breaks the line, 0/50/100 % ticks) with charging stretches shaded `recGreen` at 16 %; and a DRAIN card that gives the rate, a day's worth and when it runs out, only when the forecaster has enough discharge readings (otherwise it says so; it never assumes a rate).
+- **Step counter** (`step_calibration_screen.dart`, Settings → Band): the correction the derivation has learned for the paired band's family and how it is worn (`×1.08`, or `--` with the reason), and how it is learned (phone days, 30 of them, pulled toward ×1.00, needs three, 1,000 phone steps a day, clamped ×0.50–×2.00). The old walk test is gone: it read a counter that only runs in a workout and saved a factor under a key the step engine never reads.
+- **Cloud account** (`account_screen.dart`): signed in, a `settingsGroup` of who, last backup, server and the auto-backup switch, then `BACK UP NOW` and a `SIGN OUT` text action; signed out, one sentence, `AppField`s for email, password (obscured) and server, and `SIGN IN`.
+- **Compare devices** (`watch_compare_screen.dart`): a `WindowPager` for the day, the other app as a card that opens an `AppSheet` list, a heart-rate card with `RangeSegments` DAY / NIGHT and a `ScrubLine` (the band in `dialStrain`, the other watch in ink2 painted on the same scale, 5-minute columns, a quarter hour unmeasured breaks either line), and the side-by-side table with `--` for an absent value. The band is called the band, not by its maker's name.
 
 ### 14.9 My sources and the band's page (`profile/devices.dart`)
 
@@ -1242,6 +1245,8 @@ Every AI chat is this one screen, in the dark palette whatever the theme (`Alway
 - **Empty new chat:** a large orb, "How can I help?", the intro line and the starter cards.
 
 ### 14.11 App start
+
+- **A launch always opens on Home.** The tab last shown is not stored, so closing the app (swiping it away) and opening it again starts fresh, never on the screen from last time. A notification's own destination still wins.
 
 The Locus mark writes itself **once** on the cold-start cover (`BootSplash`, then the wordmark under it) and holds; the cover leaves when the app is ready and the stroke has finished. It never loops. Reduced motion shows it still and drops the cover the moment the app is ready.
 

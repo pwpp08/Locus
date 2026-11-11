@@ -296,7 +296,7 @@ class _ShareSheetState extends State<ShareSheet> {
                           onTap: _pickPhoto),
                       if (_photo != null) ...[
                         Divider(color: p.line, height: 1),
-                        SetRow(LucideIcons.trash2, C.red,
+                        SetRow(LucideIcons.trash2, C.dialStrain,
                             l?.activityShareRemovePhoto ?? 'Remove the photo',
                             chevron: false,
                             onTap: () => setState(() => _photo = null)),
@@ -321,10 +321,7 @@ class _ShareSheetState extends State<ShareSheet> {
                         sub: l?.activityShareMapHint ??
                             'Asks openstreetmap.org for the tiles covering '
                                 'this route. Off, the route draws on its own',
-                        value: _mapConsent
-                            ? (l?.stateOn ?? 'On')
-                            : (l?.stateOff ?? 'Off'),
-                        chevron: false,
+                        switchValue: _mapConsent,
                         onTap: _toggleMap,
                       ),
                     ),

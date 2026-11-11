@@ -42,11 +42,11 @@ void main() {
   testWidgets('the list shows the band battery, days left and last data '
       'without opening the band', (t) async {
     await pump(t, MyDevicesView(sources: [_band], bandForecast: _threeDays));
-    expect(find.text('Battery'), findsOneWidget);
+    expect(find.text('BATTERY'), findsOneWidget);
     expect(find.text('67%'), findsOneWidget);
     expect(find.text('about 3 days left'), findsOneWidget);
-    expect(find.text('Last data'), findsOneWidget);
-    expect(find.text('Calibration'), findsOneWidget);
+    expect(find.text('LAST DATA'), findsOneWidget);
+    expect(find.text('CALIBRATION'), findsOneWidget);
     expect(find.text('WHOOP 4'), findsOneWidget);
   });
 
@@ -58,7 +58,7 @@ void main() {
 
   testWidgets('no band, no stats card', (t) async {
     await pump(t, const MyDevicesView());
-    expect(find.text('Battery'), findsNothing);
+    expect(find.text('BATTERY'), findsNothing);
   });
 
   testWidgets('the band page: battery says only the days left, no heart '
@@ -66,9 +66,9 @@ void main() {
     await pump(t, DeviceDetailView(_band, forecast: _threeDays));
     expect(find.text('about 3 days left'), findsOneWidget);
     expect(find.textContaining('charges logged'), findsNothing);
-    expect(find.text('Heart rate'), findsNothing);
-    expect(find.text('Right now'), findsNothing);
-    expect(find.text('Calibration'), findsOneWidget);
+    expect(find.text('HEART RATE'), findsNothing);
+    expect(find.text('RIGHT NOW'), findsNothing);
+    expect(find.text('CALIBRATION'), findsOneWidget);
     expect(find.textContaining('own constants'), findsNothing);
   });
 }

@@ -370,8 +370,8 @@ class _DayStepsDetailState extends State<DayStepsDetail> {
             // tell apart, and a legend of one is noise.
             legend: d.mixed
                 ? [
-                    (d.bandLabel, p.on(C.green)),
-                    (l?.dayStepsYourPhone ?? 'Your phone', p.on(C.teal)),
+                    (d.bandLabel, p.on(C.optimal)),
+                    (l?.dayStepsYourPhone ?? 'Your phone', p.on(C.stressLow)),
                   ]
                 : const [],
             footnote: _honesty(c, d),
@@ -382,7 +382,7 @@ class _DayStepsDetailState extends State<DayStepsDetail> {
                   size: Size.infinite,
                   painter: Bars(
                     band,
-                    p.on(C.green),
+                    p.on(C.optimal),
                     axis: axis,
                     t: animate(c, 1),
                   ),
@@ -391,7 +391,7 @@ class _DayStepsDetailState extends State<DayStepsDetail> {
                   size: Size.infinite,
                   painter: Bars(
                     phone,
-                    p.on(C.teal),
+                    p.on(C.stressLow),
                     axis: axis,
                     t: animate(c, 1),
                   ),
@@ -403,9 +403,9 @@ class _DayStepsDetailState extends State<DayStepsDetail> {
           InlineMetrics(
             d.mixed
                 ? [
-                    (l?.dayStepsCounted ?? 'Counted', thousands(d.total), C.green),
-                    (d.bandLabel, thousands(d.strap), C.green),
-                    (l?.dayStepsYourPhone ?? 'Your phone', thousands(d.phone), C.teal),
+                    (l?.dayStepsCounted ?? 'Counted', thousands(d.total), C.optimal),
+                    (d.bandLabel, thousands(d.strap), C.optimal),
+                    (l?.dayStepsYourPhone ?? 'Your phone', thousands(d.phone), C.stressLow),
                   ]
                 : [
                     (
@@ -413,7 +413,7 @@ class _DayStepsDetailState extends State<DayStepsDetail> {
                           ? d.bandLabel
                           : (l?.dayStepsYourPhone ?? 'Your phone'),
                       thousands(d.total),
-                      d.strap > 0 ? C.green : C.teal,
+                      d.strap > 0 ? C.optimal : C.stressLow,
                     ),
                   ],
           ),
@@ -456,7 +456,7 @@ class _DayStepsDetailState extends State<DayStepsDetail> {
               // The device is the icon and the colour, and it is said in words
               // on the line below — the same three channels the chart uses.
               s.fromBand ? LucideIcons.watch : LucideIcons.smartphone,
-              s.fromBand ? C.green : C.teal,
+              s.fromBand ? C.optimal : C.stressLow,
               '${clockOfTs(s.startTs)} – ${clockOfTs(s.endTs)}',
               // No `steps` unit on the row. A clock range is already a long
               // name, and at 3× text the unit pushed the measurement out of

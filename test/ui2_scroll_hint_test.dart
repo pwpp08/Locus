@@ -89,7 +89,7 @@ ListView _pills(int n) => ListView.separated(
       scrollDirection: Axis.horizontal,
       itemCount: n,
       separatorBuilder: (_, _) => const SizedBox(width: S.x2),
-      itemBuilder: (_, i) => Pill('Tab $i', C.blue),
+      itemBuilder: (_, i) => Pill('Tab $i', C.dialStrain),
     );
 
 /// A phone, not the 800 pt default surface. The whole question is what fits,
@@ -244,7 +244,7 @@ void main() {
                       onTap: () => tapped = i,
                       child: SizedBox(
                           width: 300,
-                          child: Center(child: Pill('Tab $i', C.blue))),
+                          child: Center(child: Pill('Tab $i', C.dialStrain))),
                     ),
                   ),
                 ),

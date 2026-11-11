@@ -186,7 +186,7 @@ class ReadingVerdict extends StatelessWidget {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
     final good = sideIsGood(side, higherBetter: higherBetter);
-    final ink = good == null ? p.ink2 : p.on(good ? C.green : C.orange);
+    final ink = good == null ? p.ink2 : p.on(good ? C.optimal : C.strainDown);
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
       spacing: S.x1,

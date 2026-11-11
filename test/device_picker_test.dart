@@ -81,8 +81,8 @@ void main() {
             _cand('AA', 'oura', label: 'Oura Ring'),
             _cand('BB', 'ble_hrs', label: 'Polar H10'),
           ]));
-      expect(find.text('Oura Ring'), findsOneWidget);
-      expect(find.text('Polar H10'), findsOneWidget);
+      expect(find.text('OURA RING'), findsOneWidget);
+      expect(find.text('POLAR H10'), findsOneWidget);
       // sensorIcon('oura') => circleDot, everything else => heartPulse — the
       // whole point of stamping `entryId` onto a mixed-type scan result. The
       // rows are icon rows: no drawn device art.
@@ -144,9 +144,9 @@ void main() {
             (entry: kWhoopGen4, blurb: 'WHOOP 4 or 5.', icon: LucideIcons.watch),
             (entry: kOura, blurb: 'Reads the ring directly.', icon: LucideIcons.circleDot),
           ]));
-      expect(find.text(kWhoopGen4.label), findsOneWidget);
+      expect(find.text(kWhoopGen4.label.toUpperCase()), findsOneWidget);
       expect(find.text('WHOOP 4 or 5.'), findsOneWidget);
-      expect(find.text(kOura.label), findsOneWidget);
+      expect(find.text(kOura.label.toUpperCase()), findsOneWidget);
       // No Image/Icon.network/asset-backed logo widget anywhere on the
       // screen — every glyph here is a LucideIcons constant, compiled into
       // the app, never a runtime-fetched brand mark.

@@ -394,7 +394,7 @@ class DevicePickerView extends StatelessWidget {
                             for (var i = 0; i < categories.length; i++) ...[
                               _sensorRow(
                                 icon: categories[i].icon,
-                                color: C.blue,
+                                color: C.dialStrain,
                                 title: uiText(c, categories[i].entry.label),
                                 sub: uiText(c, categories[i].blurb),
                             onTap: busy
@@ -413,7 +413,7 @@ class DevicePickerView extends StatelessWidget {
                 Surface(
                   color: p.card2,
                   child: Row(children: [
-                    Icon(LucideIcons.shieldCheck, size: I.md, color: p.on(C.blue)),
+                    Icon(LucideIcons.shieldCheck, size: I.md, color: p.on(C.dialStrain)),
                     const SizedBox(width: S.x3),
                     Expanded(
                       child: Text(
@@ -428,7 +428,7 @@ class DevicePickerView extends StatelessWidget {
                 if (onSkip != null) ...[
                   const SizedBox(height: S.x5),
                   BigButton(l?.pairingSkipForNow ?? 'Skip for now',
-                      color: C.blue, soft: true, onTap: onSkip),
+                      color: C.dialStrain, soft: true, onTap: onSkip),
                   const SizedBox(height: S.x2),
                   Text(
                     l?.pairingSkipNote ??
@@ -514,7 +514,7 @@ class _NearbySection extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: S.x3),
               child: Row(children: [
-                Icon(LucideIcons.bluetoothSearching, size: I.md, color: p.on(C.blue)),
+                Icon(LucideIcons.bluetoothSearching, size: I.md, color: p.on(C.dialStrain)),
                 const SizedBox(width: S.x3),
                 Expanded(
                   child: Text(
@@ -548,7 +548,7 @@ class _NearbySection extends StatelessWidget {
     final idle = cand.label == null ? '…$tail · $signal' : signal;
     return _sensorRow(
       icon: sensorIcon(cand.entryId),
-      color: C.green,
+      color: C.optimal,
       title: cand.label ?? cand.entryId,
       sub: busyRemoteId == id
           // A Mi Band 2/3 may wait up to 30 s for a tap on the band, and this

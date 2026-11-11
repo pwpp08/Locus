@@ -75,17 +75,6 @@ class Prefs {
   }
 
   // ── selection keys (one namespace; keep them disjoint) ──────────────────────
-  /// The five-tab bar's index (Home, Health, Nutrition, Workout, Wellness).
-  /// Read once to migrate, never written.
-  static const String shellTab = 'ui.shell_tab';
-
-  /// The four-tab bar's index (Today, Sleep, Activity, Health). Read once to
-  /// migrate, never written.
-  static const String shellTabV2 = 'ui.shell_tab.v2';
-
-  /// The current bar's index (Home, Health, More).
-  static const String shellTabV3 = 'ui.shell_tab.v3';
-
   /// The tab bar's tabs, in order, as comma-separated `ShellDomain` names.
   /// Empty = the default four. A tab missing from the list is hidden.
   static const String navTabs = 'ui.nav_tabs';

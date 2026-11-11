@@ -37,9 +37,9 @@ void main() {
         t,
         BandNotificationsView(onEnabled: (v) => toggled = v),
       );
-      expect(find.text('Buzz on app notifications'), findsOneWidget);
-      expect(find.text('Off'), findsOneWidget);
-      await t.tap(find.text('Buzz on app notifications'));
+      expect(find.text('BUZZ ON APP NOTIFICATIONS'), findsOneWidget);
+      expect(find.byType(AppSwitch), findsOneWidget);
+      await t.tap(find.text('BUZZ ON APP NOTIFICATIONS'));
       expect(toggled, isTrue);
     });
 
@@ -90,7 +90,7 @@ void main() {
       expect(find.text('com.whatsapp'), findsOneWidget);
       expect(find.text('Buzzes'), findsOneWidget);
       // The count is the one number that says whether this does anything.
-      expect(find.text('Apps armed'), findsOneWidget);
+      expect(find.text('APPS ARMED'), findsOneWidget);
       expect(find.text('1'), findsOneWidget);
 
       await t.tap(find.text('Messenger'));
@@ -100,7 +100,7 @@ void main() {
     testWidgets('iOS gets a reason, not a dead switch', (t) async {
       await _pump(t, const BandNotificationsView(supported: false));
       expect(find.text('This phone cannot do it'), findsOneWidget);
-      expect(find.text('Buzz on app notifications'), findsNothing);
+      expect(find.text('BUZZ ON APP NOTIFICATIONS'), findsNothing);
     });
 
     testWidgets('nothing overflows at 2x text', (t) async {

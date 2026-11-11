@@ -264,11 +264,10 @@ class _WindowEditorState extends State<WindowEditor> {
 
   Future<void> _pick(bool start) async {
     final value = start ? _start : _end;
-    final day = await showDatePicker(
-      context: context,
-      initialDate: value.isAfter(_now) ? _now : value,
-      firstDate: DateTime(2000),
-      lastDate: _now,
+    final day = await pickDate(context,
+      initial: value.isAfter(_now) ? _now : value,
+      first: DateTime(2000),
+      last: _now,
     );
     if (day == null || !mounted) return;
     final time = await pickTime(
@@ -381,7 +380,7 @@ class _WindowEditorState extends State<WindowEditor> {
                 child: Text(
                   problem,
                   textAlign: TextAlign.center,
-                  style: F.cap.copyWith(color: C.orange),
+                  style: F.cap.copyWith(color: C.strainDown),
                 ),
               ),
               const SizedBox(height: S.x3),
@@ -551,7 +550,7 @@ class WindowChart extends StatelessWidget {
                   start: start,
                   end: end,
                   tint: tint,
-                  line: C.domHealth,
+                  line: C.dialStrain,
                   ink: p.ink,
                   ink3: p.ink3,
                   grid: p.line,

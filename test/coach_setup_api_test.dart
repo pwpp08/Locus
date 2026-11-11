@@ -25,10 +25,13 @@ Future<void> _mount(WidgetTester tester, CoachConfig config) async {
   await tester.pumpAndSettle();
 }
 
-Finder get _apiField => find.byType(DropdownButton<CoachApi>);
+Finder get _apiField => find.byWidgetPredicate(
+    (w) => w is RangeSegments && w.labels.contains('CHAT COMPLETIONS'));
 
 CoachApi? _selectedApi(WidgetTester tester) =>
-    tester.widget<DropdownButton<CoachApi>>(_apiField).value;
+    tester.widget<RangeSegments>(_apiField).index == 1
+        ? CoachApi.chatCompletions
+        : CoachApi.responses;
 
 Finder _textField(String label) => find.descendant(
   of: find.ancestor(
@@ -41,13 +44,10 @@ Finder _textField(String label) => find.descendant(
 Future<void> _chooseApi(WidgetTester tester, CoachApi api) async {
   await tester.ensureVisible(_apiField);
   await tester.pumpAndSettle();
-  await tester.tap(_apiField);
-  await tester.pumpAndSettle();
-  await tester.tap(
-    find
-        .text(api == CoachApi.responses ? 'Responses' : 'Chat Completions')
-        .last,
-  );
+  await tester.tap(find.descendant(
+      of: _apiField,
+      matching: find.text(
+          api == CoachApi.responses ? 'RESPONSES' : 'CHAT COMPLETIONS')));
   await tester.pumpAndSettle();
 }
 

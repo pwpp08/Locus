@@ -136,24 +136,6 @@ void main() {
       expect(domainForTab(-1), ShellDomain.today);
     });
 
-    test('a tab saved by the five-tab bar reopens where its content went', () {
-      // Home, Health, Nutrition, Workout, Wellness.
-      expect(domainForSavedTab(0), ShellDomain.today);
-      expect(domainForSavedTab(1), ShellDomain.strength);
-      expect(domainForSavedTab(2), ShellDomain.health);
-      expect(domainForSavedTab(3), ShellDomain.today);
-      expect(domainForSavedTab(4), ShellDomain.today);
-      expect(domainForSavedTab(42), ShellDomain.today);
-    });
-
-    test('a tab saved by the four-tab bar reopens where its content went', () {
-      // Today, Sleep, Activity, Health.
-      expect(domainForSavedTabV2(0), ShellDomain.today);
-      expect(domainForSavedTabV2(1), ShellDomain.strength);
-      expect(domainForSavedTabV2(2), ShellDomain.health);
-      expect(domainForSavedTabV2(3), ShellDomain.health);
-    });
-
     test('every kRoute constant lands somewhere deliberate', () {
       final routes = {
         kRouteAiMorning: ShellDomain.today,
@@ -634,7 +616,7 @@ void main() {
         theme: buildTheme(Brightness.light),
         home: DeviceDetailView(band('gen5')),
       ));
-      expect(find.text('Calibration'), findsOneWidget);
+      expect(find.text('CALIBRATION'), findsOneWidget);
       expect(find.text('WHOOP 5'), findsOneWidget);
     });
   });

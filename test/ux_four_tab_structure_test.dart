@@ -82,10 +82,6 @@ void main() {
     expect(find.bySemanticsLabel('Profile and settings'), findsOneWidget);
   });
 
-  test('the four-tab index is stored under its own key', () {
-    expect(Prefs.shellTabV2, isNot(Prefs.shellTab));
-  });
-
   testWidgets('the avatar shows an initial when a name is known', (t) async {
     final app = AppState.forTesting();
     addTearDown(app.dispose);

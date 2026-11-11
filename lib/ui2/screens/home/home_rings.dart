@@ -70,7 +70,7 @@ RingState ringOf(HomeRingKind k, HomeData d, AppLocalizations? l) {
       final band = readinessBand(v, l);
       if (d.recoveryState == 'night_in_progress') {
         return RingState(k, l?.homeRingRecovery ?? 'Recovery',
-            LucideIcons.batteryCharging, C.green,
+            LucideIcons.batteryCharging, C.optimal,
             value: l?.homeRecoverySleeping ?? 'Sleeping…',
             why: l?.homeRecoveryAfterWake ??
                 'Recovery is scored after you wake.');
@@ -85,7 +85,7 @@ RingState ringOf(HomeRingKind k, HomeData d, AppLocalizations? l) {
       }
       return v == null
           ? _gap(k, l?.homeRingRecovery ?? 'Recovery', LucideIcons.batteryCharging,
-              C.green, d.readiness, l?.homeReadinessNotScored ?? 'Not scored', l,
+              C.optimal, d.readiness, l?.homeReadinessNotScored ?? 'Not scored', l,
               fallbackWhy: readinessInputShortfallNote(d.absentDiag,
                       metricName: 'recovery') ??
                   readinessUnstableBaselineNote(
@@ -98,21 +98,21 @@ RingState ringOf(HomeRingKind k, HomeData d, AppLocalizations? l) {
     case HomeRingKind.strain:
       final v = d.strain.value;
       return v == null
-          ? _gap(k, l?.homeRingStrain ?? 'Strain', LucideIcons.zap, C.domMove,
+          ? _gap(k, l?.homeRingStrain ?? 'Strain', LucideIcons.zap, C.dialStrain,
               d.strain, l?.homeRingNoStrain ?? 'No strain', l, unit: 'days')
-          : RingState(k, l?.homeRingStrain ?? 'Strain', LucideIcons.zap, C.domMove,
+          : RingState(k, l?.homeRingStrain ?? 'Strain', LucideIcons.zap, C.dialStrain,
               value: v.toStringAsFixed(1), sub: l?.homeStrainOf21 ?? 'of 21', frac: v / 21);
     case HomeRingKind.sleep:
       final v = d.sleepMin.value;
       final perf = d.sleepPerformance.value;
       if (v == null) {
-        return _gap(k, l?.homeRingSleep ?? 'Sleep', LucideIcons.moon, C.domSleep,
+        return _gap(k, l?.homeRingSleep ?? 'Sleep', LucideIcons.moon, C.dialSleep,
             d.sleepMin, l?.homeRingNoSleep ?? 'No sleep', l,
             fallbackWhy: l?.homeSleepGapFallback ??
                 'No night long enough to score was recorded.');
       }
       // No performance yet (no learned need, or no efficiency): the hours.
-      return RingState(k, l?.homeRingSleep ?? 'Sleep', LucideIcons.moon, C.domSleep,
+      return RingState(k, l?.homeRingSleep ?? 'Sleep', LucideIcons.moon, C.dialSleep,
           value: perf == null ? hm(v) : '${perf.round()}%',
           sub: perf == null ? '' : hm(v),
           frac: perf == null ? null : perf / 100);

@@ -38,7 +38,7 @@ import 'metric_detail.dart' show detailScaffold;
 /// The accent a finding is drawn in. Two, not six: the detections the design
 /// sanctions interrupting for, and everything else. A palette per detector
 /// would read as a severity scale nobody calibrated.
-Color _ink(P p, Finding f) => p.on(f.medical ? C.orange : C.blue);
+Color _ink(P p, Finding f) => p.on(f.medical ? C.strainDown : C.dialStrain);
 
 IconData _icon(Finding f) => switch (f.kind) {
       FindingKind.illness => LucideIcons.stethoscope,

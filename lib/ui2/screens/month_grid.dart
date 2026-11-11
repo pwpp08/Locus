@@ -118,7 +118,7 @@ Future<List<GridRow>> loadGridRows(LocalRepository repo) async {
 Color _cellInk(P p, GridRow r, Side s) {
   if (s == Side.inside) return p.ink3.withValues(alpha: .35);
   final good = sideIsGood(s, higherBetter: r.higherBetter);
-  return p.on(good == null ? r.spec.color : (good ? C.green : C.orange));
+  return p.on(good == null ? r.spec.color : (good ? C.optimal : C.strainDown));
 }
 
 /// One row of cells. Above-range cells carry a bar on the top edge and
@@ -294,9 +294,9 @@ class MonthGrid extends StatelessWidget {
                       _key(p, p.ink3.withValues(alpha: .35),
                           l?.monthGridLegendUsual ?? 'Usual for you'),
                       if (shaded.any((r) => r.higherBetter != null)) ...[
-                        _key(p, p.on(C.green),
+                        _key(p, p.on(C.optimal),
                             l?.monthGridLegendBetter ?? 'Better than usual'),
-                        _key(p, p.on(C.orange),
+                        _key(p, p.on(C.strainDown),
                             l?.monthGridLegendWorse ?? 'Worse than usual'),
                       ],
                       for (final r in shaded)

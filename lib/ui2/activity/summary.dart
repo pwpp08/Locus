@@ -1342,8 +1342,8 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                   // pair collapses for the commonest colour-vision deficiency,
                   // and blue/orange stays apart for all of them.
                   : [
-                      (l?.activitySummarySlower ?? 'Slower', p.on(C.blue)),
-                      (l?.activitySummaryFaster ?? 'Faster', p.on(C.orange)),
+                      (l?.activitySummarySlower ?? 'Slower', p.on(C.dialStrain)),
+                      (l?.activitySummaryFaster ?? 'Faster', p.on(C.strainDown)),
                     ],
               footnote: _distance == null
                   ? (l?.activitySummaryStartFinishPinned ??
@@ -1360,10 +1360,10 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                     size: Size.infinite,
                     painter: RouteMap(r.route,
                         pace: r.routePace,
-                        slow: p.on(C.blue),
-                        fast: p.on(C.orange),
-                        pinStart: p.on(C.green),
-                        pinEnd: p.on(C.red),
+                        slow: p.on(C.dialStrain),
+                        fast: p.on(C.strainDown),
+                        pinStart: p.on(C.optimal),
+                        pinEnd: p.on(C.dialStrain),
                         pinInk: p.card),
                   ),
                 ),
@@ -1416,8 +1416,8 @@ class _ActivitySummaryState extends State<ActivitySummary> {
               unit: 'seconds',
               height: 110,
               legend: [
-                (l?.activitySummaryWork ?? 'Work', p.on(C.red)),
-                (l?.activitySummaryRest ?? 'Rest', p.on(C.teal)),
+                (l?.activitySummaryWork ?? 'Work', p.on(C.dialStrain)),
+                (l?.activitySummaryRest ?? 'Rest', p.on(C.stressLow)),
               ],
               xLabels: [
                 l?.activitySummaryRoundLabel(1) ?? 'Round 1',
@@ -1431,7 +1431,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                 painter: IntervalLadder([
                   for (final x in r.rounds)
                     (work: x.workSec / peak, rest: x.restSec / peak),
-                ], p.on(C.red), p.on(C.teal)),
+                ], p.on(C.dialStrain), p.on(C.stressLow)),
               ),
             ),
           ),
@@ -1451,12 +1451,12 @@ class _ActivitySummaryState extends State<ActivitySummary> {
             height: 170,
             decoration: BoxDecoration(
                 borderRadius: R.rLg,
-                color: p.wash(C.teal, strength: 1.6),
+                color: p.wash(C.stressLow, strength: 1.6),
                 boxShadow: p.el(1)),
             child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(LucideIcons.personStanding, size: I.hero, color: p.on(C.teal)),
+                  Icon(LucideIcons.personStanding, size: I.hero, color: p.on(C.stressLow)),
                   const SizedBox(height: S.x2),
                   Text(
                       r.poses.isEmpty
@@ -1468,7 +1468,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                   r.breathsPerMin == null
                       ? a.displayName(context)
                       : '${r.breathsPerMin!.toStringAsFixed(1)} breaths/min',
-                  style: F.over.copyWith(color: p.on(C.teal)),
+                  style: F.over.copyWith(color: p.on(C.stressLow)),
                 ),
               ],
             ),
@@ -1498,7 +1498,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                         color: p.ink, fontWeight: FontWeight.w600)),
               ),
               const SizedBox(height: S.x3),
-              LapRows(r.lapSecs, C.blue),
+              LapRows(r.lapSecs, C.dialStrain),
               const SizedBox(height: S.x3),
               Text([
                 if (r.poolLengthM != null)
@@ -1541,17 +1541,17 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                 series: r.elevationM,
                 child: CustomPaint(
                     size: Size.infinite,
-                    painter: Elevation(r.elevationM, p.on(C.green),
+                    painter: Elevation(r.elevationM, p.on(C.optimal),
                         markerInk: p.card, axis: axis)),
               ),
               const SizedBox(height: S.x4),
               InlineMetrics([
                 if (r.gainM != null)
                   (l?.activitySummaryGain ?? 'Gain',
-                      '+${r.gainM!.round()} m', C.green),
+                      '+${r.gainM!.round()} m', C.optimal),
                 if (r.lossM != null)
                   (l?.activitySummaryLoss ?? 'Loss',
-                      '−${r.lossM!.round()} m', C.orange),
+                      '−${r.lossM!.round()} m', C.strainDown),
                 (l?.activitySummaryPeak ?? 'Peak', '${grouped(peak)} m',
                     C.n500),
               ]),
@@ -1729,7 +1729,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
       series: r.hr,
       child: CustomPaint(
           size: Size.infinite,
-          painter: LineChart(r.hr, p.on(C.red),
+          painter: LineChart(r.hr, p.on(C.dialStrain),
               axis: axis, t: animate(context, 1))),
     );
   }
@@ -1760,9 +1760,9 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                        color: p.wash(C.yellow), borderRadius: R.rMd),
+                        color: p.wash(C.recYellow), borderRadius: R.rMd),
                     child: Icon(LucideIcons.trophy,
-                        size: I.md, color: p.on(C.yellow)),
+                        size: I.md, color: p.on(C.recYellow)),
                   ),
                   const SizedBox(width: S.x3),
                   Expanded(
@@ -1970,7 +1970,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                     Expanded(
                         child: fastest == null || paces[i] == null
                             ? const SizedBox()
-                            : PaceBar(fastest / paces[i]!, C.green)),
+                            : PaceBar(fastest / paces[i]!, C.optimal)),
                     SizedBox(
                         width: 34,
                         child: Text(r.splits[i].avgHr?.toString() ?? '',
@@ -2061,9 +2061,9 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                         height: 22,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                            color: p.wash(C.red), borderRadius: R.rSm),
+                            color: p.wash(C.dialStrain), borderRadius: R.rSm),
                         child: Text('${i + 1}',
-                            style: F.over.copyWith(color: p.on(C.red))),
+                            style: F.over.copyWith(color: p.on(C.dialStrain))),
                       ),
                     ),
                     Expanded(
@@ -2133,7 +2133,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                     Expanded(
                         child: PaceBar(
                             r.lapSecs[i] <= 0 ? 1 : fastest / r.lapSecs[i],
-                            C.blue)),
+                            C.dialStrain)),
                   ]),
                 ),
             ]),
@@ -2156,8 +2156,8 @@ class _ActivitySummaryState extends State<ActivitySummary> {
           height: 24,
           alignment: Alignment.center,
           decoration:
-              BoxDecoration(color: p.wash(C.purple), borderRadius: R.rSm),
-          child: Text('$n', style: F.over.copyWith(color: p.on(C.purple))),
+              BoxDecoration(color: p.wash(C.dialStrain), borderRadius: R.rSm),
+          child: Text('$n', style: F.over.copyWith(color: p.on(C.dialStrain))),
         ),
         const SizedBox(width: S.x3),
         Expanded(
@@ -2190,9 +2190,9 @@ class _ActivitySummaryState extends State<ActivitySummary> {
   List<Widget> _graphs(BuildContext c, P p) {
     final l = AppLocalizations.of(c);
     final series = <(String, String, Color, List<double?>)>[
-      if (r.hr.length > 1) ('Heart rate', 'bpm', C.red, r.hr),
+      if (r.hr.length > 1) ('Heart rate', 'bpm', C.dialStrain, r.hr),
       if (r.elevationM.length > 1)
-        ('Elevation', 'm', C.teal, r.elevationM),
+        ('Elevation', 'm', C.stressLow, r.elevationM),
     ];
     if (series.isEmpty) {
       // Same distinction the overview draws: a session with one minute in it

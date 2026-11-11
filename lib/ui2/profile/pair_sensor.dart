@@ -464,7 +464,7 @@ class PairSensorView extends StatelessWidget {
                         ? (l?.pairSensorSearching ?? 'Searching…')
                         : (l?.pairSensorSearchForSensors ?? 'Search for sensors'),
                     icon: LucideIcons.bluetooth,
-                    color: C.blue,
+                    color: C.dialStrain,
                     onTap: scanning || busy ? null : onScan,
                   ),
                 ],
@@ -566,7 +566,7 @@ class PairSensorView extends StatelessWidget {
           child: Column(children: [
             SetRow(
               LucideIcons.heartPulse,
-              C.green,
+              C.optimal,
               // A sensor that advertised no name is shown as what it is, not
               // as an invented one.
               s.label ?? entryLabel,
@@ -587,7 +587,7 @@ class PairSensorView extends StatelessWidget {
             ),
             SetRow(
               LucideIcons.trash2,
-              C.red,
+              C.dialStrain,
               l?.pairSensorForgetThisSensor ?? 'Forget this sensor',
               sub: l?.pairSensorForgetThisSensorSub ??
                   'Removes the source. The readings it already took stay.',
@@ -617,7 +617,7 @@ class PairSensorView extends StatelessWidget {
         : '${cand.rssi} dBm';
     return SetRow(
       LucideIcons.heartPulse,
-      C.blue,
+      C.dialStrain,
       cand.label ?? entryLabel,
       sub: busyRemoteId == id
           ? (l?.pairSensorPairing ?? 'Pairing…')

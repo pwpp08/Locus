@@ -145,15 +145,12 @@ class _MoreSettingsState extends State<MoreSettings> {
       onEditProfile: () => goto(c, const EditProfile()),
       onNotifications: () => goto(c, const NotificationSettings()),
       onAutomation: () => goto(c, const AutomationSettings()),
-      onCycleUnits: () => units.setSystem(units.isImperial
-          ? UnitSystem.metric
-          : UnitSystem.imperial),
-      onCycleAppearance: () => theme.setChoice(AppThemeChoice.values[
-          (theme.choice.index + 1) % AppThemeChoice.values.length]),
+      onUnits: (i) => units.setSystem(UnitSystem.values[i]),
+      onAppearance: (i) => theme.setChoice(AppThemeChoice.values[i]),
       // the wind-down body bakes the time in when it's armed, re-arm it now
-      onCycleClockFormat: () async {
+      onClockFormat: (i) async {
         try {
-          await clock.cycle();
+          await clock.setFormat(ClockFormat.values[i]);
         } finally {
           await app.refreshAiReminders();
         }
@@ -170,8 +167,7 @@ class _MoreSettingsState extends State<MoreSettings> {
           app.setUpdateChecksEnabled(!app.updateChecksEnabled),
       onToggleZoneAlert: () =>
           app.setZoneAlertEnabled(!app.zoneAlertEnabled),
-      onCycleZoneAlertZone: () => app.setZoneAlertTargetZone(
-          app.zoneAlertTargetZone >= 5 ? 1 : app.zoneAlertTargetZone + 1),
+      onZoneAlertZone: app.setZoneAlertTargetZone,
       onReset: () => _confirmReset(c, app),
     );
   }
@@ -398,9 +394,6 @@ class MoreSettingsView extends StatelessWidget {
   final VoidCallback? onEditProfile,
       onNotifications,
       onAutomation,
-      onCycleUnits,
-      onCycleAppearance,
-      onCycleClockFormat,
       onTogglePhoneSteps,
       onToggleTelemetry,
       onToggleCycleTracking,
@@ -408,8 +401,12 @@ class MoreSettingsView extends StatelessWidget {
       onToggleHealthSync,
       onToggleUpdateChecks,
       onToggleZoneAlert,
-      onCycleZoneAlertZone,
       onReset;
+
+  /// The index of the choice tapped: units (metric, imperial), appearance
+  /// (system, light, dark), time format (system, 24 h, 12 h). The zone is
+  /// 1 to 5.
+  final ValueChanged<int>? onUnits, onAppearance, onClockFormat, onZoneAlertZone;
 
   const MoreSettingsView({
     super.key,
@@ -438,9 +435,9 @@ class MoreSettingsView extends StatelessWidget {
     this.onEditProfile,
     this.onNotifications,
     this.onAutomation,
-    this.onCycleUnits,
-    this.onCycleAppearance,
-    this.onCycleClockFormat,
+    this.onUnits,
+    this.onAppearance,
+    this.onClockFormat,
     this.onTogglePhoneSteps,
     this.onToggleTelemetry,
     this.onToggleCycleTracking,
@@ -448,7 +445,7 @@ class MoreSettingsView extends StatelessWidget {
     this.onToggleHealthSync,
     this.onToggleUpdateChecks,
     this.onToggleZoneAlert,
-    this.onCycleZoneAlertZone,
+    this.onZoneAlertZone,
     this.onReset,
   });
 
@@ -456,8 +453,7 @@ class MoreSettingsView extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
-    final on = l?.stateOn ?? 'On';
-    final off = l?.stateOff ?? 'Off';
+    const appearances = ['System', 'Light', 'Dark'];
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
@@ -474,128 +470,142 @@ class MoreSettingsView extends StatelessWidget {
                 // Edit profile and the app update check are NOT here: each
                 // lives in one place, the More tab, because two doors to one
                 // thing is how a user ends up unsure which is the real one.
-                settingsGroup(c, l?.settingsGroupTheBand ?? 'The band', [
-                  SetRow(LucideIcons.footprints, C.teal,
-                      'Step counter calibration',
-                      sub: 'Calibrate Whoop step algorithm with a guided walk test',
-                      onTap: () => goto(c, const StepCalibrationScreen())),
-                  SetRow(LucideIcons.heart, C.red,
-                      'Heart rate settings',
-                      sub: 'Personalized zones, resting HR and max HR',
+                //
+                // Every group is named for the question it answers, and in the
+                // order people come looking: the band, how the app looks, what
+                // may interrupt, what is tracked, what it talks to, privacy,
+                // then help. The one destructive action sits alone at the end.
+                settingsGroup(c, l?.settingsGroupTheBand ?? 'Band', [
+                  SetRow(LucideIcons.heart, C.dialStrain, 'Heart rate zones',
+                      sub: 'Your zones, resting and maximum heart rate',
                       onTap: () => goto(c, const HeartRateSettingsScreen())),
                   // Off by default — an existing user did not ask their band
-                  // to start buzzing mid-workout. The target-zone row below
-                  // only appears once this is on; a target for an alert
-                  // that's off is furniture, same rule as battery/water above.
-                  SetRow(LucideIcons.heartPulse, C.red,
+                  // to start buzzing mid-workout. The target zone only appears
+                  // once it is on.
+                  SetRow(LucideIcons.heartPulse, C.dialStrain,
                       l?.settingsZoneAlertRowTitle ?? 'HR zone alert',
                       sub: l?.settingsZoneAlertRowSub ??
                           'Buzz when your heart rate crosses into or out of '
                               'the target zone during a live workout',
-                      value: zoneAlertEnabled ? on : off,
-                      chevron: false,
+                      switchValue: zoneAlertEnabled,
                       onTap: onToggleZoneAlert),
                   if (zoneAlertEnabled)
-                    SetRow(LucideIcons.target, C.red,
+                    SetChoice(
+                        LucideIcons.target,
                         l?.settingsZoneAlertTargetRowTitle ?? 'Target zone',
-                        value: l?.settingsZoneAlertTargetRowValue(
-                                zoneAlertZone) ??
-                            'Zone $zoneAlertZone',
-                        chevron: false,
-                        onTap: onCycleZoneAlertZone),
+                        const ['1', '2', '3', '4', '5'],
+                        (zoneAlertZone - 1).clamp(0, 4),
+                        onChanged: (i) => onZoneAlertZone?.call(i + 1)),
                   // The picker died with the old ui tree and the engine kept
-                  // running against a mapping nothing could set — the whole
-                  // feature was live code pinned at "do nothing".
-                  Builder(
-                      builder: (c) => SetRow(
-                          LucideIcons.hand, C.orange,
-                          AppLocalizations.of(c)?.settingsDoubleTapRowTitle ??
-                              'Double-tap',
-                          sub: AppLocalizations.of(c)
-                                  ?.settingsDoubleTapRowSub ??
-                              'What a double-tap on the band does',
-                          onTap: () => goto(c, const BandGestures()))),
+                  // running against a mapping nothing could set.
+                  SetRow(LucideIcons.hand, C.dialStrain,
+                      l?.settingsDoubleTapRowTitle ?? 'Double-tap',
+                      sub: l?.settingsDoubleTapRowSub ??
+                          'What a double-tap on the band does',
+                      onTap: () => goto(c, const BandGestures())),
+                  SetRow(LucideIcons.footprints, C.dialStrain, 'Step counter',
+                      sub: 'How the band\'s step count is corrected against '
+                          'your phone\'s',
+                      onTap: () => goto(c, const StepCalibrationScreen())),
                 ]),
-                // Band, App, Data, Privacy, Advanced: named for what is in
-                // them, so nothing needs a sub-line listing its contents.
-                settingsGroup(c, l?.settingsGroupApp ?? 'App', [
-                  SetRow(LucideIcons.bell, C.blue,
+                settingsGroup(c, 'Display', [
+                  SetChoice(LucideIcons.sunMoon, 'Appearance', appearances,
+                      appearances.indexOf(appearance).clamp(0, 2),
+                      onChanged: onAppearance),
+                  SetChoice(
+                      LucideIcons.ruler,
+                      l?.settingsUnitsRowTitle ?? 'Units',
+                      const ['Metric', 'Imperial'],
+                      units == 'Imperial' ? 1 : 0,
+                      onChanged: onUnits),
+                  SetChoice(
+                      LucideIcons.clock,
+                      l?.settingsClockFormatRowTitle ?? 'Time format',
+                      [
+                        l?.settingsClockFormatSystem ?? ClockFormat.system.label,
+                        l?.settingsClockFormat24h ?? ClockFormat.h24.label,
+                        l?.settingsClockFormat12h ?? ClockFormat.h12.label,
+                      ],
+                      clockFormat.index,
+                      onChanged: onClockFormat),
+                ]),
+                settingsGroup(c, 'Notifications', [
+                  SetRow(LucideIcons.bell, C.dialStrain,
                       l?.settingsManageNotificationsRowTitle ??
                           'Manage notifications',
                       sub: l?.settingsManageNotificationsRowSub ??
                           'What may interrupt you, quiet hours, and off '
                               'switches for all of them',
                       onTap: onNotifications),
-                  SetRow.brand((t) => CoachMark(size: I.sm, color: t), C.purple,
-                      'AI Coach & Gemini settings',
-                      sub: 'Configure AI model, Gemini API key, and prompt behavior',
-                      onTap: () => goto(c, const CoachSetup())),
-                  SetRow(LucideIcons.ruler, C.blue,
-                      l?.settingsUnitsRowTitle ?? 'Units',
-                      value: units, onTap: onCycleUnits),
-                  SetRow(LucideIcons.clock, C.teal,
-                      l?.settingsClockFormatRowTitle ?? 'Time format',
-                      value: switch (clockFormat) {
-                        ClockFormat.system =>
-                          l?.settingsClockFormatSystem ?? clockFormat.label,
-                        ClockFormat.h24 =>
-                          l?.settingsClockFormat24h ?? clockFormat.label,
-                        ClockFormat.h12 =>
-                          l?.settingsClockFormat12h ?? clockFormat.label,
-                      },
-                      onTap: onCycleClockFormat),
-                  // Opt-in, and it says what it does rather than what it is
-                  // about — "Cycle tracking" alone leaves you guessing whether
-                  // switching it off throws the entries away.
-
                 ]),
-                settingsGroup(c, l?.settingsGroupData ?? 'Data', [
-                  SetRow(LucideIcons.upload, C.orange, 'Import WHOOP data',
-                      sub: 'Your recovery, sleep, strain and workouts from a '
-                          'WHOOP export',
-                      onTap: () => goto(c, const WhoopImportScreen())),
-                  // The row P1 was missing. Everything behind it — the
-                  // permission request, the retry/backoff, the four gates —
-                  // was already written and simply had no way to be switched
-                  // on, so the write entitlement and usage strings described a
-                  // path that could not run.
-                  SetRow(LucideIcons.heartPulse, C.red,
-                      l?.settingsWriteToHealthStoreRowTitle(healthStore) ??
-                          'Write to $healthStore',
-                      sub: healthSyncSub(c, healthSync, healthState, healthStore),
-                      value: healthSync ? on : off,
-                      onTap: onToggleHealthSync),
-                  SetRow(LucideIcons.footprints, C.teal,
+                settingsGroup(c, 'Tracking', [
+                  // Says what switching it off does, so nobody wonders whether
+                  // it throws the entries away.
+                  SetRow(LucideIcons.calendarHeart, C.rose, 'Cycle tracking',
+                      sub: 'Log your cycle on its own screen. Off hides it and '
+                          'keeps what you logged',
+                      switchValue: cycleTracking,
+                      onTap: onToggleCycleTracking),
+                  SetRow(LucideIcons.footprints, C.dialStrain,
                       l?.settingsStepsRowTitle ?? 'Steps',
                       sub: l?.settingsStepsRowSub ??
                           'This phone’s own step counter, for the hours the '
                               'band doesn’t cover. Nothing leaves the device',
-                      value: phoneSteps ? on : off,
+                      switchValue: phoneSteps,
                       onTap: onTogglePhoneSteps),
                 ]),
+                settingsGroup(c, 'Connected apps', [
+                  // The row P1 was missing: the permission request, the retry
+                  // and the four gates behind it had no way to be switched on.
+                  SetRow(LucideIcons.heartPulse, C.dialStrain,
+                      l?.settingsWriteToHealthStoreRowTitle(healthStore) ??
+                          'Write to $healthStore',
+                      sub: healthSyncSub(c, healthSync, healthState, healthStore),
+                      switchValue: healthSync,
+                      onTap: onToggleHealthSync),
+                  SetRow(LucideIcons.upload, C.dialStrain, 'Import WHOOP data',
+                      sub: 'Your recovery, sleep, strain and workouts from a '
+                          'WHOOP export',
+                      onTap: () => goto(c, const WhoopImportScreen())),
+                  SetRow.brand((t) => CoachMark(size: I.lg, color: t),
+                      C.dialStrain, 'AI coach',
+                      sub: 'The model, its API key and how it answers',
+                      onTap: () => goto(c, const CoachSetup())),
+                  SetRow(LucideIcons.workflow, C.dialStrain,
+                      l?.settingsTaskerShortcutsRowTitle ??
+                          'Tasker and Shortcuts',
+                      // The row states the asymmetry rather than leaving it to
+                      // the screen.
+                      sub: l?.settingsTaskerShortcutsRowSub ??
+                          'Android only for events out. iOS can buzz the band '
+                              'but cannot be triggered by it',
+                      onTap: onAutomation),
+                ]),
                 settingsGroup(c, l?.settingsGroupPrivacy ?? 'Privacy', [
-                  SetRow(LucideIcons.bug, C.orange,
+                  SetRow(LucideIcons.bug, C.dialStrain,
                       l?.settingsCrashReportsRowTitle ?? 'Crash reports',
                       sub: l?.settingsCrashReportsRowSub ??
                           'Nothing is sent until you say so',
-                      value: telemetry ? on : off,
+                      switchValue: telemetry,
                       onTap: onToggleTelemetry),
-                  SetRow(LucideIcons.messageSquareWarning, C.orange,
-                      l?.settingsReportIssueRowTitle ?? 'Report an issue',
-                      sub: l?.settingsReportIssueRowSub ??
-                          'Sends what you choose to the maintainers, encrypted',
-                      onTap: () => goto(c, const ReportIssueScreen())),
                   if (showHealthShare)
-                    SetRow(LucideIcons.cloudUpload, C.red,
+                    SetRow(LucideIcons.cloudUpload, C.dialStrain,
                         l?.settingsContributeHealthDataRowTitle ??
                             'Contribute my health data',
                         sub: l?.settingsContributeHealthDataRowSub ??
                             'Uploads your whole database once a day, on '
                                 'Wi-Fi and charging, to improve the algorithms',
-                        value: healthShare ? on : off,
+                        switchValue: healthShare,
                         onTap: onToggleHealthShare),
+                ]),
+                settingsGroup(c, 'Help and about', [
+                  SetRow(LucideIcons.messageSquareWarning, C.dialStrain,
+                      l?.settingsReportIssueRowTitle ?? 'Report an issue',
+                      sub: l?.settingsReportIssueRowSub ??
+                          'Sends what you choose to the maintainers, encrypted',
+                      onTap: () => goto(c, const ReportIssueScreen())),
                   if (showUpdateChecks)
-                    SetRow(LucideIcons.refreshCw, C.blue,
+                    SetRow(LucideIcons.refreshCw, C.dialStrain,
                         l?.settingsCheckForUpdatesRowTitle ??
                             'Check for updates',
                         sub: updateMandatory
@@ -608,32 +618,11 @@ class MoreSettingsView extends StatelessWidget {
                                 : (l?.settingsUpdateCheckSub ??
                                     'Asks the release server on launch. It sees '
                                         'your IP address and when you open the app'),
-                        value: updateChecks ? on : off,
+                        switchValue: updateChecks,
                         onTap: onToggleUpdateChecks),
-                ]),
-                settingsGroup(c, l?.settingsGroupAdvanced ?? 'Advanced', [
-                  SetRow(LucideIcons.workflow, C.indigo,
-                      l?.settingsTaskerShortcutsRowTitle ??
-                          'Tasker and Shortcuts',
-                      // The row states the asymmetry rather than leaving it to
-                      // the screen: someone on an iPhone should learn what they
-                      // are not getting before they tap into it.
-                      sub: l?.settingsTaskerShortcutsRowSub ??
-                          'Android only for events out. iOS can buzz the band '
-                              'but cannot be triggered by it',
-                      onTap: onAutomation),
-                ]),
-                // How a non-WHOOP wearable's numbers are drawn. Developer
-                // only while every wearable is (rule R6).
-                if (devMode) wearableSettingsGroup(c),
-                settingsGroup(c, l?.settingsGroupAbout ?? 'About', [
-                  if (version.isNotEmpty)
-                    SetRow(LucideIcons.info, C.n500,
-                        l?.settingsVersionRowTitle ?? 'Version',
-                        value: version, chevron: false, onTap: onVersionTap),
                   // Where the licences of what this app uses are written out
                   // in full.
-                  SetRow(LucideIcons.scale, C.n500,
+                  SetRow(LucideIcons.scale, C.dialStrain,
                       l?.settingsNoticesLicencesRowTitle ??
                           'Notices and licences',
                       sub: l?.settingsNoticesLicencesRowSub ??
@@ -642,32 +631,46 @@ class MoreSettingsView extends StatelessWidget {
                           Uri.parse(
                               'https://openstrap.github.io/edge/notice.html'),
                           mode: LaunchMode.externalApplication)),
+                  if (version.isNotEmpty)
+                    SetRow(LucideIcons.info, C.dialStrain,
+                        l?.settingsVersionRowTitle ?? 'Version',
+                        value: version, chevron: false, onTap: onVersionTap),
                 ]),
+                // How a non-WHOOP wearable's numbers are drawn. Developer
+                // only while every wearable is (rule R6).
+                if (devMode) wearableSettingsGroup(c),
                 if (devMode)
                   settingsGroup(c, l?.settingsGroupDeveloper ?? 'Developer', [
-                    SetRow(LucideIcons.layoutGrid, C.purple,
+                    SetRow(LucideIcons.layoutGrid, C.dialStrain,
                         l?.settingsComponentGalleryRowTitle ??
                             'Component gallery',
                         sub: l?.settingsComponentGalleryRowSub ??
                             'Every component, at any text scale, in either '
                                 'theme',
                         onTap: onGallery),
-                    SetRow(LucideIcons.code, C.n500,
+                    SetRow(LucideIcons.code, C.dialStrain,
                         l?.settingsDeveloperModeRowTitle ?? 'Developer mode',
-                        value: on, chevron: false, onTap: onToggleDev),
+                        switchValue: true, onTap: onToggleDev),
                   ]),
-                const SizedBox(height: S.x6),
-                Surface(
-                  pad: const EdgeInsets.symmetric(horizontal: S.x4),
-                  child: SetRow(LucideIcons.trash2, C.red,
+                const SizedBox(height: S.x10),
+                Center(
+                  child: BigButton(
                       l?.settingsResetAllDataRowTitle ?? 'Reset all data',
-                      danger: true, chevron: false, onTap: onReset),
+                      icon: LucideIcons.trash2,
+                      tone: ButtonTone.danger,
+                      compact: true,
+                      onTap: onReset),
                 ),
-                ],
-              ),
+                const SizedBox(height: S.x3),
+                Text(
+                    'Deletes everything this app has stored on this phone. '
+                    'It asks first.',
+                    textAlign: TextAlign.center,
+                    style: F.over.copyWith(color: p.ink3)),
+              ],
             ),
-          ],
-        ),
+          ),
+        ]),
       ),
     );
   }
@@ -783,8 +786,6 @@ class NotificationSettingsView extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
-    final on = l?.stateOn ?? 'On';
-    final off = l?.stateOff ?? 'Off';
     void set(NotificationPrefs next) => onChanged?.call(next);
     return Scaffold(
       backgroundColor: p.bg,
@@ -811,60 +812,54 @@ class NotificationSettingsView extends StatelessWidget {
                     onFix: onRequestPermission,
                   ),
                 if (loaded) ...[
-                  settingsGroup(
-                      c,
-                      l?.settingsGroupManageNotifications ??
-                          'Manage notifications', [
-                    SetRow(LucideIcons.heartPulse, C.red,
+                  settingsGroup(c, 'Health', [
+                    SetRow(LucideIcons.heartPulse, C.dialStrain,
                         l?.settingsHealthExceptionsRowTitle ??
                             'Health exceptions',
                         sub: l?.settingsHealthExceptionsRowSub ??
                             'One a day at most, and only when something moved away from your usual',
-                        value: prefs.healthEnabled ? on : off,
-                        chevron: false,
+                        switchValue: prefs.healthEnabled,
                         onTap: () => set(prefs.copyWith(
                             healthEnabled: !prefs.healthEnabled))),
-                    SetRow(LucideIcons.watch, C.orange,
+                    // The retained recovery-channel switch, now with a real
+                    // event behind it again: the morning "recovery is ready"
+                    // note. It was cut in the three-class cull and sat dead —
+                    // emitted, classified null, dropped.
+                    SetRow(LucideIcons.activity, C.optimal,
+                        l?.settingsRecoveryReadyRowTitle ?? 'Recovery ready',
+                        sub: l?.settingsRecoveryReadyRowSub ??
+                            'One note when your morning recovery score '
+                                'lands',
+                        switchValue: prefs.recoveryEnabled,
+                        onTap: () => set(prefs.copyWith(
+                            recoveryEnabled: !prefs.recoveryEnabled))),
+                    // Says what it DOES now: the finding is computed from the
+                    // week's own crossday rollup (medical flags first, then a
+                    // plainly-stated resting-HR drift), and most weeks still
+                    // say nothing — which is the point.
+                    SetRow(LucideIcons.calendarDays, C.dialStrain,
+                        l?.settingsWeeklyLookbackRowTitle ??
+                            'Weekly lookback',
+                        sub: l?.settingsWeeklyLookbackRowSub ??
+                            'Sunday evening, but only for a week that '
+                                'actually found something. Most weeks are quiet',
+                        switchValue: prefs.remindersEnabled,
+                        onTap: () => set(prefs.copyWith(
+                            remindersEnabled: !prefs.remindersEnabled))),
+                  ]),
+                  settingsGroup(c, 'Band and alarm', [
+                    SetRow(LucideIcons.watch, C.strainDown,
                         l?.settingsBandAlertsRowTitle ?? 'Band alerts',
                         sub: l?.settingsBandAlertsRowSub ??
                             'Flat battery, on the charger, gone quiet',
-                        value: prefs.deviceEnabled ? on : off,
-                        chevron: false,
+                        switchValue: prefs.deviceEnabled,
                         onTap: () => set(prefs.copyWith(
                             deviceEnabled: !prefs.deviceEnabled))),
-                    // On by default, unlike the reminders below: this exists to
-                    // catch a wake alarm that silently isn't going to fire, and
-                    // starting silent would defeat the point.
-                    SetRow(LucideIcons.alarmClock, C.red,
-                        l?.settingsAlarmLatchFailedRowTitle ??
-                            'Alarm not confirmed',
-                        sub: l?.settingsAlarmLatchFailedRowSub ??
-                            'Warn when the band never confirms an alarm this '
-                                'app just armed',
-                        value: prefs.alarmLatchFailedEnabled ? on : off,
-                        chevron: false,
-                        onTap: () => set(prefs.copyWith(
-                            alarmLatchFailedEnabled:
-                                !prefs.alarmLatchFailedEnabled))),
-                    // Also on by default, same reasoning: silent whenever an
-                    // alarm IS armed for tonight, so it only ever speaks up
-                    // about a real gap.
-                    SetRow(LucideIcons.moon, C.red,
-                        l?.settingsAlarmNightCheckRowTitle ??
-                            'No-alarm check-in',
-                        sub: l?.settingsAlarmNightCheckRowSub ??
-                            'A 7pm heads-up on any night with no wake alarm '
-                                'armed — silent otherwise',
-                        value: prefs.alarmNightCheckEnabled ? on : off,
-                        chevron: false,
-                        onTap: () => set(prefs.copyWith(
-                            alarmNightCheckEnabled:
-                                !prefs.alarmNightCheckEnabled))),
                     // The low-battery threshold, only while band alerts are
                     // on — an interval for a muted alert is furniture, same
                     // rule as the water row below.
                     if (prefs.deviceEnabled)
-                      SetRow(LucideIcons.batteryLow, C.orange,
+                      SetRow(LucideIcons.batteryLow, C.strainDown,
                           l?.settingsAlertMeAtRowTitle ?? 'Alert me at',
                           sub: l?.settingsAlertMeAtRowSub ??
                               'Warn when the band drops under this charge '
@@ -874,42 +869,43 @@ class NotificationSettingsView extends StatelessWidget {
                           onTap: () => set(prefs.copyWith(
                               batteryAlertPct:
                                   _nextBatteryPct(prefs.batteryAlertPct)))),
-                    // The retained recovery-channel switch, now with a real
-                    // event behind it again: the morning "recovery is ready"
-                    // note. It was cut in the three-class cull and sat dead —
-                    // emitted, classified null, dropped.
-                    SetRow(LucideIcons.activity, C.green,
-                        l?.settingsRecoveryReadyRowTitle ?? 'Recovery ready',
-                        sub: l?.settingsRecoveryReadyRowSub ??
-                            'One note when your morning recovery score '
-                                'lands',
-                        value: prefs.recoveryEnabled ? on : off,
-                        chevron: false,
+                    // On by default, unlike the reminders below: this exists to
+                    // catch a wake alarm that silently isn't going to fire, and
+                    // starting silent would defeat the point.
+                    SetRow(LucideIcons.alarmClock, C.dialStrain,
+                        l?.settingsAlarmLatchFailedRowTitle ??
+                            'Alarm not confirmed',
+                        sub: l?.settingsAlarmLatchFailedRowSub ??
+                            'Warn when the band never confirms an alarm this '
+                                'app just armed',
+                        switchValue: prefs.alarmLatchFailedEnabled,
                         onTap: () => set(prefs.copyWith(
-                            recoveryEnabled: !prefs.recoveryEnabled))),
-                    // Says what it DOES now: the finding is computed from the
-                    // week's own crossday rollup (medical flags first, then a
-                    // plainly-stated resting-HR drift), and most weeks still
-                    // say nothing — which is the point.
-                    SetRow(LucideIcons.calendarDays, C.purple,
-                        l?.settingsWeeklyLookbackRowTitle ??
-                            'Weekly lookback',
-                        sub: l?.settingsWeeklyLookbackRowSub ??
-                            'Sunday evening, but only for a week that '
-                                'actually found something. Most weeks are quiet',
-                        value: prefs.remindersEnabled ? on : off,
-                        chevron: false,
+                            alarmLatchFailedEnabled:
+                                !prefs.alarmLatchFailedEnabled))),
+                    // Also on by default, same reasoning: silent whenever an
+                    // alarm IS armed for tonight, so it only ever speaks up
+                    // about a real gap.
+                    SetRow(LucideIcons.moon, C.dialStrain,
+                        l?.settingsAlarmNightCheckRowTitle ??
+                            'No-alarm check-in',
+                        sub: l?.settingsAlarmNightCheckRowSub ??
+                            'A 7pm heads-up on any night with no wake alarm '
+                                'armed — silent otherwise',
+                        switchValue: prefs.alarmNightCheckEnabled,
                         onTap: () => set(prefs.copyWith(
-                            remindersEnabled: !prefs.remindersEnabled))),
-                    SetRow(LucideIcons.radar, C.green,
+                            alarmNightCheckEnabled:
+                                !prefs.alarmNightCheckEnabled))),
+                  ]),
+                  settingsGroup(c, 'Activity', [
+                    SetRow(LucideIcons.radar, C.optimal,
                         l?.settingsDetectedWorkoutsRowTitle ?? 'Detected workouts',
                         sub: l?.activityPushHint ?? 'Push alerts only. Suggestions remain in Detected activities.',
-                        value: prefs.autoDetectEnabled ? on : off, chevron: false,
+                        switchValue: prefs.autoDetectEnabled,
                         onTap: () => set(prefs.copyWith(autoDetectEnabled: !prefs.autoDetectEnabled))),
-                    SetRow(LucideIcons.moon, C.blue,
+                    SetRow(LucideIcons.moon, C.dialStrain,
                         l?.activityNapAlerts ?? 'Detected naps',
                         sub: l?.activityPushHint ?? 'Push alerts only. Suggestions remain in Detected activities.',
-                        value: prefs.napDetectEnabled ? on : off, chevron: false,
+                        switchValue: prefs.napDetectEnabled,
                         onTap: () => set(prefs.copyWith(napDetectEnabled: !prefs.napDetectEnabled))),
                     // Off by default, and it is the switch that lets the nudge
                     // be scheduled at all — see
@@ -918,83 +914,79 @@ class NotificationSettingsView extends StatelessWidget {
                     // sedentary surfaces: the OS-scheduled two-hour-still
                     // one-shot, and the foreground desk-posture check (which
                     // also buzzes the band when it fires).
-                    SetRow(LucideIcons.footprints, C.orange,
+                    SetRow(LucideIcons.footprints, C.strainDown,
                         l?.settingsMovementNudgeRowTitle ?? 'Movement nudge',
                         sub: l?.settingsMovementNudgeRowSub ??
                             'After two hours without moving, or 90 minutes at a desk. A phone notification plus a buzz on the band when it’s connected',
-                        value: prefs.movementEnabled ? on : off,
-                        chevron: false,
+                        switchValue: prefs.movementEnabled,
                         onTap: () => set(prefs.copyWith(
                             movementEnabled: !prefs.movementEnabled))),
-                    // The wind-down nudge. Silent until the Sleep Coach has
-                    // actually LEARNED a bedtime — the nudge's whole content
-                    // is that time, so there is no honest fallback.
-                    SetRow(LucideIcons.moonStar, C.indigo,
-                        l?.settingsWindDownRowTitle ?? 'Wind-down',
-                        sub: l?.settingsWindDownRowSub ??
-                            'A heads-up about 45 minutes before the bedtime '
-                                'learned from your own nights, kept clear of your '
-                                'quiet hours. Appears after about a week of wear',
-                        value: prefs.windDownEnabled ? on : off,
-                        chevron: false,
-                        onTap: () => set(prefs.copyWith(
-                            windDownEnabled: !prefs.windDownEnabled))),
                     // The step-goal achievement's off switch. On by default:
                     // once a day at most, and only on a real crossing.
-                    SetRow(LucideIcons.trophy, C.orange,
+                    SetRow(LucideIcons.trophy, C.strainDown,
                         l?.settingsStepGoalAlertsRowTitle ??
                             'Step goal alerts',
                         sub: l?.settingsStepGoalAlertsRowSub ??
                             'Tells you once when today crosses your steps '
                                 'goal',
-                        value: prefs.stepGoalEnabled ? on : off,
-                        chevron: false,
+                        switchValue: prefs.stepGoalEnabled,
                         onTap: () => set(prefs.copyWith(
                             stepGoalEnabled: !prefs.stepGoalEnabled))),
+                  ]),
+                  settingsGroup(c, 'Reminders', [
+                    // The wind-down nudge. Silent until the Sleep Coach has
+                    // actually LEARNED a bedtime — the nudge's whole content
+                    // is that time, so there is no honest fallback.
+                    SetRow(LucideIcons.moonStar, C.dialSleep,
+                        l?.settingsWindDownRowTitle ?? 'Wind-down',
+                        sub: l?.settingsWindDownRowSub ??
+                            'A heads-up about 45 minutes before the bedtime '
+                                'learned from your own nights, kept clear of your '
+                                'quiet hours. Appears after about a week of wear',
+                        switchValue: prefs.windDownEnabled,
+                        onTap: () => set(prefs.copyWith(
+                            windDownEnabled: !prefs.windDownEnabled))),
                     // The one prompt whose time is not a guess: it is the
                     // schedule already typed into the Medication tab. Only a
                     // dose still due is armed, and the notification names no
                     // drug — it lands on a lock screen in front of whoever is
                     // in the room.
-                    SetRow(LucideIcons.pill, C.blue,
+                    SetRow(LucideIcons.pill, C.dialStrain,
                         l?.settingsMedicationRemindersRowTitle ??
                             'Medication reminders',
                         sub: l?.settingsMedicationRemindersRowSub ??
                             'One notification per scheduled dose, plus a buzz on the band when it’s connected. Skipped for doses already marked',
-                        value: prefs.medsEnabled ? on : off,
-                        chevron: false,
+                        switchValue: prefs.medsEnabled,
                         onTap: () =>
                             set(prefs.copyWith(medsEnabled: !prefs.medsEnabled))),
                     // ONE prompt for the whole journal, not one per field —
                     // mood, energy, stress and the rest are all the same
                     // screen, so five rows would be five interruptions for one
                     // minute of typing.
-                    SetRow(LucideIcons.notebookPen, C.purple,
+                    SetRow(LucideIcons.notebookPen, C.dialStrain,
                         l?.settingsDailyCheckInRowTitle ?? 'Daily check-in',
                         sub: l?.settingsDailyCheckInRowSub ??
                             'One prompt in the evening to write the day — '
                                 'mood, energy, stress. Skipped once the day '
                                 'already has a rating in it',
-                        value: prefs.checkInEnabled ? on : off,
-                        chevron: false,
+                        switchValue: prefs.checkInEnabled,
                         onTap: () => set(prefs.copyWith(
                             checkInEnabled: !prefs.checkInEnabled))),
                     // A prompt to log, not a reading. The app measures no
                     // hydration and this row may never imply it does.
-                    SetRow(LucideIcons.glassWater, C.teal,
+                    SetRow(LucideIcons.glassWater, C.stressLow,
                         l?.settingsWaterReminderRowTitle ?? 'Water reminder',
                         sub: l?.settingsWaterReminderRowSub ??
                             'A buzz on the strap and a notification on your '
                                 'phone through your waking hours, to remind you to '
                                 'log a drink. Nothing is measured either way',
-                        value: prefs.waterEnabled ? on : off,
-                        chevron: false,
+                        switchValue: prefs.waterEnabled,
                         onTap: () => set(
                             prefs.copyWith(waterEnabled: !prefs.waterEnabled))),
                     // only while it's on — the group is dense enough, and an
                     // interval for a reminder nobody armed is furniture.
                     if (prefs.waterEnabled)
-                      SetRow(LucideIcons.timer, C.teal,
+                      SetRow(LucideIcons.timer, C.stressLow,
                           l?.settingsRemindMeEveryRowTitle ??
                               'Remind me every',
                           value: _everyLabel(prefs.waterIntervalMin),
@@ -1004,17 +996,16 @@ class NotificationSettingsView extends StatelessWidget {
                                   _nextEvery(prefs.waterIntervalMin)))),
                   ]),
                   settingsGroup(c, l?.settingsGroupQuietHours ?? 'Quiet hours', [
-                    SetRow(LucideIcons.moon, C.indigo,
+                    SetRow(LucideIcons.moon, C.dialSleep,
                         l?.settingsQuietHoursRowTitle ?? 'Quiet hours',
                         sub: l?.settingsQuietHoursRowSub ??
                             'Nothing buzzes inside this window',
-                        value: prefs.quietEnabled ? on : off,
-                        chevron: false,
+                        switchValue: prefs.quietEnabled,
                         onTap: () => set(
                             prefs.copyWith(quietEnabled: !prefs.quietEnabled))),
                         SetRow(
                           LucideIcons.sunset,
-                          C.blue,
+                          C.dialStrain,
                           l?.settingsQuietHoursStartsRowTitle ?? 'Starts',
                           value: _hhmm(prefs.quietStartMin),
                           chevron: false,
@@ -1025,7 +1016,7 @@ class NotificationSettingsView extends StatelessWidget {
                             }
                           },
                         ),
-                    SetRow(LucideIcons.sunrise, C.yellow,
+                    SetRow(LucideIcons.sunrise, C.recYellow,
                         l?.settingsQuietHoursEndsRowTitle ?? 'Ends',
                         value: _hhmm(prefs.quietEndMin),
                         chevron: false,
@@ -1033,11 +1024,10 @@ class NotificationSettingsView extends StatelessWidget {
                           final v = await _pickMinute(c, prefs.quietEndMin);
                           if (v != null) set(prefs.copyWith(quietEndMin: v));
                         }),
-                    SetRow(LucideIcons.triangleAlert, C.red,
+                    SetRow(LucideIcons.triangleAlert, C.dialStrain,
                         l?.settingsHealthExceptionsBreakThroughRowTitle ??
                             'Health exceptions break through',
-                        value: prefs.criticalOverridesQuiet ? on : off,
-                        chevron: false,
+                        switchValue: prefs.criticalOverridesQuiet,
                         onTap: () => set(prefs.copyWith(
                             criticalOverridesQuiet:
                                 !prefs.criticalOverridesQuiet))),
@@ -1347,7 +1337,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                   onTap: _save,
                   child: Text(l?.actionSave ?? 'Save',
                       style: F.body.copyWith(
-                          color: p.on(C.green), fontWeight: FontWeight.w600)),
+                          color: p.on(C.optimal), fontWeight: FontWeight.w600)),
                 )),
           ),
           Expanded(
@@ -1449,7 +1439,7 @@ class _EditProfileViewState extends State<EditProfileView> {
           BigButton(
             importLabel(_lastImport),
             icon: LucideIcons.scale,
-            color: C.purple,
+            color: C.dialStrain,
             soft: true,
             onTap: _importing ? null : _import,
           ),
@@ -1629,7 +1619,7 @@ class _AutomationSettingsState extends State<AutomationSettings> {
                                   icon: _copied
                                       ? LucideIcons.check
                                       : LucideIcons.copy,
-                                  color: C.indigo,
+                                  color: C.dialSleep,
                                   soft: true,
                                   onTap: _copy),
                             ],

@@ -310,7 +310,7 @@ class _Loading extends StatelessWidget {
     final p = P.of(c);
     return Scaffold(
       backgroundColor: p.bg,
-      body: Center(child: CircularProgressIndicator(color: p.on(C.green))),
+      body: const Center(child: CircularProgressIndicator()),
     );
   }
 }
@@ -331,38 +331,36 @@ class _InitFailed extends StatelessWidget {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(S.x6),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Locus could not start',
                     style: F.t2.copyWith(color: p.ink)),
-                const SizedBox(height: 8),
+                const SizedBox(height: S.x2),
                 Text(
                   'Your data is still on this device — nothing was deleted. '
                   'This is a start-up step failing, and it will fail the same '
                   'way each launch until it is fixed.',
                   style: F.body.copyWith(color: p.ink2, height: 1.5),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: S.x4),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(S.x3),
                   decoration: BoxDecoration(
                     color: p.card2,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: R.rMd,
                   ),
                   child: SelectableText(
                     app.initError ?? 'No error was recorded.',
                     style: F.cap.copyWith(color: p.ink2),
                   ),
                 ),
-                const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: app.retryInit,
-                  child: const Text('Try again'),
-                ),
+                const SizedBox(height: S.x6),
+                BigButton('Try again',
+                    icon: LucideIcons.refreshCw, onTap: app.retryInit),
               ],
             ),
           ),
@@ -386,32 +384,6 @@ ShellDomain domainForTab(int tab) => switch (tab) {
       2 || 3 => ShellDomain.health,
       _ => ShellDomain.today,
     };
-
-/// The tab a build with the five-tab bar (Home, Health, Nutrition, Workout,
-/// Wellness) saved → where that content lives now.
-ShellDomain domainForSavedTab(int old) => switch (old) {
-      1 => ShellDomain.strength,
-      2 => ShellDomain.health,
-      _ => ShellDomain.today,
-    };
-
-/// The tab a build with the four-tab bar (Today, Sleep, Activity, Health)
-/// saved → where that content lives now.
-ShellDomain domainForSavedTabV2(int old) => switch (old) {
-      1 => ShellDomain.strength,
-      2 || 3 => ShellDomain.health,
-      _ => ShellDomain.today,
-    };
-
-/// The tab to open on: the current bar's index once one was saved, otherwise
-/// an older bar's index translated, so an upgrade lands where the user was.
-ShellDomain restoredShellTab() {
-  final v3 = Prefs.getInt(Prefs.shellTabV3, -1);
-  if (v3 >= 0 && v3 < ShellDomain.values.length) return ShellDomain.values[v3];
-  final v2 = Prefs.getInt(Prefs.shellTabV2, -1);
-  if (v2 >= 0) return domainForSavedTabV2(v2);
-  return domainForSavedTab(Prefs.getInt(Prefs.shellTab, 0));
-}
 
 /// A deep-link sub-screen route → the domain it belongs to.
 ///
@@ -498,8 +470,9 @@ class _Shell extends StatefulWidget {
 }
 
 class _ShellState extends State<_Shell> {
-  /// Restore the last-selected tab so a relaunch lands where the user left off.
-  late ShellDomain _domain = restoredShellTab();
+  /// A launch always opens on Home: the tab is not kept once the app is
+  /// closed, so it never reopens on a screen from the last time.
+  ShellDomain _domain = ShellDomain.today;
 
   /// AppShell owns its own selection and takes only an `initial`, so a
   /// programmatic jump re-keys it.
@@ -586,7 +559,6 @@ class _ShellState extends State<_Shell> {
       _domain = d;
       _rev++;
     });
-    Prefs.setInt(Prefs.shellTabV3, d.index);
   }
 
   @override
@@ -605,10 +577,7 @@ class _ShellState extends State<_Shell> {
       key: ValueKey(_rev),
       initial: _domain,
       banner: live ? const _LiveSessionBar() : null,
-      onSelect: (d) {
-        _domain = d;
-        Prefs.setInt(Prefs.shellTabV3, d.index);
-      },
+      onSelect: (d) => _domain = d,
       onAction: (c) => openActionSheet(c),
       onAi: null,
       builder: (c, d) => switch (d) {

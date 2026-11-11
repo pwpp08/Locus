@@ -218,17 +218,17 @@ Map<String, Widget> componentCases() => {
           pad: EdgeInsets.zero,
           child: EcgReadingRow(reading: _ecgDemoReading, onTap: () {})),
       'signal': const SignalCard(
-          LucideIcons.heartPulse, C.blue, 'Resting heart rate', '52',
+          LucideIcons.heartPulse, C.dialStrain, 'Resting heart rate', '52',
           unit: 'bpm', sub: '4 BELOW YOUR BASELINE'),
       // A REALISTIC value, not two characters. Every card below used to be
       // shot with '52' / '38 min' / '+6', and the 2.0x tier passed because of
       // it: with a duration or a thousands separator in the same slot, six
       // components overflowed at that scale.
       'progress': const ProgressCard(
-          'Time asleep', '1h 38m', 'of 2h 00m', .63, C.domMove,
+          'Time asleep', '1h 38m', 'of 2h 00m', .63, C.dialStrain,
           icon: LucideIcons.footprints),
       'trend': TrendCard('Time asleep', '7h 42m', 'last night', '+38m',
-          'vs 14-day baseline', _series, C.green,
+          'vs 14-day baseline', _series, C.optimal,
           up: true),
       'insight': const InsightCard(
         'Your sleep debt cleared overnight',
@@ -237,7 +237,7 @@ Map<String, Widget> componentCases() => {
         action: 'See the night',
       ),
       'action': const ActionCard('Charge the strap', '18% remaining',
-          'Remind me', LucideIcons.batteryLow, C.orange),
+          'Remind me', LucideIcons.batteryLow, C.strainDown),
       'status': const StatusCard(
         'No respiratory rate last night',
         'The strap was off your wrist between 01:10 and 06:40, so there was '
@@ -245,11 +245,11 @@ Map<String, Widget> componentCases() => {
         fix: 'How wear position affects this',
       ),
       'deep_dive': DeepDiveCard('Heart rate variability', '7h 42m', 'ms',
-          'Open the full night', C.purple,
+          'Open the full night', C.dialStrain,
           preview: SizedBox(
             height: 48,
             child: CustomPaint(
-                size: Size.infinite, painter: LineChart(_series, C.purple)),
+                size: Size.infinite, painter: LineChart(_series, C.dialStrain)),
           )),
       'metric_row': const Column(children: [
         // The trailing states, in order: good news up, bad news up, bad news
@@ -257,28 +257,28 @@ Map<String, Widget> componentCases() => {
         // own noise, and a series with no basis for a direction (which draws
         // nothing rather than a flat arrow that would read as a measured "no
         // change").
-        MetricRow(LucideIcons.activity, C.green, 'HRV', '64',
+        MetricRow(LucideIcons.activity, C.optimal, 'HRV', '64',
             unit: 'ms', series: _rising, rising: Rising.good),
-        MetricRow(LucideIcons.heart, C.red, 'Resting heart rate', '58',
+        MetricRow(LucideIcons.heart, C.dialStrain, 'Resting heart rate', '58',
             unit: 'bpm', series: _rising, rising: Rising.bad),
-        MetricRow(LucideIcons.moon, C.indigo, 'Sleep efficiency', '84',
+        MetricRow(LucideIcons.moon, C.dialSleep, 'Sleep efficiency', '84',
             unit: '%', series: _falling, rising: Rising.good),
-        MetricRow(LucideIcons.thermometer, C.orange, 'Skin temperature', '+0.3',
+        MetricRow(LucideIcons.thermometer, C.strainDown, 'Skin temperature', '+0.3',
             sub: 'RELATIVE TO BASELINE', unit: '°', series: _rising),
-        MetricRow(LucideIcons.brain, C.purple, 'Stress', '31',
+        MetricRow(LucideIcons.brain, C.dialStrain, 'Stress', '31',
             unit: '/100', series: _flat, rising: Rising.bad),
-        MetricRow(LucideIcons.wind, C.teal, 'Respiratory rate', '14.2',
+        MetricRow(LucideIcons.wind, C.stressLow, 'Respiratory rate', '14.2',
             unit: 'br/min', series: _tooShort),
         // A long name, a thousands-separated value and a word in the trailing
         // slot — 'ON TRACK' needs 92 pt at 1.0x and was clipped inside a fixed
         // 52 pt box before any scaling at all.
-        MetricRow(LucideIcons.flame, C.orange, 'Active energy burned', '2,310',
+        MetricRow(LucideIcons.flame, C.strainDown, 'Active energy burned', '2,310',
             unit: 'kcal', status: 'ON TRACK'),
       ]),
       'inline_metrics': const InlineMetrics([
-        ('ASLEEP', '7h 40m', C.blue),
-        ('EFFICIENCY', '91%', C.green),
-        ('AWAKE', '22m', C.orange),
+        ('ASLEEP', '7h 40m', C.dialStrain),
+        ('EFFICIENCY', '91%', C.optimal),
+        ('AWAKE', '22m', C.strainDown),
       ]),
       'recommendation': const Recommendation(
         'Keep it easy today',
@@ -287,22 +287,22 @@ Map<String, Widget> componentCases() => {
         'See what changed',
       ),
       'goal_trajectory': const GoalTrajectory(
-          'Weight', '78.4 kg', '75 kg', '0.3 kg per week', .62, C.teal),
+          'Weight', '78.4 kg', '75 kg', '0.3 kg per week', .62, C.stressLow),
       'observation': const Observation(
         'Your resting heart rate has risen on six of the last seven nights',
         'From 51 to 58 bpm, alongside a 0.4° skin-temperature rise.',
         advice: 'Worth mentioning if it continues past a week.',
       ),
       'consistency': const Consistency(
-          18, 24, 'Nights with a full sleep record', C.domHealth),
+          18, 24, 'Nights with a full sleep record', C.dialStrain),
       'pill_row': const Wrap(spacing: S.x2, runSpacing: S.x2, children: [
-        Pill('Estimated', C.yellow, icon: LucideIcons.circleDashed),
-        Pill('Relative', C.purple),
+        Pill('Estimated', C.recYellow, icon: LucideIcons.circleDashed),
+        Pill('Relative', C.dialStrain),
       ]),
       'big_button': const Column(children: [
-        BigButton('Start workout', icon: LucideIcons.play, color: C.domMove),
+        BigButton('Start workout', icon: LucideIcons.play, color: C.dialStrain),
         SizedBox(height: S.x3),
-        BigButton('Not now', color: C.domMove, soft: true),
+        BigButton('Not now', color: C.dialStrain, soft: true),
       ]),
       // ── the signature components (DESIGN.md §10) ──
       // The four button forms and the icon-only circle, each with a real
@@ -345,8 +345,8 @@ Map<String, Widget> componentCases() => {
         ],
       ),
       'icon_chip': const Wrap(spacing: S.x2, children: [
-        IconChip(LucideIcons.heartPulse, C.domHealth),
-        IconChip(LucideIcons.moon, C.domSleep),
+        IconChip(LucideIcons.heartPulse, C.dialStrain),
+        IconChip(LucideIcons.moon, C.dialSleep),
         IconChip(LucideIcons.circleHelp, C.slate, neutral: true),
       ]),
       'app_switch': Builder(builder: (c) => Column(children: [
@@ -420,35 +420,6 @@ Map<String, Widget> componentCases() => {
               ],
             ),
           )),
-      // The drawn art set, every slot, each on a card.
-      // An empty state that is an invitation draws its picture above the copy.
-      'status_card_art': const StatusCard(
-        'Nothing logged today',
-        'One tap is a complete log.',
-        fix: 'Log an eating occasion',
-        icon: LucideIcons.utensils,
-        art: Art.food,
-      ),
-      'art_set': Builder(builder: (c) {
-        return Wrap(spacing: S.x3, runSpacing: S.x3, children: [
-          for (final a in [
-            Art.workout,
-            Art.wellness,
-            Art.sleep,
-            Art.food,
-            Art.heart,
-            Art.ring,
-            Art.watch,
-            Art.chestStrap,
-          ])
-            SizedBox(
-              width: S.x16 + S.x12,
-              child: Surface(
-                child: Center(child: a.image(height: S.x12 + S.x8)),
-              ),
-            ),
-        ]);
-      }),
       // The onboarding header: the step in capitals over a segmented bar.
       // Char, as every onboarding screen is.
       'onboarding_step': const AlwaysChar(child: OnboardingStep(2)),
@@ -466,7 +437,7 @@ Map<String, Widget> componentCases() => {
       ),
       'sub_tabs': SubTabs(
           const ['Today', 'Sleep', 'Recovery', 'Strain'], 1, (_) {},
-          color: C.domHealth),
+          color: C.dialStrain),
       // The three states a metric screen's per-device filter draws: a
       // selectable pill with real coverage, a selectable pill with no data in
       // the visible range, and a non-selectable pill with a physical reason —
@@ -582,7 +553,7 @@ Map<String, Widget> _chartCases() {
           series: rhr,
           child: CustomPaint(
             size: Size.infinite,
-            painter: LineChart(rhr, p.on(C.blue),
+            painter: LineChart(rhr, p.on(C.dialStrain),
                 axis: AxisSpec.of(rhr, floor: 40), dots: true),
           ),
         ),
@@ -606,7 +577,7 @@ Map<String, Widget> _chartCases() {
           series: rhr,
           child: CustomPaint(
             size: Size.infinite,
-            painter: LineChart(rhr, p.on(C.green),
+            painter: LineChart(rhr, p.on(C.optimal),
                 axis: AxisSpec.of(rhr, floor: 40), dots: true),
           ),
         ),
@@ -624,7 +595,7 @@ Map<String, Widget> _chartCases() {
           series: minutes,
           child: CustomPaint(
             size: Size.infinite,
-            painter: Bars(minutes, p.on(C.domHealth),
+            painter: Bars(minutes, p.on(C.dialStrain),
                 axis: AxisSpec.of(minutes, floor: 0, format: axisHm, step: 120)),
           ),
         ),
@@ -821,7 +792,7 @@ Map<String, Widget> _nutritionAndWellnessCases() {
 /// style has something to draw: a route, splits, a heart-rate curve WITH a
 /// dropout in it, and elevation.
 final _finished = ActivityResult(
-  const Activity('Trail running', LucideIcons.mountain, C.green,
+  const Activity('Trail running', LucideIcons.mountain, C.optimal,
       Track.distance, 10.5,
       gps: true),
   // Fixed, never `DateTime.now()` — a gallery case must not move.
@@ -937,15 +908,15 @@ Map<String, Widget> extraCases() => {
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: const [
-                Pill('Mind', C.domMind),
+                Pill('Mind', C.stressLow),
                 SizedBox(width: S.x2),
-                Pill('Recovery', C.domMind),
+                Pill('Recovery', C.stressLow),
                 SizedBox(width: S.x2),
-                Pill('Habits', C.domMind),
+                Pill('Habits', C.stressLow),
                 SizedBox(width: S.x2),
-                Pill('Medication', C.domMind),
+                Pill('Medication', C.stressLow),
                 SizedBox(width: S.x2),
-                Pill('Cycle', C.domMind),
+                Pill('Cycle', C.stressLow),
               ],
             ),
           ),
@@ -1064,11 +1035,11 @@ Map<String, Widget> extraCases() => {
           day: '2026-08-15',
           days: const ['2026-08-16', '2026-08-15', '2026-08-14'],
           onDay: (_) {}),
-      'nap_row': const MetricRow(LucideIcons.sun, C.indigo, 'Daytime sleep',
+      'nap_row': const MetricRow(LucideIcons.sun, C.dialSleep, 'Daytime sleep',
           '1h 12m',
           sub: '2 naps · Sunday, 16 August'),
       'nap_row_none': const MetricRow(
-          LucideIcons.sun, C.indigo, 'Daytime sleep', 'None',
+          LucideIcons.sun, C.dialSleep, 'Daytime sleep', 'None',
           sub: 'None detected · Sunday, 16 August'),
       'nap_unjudged': const StatusCard(
         'No nap reading for Sunday, 16 August',
@@ -1105,7 +1076,7 @@ Map<String, Widget> extraCases() => {
         ),
       ),
       'screen_title': const ScreenTitle('Sleep and recovery',
-          trailing: Pill('Estimated', C.yellow)),
+          trailing: Pill('Estimated', C.recYellow)),
       // Static on purpose: the gallery shows the control, and its position is
       // a fixture like every other value here.
       'scrubber': Builder(builder: (c) {
@@ -1188,7 +1159,7 @@ Map<String, Widget> extraCases() => {
             footnote: 'Against your own 14-day baseline, not a population.',
             child: CustomPaint(
                 size: Size.infinite,
-                painter: Ring(.72, p.on(C.green), p.track)),
+                painter: Ring(.72, p.on(C.optimal), p.track)),
           ),
         );
       }),
@@ -1201,7 +1172,7 @@ Map<String, Widget> extraCases() => {
             height: 44,
             child: CustomPaint(
                 size: Size.infinite,
-                painter: MacroRing(.48, p.on(C.orange), p.track)),
+                painter: MacroRing(.48, p.on(C.strainDown), p.track)),
           ),
         );
       }),
@@ -1221,7 +1192,7 @@ Map<String, Widget> extraCases() => {
                   d == 9 || d == 10
                       ? null
                       : [for (var h = 0; h < 24; h++) ((h + d) % 24) / 24],
-              ], p.on(C.domMove)),
+              ], p.on(C.dialStrain)),
             ),
           ),
         );
@@ -1242,7 +1213,7 @@ Map<String, Widget> extraCases() => {
                     for (var d = 0; d < 7; d++)
                       (w * 7 + d) % 11 == 0 ? null : ((w + d) % 5) / 4,
                   ],
-              ], p.on(C.domHealth), p.track),
+              ], p.on(C.dialStrain), p.track),
             ),
           ),
         );
@@ -1266,7 +1237,7 @@ Map<String, Widget> extraCases() => {
                   for (var i = 0; i < 96; i++)
                     i > 40 && i < 52 ? null : 33 + (i % 9) * .1,
                 ],
-              ], [p.on(C.red), p.on(C.domMove), p.on(C.orange)]),
+              ], [p.on(C.dialStrain), p.on(C.dialStrain), p.on(C.strainDown)]),
             ),
           ),
         );
@@ -1282,10 +1253,10 @@ Map<String, Widget> extraCases() => {
               size: Size.infinite,
               painter: RouteMap(_route,
                   pace: [for (var i = 0; i < _route.length; i++) (i % 20) / 20],
-                  slow: p.on(C.blue),
-                  fast: p.on(C.orange),
-                  pinStart: p.on(C.green),
-                  pinEnd: p.on(C.red),
+                  slow: p.on(C.dialStrain),
+                  fast: p.on(C.strainDown),
+                  pinStart: p.on(C.optimal),
+                  pinEnd: p.on(C.dialStrain),
                   pinInk: p.card),
             ),
           ),
@@ -1303,7 +1274,7 @@ Map<String, Widget> extraCases() => {
             series: _metres,
             child: CustomPaint(
               size: Size.infinite,
-              painter: Elevation(_metres, p.on(C.teal),
+              painter: Elevation(_metres, p.on(C.stressLow),
                   markerInk: p.card, axis: AxisSpec.of(_metres, floor: 0)),
             ),
           ),
@@ -1311,7 +1282,7 @@ Map<String, Widget> extraCases() => {
       }),
       'activity_lap_bars': Builder(builder: (c) {
         return const Surface(
-          child: LapRows([52, 56, 59, 55, 73, 81], C.domHealth),
+          child: LapRows([52, 56, 59, 55, 73, 81], C.dialStrain),
         );
       }),
       'activity_breath_ring': Builder(builder: (c) {
@@ -1323,7 +1294,7 @@ Map<String, Widget> extraCases() => {
             height: 140,
             child: CustomPaint(
                 size: Size.infinite,
-                painter: BreathRing(.55, p.on(C.domMind))),
+                painter: BreathRing(.55, p.on(C.stressLow))),
           ),
         );
       }),
@@ -1335,7 +1306,7 @@ Map<String, Widget> extraCases() => {
           (work: .8, rest: .5),
           (work: .72, rest: .6),
           (work: .64, rest: .7),
-        ], p.on(C.orange), p.on(C.blue));
+        ], p.on(C.strainDown), p.on(C.dialStrain));
         return Surface(
           child: ChartFrame(
             title: 'Work and rest, round by round',
@@ -1349,9 +1320,9 @@ Map<String, Widget> extraCases() => {
       'activity_pace_bar': Builder(
         builder: (c) => Surface(
           child: Column(children: [
-            PaceBar(.78, P.of(c).on(C.domMove)),
+            PaceBar(.78, P.of(c).on(C.dialStrain)),
             const SizedBox(height: S.x2),
-            PaceBar(.21, P.of(c).on(C.domMove)),
+            PaceBar(.21, P.of(c).on(C.dialStrain)),
           ]),
         ),
       ),
@@ -1376,19 +1347,19 @@ Map<String, Widget> extraCases() => {
                 icon: statIcon('Time'),
                 label: 'Time',
                 value: '1:02:14',
-                accent: P.of(c).on(C.domMove)),
+                accent: P.of(c).on(C.dialStrain)),
             Divider(color: P.of(c).line, height: S.x5),
             PosterStatRow(
                 icon: statIcon('Calories'),
                 label: 'Calories',
                 value: 'Not costed',
-                accent: P.of(c).on(C.domMove)),
+                accent: P.of(c).on(C.dialStrain)),
             Divider(color: P.of(c).line, height: S.x5),
             PosterStatRow(
                 icon: statIcon('Max HR'),
                 label: 'Max HR',
                 value: 'No reading',
-                accent: P.of(c).on(C.domMove)),
+                accent: P.of(c).on(C.dialStrain)),
           ]),
         ),
       ),
@@ -1414,21 +1385,21 @@ Map<String, Widget> extraCases() => {
               label: 'Pace',
               value: '5:12',
               unit: '/km',
-              accent: C.domMove),
+              accent: C.dialStrain),
           const SizedBox(height: S.x3),
           const PosterStatRow(
               icon: LucideIcons.flame,
               label: 'Calories',
               value: '2,310',
               unit: 'kcal',
-              accent: C.orange),
+              accent: C.strainDown),
           const SizedBox(height: S.x3),
           // No unit, and the longest duration anyone will post.
           const PosterStatRow(
               icon: LucideIcons.timer,
               label: 'Time',
               value: '10h 24m 18s',
-              accent: C.domHealth),
+              accent: C.dialStrain),
         ]),
       ),
 
@@ -1505,20 +1476,20 @@ const _roughTwoSign = RoughNight(
 /// in here.
 Map<String, Widget> _stateCases() => {
       'signal_absent': const SignalCard(
-          LucideIcons.wind, C.teal, 'Respiratory rate', '—',
+          LucideIcons.wind, C.stressLow, 'Respiratory rate', '--',
           sub: 'BEAT TIMING WAS TOO NOISY LAST NIGHT'),
       'progress_over': const ProgressCard(
-          'Protein', '164 g', 'of 140 g', 1.17, C.orange,
+          'Protein', '164 g', 'of 140 g', 1.17, C.strainDown,
           icon: LucideIcons.beef),
       // Down AND bad, which is the pairing the colour logic gets wrong: a
       // falling number is not automatically a win.
       'trend_down_bad': TrendCard('Heart-rate variability', '48', 'ms', '−13',
-          'vs 14-day baseline', _series, C.orange,
+          'vs 14-day baseline', _series, C.strainDown,
           good: false),
       // The shared trend header: a usual range behind the line, the axis
       // scaled to it, and a verdict with the difference from usual.
       'trend_banded': TrendCard('Resting heart rate', '61', 'bpm', '', '',
-          _series, C.red,
+          _series, C.dialStrain,
           band: const UsualRange(52, 58),
           latest: 61,
           higherBetter: false,
@@ -1541,7 +1512,7 @@ Map<String, Widget> _stateCases() => {
         child: BandLayer(
             const UsualRange(52, 58),
             const AxisSpec(min: 40, max: 70, format: axisInt),
-            C.red.withValues(alpha: .15)),
+            C.dialStrain.withValues(alpha: .15)),
       ),
       // A gap in the middle of the series — the strap was off the wrist for
       // three days, and the line must BREAK rather than interpolate across it.
@@ -1552,7 +1523,7 @@ Map<String, Widget> _stateCases() => {
           '+4',
           'vs 14-day baseline',
           [for (var i = 0; i < 24; i++) i > 9 && i < 13 ? null : _series[i]],
-          C.red,
+          C.dialStrain,
           up: true,
           good: false),
       'insight_no_action': const InsightCard(
@@ -1563,18 +1534,18 @@ Map<String, Widget> _stateCases() => {
       'status_title_only': const StatusCard('Location is off',
           '', fix: 'Allow location'),
       'deep_dive_no_preview': const DeepDiveCard(
-          'Sleep debt', '2h 14m', 'owed', 'See the fortnight', C.indigo),
+          'Sleep debt', '2h 14m', 'owed', 'See the fortnight', C.dialSleep),
       'goal_trajectory_gaining': const GoalTrajectory(
-          'Weight', '71.2 kg', '76 kg', '0.25 kg per week', .34, C.teal,
+          'Weight', '71.2 kg', '76 kg', '0.25 kg per week', .34, C.stressLow,
           rateDown: false),
       'observation_no_advice': const Observation(
         'Your skin temperature has been above baseline for three nights',
         '+0.6° against your own 28-night mean.',
       ),
       'consistency_none': const Consistency(
-          0, 7, 'Nights with a full sleep record', C.domHealth),
+          0, 7, 'Nights with a full sleep record', C.dialStrain),
       'consistency_full': const Consistency(
-          7, 7, 'Nights with a full sleep record', C.domHealth),
+          7, 7, 'Nights with a full sleep record', C.dialStrain),
       // A non-WHOOP wearable's cells: each presentation, an estimate, an
       // estimate hidden, and an unavailable row with its reason.
       'wearable_one_number': const WearableCell('resting_hr',
@@ -1613,18 +1584,18 @@ Map<String, Widget> _stateCases() => {
           }),
       // Every accent, so a palette change is one picture rather than a hunt.
       'pill_every_colour': const Wrap(spacing: S.x2, runSpacing: S.x2, children: [
-        Pill('Measured', C.green),
-        Pill('Estimated', C.yellow, icon: LucideIcons.circleDashed),
-        Pill('Relative', C.purple),
+        Pill('Measured', C.optimal),
+        Pill('Estimated', C.recYellow, icon: LucideIcons.circleDashed),
+        Pill('Relative', C.dialStrain),
         Pill('Private', C.n500, icon: LucideIcons.lock),
-        Pill('Beta', C.blue),
-        Pill('Needs attention', C.orange),
-        Pill('Not scored', C.red),
+        Pill('Beta', C.dialStrain),
+        Pill('Needs attention', C.strainDown),
+        Pill('Not scored', C.dialStrain),
       ]),
-      'big_button_no_icon': const BigButton('Save the night', color: C.domHealth),
+      'big_button_no_icon': const BigButton('Save the night', color: C.dialStrain),
       'sub_tabs_five': SubTabs(
           const ['Today', '7 days', '30 days', '6 months', 'Year'], 0, (_) {},
-          color: C.domHealth),
+          color: C.dialStrain),
       'nav_bar_no_sub': const NavBar('Component gallery'),
       'ai_orb': const AiOrb(),
       'coach_mark': const Row(mainAxisSize: MainAxisSize.min, children: [
@@ -1634,7 +1605,7 @@ Map<String, Widget> _stateCases() => {
         SizedBox(width: S.x3),
         CoachMark(color: C.white),
         SizedBox(width: S.x3),
-        IconChip.coach(C.purple),
+        IconChip.coach(C.dialStrain),
       ]),
       // My Dashboard: a daily metric against its week, a weekly total
       // against last week's, and a metric this app does not produce.
@@ -1654,6 +1625,10 @@ Map<String, Widget> _stateCases() => {
       // How long until the next alarm rings, kept to the minute.
       // The Locus mark, still; the boot cover draws it in and Home loops it.
       'locus_mark': const LocusMark(size: S.x16 * 2),
+      'date_picker_sheet': DatePickerSheet(
+          initial: DateTime(2026, 11, 5),
+          first: DateTime(2026, 9, 1),
+          last: DateTime(2026, 11, 11)),
       'time_picker_sheet': const TimePickerSheet(
           initial: TimeOfDay(hour: 7, minute: 30), title: 'Alarm time'),
       'wordmark': Builder(builder: (c) => Wordmark(color: P.of(c).ink)),
@@ -1846,11 +1821,11 @@ Map<String, Widget> _stateCases() => {
       'section_no_action': const Section(
           'Recovery', StatusCard('Nothing yet today', '')),
       'inline_metrics_two': const InlineMetrics([
-        ('VOLUME', '1,578 kg', C.purple),
+        ('VOLUME', '1,578 kg', C.dialStrain),
         ('SETS', '4', C.n500),
       ]),
       'metric_row_absent': const MetricRow(
-          LucideIcons.wind, C.teal, 'Respiratory rate', '—',
+          LucideIcons.wind, C.stressLow, 'Respiratory rate', '--',
           sub: 'NEED 4 MORE NIGHTS'),
     };
 
@@ -2009,10 +1984,10 @@ Map<String, Widget> _liveCases() => {
           final p = P.of(c);
           return Surface(
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              counterButton(p, LucideIcons.minus, p.on(C.red), 'One less rep',
+              counterButton(p, LucideIcons.minus, p.on(C.dialStrain), 'One less rep',
                   () {}),
               const SizedBox(width: S.x5),
-              counterButton(p, LucideIcons.plus, p.on(C.green), 'One more rep',
+              counterButton(p, LucideIcons.plus, p.on(C.optimal), 'One more rep',
                   () {}),
             ]),
           );
@@ -2027,14 +2002,18 @@ Map<String, Widget> _liveCases() => {
 Map<String, Widget> _listCases() => {
       'set_row': Builder(
         builder: (c) => settingsGroup(c, 'Settings row', [
-          SetRow(LucideIcons.bell, C.purple, 'Manage notifications',
+          SetRow(LucideIcons.bell, C.dialStrain, 'Manage notifications',
               sub: 'Bedtime, recovery, and the ones the band raises itself',
               onTap: () {}),
-          SetRow(LucideIcons.ruler, C.blue, 'Units',
-              value: 'Metric', onTap: () {}),
+          SetRow(LucideIcons.bug, C.dialStrain, 'Crash reports',
+              sub: 'Nothing is sent until you say so',
+              switchValue: true,
+              onTap: () {}),
+          SetChoice(LucideIcons.sunMoon, 'Appearance',
+              const ['System', 'Light', 'Dark'], 2, onChanged: (_) {}),
           const SetRow(LucideIcons.clock, C.n500, 'Last backup',
               value: '2026-08-16 04:12', chevron: false),
-          SetRow(LucideIcons.trash2, C.red, 'Delete everything on this device',
+          SetRow(LucideIcons.trash2, C.dialStrain, 'Delete everything on this device',
               danger: true, onTap: () {}),
         ]),
       ),
@@ -2044,7 +2023,7 @@ Map<String, Widget> _listCases() => {
         height: S.x16,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: C.green),
+          border: Border.all(color: C.optimal),
         ),
         child: const ClipOval(child: TouchClaim()),
       ),
@@ -2104,10 +2083,10 @@ Map<String, Widget> _listCases() => {
       ]),
       'legend': const Surface(
         child: Legend([
-          ('Deep', C.indigo),
-          ('REM', C.purple),
-          ('Light', C.blue),
-          ('Awake', C.orange),
+          ('Deep', C.dialSleep),
+          ('REM', C.dialStrain),
+          ('Light', C.dialStrain),
+          ('Awake', C.strainDown),
         ]),
       ),
       'mono_table': const MonoTable('What went into this number', [
@@ -2549,22 +2528,22 @@ class _PosterPreviewState extends State<_PosterPreview> {
       Surface(
         pad: const EdgeInsets.symmetric(horizontal: S.x4),
         child: Column(children: [
-          SetRow(LucideIcons.map, C.green,
+          SetRow(LucideIcons.map, C.optimal,
               _mosaic == null ? 'Load the map' : 'Reload the map',
               sub: 'A real lap of Cubbon Park — fetches OpenStreetMap tiles',
               value: _loading ? 'Loading' : '',
               onTap: _loading ? null : _load),
           Divider(color: p.line, height: 1),
-          SetRow(LucideIcons.imagePlus, C.purple,
+          SetRow(LucideIcons.imagePlus, C.dialStrain,
               _photo == null ? 'Add a photo' : 'Change photo',
               sub: 'From this phone. Nothing is uploaded', onTap: _pick),
           if (_photo != null) ...[
             Divider(color: p.line, height: 1),
-            SetRow(LucideIcons.trash2, C.red, 'Remove the photo',
+            SetRow(LucideIcons.trash2, C.dialStrain, 'Remove the photo',
                 chevron: false, onTap: () => setState(() => _photo = null)),
           ],
           Divider(color: p.line, height: 1),
-          SetRow(LucideIcons.share2, C.blue, 'Share this card',
+          SetRow(LucideIcons.share2, C.dialStrain, 'Share this card',
               sub: 'The real export — the boundary above, at 3×',
               chevron: false, onTap: _share),
         ]),
@@ -2964,15 +2943,15 @@ class _GalleryScreenState extends State<GalleryScreen> {
             child: Column(children: [
               SubTabs(const ['Flows', 'Components'], _mode,
                   (i) => setState(() => _mode = i),
-                  color: C.domMove),
+                  color: C.dialStrain),
               const SizedBox(height: S.x2),
               SubTabs(const ['1.0×', '1.4×', '2.0×', '3.1×'], _scale,
                   (i) => setState(() => _scale = i),
-                  color: C.domHealth),
+                  color: C.dialStrain),
               const SizedBox(height: S.x2),
               SubTabs(const ['System', 'Light', 'Dark'], _theme,
                   (i) => setState(() => _theme = i),
-                  color: C.domHealth),
+                  color: C.dialStrain),
             ]),
           ),
           // The controls stay at the app's own scale and theme; only what is
@@ -3090,14 +3069,14 @@ Map<String, Widget> _voltSystemCases() => {
         return _Swatches([
           for (final (name, a) in [
             ('volt', C.volt),
-            ('coral', C.coral),
+            ('coral', C.dialStrain),
             ('slate', C.slate),
             ('lavender', C.lavender),
-            ('sky', C.sky),
+            ('sky', C.dialStrain),
             ('rose', C.rose),
-            ('sage', C.sage),
+            ('sage', C.stressLow),
             ('amber', C.amber),
-            ('aqua', C.aqua),
+            ('aqua', C.stressLow),
           ])
             // The fill and its ink, then the same accent solved as text on a
             // card — the two ways a hue may ever be spent.

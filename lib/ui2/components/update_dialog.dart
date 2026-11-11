@@ -82,8 +82,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 width: S.x10 + S.x1,
                 height: S.x10 + S.x1,
                 decoration: BoxDecoration(
-                    color: p.wash(C.blue), shape: BoxShape.circle),
-                child: Icon(LucideIcons.downloadCloud, size: I.md, color: p.on(C.blue)),
+                    color: p.wash(C.dialStrain), shape: BoxShape.circle),
+                child: Icon(LucideIcons.downloadCloud, size: I.md, color: p.on(C.dialStrain)),
               ),
               const SizedBox(width: S.x3),
               Expanded(
@@ -100,7 +100,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                       '${svc.currentBuild.isEmpty ? 'This build' : svc.currentBuild}'
                       '  →  ${r.label}',
                       style: F.num(F.cap).copyWith(
-                          color: p.on(C.blue), fontWeight: FontWeight.w600),
+                          color: p.on(C.dialStrain), fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -135,7 +135,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
           if (_busy) ...[
             _Bar(
               value: prog!.phase == 'installing' ? 1 : prog.percent / 100,
-              color: p.fill(C.blue),
+              color: p.fill(C.dialStrain),
               track: p.track,
             ),
             const SizedBox(height: S.x2),
@@ -149,7 +149,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
           ] else ...[
             if (failed) ...[
               Text(prog!.message ?? 'The update did not install.',
-                  style: F.cap.copyWith(color: p.on(C.orange), height: 1.4)),
+                  style: F.cap.copyWith(color: p.on(C.strainDown), height: 1.4)),
               const SizedBox(height: S.x3),
             ],
             if (canInstall)

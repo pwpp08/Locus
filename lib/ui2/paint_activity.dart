@@ -57,10 +57,10 @@ class RouteMap extends CustomPainter {
   RouteMap(
     this.pts, {
     this.pace,
-    this.slow = C.green,
-    this.fast = C.orange,
-    this.pinStart = C.green,
-    this.pinEnd = C.red,
+    this.slow = C.optimal,
+    this.fast = C.strainDown,
+    this.pinStart = C.optimal,
+    this.pinEnd = C.dialStrain,
     this.pinInk = C.white,
     this.pins = true,
   });

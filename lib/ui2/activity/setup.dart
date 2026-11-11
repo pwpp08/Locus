@@ -317,7 +317,7 @@ class _ActivitySetupState extends State<ActivitySetup> {
           ),
           if (on != null)
             Icon(on ? LucideIcons.circleCheck : LucideIcons.circleSlash,
-                size: I.md, color: on ? p.on(C.green) : p.line),
+                size: I.md, color: on ? p.on(C.optimal) : p.line),
         ]),
       );
 
@@ -366,7 +366,7 @@ class _ActivitySetupState extends State<ActivitySetup> {
               height: 26,
               padding: const EdgeInsets.all(S.half),
               decoration: BoxDecoration(
-                  color: on ? p.fill(C.green) : p.track,
+                  color: on ? p.fill(C.optimal) : p.track,
                   borderRadius: R.rPill),
               child: AnimatedAlign(
                 duration: motion(context, Motion.base),
@@ -376,7 +376,7 @@ class _ActivitySetupState extends State<ActivitySetup> {
                   width: 20,
                   height: 20,
                   decoration: BoxDecoration(
-                      color: on ? p.inkOn(p.fill(C.green)) : p.ink3, shape: BoxShape.circle),
+                      color: on ? p.inkOn(p.fill(C.optimal)) : p.ink3, shape: BoxShape.circle),
                 ),
               ),
             ),

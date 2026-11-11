@@ -421,7 +421,7 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: F.cap.copyWith(color: C.orange)),
+                        style: F.cap.copyWith(color: C.strainDown)),
                   Expanded(
                     child: Row(children: [
                       if (running) ...[

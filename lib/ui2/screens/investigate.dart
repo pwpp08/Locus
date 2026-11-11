@@ -296,10 +296,10 @@ class _InvestigateState extends State<Investigate> {
           MonoTable(l?.investigateProvenanceLabel ?? 'Provenance', [
             (
               l?.investigateDayLabel ?? 'Day',
-              d.day == null ? '—' : displayDay(d.day, l),
+              d.day == null ? '--' : displayDay(d.day, l),
             ),
           (l?.investigateCoverageLabel ?? 'Coverage',
-              d.coveragePct == null ? '—' : '${d.coveragePct} %'),
+              d.coveragePct == null ? '--' : '${d.coveragePct} %'),
           if (d.windowStart != null)
             (l?.investigateSleepWindowLabel ?? 'Sleep window',
                 '${clockOfTs(d.windowStart)} – ${clockOfTs(d.windowEnd)}'),
@@ -312,7 +312,7 @@ class _InvestigateState extends State<Investigate> {
                   : (l?.investigateSourceImported(d.importedFrom!) ??
                       'Imported · ${d.importedFrom}')),
           (l?.investigateAlgoVersionLabel ?? 'Algorithm version',
-              d.algoVersion == null ? '—' : 'v${d.algoVersion}'),
+              d.algoVersion == null ? '--' : 'v${d.algoVersion}'),
         ]),
         // The arithmetic is above; this is the other question a person has in
         // front of a number they do not like — what else was going on. Placed
@@ -352,7 +352,7 @@ class _InvestigateState extends State<Investigate> {
     final l = AppLocalizations.of(context);
     final by = d.steps['by_source'];
     final split = by is Map ? by : const {};
-    String n(Object? v) => v is num ? thousands(v) : '—';
+    String n(Object? v) => v is num ? thousands(v) : '--';
     return [
       MonoTable(l?.investigateWhichSensorCounted ?? 'Which sensor counted', [
         (l?.investigateStrapPedometer ?? 'strap · 100 Hz pedometer',
@@ -395,10 +395,10 @@ class _InvestigateState extends State<Investigate> {
     // A real minus sign, not a hyphen: acceleration capacity is negative by
     // definition and a hyphen in a numeric column reads as a dash.
     String fx(num v, int dp) => v.toStringAsFixed(dp).replaceFirst('-', '\u2212');
-    String ms(Object? v) => v is num ? '${fx(v, 1)} ms' : '—';
-    String ms2(Object? v) => v is num ? '${fx(v, 1)} ms\u00b2' : '—';
-    String pct(Object? v) => v is num ? '${fx(v, 1)} %' : '—';
-    String plain(Object? v) => v is num ? fx(v, 2) : '—';
+    String ms(Object? v) => v is num ? '${fx(v, 1)} ms' : '--';
+    String ms2(Object? v) => v is num ? '${fx(v, 1)} ms\u00b2' : '--';
+    String pct(Object? v) => v is num ? '${fx(v, 1)} %' : '--';
+    String plain(Object? v) => v is num ? fx(v, 2) : '--';
 
     final beats = time['n_beats'] ?? irr['n_beats'] ?? irr24['n_beats'];
 
@@ -452,7 +452,7 @@ class _InvestigateState extends State<Investigate> {
         // into a confident negative — and it left a one-row table reading
         // "HF gated no" directly above the card saying there is no spectrum.
         (l?.investigateHfGated ?? 'HF gated', freq['hf_gated'] == null
-            ? '—'
+            ? '--'
             : (freq['hf_gated'] == true
                 ? (l?.investigateYes ?? 'yes')
                 : (l?.investigateNo ?? 'no'))),
@@ -492,13 +492,13 @@ class _InvestigateState extends State<Investigate> {
         (l?.investigateIrregularRhythmFlagSleep ??
             'Irregular-rhythm flag, sleep',
             irr['flag'] == null
-                ? '—'
+                ? '--'
                 : (irr['flag'] == true
                     ? (l?.investigateFlagRaised ?? 'raised')
                     : (l?.investigateFlagClear ?? 'clear'))),
         (l?.investigateIrregularRhythmFlag24h ?? 'Irregular-rhythm flag, 24 h',
             irr24['flag'] == null
-                ? '—'
+                ? '--'
                 : (irr24['flag'] == true
                     ? (l?.investigateFlagRaised ?? 'raised')
                     : (l?.investigateFlagClear ?? 'clear'))),
@@ -507,7 +507,7 @@ class _InvestigateState extends State<Investigate> {
         (l?.investigateAccelerationCapacity ?? 'Acceleration capacity',
             ms(ac['capacity_ms'])),
         (l?.investigateDcAnchors ?? 'DC anchors',
-            dc['anchors'] == null ? '—' : thousands(dc['anchors'] as num)),
+            dc['anchors'] == null ? '--' : thousands(dc['anchors'] as num)),
       ]),
       if (d.rhythmPoints.isNotEmpty) ...[
         const SizedBox(height: S.x3),
@@ -519,10 +519,10 @@ class _InvestigateState extends State<Investigate> {
       // measured. They are in the method note at the bottom of the screen.
       MonoTable(l?.investigateSignalQuality ?? 'Signal quality', [
         (l?.investigateBeatsAnalysed ?? 'Beats analysed',
-            beats == null ? '—' : thousands(beats as num)),
+            beats == null ? '--' : thousands(beats as num)),
         (l?.investigateBeatsAnalysed24h ?? 'Beats analysed, 24 h',
             irr24['n_beats'] == null
-                ? '—'
+                ? '--'
                 : thousands(irr24['n_beats'] as num)),
       ]),
       ..._shapePanels(c, d),
@@ -582,21 +582,21 @@ class _InvestigateState extends State<Investigate> {
     final t0 = (bins.first['t'] as num?)?.toDouble();
     final t1 = (bins[1]['t'] as num?)?.toDouble();
     final widthMin = (t0 == null || t1 == null) ? null : (t1 - t0) / 60;
-    String ms(Object? x) => x is num ? '${x.toStringAsFixed(1)} ms' : '—';
+    String ms(Object? x) => x is num ? '${x.toStringAsFixed(1)} ms' : '--';
     final ratio = v['last_over_first'];
 
     return [
       const SizedBox(height: S.x3),
       MonoTable(l?.investigateNightShape ?? 'Night shape', [
         (l?.investigateBinWidth ?? 'Bin width',
-            widthMin == null ? '—' : '${widthMin.round()} min'),
+            widthMin == null ? '--' : '${widthMin.round()} min'),
         (l?.investigateBinsRead ?? 'Bins read', '$drawn of ${bins.length}'),
         (l?.investigateFirstThird ?? 'First third', ms(v['first_third_ms'])),
         (l?.investigateLastThird ?? 'Last third', ms(v['last_third_ms'])),
         // A ratio, printed as a ratio. No adjective, no direction word, no
         // colour: "1.32" is the fact and "recovered well" is not one.
         (l?.investigateLastThirdOverFirst ?? 'Last third ÷ first',
-            ratio is num ? ratio.toStringAsFixed(2) : '—'),
+            ratio is num ? ratio.toStringAsFixed(2) : '--'),
       ]),
     ];
   }
@@ -629,7 +629,7 @@ class _InvestigateState extends State<Investigate> {
           l?.investigate12WeeksAgo ?? '12 weeks ago',
           l?.investigateThisWeek ?? 'This week',
         ],
-        legend: [(l?.investigateScreenRan ?? 'Screen ran', p.on(C.purple))],
+        legend: [(l?.investigateScreenRan ?? 'Screen ran', p.on(C.dialStrain))],
         footnote: l?.investigateRhythmStripFootnote(ran, raised) ??
             'Ran on $ran day${ran == 1 ? '' : 's'}, raised its flag on '
             '$raised. An outlined square is a day it did not run. A clear '
@@ -638,7 +638,7 @@ class _InvestigateState extends State<Investigate> {
             'from the band moving on your wrist.',
         child: CustomPaint(
           size: Size.infinite,
-          painter: HeatMap(grid, p.on(C.purple), p.line),
+          painter: HeatMap(grid, p.on(C.dialStrain), p.line),
         ),
       ),
     );
@@ -776,9 +776,9 @@ class _InvestigateState extends State<Investigate> {
     }
 
     String q(Object? qs, String unit, int dp) {
-      if (qs is! List || qs.length < 3) return '—';
+      if (qs is! List || qs.length < 3) return '--';
       final xs = [for (final e in qs) if (e is num) e];
-      if (xs.length < 3) return '—';
+      if (xs.length < 3) return '--';
       return '${xs.map((e) => e.toStringAsFixed(dp)).join(' · ')} $unit';
     }
 
@@ -787,20 +787,20 @@ class _InvestigateState extends State<Investigate> {
       const SizedBox(height: S.x3),
       MonoTable(l?.investigateHeartRateCycles ?? 'Heart-rate cycles', [
         (l?.investigateCyclesCounted ?? 'Cycles counted',
-            v['cycle_count'] == null ? '—' : thousands(v['cycle_count'] as num)),
+            v['cycle_count'] == null ? '--' : thousands(v['cycle_count'] as num)),
         (l?.investigateObservedHoursAnalysed ?? 'Observed hours analysed',
-            hours == null ? '—' : '${hours.toStringAsFixed(2)} h'),
+            hours == null ? '--' : '${hours.toStringAsFixed(2)} h'),
         (l?.investigateCyclesPerObservedHour ?? 'Cycles per observed hour',
             v['cvhr_per_hour'] == null
-                ? '—'
+                ? '--'
                 : (v['cvhr_per_hour'] as num).toStringAsFixed(2)),
         (l?.investigateMeanCycleLength ?? 'Mean cycle length',
             v['mean_width_sec'] == null
-                ? '—'
+                ? '--'
                 : '${(v['mean_width_sec'] as num).toStringAsFixed(1)} s'),
         (l?.investigateMeanDipDepth ?? 'Mean dip depth',
             v['mean_depth_ms'] == null
-                ? '—'
+                ? '--'
                 : '${(v['mean_depth_ms'] as num).toStringAsFixed(1)} ms'),
         // p25 · p50 · p75 of the SAME per-cycle lists the means come from.
         (l?.investigateCycleLengthQuartiles ?? 'Cycle length, quartiles',
@@ -971,7 +971,7 @@ class _InvestigateState extends State<Investigate> {
         (l?.investigateDeep ?? 'Deep', row(dp, iv.deep)),
         if (r != null) (l?.investigateRem ?? 'REM', row(r, iv.rem)),
         (l?.investigateAwake ?? 'Awake',
-            min('awake_min') == null ? '—' : '${min('awake_min')} min'),
+            min('awake_min') == null ? '--' : '${min('awake_min')} min'),
         (l?.investigateTotalSleep ?? 'Total sleep', '$tst min'),
         // The width of every interval above is a function of this one number
         // and nothing else, so it goes on the same table.

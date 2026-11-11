@@ -169,7 +169,7 @@ Future<void> _logSet(WidgetTester tester) async {
 Future<void> _openMore(WidgetTester tester, String row) async {
   await tester.tap(find.bySemanticsLabel('More'));
   await tester.pumpAndSettle();
-  await tester.tap(find.text(row));
+  await tester.tap(find.text(row.toUpperCase()));
   await tester.pumpAndSettle();
 }
 

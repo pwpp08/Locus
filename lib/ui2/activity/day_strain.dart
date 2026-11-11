@@ -22,6 +22,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../compute/strain_projection.dart';
+import '../../compute/whoop_scores.dart' show whoopStrainTarget;
 import '../../data/day_label.dart';
 import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
@@ -29,7 +31,7 @@ import '../../l10n/date_text.dart';
 import '../../models/metric.dart' show whyFromNote;
 import '../screens/home_screen.dart'
     show monthShortName, repoOf, weekdayShortName;
-import '../screens/metric_detail.dart' show dayNavRow, detailScaffold;
+import '../screens/metric_detail.dart' show detailScaffold;
 import '../screens/trend_view.dart';
 import '../../theme/theme_switcher.dart' show themedRoute;
 import '../screens/training_readiness_card.dart' show TrainingReadinessCard;
@@ -220,12 +222,17 @@ class _StrainTrends {
   final List<Map<String, dynamic>> sessions;
   final String? firstDay;
 
+  /// The curves of the 14 days before today, for today's projection. Empty
+  /// on any other day.
+  final List<List<double?>> earlier;
+
   const _StrainTrends({
     this.daily = const {},
     this.zones13 = const {},
     this.zones45 = const {},
     this.sessions = const [],
     this.firstDay,
+    this.earlier = const [],
   });
 
   static const ids = [
@@ -234,6 +241,7 @@ class _StrainTrends {
     'calories',
     'zones_13',
     'zones_45',
+    'recovery',
   ];
 
   static Future<_StrainTrends> load(
@@ -247,7 +255,30 @@ class _StrainTrends {
       zones45: await loader.zoneStack(const [4, 5]),
       sessions: repo == null ? const [] : await _sessionsOn(repo, today),
       firstDay: await loader.firstDay(),
+      earlier: repo == null || today != todayLabel()
+          ? const []
+          : await _curvesBefore(repo, today),
     );
+  }
+
+  /// The whole-day curves of the 14 days before [today] that have one. A day
+  /// with no bundle falls back to another day's, so each is kept only when
+  /// its curve is from the day asked for.
+  static Future<List<List<double?>>> _curvesBefore(
+      LocalRepository repo, String today) async {
+    final asked = [for (var i = 1; i <= 14; i++) shiftDay(today, -i)];
+    final got = await Future.wait([
+      for (final d in asked)
+        DayStrainData.load(repo, forDay: d)
+            .catchError((Object _) => const DayStrainData()),
+    ]);
+    return [
+      for (var i = 0; i < asked.length; i++)
+        if (got[i].day != null &&
+            dayLabelOf(got[i].day!) == asked[i] &&
+            got[i].curve.length == 1440)
+          got[i].curve,
+    ];
   }
 
   static Future<List<Map<String, dynamic>>> _sessionsOn(
@@ -275,22 +306,13 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
   DayStrainData? _d;
   bool _loading = true;
   _StrainTrends _t = const _StrainTrends();
-  late String? _day = widget.day;
-  List<String> _days = const [];
+  late final String? _day = widget.day;
 
   @override
   void initState() {
     super.initState();
     _d = widget.data;
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
-  }
-
-  void _goDay(String day) {
-    setState(() {
-      _day = day;
-      _loading = true;
-    });
-    _load();
   }
 
   Future<void> _load() async {
@@ -301,11 +323,6 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
     }
     final want = _day;
     try {
-      if (repo != null) {
-        try {
-          _days = await repo.availableDays();
-        } catch (_) {}
-      }
       final d = widget.data ??
           (repo == null
               ? const DayStrainData()
@@ -362,17 +379,14 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
     final d = _d ?? const DayStrainData();
     final shown = d.day ?? DateTime.now();
     final today = dayLabelOf(shown);
-    // The pager under the bar names the day, as on Sleep and Recovery; with
-    // no days on record to page through, the bar still dates the screen.
-    final title = _days.isEmpty
-        ? localizedDate(shown, l?.localeName ?? 'en', pattern: 'EEE, MMM d')
-        : 'Strain';
+    // The bar dates the screen; there is no pager above the ring.
+    final title =
+        localizedDate(shown, l?.localeName ?? 'en', pattern: 'EEE, MMM d');
 
     return detailScaffold(
       c,
       title,
       [
-        ...dayNavRow(_day, _days, _goDay),
         if (_loading && _d == null) ...[
           const SizedBox(height: S.x8),
           const Center(child: CircularProgressIndicator()),
@@ -404,25 +418,38 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
   }
 
   // ── the ring: the day's strain against the 0–21 scale ───────────────────
+  /// The strain target that morning's recovery set, or null without one.
+  ({double lo, double hi, double optimal})? _target(String day) =>
+      whoopStrainTarget(_t.daily['recovery']?[day]);
+
   Widget _ring(P p, DayStrainData d) {
     final s = d.strain;
-    final baseline = _avg30('strain', dayLabelOf(d.day ?? DateTime.now()));
+    final t = _target(dayLabelOf(d.day ?? DateTime.now()));
     return LayoutBuilder(builder: (c, box) {
       final side = math.min(box.maxWidth * .84, S.x16 * 5.4);
+      final stroke = side * .061;
       return Center(
         child: SizedBox(
           width: side,
           height: side,
           child: Stack(alignment: Alignment.center, children: [
+            // The target's range is a lighter stretch of the track, its
+            // optimal a white tick across it, both under the day's arc.
             CustomPaint(
               size: Size.square(side),
-              painter: _StrainRingPainter(
-                fraction: s == null ? null : (s / 21).clamp(0.0, 1.0),
-                baselineFraction:
-                    baseline == null ? null : (baseline / 21).clamp(0.0, 1.0),
-                track: p.track,
-                arc: C.dialStrain,
-                tick: C.white,
+              painter: Ring(
+                s == null ? 0 : s / 21,
+                C.dialStrain,
+                p.track,
+                stroke: stroke,
+                solid: true,
+                flatStart: true,
+                band: t == null ? null : (t.lo / 21, t.hi / 21),
+                bandColor: Color.alphaBlend(
+                    p.ink.withValues(alpha: .24), p.track),
+                tick: t == null ? null : t.optimal / 21,
+                tickColor: p.ink,
+                tickWidth: .26,
               ),
             ),
             // The whole block scales to fit the circle, so a large text size
@@ -705,6 +732,7 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
         strain: d.strain,
         day: d.day,
         sessions: _t.sessions,
+        projection: _projection(d),
         title: l?.dayStrainChartTitle ?? 'Strain through the day',
         footnote: l?.dayStrainChartFootnote(drawn) ??
             'Effort above your usual waking pace. Once earned it stays for the day. From $drawn recorded waking minutes.',
@@ -716,13 +744,26 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
           padding: const EdgeInsets.symmetric(horizontal: S.x5),
           child: InlineMetrics([
             if (d.peakHr != null)
-              (l?.dayStrainPeakHr ?? 'Peak HR', '${d.peakHr} bpm', C.red),
+              (l?.dayStrainPeakHr ?? 'Peak HR', '${d.peakHr} bpm', C.dialStrain),
             if (d.wornMin != null)
-              (l?.dayStrainWorn ?? 'Worn', '${d.wornMin} min', C.teal),
+              (l?.dayStrainWorn ?? 'Worn', '${d.wornMin} min', C.stressLow),
           ]),
         ),
       ],
     ];
+  }
+
+  /// Today's curve from now to midnight, off the days before; null on any
+  /// other day, or without three earlier days to go on.
+  ({int from, List<double> values, int days})? _projection(DayStrainData d) {
+    final day = d.day;
+    if (day == null || dayLabelOf(day) != todayLabel()) return null;
+    final now = DateTime.now();
+    final minute = now.hour * 60 + now.minute;
+    final v = projectStrain(d.curve, minute, _t.earlier);
+    return v == null
+        ? null
+        : (from: minute, values: v, days: _t.earlier.length);
   }
 
   // ── the inputs, named ────────────────────────────────────────────────────
@@ -1016,11 +1057,17 @@ class _CurveCard extends StatefulWidget {
   /// drawn on it: a tinted span each, its icon above.
   final DateTime? day;
   final List<Map<String, dynamic>> sessions;
+
+  /// Where today usually goes from here: one value per minute from [from] to
+  /// midnight, off [days] earlier days. Drawn dotted.
+  final ({int from, List<double> values, int days})? projection;
+
   const _CurveCard({
     required this.curve,
     required this.strain,
     this.day,
     this.sessions = const [],
+    this.projection,
     required this.title,
     required this.footnote,
   });
@@ -1039,7 +1086,14 @@ class _CurveCardState extends State<_CurveCard> {
   Widget build(BuildContext c) {
     final p = P.of(c);
     final at = _at;
-    final v = at == null || at >= widget.curve.length ? null : widget.curve[at];
+    final pr = widget.projection;
+    // Past now, the finger reads the projection.
+    final ahead = at != null && pr != null && at > pr.from;
+    final v = at == null || at >= widget.curve.length
+        ? null
+        : ahead
+            ? pr.values[at - pr.from]
+            : widget.curve[at];
     final xs = List<String>.generate(widget.curve.length, (m) {
       if (m == 0) return '00:00';
       if (m == 360) return '06:00';
@@ -1052,7 +1106,11 @@ class _CurveCardState extends State<_CurveCard> {
     return Surface(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         ScrubReadout(
-          caption: at == null ? widget.title : _clock(at),
+          caption: at == null
+              ? widget.title
+              : ahead
+                  ? '${_clock(at)} · projected'
+                  : _clock(at),
           value: at == null
               ? (widget.strain == null ? '--' : widget.strain!.toStringAsFixed(1))
               : (v == null ? '--' : v.toStringAsFixed(1)),
@@ -1075,12 +1133,22 @@ class _CurveCardState extends State<_CurveCard> {
           stroke: 2.5,
           height: 180,
           paintUnder: _spans,
-          paintOver: _icons,
+          paintOver: (cv, plot, xOf, yOf) {
+            _projected(cv, plot, xOf, yOf);
+            _icons(cv, plot, xOf, yOf);
+          },
           onScrub: (i) => setState(() => _at = i),
         ),
         if (widget.footnote.isNotEmpty) ...[
           const SizedBox(height: S.x2),
-          Text(widget.footnote, style: F.over.copyWith(color: p.ink3)),
+          Text(
+              [
+                widget.footnote,
+                if (pr != null)
+                  'The dotted line is where your last ${pr.days} days went '
+                      'from this time on.',
+              ].join(' '),
+              style: F.over.copyWith(color: p.ink3)),
         ],
       ]),
     );
@@ -1120,6 +1188,28 @@ extension on _CurveCardState {
       final x0 = xOf(a), x1 = math.max(xOf(b), x0 + 2);
       canvas.drawRect(Rect.fromLTRB(x0, plot.top, x1, plot.bottom),
           Paint()..color = color.withValues(alpha: .16));
+    }
+  }
+
+  /// The projection, dotted: round dots one stroke wide, two strokes apart
+  /// along the line, in the strain blue.
+  void _projected(Canvas canvas, Rect plot, double Function(int) xOf,
+      double Function(double) yOf) {
+    final pr = widget.projection;
+    if (pr == null) return;
+    final path = Path();
+    for (var i = 0; i < pr.values.length; i++) {
+      final o = Offset(xOf(pr.from + i), yOf(pr.values[i]));
+      i == 0 ? path.moveTo(o.dx, o.dy) : path.lineTo(o.dx, o.dy);
+    }
+    const w = 2.5, gap = w * 2;
+    final dot = Paint()..color = C.dialStrain;
+    for (final m in path.computeMetrics()) {
+      // The first dot sits a gap past now, clear of the line's own end.
+      for (var d = gap; d <= m.length; d += gap) {
+        final t = m.getTangentForOffset(d);
+        if (t != null) canvas.drawCircle(t.position, w / 2, dot);
+      }
     }
   }
 
@@ -1176,63 +1266,4 @@ class _CaretPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_CaretPainter old) => old.color != color || old.edge != edge;
-}
-
-/// The ring: the day's strain as a sweep from the top, the 30-day average as a
-/// white tick across it.
-class _StrainRingPainter extends CustomPainter {
-  final double? fraction, baselineFraction;
-  final Color track, arc, tick;
-
-  _StrainRingPainter({
-    required this.fraction,
-    required this.baselineFraction,
-    required this.track,
-    required this.arc,
-    required this.tick,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final stroke = size.width * .064;
-    final rect = Offset.zero & size;
-    final ring = rect.deflate(stroke / 2);
-    canvas.drawArc(ring, 0, math.pi * 2, false,
-        Paint()
-          ..color = track
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = stroke);
-    final f = fraction;
-    if (f != null && f > 0) {
-      canvas.drawArc(ring, -math.pi / 2, math.pi * 2 * f, false,
-          Paint()
-            ..color = arc
-            ..style = PaintingStyle.stroke
-            ..strokeCap = StrokeCap.round
-            ..strokeWidth = stroke);
-    }
-    // The 30-day average: a white tick across the ring, no longer than the
-    // ring is thick.
-    final b = baselineFraction;
-    if (b != null) {
-      final a = -math.pi / 2 + math.pi * 2 * b;
-      final c = rect.center;
-      final r = ring.width / 2;
-      final half = stroke / 2;
-      canvas.drawLine(
-          Offset(c.dx + (r - half) * math.cos(a), c.dy + (r - half) * math.sin(a)),
-          Offset(c.dx + (r + half) * math.cos(a), c.dy + (r + half) * math.sin(a)),
-          Paint()
-            ..color = tick
-            ..strokeWidth = stroke * .15
-            ..strokeCap = StrokeCap.butt);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_StrainRingPainter old) =>
-      old.fraction != fraction ||
-      old.baselineFraction != baselineFraction ||
-      old.track != track ||
-      old.arc != arc;
 }

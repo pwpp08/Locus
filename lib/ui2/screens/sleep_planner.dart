@@ -651,11 +651,11 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                             letterSpacing: 1.6)),
                   ),
                   if (armedAt != null && alarm?.$2 == AlarmArmState.confirmed) ...[
-                    Icon(LucideIcons.badgeCheck, size: I.sm, color: C.green),
+                    Icon(LucideIcons.badgeCheck, size: I.sm, color: C.optimal),
                     const SizedBox(width: S.x1),
                     Text('CONFIRMED',
                         style: F.over.copyWith(
-                            color: C.green, fontWeight: FontWeight.w800)),
+                            color: C.optimal, fontWeight: FontWeight.w800)),
                     const SizedBox(width: S.x3),
                   ],
                   AppSwitch(

@@ -38,7 +38,7 @@ import 'home_screen.dart' show go, pad, repoOf;
 import 'journal_compose.dart' show OsTextField;
 
 /// The coach's accent. Not a domain colour: the coach reads across all five.
-const Color kCoachAccent = C.purple;
+const Color kCoachAccent = C.dialStrain;
 
 /// Whether the coach has a model behind it — false when there is no
 /// [CoachConfig] above us, which is every golden.
@@ -1302,7 +1302,7 @@ class _CoachSetupState extends State<CoachSetup> {
                               elevation: 0,
                               color: _base.text.trim() == preset.baseUrl
                                   ? p.wash(
-                                      preset.local ? C.green : kCoachAccent,
+                                      preset.local ? C.optimal : kCoachAccent,
                                     )
                                   : p.card2,
                               onTap: () => setState(() {
@@ -1335,7 +1335,7 @@ class _CoachSetupState extends State<CoachSetup> {
                                         : LucideIcons.cloud,
                                     size: I.sm,
                                     color: p.on(
-                                      preset.local ? C.green : kCoachAccent,
+                                      preset.local ? C.optimal : kCoachAccent,
                                     ),
                                   ),
                                   const SizedBox(width: S.x3),
@@ -1378,36 +1378,13 @@ class _CoachSetupState extends State<CoachSetup> {
                       Text(l?.coachApiFormatLabel ?? 'API',
                           style: F.over.copyWith(color: p.ink3)),
                       const SizedBox(height: S.x2),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: S.x3),
-                        decoration: BoxDecoration(
-                          color: p.card2,
-                          borderRadius: R.rMd,
-                        ),
-                        child: Semantics(
-                          label: l?.coachApiFormatLabel ?? 'API',
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<CoachApi>(
-                              value: _api,
-                              isExpanded: true,
-                              dropdownColor: p.card,
-                              style: F.body.copyWith(color: p.ink),
-                              items: const [
-                                DropdownMenuItem(
-                                  value: CoachApi.responses,
-                                  child: Text('Responses'),
-                                ),
-                                DropdownMenuItem(
-                                  value: CoachApi.chatCompletions,
-                                  child: Text('Chat Completions'),
-                                ),
-                              ],
-                              onChanged: (api) {
-                                if (api != null) setState(() => _api = api);
-                              },
-                            ),
-                          ),
-                        ),
+                      RangeSegments(
+                        const ['RESPONSES', 'CHAT COMPLETIONS'],
+                        _api == CoachApi.chatCompletions ? 1 : 0,
+                        (i) => setState(() => _api = i == 1
+                            ? CoachApi.chatCompletions
+                            : CoachApi.responses),
+                        width: null,
                       ),
                       const SizedBox(height: S.x2),
                       Text(

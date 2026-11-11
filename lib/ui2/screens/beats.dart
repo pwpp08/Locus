@@ -352,19 +352,19 @@ class _BeatsState extends State<Beats> {
                     'more your beats vary.',
             child: CustomPaint(
               size: Size.infinite,
-              painter: Poincare(d.nn, p.on(C.green), axis: axis, grid: p.line),
+              painter: Poincare(d.nn, p.on(C.optimal), axis: axis, grid: p.line),
             ),
           ),
           const SizedBox(height: S.x4),
           InlineMetrics([
             if (sd1 != null)
               (l?.beatsSd1Label ?? 'SD1', '${metricValue('ms', sd1)} ms',
-                  C.green),
+                  C.optimal),
             if (sd2 != null)
               (l?.beatsSd2Label ?? 'SD2', '${metricValue('ms', sd2)} ms',
-                  C.green),
+                  C.optimal),
             (l?.beatsIntervalsLabel ?? 'Intervals', thousands(d.nn.length),
-                C.green),
+                C.optimal),
           ]),
           const SizedBox(height: S.x4),
           _note(
@@ -439,15 +439,15 @@ class _BeatsState extends State<Beats> {
                     'inside it is the value, with a blank where too few clean '
                     'beats were left.',
             child: _NightBand(d.bins, axis,
-                color: p.on(C.green), empty: p.line),
+                color: p.on(C.optimal), empty: p.line),
           ),
           if (d.firstThirdMs != null && d.lastThirdMs != null) ...[
             const SizedBox(height: S.x4),
             InlineMetrics([
               (l?.beatsFirstThird ?? 'First third',
-                  '${metricValue('ms', d.firstThirdMs!)} ms', C.green),
+                  '${metricValue('ms', d.firstThirdMs!)} ms', C.optimal),
               (l?.beatsLastThird ?? 'Last third',
-                  '${metricValue('ms', d.lastThirdMs!)} ms', C.green),
+                  '${metricValue('ms', d.lastThirdMs!)} ms', C.optimal),
             ]),
           ],
           // The estimator's own note is NOT rendered here. A present
@@ -524,10 +524,10 @@ class _BeatsState extends State<Beats> {
           InlineMetrics([
             if (d.dcAnchors != null)
               (l?.beatsAnchorsLastNight ?? 'Anchors last night',
-                  thousands(d.dcAnchors), C.indigo),
+                  thousands(d.dcAnchors), C.dialSleep),
             if (d.cleanFraction > 0)
               (l?.beatsCleanBeats ?? 'Clean beats',
-                  '${(d.cleanFraction * 100).toStringAsFixed(1)}%', C.indigo),
+                  '${(d.cleanFraction * 100).toStringAsFixed(1)}%', C.dialSleep),
           ]),
           const SizedBox(height: S.x4),
           _note(
@@ -586,7 +586,7 @@ class _BeatsState extends State<Beats> {
             ],
             legend: [
               (l?.beatsScreenNotFired ?? 'Screen did not fire', p.ink3),
-              (l?.beatsScreenFired ?? 'Screen fired', p.on(C.orange)),
+              (l?.beatsScreenFired ?? 'Screen fired', p.on(C.strainDown)),
               (l?.beatsNotScreened ?? 'Not screened', p.line),
             ],
             empty: screened == 0
@@ -595,7 +595,7 @@ class _BeatsState extends State<Beats> {
                         'No day in this window was screened')
                 : null,
             child: _RhythmStrip(flags,
-                clear: p.ink3, fired: p.on(C.orange), absent: p.ink3),
+                clear: p.ink3, fired: p.on(C.strainDown), absent: p.ink3),
           ),
           const SizedBox(height: S.x4),
           _note(

@@ -211,7 +211,7 @@ class PairingView extends StatelessWidget {
             // icon only when the phone is what is wrong. Charger view while
             // it is being woken, top-down while it is searched for.
             if (blocked != null)
-              Icon(LucideIcons.bluetoothOff, size: I.xl, color: p.on(C.blue))
+              Icon(LucideIcons.bluetoothOff, size: I.xl, color: p.on(C.dialStrain))
             else
               switch (phase) {
                 PairPhase.scanning => const BandStage(height: 180),
@@ -227,24 +227,24 @@ class PairingView extends StatelessWidget {
               const SizedBox(height: S.x3),
               Text(blocked!.fix!,
                   style: F.body.copyWith(
-                      color: p.on(C.blue), fontWeight: FontWeight.w600)),
+                      color: p.on(C.dialStrain), fontWeight: FontWeight.w600)),
             ],
             if (busy) ...[
               const SizedBox(height: S.x8),
-              Center(child: CircularProgressIndicator(color: p.on(C.blue))),
+              Center(child: CircularProgressIndicator(color: p.on(C.dialStrain))),
             ],
             ..._advice(c, phase, detail),
             const SizedBox(height: S.x8),
             BigButton(_cta(c, phase),
                 icon: LucideIcons.radio,
-                color: C.blue,
+                color: C.dialStrain,
                 onTap: busy ? null : onPair),
             if (onSkip != null && phase != PairPhase.paired) ...[
               const SizedBox(height: S.x3),
               // Never disabled, not even mid-scan: waiting out a scan you
               // already know will fail is exactly the trap this exists for.
               BigButton(AppLocalizations.of(c)?.pairingSkipForNow ?? 'Skip for now',
-                  color: C.blue, soft: true, onTap: onSkip),
+                  color: C.dialStrain, soft: true, onTap: onSkip),
               const SizedBox(height: S.x2),
               Text(
                 AppLocalizations.of(c)?.pairingSkipNote ??

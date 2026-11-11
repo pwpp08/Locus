@@ -91,7 +91,7 @@ enum SourceTier {
     1,
     'Beat-to-beat intervals',
     'Electrical R-peak detection.',
-    C.green,
+    C.optimal,
   ),
 
   /// Optical pulse at the wrist. Everything this app ships today.
@@ -100,7 +100,7 @@ enum SourceTier {
     'Wrist optical pulse',
     'Continuous 24/7 pulse, sleep and temperature. Beat timing is inferred '
         'from a pulse wave, so HRV here is PRV.',
-    C.blue,
+    C.dialStrain,
   ),
 
   /// The phone in a pocket.
@@ -108,7 +108,7 @@ enum SourceTier {
     3,
     'Steps only',
     'The phone’s own motion coprocessor. Steps and nothing else.',
-    C.orange,
+    C.strainDown,
   );
 
   const SourceTier(this.rank, this.label, this.detail, this.accent);
@@ -198,7 +198,7 @@ class DeviceFilter extends StatelessWidget {
     required this.options,
     required this.selected,
     required this.onSelect,
-    this.color = C.blue,
+    this.color = C.dialStrain,
     this.allLabel,
     this.showWithOne = false,
   });
@@ -419,7 +419,7 @@ class _SignalPriorityScreenState extends State<SignalPriorityScreen> {
                               child: Text(
                                 l?.devicesResetToDefault ??
                                     'Back to the default order',
-                                style: F.cap.copyWith(color: p.on(C.blue)),
+                                style: F.cap.copyWith(color: p.on(C.dialStrain)),
                               ),
                             ),
                           ),
@@ -934,18 +934,6 @@ IconData sensorIcon(String? adapterId) => switch (adapterId) {
       _ => LucideIcons.heartPulse,
     };
 
-/// The drawn picture for a kind of sensor, or null where there is no drawing
-/// (a thermometer, a scale) and the glyph stands in.
-Art? sensorArt(String? adapterId, {bool framed = false}) {
-  if (framed) return Art.watch;
-  return switch (adapterId) {
-    'oura' || 'colmi' || 'ultrahuman' => Art.ring,
-    'polar_pmd' => Art.chestStrap,
-    'garmin' || 'miband234' || 'pebble' => Art.watch,
-    _ => null,
-  };
-}
-
 /// The tier named by a `device.tier` column, or null when the column is blank
 /// or holds a name this build does not have.
 ///
@@ -1437,7 +1425,7 @@ class MyDevicesView extends StatelessWidget {
                 if (onAddSensor != null)
                   Surface(
                     pad: const EdgeInsets.symmetric(horizontal: S.x4),
-                    child: SetRow(LucideIcons.plus, C.green,
+                    child: SetRow(LucideIcons.plus, C.optimal,
                         l?.devicesAddASensor ?? 'Add a sensor',
                         sub: l?.devicesAddASensorSub ??
                             'A heart-rate strap or a ring, alongside the band',
@@ -1450,7 +1438,7 @@ class MyDevicesView extends StatelessWidget {
                   const SizedBox(height: S.x3),
                   Surface(
                     pad: const EdgeInsets.symmetric(horizontal: S.x4),
-                    child: SetRow(LucideIcons.arrowUpDown, C.blue,
+                    child: SetRow(LucideIcons.arrowUpDown, C.dialStrain,
                         l?.devicesWhichSourceWins ?? 'Which source wins',
                         sub: l?.devicesWhichSourceWinsSub ??
                             'When two of your devices measure the same thing',
@@ -1603,7 +1591,7 @@ class SourceRow extends StatelessWidget {
                   width: 6,
                   height: 6,
                   decoration: BoxDecoration(
-                      color: s.connected ? p.on(C.green) : p.ink3,
+                      color: s.connected ? p.on(C.optimal) : p.ink3,
                       shape: BoxShape.circle),
                 ),
                 const SizedBox(width: 5),
@@ -1613,7 +1601,7 @@ class SourceRow extends StatelessWidget {
                 Flexible(
                   child: Text(_localizedSourceState(c, s),
                       style: F.over.copyWith(
-                          color: s.connected ? p.on(C.green) : p.ink3)),
+                          color: s.connected ? p.on(C.optimal) : p.ink3)),
                 ),
               ]),
               // The band's percentage is in its stats card on the list, not twice.
@@ -1634,7 +1622,7 @@ class SourceRow extends StatelessWidget {
               // not. The band's own page carries the explanation.
               if (s.experimental)
                 Text(AppLocalizations.of(c)?.devicesExperimental ?? 'Experimental',
-                    style: F.over.copyWith(color: p.on(C.orange))),
+                    style: F.over.copyWith(color: p.on(C.strainDown))),
                   ],
                 ),
                 if (stacked && tierBadge != null) ...[
@@ -1734,7 +1722,7 @@ Future<BatteryForecast?> loadBatteryForecast() async {
 Widget _batteryRow(BuildContext c, HealthSource s, BatteryForecast? forecast) {
   final l = AppLocalizations.of(c);
   final battery = s.batteryPct;
-  return SetRow(LucideIcons.batteryMedium, C.green,
+  return SetRow(LucideIcons.batteryMedium, C.optimal,
       l?.devicesBattery ?? 'Battery',
       value: battery == null ? '' : '${battery.round()}%',
       onTap: () => goto(c, const BatteryDetailScreen()),
@@ -1750,7 +1738,7 @@ Widget _batteryRow(BuildContext c, HealthSource s, BatteryForecast? forecast) {
 Widget _lastDataRow(BuildContext c, HealthSource s) {
   final l = AppLocalizations.of(c);
   final last = s.lastData;
-  return SetRow(LucideIcons.refreshCw, C.purple,
+  return SetRow(LucideIcons.refreshCw, C.dialStrain,
       l?.devicesLastData ?? 'Last data',
       value: last == null ? '' : formatDayTime(last, l),
       sub: last == null
@@ -1764,7 +1752,7 @@ Widget _lastDataRow(BuildContext c, HealthSource s) {
 Widget? _calibrationRow(BuildContext c, HealthSource s) {
   final calibration = calibrationDisclosure(s);
   if (calibration == null) return null;
-  return SetRow(LucideIcons.sliders, C.teal,
+  return SetRow(LucideIcons.sliders, C.stressLow,
       AppLocalizations.of(c)?.devicesCalibration ?? 'Calibration',
       value: calibration.$1, chevron: false);
 }
@@ -2281,7 +2269,7 @@ class DeviceDetailView extends StatelessWidget {
                       child: Text(
                           localizedStatus?.title ?? _localizedSourceState(c, s),
                           style: F.cap.copyWith(
-                              color: s.connected ? p.on(C.green) : p.ink3))),
+                              color: s.connected ? p.on(C.optimal) : p.ink3))),
                 const SizedBox(height: S.x6),
                 if (fault != null) ...[
                   StatusCard(fault.title, fault.reason,
@@ -2304,7 +2292,7 @@ class DeviceDetailView extends StatelessWidget {
                   Surface(
                     pad: const EdgeInsets.symmetric(horizontal: S.x4),
                     child: Column(children: [
-                      SetRow(LucideIcons.flaskConical, C.orange,
+                      SetRow(LucideIcons.flaskConical, C.strainDown,
                           l?.devicesSupport ?? 'Support',
                           value: l?.devicesExperimental ?? 'Experimental',
                           sub: l?.devicesSensorExperimentalSub ??
@@ -2312,7 +2300,7 @@ class DeviceDetailView extends StatelessWidget {
                                   'against the hardware — nobody here owns one.',
                           chevron: false),
                       Divider(color: p.line, height: 1),
-                      SetRow(LucideIcons.database, C.teal,
+                      SetRow(LucideIcons.database, C.stressLow,
                           l?.devicesWhatItDoes ?? 'What it does',
                           sub: s.tier == null
                               ? (l?.devicesWhatItDoesStored ??
@@ -2321,7 +2309,7 @@ class DeviceDetailView extends StatelessWidget {
                                   'Heartbeat timing is saved under its name, during workouts and a few minutes after. Scoring workouts from it is experimental and off for now.'),
                           chevron: false),
                       Divider(color: p.line, height: 1),
-                      SetRow(LucideIcons.refreshCw, C.purple,
+                      SetRow(LucideIcons.refreshCw, C.dialStrain,
                           l?.devicesLastData ?? 'Last data',
                           value: last == null ? '' : formatDayTime(last, l),
                           sub: last == null
@@ -2334,7 +2322,7 @@ class DeviceDetailView extends StatelessWidget {
                       if (columnFor(s.family) != null &&
                           Prefs.getBool(Prefs.devMode, false)) ...[
                         Divider(color: p.line, height: 1),
-                        SetRow(LucideIcons.chartColumn, C.green,
+                        SetRow(LucideIcons.chartColumn, C.optimal,
                             l?.wearableDayTitle ?? "Today's numbers",
                             sub: l?.wearableDayRowSub ??
                                 'What we measure from it, beside its own '
@@ -2352,7 +2340,7 @@ class DeviceDetailView extends StatelessWidget {
                       // for no reason a user asked for.
                       if (onSync != null) ...[
                         Divider(color: p.line, height: 1),
-                        SetRow(LucideIcons.downloadCloud, C.blue,
+                        SetRow(LucideIcons.downloadCloud, C.dialStrain,
                             l?.devicesSyncNow ?? 'Sync now',
                             // Only Oura genuinely fetches held history off a
                             // cursor; every other `onSync` wired today is a
@@ -2393,7 +2381,7 @@ class DeviceDetailView extends StatelessWidget {
                           // than opening an editor whose save cannot land.
                           SetRow(
                             LucideIcons.tag,
-                            C.blue,
+                            C.dialStrain,
                             l?.devicesName ?? 'Name',
                             value: s.displayName(c),
                           sub: onRename == null
@@ -2404,7 +2392,7 @@ class DeviceDetailView extends StatelessWidget {
                           onTap: onRename),
                       Divider(color: p.line, height: 1),
                       if (onWearing != null) ...[
-                        SetRow(LucideIcons.personStanding, C.teal,
+                        SetRow(LucideIcons.personStanding, C.stressLow,
                             l?.devicesWornOn ?? 'Worn on',
                             value: wornOnUnknown
                                 ? (l?.devicesWornUnknown ?? 'Unknown')
@@ -2418,7 +2406,7 @@ class DeviceDetailView extends StatelessWidget {
                       _batteryRow(c, s, forecast),
                       Divider(color: p.line, height: 1),
                       if (s.batteryPackPct case final pack?) ...[
-                        SetRow(LucideIcons.batteryCharging, C.green,
+                        SetRow(LucideIcons.batteryCharging, C.optimal,
                             l?.devicesBatteryPack ?? 'Battery pack',
                             value: '${pack.round()}%',
                             sub: l?.devicesBatteryPackSub ??
@@ -2437,7 +2425,7 @@ class DeviceDetailView extends StatelessWidget {
                       // disclaimer instead of a fact about this band.
                       if (s.experimental) ...[
                         Divider(color: p.line, height: 1),
-                        SetRow(LucideIcons.flaskConical, C.orange,
+                        SetRow(LucideIcons.flaskConical, C.strainDown,
                             l?.devicesSupport ?? 'Support',
                             value: l?.devicesExperimental ?? 'Experimental',
                             sub: l?.devicesBandExperimentalSub ??
@@ -2448,7 +2436,7 @@ class DeviceDetailView extends StatelessWidget {
                       ],
                       if (onFind != null) ...[
                         Divider(color: p.line, height: 1),
-                        SetRow(LucideIcons.bellRing, C.orange,
+                        SetRow(LucideIcons.bellRing, C.strainDown,
                             l?.devicesBuzzTheBand ?? 'Buzz the band',
                             sub: l?.devicesFindItByFeel ?? 'Find it by feel',
                             chevron: false,
@@ -2460,7 +2448,7 @@ class DeviceDetailView extends StatelessWidget {
                 if (onForget != null)
                   Surface(
                     pad: const EdgeInsets.symmetric(horizontal: S.x4),
-                    child: SetRow(LucideIcons.trash2, C.red,
+                    child: SetRow(LucideIcons.trash2, C.dialStrain,
                         l?.devicesForgetThisBand ?? 'Forget this band',
                         danger: true, chevron: false, onTap: onForget),
                   ),
@@ -2538,7 +2526,7 @@ Future<int?> _pickWearing(BuildContext c) async {
               padding: const EdgeInsets.only(bottom: S.x2),
               child: Surface(
                 onTap: () => Navigator.of(sheet).pop(code),
-                child: SetRow(LucideIcons.personStanding, C.teal, title,
+                child: SetRow(LucideIcons.personStanding, C.stressLow, title,
                     sub: sub, chevron: false),
               ),
             ),

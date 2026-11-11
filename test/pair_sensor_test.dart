@@ -176,7 +176,7 @@ void main() {
 
       expect(find.text('Paired'), findsOneWidget);
       expect(find.text('R02_1234'), findsOneWidget);
-      expect(find.text('Forget this sensor'), findsOneWidget);
+      expect(find.text('FORGET THIS SENSOR'), findsOneWidget);
     });
   });
 
@@ -241,12 +241,12 @@ void main() {
         ),
       );
       expect(layoutFaults, isEmpty);
-      expect(find.text('Polar H10'), findsOneWidget);
+      expect(find.text('POLAR H10'), findsOneWidget);
       expect(find.text('-42 dBm'), findsOneWidget);
       // No name means the id tail is what tells two of them apart.
       expect(find.text('…EE:02 · -77 dBm'), findsOneWidget);
 
-      await t.tap(find.text('Polar H10'));
+      await t.tap(find.text('POLAR H10'));
       await t.pumpAndSettle();
       expect(picked, ['AA:BB:CC:DD:EE:01']);
     });
@@ -268,7 +268,7 @@ void main() {
       );
       expect(layoutFaults, isEmpty);
       expect(find.text('Connected'), findsOneWidget);
-      await t.tap(find.text('Oura Ring Gen3'));
+      await t.tap(find.text('OURA RING GEN3'));
       await t.pumpAndSettle();
       expect(picked, ['AA:BB:CC:DD:EE:03']);
     });
@@ -289,7 +289,7 @@ void main() {
       );
       expect(layoutFaults, isEmpty);
       expect(find.text('Pairing…'), findsOneWidget);
-      await t.tap(find.text('Wahoo TICKR'));
+      await t.tap(find.text('WAHOO TICKR'));
       await t.pumpAndSettle();
       expect(picked, isEmpty, reason: 'two pairings at once is two GATT links');
     });
@@ -305,12 +305,12 @@ void main() {
         ),
       );
       expect(layoutFaults, isEmpty);
-      expect(find.text('Polar H10'), findsOneWidget);
+      expect(find.text('POLAR H10'), findsOneWidget);
       expect(
         find.text('Removes the source. The readings it already took stay.'),
         findsOneWidget,
       );
-      await t.tap(find.text('Forget this sensor'));
+      await t.tap(find.text('FORGET THIS SENSOR'));
       await t.pumpAndSettle();
       expect(forgotten, ['ble_hrs-0a1b2c3d']);
     });

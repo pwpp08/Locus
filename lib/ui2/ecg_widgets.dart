@@ -50,7 +50,7 @@ class EcgTouchIllustration extends StatelessWidget {
             ink: p.ink,
             ink2: p.ink3,
             band: p.ink,
-            accent: C.domHealth,
+            accent: C.dialStrain,
             skin: p.card2,
           ),
           size: const Size(double.infinity, 200),
@@ -300,7 +300,7 @@ class EcgLivePreview extends StatelessWidget {
                     painter: EcgLivePainter(
                       buffer: buffer,
                       version: buffer.version,
-                      color: C.domHealth,
+                      color: C.dialStrain,
                       grid: p.line,
                     ),
                     size: Size.infinite,

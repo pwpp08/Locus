@@ -48,7 +48,7 @@ Widget firstWeekCard(BuildContext c,
           padding: const EdgeInsets.symmetric(vertical: S.x2),
           child: Row(children: [
             Icon(done ? LucideIcons.circleCheck : LucideIcons.circle,
-                size: I.md, color: done ? p.on(C.green) : p.ink3),
+                size: I.md, color: done ? p.on(C.optimal) : p.ink3),
             const SizedBox(width: S.x3),
             Expanded(
                 child: Text(text, style: F.body.copyWith(color: p.ink))),

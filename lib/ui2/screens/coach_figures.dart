@@ -61,11 +61,11 @@ List<_Series> _seriesOf(Map<String, dynamic> s) => [
 /// mark on a card — and the legend swatch is the mark's real colour because it
 /// comes from the same list.
 List<Color> _inks(P p) => [
-  p.on(C.blue),
-  p.on(C.orange),
-  p.on(C.teal),
-  p.on(C.purple),
-  p.on(C.green),
+  p.on(C.dialStrain),
+  p.on(C.strainDown),
+  p.on(C.stressLow),
+  p.on(C.dialStrain),
+  p.on(C.optimal),
 ];
 
 /// First, middle and last — the three positions `ChartFrame` marks. More than
@@ -131,8 +131,8 @@ class _Notes {
 
   List<(String, Color)> legend(P p) => [
     if (baseline case final b?) (b.$2, p.ink2),
-    if (range case final r?) (r.$3, p.on(C.teal)),
-    for (final m in markers) (m.$2, p.on(C.orange)),
+    if (range case final r?) (r.$3, p.on(C.stressLow)),
+    for (final m in markers) (m.$2, p.on(C.strainDown)),
   ];
 }
 
@@ -347,8 +347,8 @@ class CoachFigure extends StatelessWidget {
       points,
       slotted: slotted,
       line: p.ink2,
-      band: p.on(C.teal),
-      mark: p.on(C.orange),
+      band: p.on(C.stressLow),
+      mark: p.on(C.strainDown),
     ),
   );
 
@@ -381,7 +381,7 @@ class CoachFigure extends StatelessWidget {
           Positioned.fill(
             child: CustomPaint(
               size: Size.infinite,
-              painter: Bars(d, p.on(C.blue), axis: axis),
+              painter: Bars(d, p.on(C.dialStrain), axis: axis),
             ),
           ),
           if (!notes.isEmpty)
@@ -577,7 +577,7 @@ class CoachFigure extends StatelessWidget {
               children: [
                 CustomPaint(
                   size: const Size.square(84),
-                  painter: Ring(frac, p.on(C.blue), p.track, stroke: 8),
+                  painter: Ring(frac, p.on(C.dialStrain), p.track, stroke: 8),
                 ),
                 Text(
                   v == v.roundToDouble()
@@ -629,7 +629,7 @@ class CoachFigure extends StatelessWidget {
         icon: LucideIcons.layoutGrid,
       );
     }
-    final inks = [C.blue, C.orange, C.teal, C.purple, C.green];
+    final inks = [C.dialStrain, C.strainDown, C.stressLow, C.dialStrain, C.optimal];
     final grid = LayoutBuilder(
       builder: (_, box) {
         final w = (box.maxWidth - S.x3) / 2;
@@ -682,7 +682,7 @@ class CoachFigure extends StatelessWidget {
       unit,
       CustomPaint(
         size: Size.infinite,
-        painter: HeatMap(weeks, p.on(C.blue), p.track),
+        painter: HeatMap(weeks, p.on(C.dialStrain), p.track),
       ),
       height: 110,
       xLabels: _xLabels(spec['x_labels'] ?? spec['labels']),

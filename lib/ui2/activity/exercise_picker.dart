@@ -255,13 +255,13 @@ class _ExercisePickerState extends State<_ExercisePicker> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x2),
           decoration: BoxDecoration(
-            color: selected ? p.fill(C.purple) : p.card2,
+            color: selected ? p.fill(C.dialStrain) : p.card2,
             borderRadius: R.rSm,
           ),
           child: Text(
             label,
             style: F.cap.copyWith(
-              color: selected ? p.inkOn(p.fill(C.purple)) : p.ink2,
+              color: selected ? p.inkOn(p.fill(C.dialStrain)) : p.ink2,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -322,7 +322,7 @@ class _ExercisePickerState extends State<_ExercisePicker> {
                     Icon(
                       LucideIcons.circleCheck,
                       size: I.md,
-                      color: p.on(C.purple),
+                      color: p.on(C.dialStrain),
                     ),
                 ],
               ),

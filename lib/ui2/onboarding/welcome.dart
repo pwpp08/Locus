@@ -593,7 +593,7 @@ class WelcomeView extends StatelessWidget {
             const SizedBox(height: S.x6),
             Align(
               alignment: Alignment.centerLeft,
-              child: Pill(l?.pillLocalNoCloud ?? 'Local · no cloud', C.green,
+              child: Pill(l?.pillLocalNoCloud ?? 'Local · no cloud', C.optimal,
                   icon: LucideIcons.shieldCheck),
             ),
             const SizedBox(height: S.x8),
@@ -628,7 +628,7 @@ class WelcomeView extends StatelessWidget {
             ),
             if (busy) ...[
               const SizedBox(height: S.x6),
-              Center(child: CircularProgressIndicator(color: p.on(C.blue))),
+              Center(child: CircularProgressIndicator(color: p.on(C.dialStrain))),
             ],
             if (o != null) ...[
               const SizedBox(height: S.x6),
@@ -817,7 +817,7 @@ class ImportReport extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Surface(
         child: Row(children: [
-          Icon(LucideIcons.check, size: I.md, color: p.on(C.green)),
+          Icon(LucideIcons.check, size: I.md, color: p.on(C.optimal)),
           const SizedBox(width: S.x3),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

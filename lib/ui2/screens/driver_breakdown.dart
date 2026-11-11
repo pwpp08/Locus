@@ -408,7 +408,7 @@ class _DriverTile extends StatelessWidget {
             '${contribution >= 0 ? '+' : '−'}'
             '${contribution.abs().toStringAsFixed(1)}',
             style: F.n17
-                .copyWith(color: p.on(contribution >= 0 ? C.green : C.orange)),
+                .copyWith(color: p.on(contribution >= 0 ? C.optimal : C.strainDown)),
           ),
         ],
         if (onTap != null) ...[

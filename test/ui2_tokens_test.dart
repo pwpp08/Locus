@@ -26,18 +26,9 @@ const _tokenFile = 'lib/ui2/theme.dart';
 /// Where `Pressable` is defined — the one place a raw gesture is legal.
 const _gestureFile = 'lib/ui2/grammar.dart';
 
-/// Screens written before these rules were enforced again. The rules for raw
-/// `Switch`, `showModalBottomSheet` and numeric `Icon` sizes were silently dead
-/// for a while (a word-boundary escape had been saved as a backspace character,
-/// so they matched nothing); these files predate the fix. They are listed here,
-/// per rule below, so every OTHER file is held to the rule today. The design
-/// overhaul should empty this set, not grow it.
-const _pendingOverhaul = {
-  'lib/ui2/profile/account_screen.dart',
-  'lib/ui2/profile/alarm.dart',
-  'lib/ui2/screens/battery_detail_screen.dart',
-  'lib/ui2/screens/step_calibration_screen.dart',
-};
+/// Screens written before these rules were enforced again. The design
+/// overhaul has emptied it: every file is held to every rule. Keep it empty.
+const _pendingOverhaul = <String>{};
 
 final _rules = <_Rule>[
   _Rule(
@@ -148,6 +139,18 @@ final _rules = <_Rule>[
     allow: {_gestureFile, ..._pendingOverhaul},
   ),
   _Rule(
+    'Material control',
+    // Each draws Material's own look (volt fills, Material type, its own
+    // shapes) instead of the system's.
+    RegExp(r'(SegmentedButton|DropdownButton|DropdownMenu|FilledButton|'
+        r'ElevatedButton|OutlinedButton|IconButton|ToggleButtons|'
+        r'showDatePicker|showTimePicker|SwitchListTile|CheckboxListTile|'
+        r'RadioListTile)'),
+    'Use RangeSegments (a choice), an AppSheet list (a long choice), BigButton '
+        'or TextAction (an action), RoundIconButton (an icon action), pickDate '
+        'and pickTime (a day, a time), AppSwitch in a SetRow (on/off).',
+  ),
+  _Rule(
     'numeric Icon size',
     // One `Icon(…)` call: balanced parentheses only, so it cannot run on into
     // the next widget and flag a size that belongs to something else.
@@ -166,13 +169,14 @@ final _rules = <_Rule>[
   _Rule(
     'raw Image.asset',
     RegExp(r'\bImage\.asset\s*\('),
-    'Name imagery through Art (theme.dart), so no screen writes an asset path.',
+    'The app has no bundled pictures: draw with Lucide glyphs and the marks '
+        'in marks.dart.',
     allow: {
       _tokenFile,
       // The grain overlay is part of the vocabulary itself.
       _gestureFile,
       // The app-icon picker shows the launcher icons the user can choose
-      // between; they are not part of the imagery set and have no Art slot.
+      // between.
       'lib/ui2/profile/settings.dart',
     },
   ),
@@ -397,7 +401,6 @@ const _notComponents = {
   // fixture squeezing it, not the card. Covered instead by
   // `start_session_card_test.dart`, which renders it at a real phone width and
   // asserts the copy is not truncated and nothing overflows.
-  'StartCard',
   // The dial screens and the parts only they use: laid out for the full page
   // (a ring as wide as the screen, week charts with fixed plots), so a gallery
   // cell would only be squeezing them. ui2_sleep_detail_test pumps them at 3.1x.

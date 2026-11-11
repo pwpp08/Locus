@@ -174,8 +174,8 @@ void main() {
         theme: buildTheme(Brightness.light),
         home: const ReportIssueScreen()));
     await tester.pumpAndSettle();
-    const slice = 'Include the last 2 weeks of health data';
-    const full = 'Full health database (share locally only)';
+    const slice = 'INCLUDE THE LAST 2 WEEKS OF HEALTH DATA';
+    const full = 'FULL HEALTH DATABASE (SHARE LOCALLY ONLY)';
     Switch sw(int i) => tester.widget<Switch>(find.byType(Switch).at(i));
     expect(find.text(slice), findsOneWidget);
     expect(find.text(full), findsOneWidget);

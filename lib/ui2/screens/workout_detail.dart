@@ -142,7 +142,7 @@ class WorkoutDetail {
     final type = (s['type'] as String?) ?? 'other';
     final a =
         activityByName(type) ??
-        Activity(type, LucideIcons.activity, C.purple, Track.duration, 5.0);
+        Activity(type, LucideIcons.activity, C.dialStrain, Track.duration, 5.0);
     final start = (s['start_ts'] as num?)?.toInt() ?? 0;
     final end =
         (s['end_ts'] as num?)?.toInt() ??
@@ -571,7 +571,7 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
     final a =
         d?.activity ??
         activityByName(s['type'] as String?) ??
-        Activity('Activity', LucideIcons.activity, C.purple, Track.duration, 5);
+        Activity('Activity', LucideIcons.activity, C.dialStrain, Track.duration, 5);
     final start = d?.start ?? (s['start_ts'] as num?)?.toInt() ?? 0;
     final end = d?.end ?? (s['end_ts'] as num?)?.toInt() ?? start;
     return Scaffold(

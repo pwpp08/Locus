@@ -150,7 +150,7 @@ class _ActionRow extends StatelessWidget {
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(action.localizedLabel(c),
                   style: F.body.copyWith(
-                      color: selected ? p.on(C.indigo) : p.ink,
+                      color: selected ? p.on(C.dialSleep) : p.ink,
                       fontWeight: selected ? FontWeight.w600 : null)),
               Text(action.localizedBlurb(c),
                   style: F.over.copyWith(color: p.ink3)),
@@ -158,7 +158,7 @@ class _ActionRow extends StatelessWidget {
           ),
           const SizedBox(width: S.x2),
           Icon(selected ? LucideIcons.check : LucideIcons.circle,
-              size: I.sm, color: selected ? p.on(C.indigo) : p.line),
+              size: I.sm, color: selected ? p.on(C.dialSleep) : p.line),
         ]),
       ),
     );

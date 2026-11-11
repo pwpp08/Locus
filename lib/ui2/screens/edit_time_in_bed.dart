@@ -68,11 +68,10 @@ class _EditTimeInBedSheetState extends State<EditTimeInBedSheet> {
 
   Future<void> _pickDate(bool bed) async {
     final at = bed ? _start : _end;
-    final d = await showDatePicker(
-      context: context,
-      initialDate: at,
-      firstDate: DateTime(at.year - 1),
-      lastDate: DateTime.now(),
+    final d = await pickDate(context,
+      initial: at,
+      first: DateTime(at.year - 1),
+      last: DateTime.now(),
     );
     if (d == null || !mounted) return;
     final next = DateTime(d.year, d.month, d.day, at.hour, at.minute);

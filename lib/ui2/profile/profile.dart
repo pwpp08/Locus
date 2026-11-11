@@ -41,16 +41,46 @@ import 'settings.dart';
 
 // ══════════════════ shared list furniture ══════════════════
 
-/// One row in a settings list. Shared by all three profile screens.
+/// The ground of a More-tab and settings card: lit from the top left, like
+/// the reference's cards. No border, no shadow.
+BoxDecoration moreCard(P p) => BoxDecoration(
+      borderRadius: R.rXl,
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color.alphaBlend(p.ink.withValues(alpha: .05), p.card),
+          p.card,
+        ],
+      ),
+    );
+
+/// The name of a row in a settings card: spaced caps, as on the More tab.
+TextStyle setRowTitle(P p) => F.cap
+    .copyWith(color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.5);
+
+/// One row in a settings list: the same anatomy as a [MoreRow] (an outline
+/// glyph, the name in spaced caps) with room for a line under the name and,
+/// on the right, a value, a switch or the chevron that says the row is a door.
 class SetRow extends StatelessWidget {
   final IconData? icon;
+
+  /// Kept so existing call sites compile; rows are not tinted by domain.
   final Color color;
   final String title, sub, value;
   final bool danger, chevron;
   final VoidCallback? onTap;
 
-  /// Replaces the value and chevron (e.g. a [Switch]).
+  /// Replaces the value and chevron.
   final Widget? trailing;
+
+  /// An on/off row: a switch on the right that does what tapping the row
+  /// does ([onTap]).
+  final bool? switchValue;
+
+  /// The title as written, not in caps: a file name or an id, whose case is
+  /// part of it.
+  final bool keepCase;
 
   /// A brand mark in place of [icon] — Lucide has no GitHub/Discord/Reddit
   /// logo, and a generic glyph standing in for one of those is worse than
@@ -67,6 +97,8 @@ class SetRow extends StatelessWidget {
     this.danger = false,
     this.chevron = true,
     this.trailing,
+    this.switchValue,
+    this.keepCase = false,
     this.onTap,
   }) : glyph = null;
 
@@ -80,101 +112,153 @@ class SetRow extends StatelessWidget {
     this.danger = false,
     this.chevron = true,
     this.onTap,
-  }) : icon = null,
-       trailing = null;
+  })  : icon = null,
+        trailing = null,
+        switchValue = null,
+        keepCase = false;
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
+    // A destructive row says so with its glyph, never with red words.
+    final mark = danger ? C.danger : p.ink2;
+    final sw = switchValue;
     return Pressable(
       onTap: onTap,
       semanticLabel: sub.isEmpty ? title : '$title. $sub',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: S.x3),
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              alignment: Alignment.center,
-              // A circle, like every icon chip.
-              decoration: BoxDecoration(
-                color: danger ? p.wash(C.red) : p.card2,
-                shape: BoxShape.circle,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: S.x16 - S.x1),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: S.x3),
+          child: Row(
+            children: [
+              SizedBox(
+                width: I.lg + S.x1,
+                child: Center(
+                  child: glyph != null
+                      ? glyph!(mark)
+                      : Icon(icon, size: I.lg, color: mark),
+                ),
               ),
-              child: glyph != null
-                  ? glyph!(danger ? p.on(C.red) : p.ink)
-                  : Icon(icon, size: I.sm, color: danger ? p.on(C.red) : p.ink),
-            ),
-            const SizedBox(width: S.x3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: F.body.copyWith(color: danger ? p.on(C.red) : p.ink),
-                  ),
-                  if (value.isNotEmpty && bigText(c))
-                    Text(
-                      value,
-                      style: F.cap.copyWith(
-                        color: p.ink3,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  if (sub.isNotEmpty)
-                    Text(sub, style: F.over.copyWith(color: p.ink3)),
-                ],
+              const SizedBox(width: S.x5 - S.x1),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(keepCase ? title : title.toUpperCase(),
+                        style: setRowTitle(p)),
+                    if (value.isNotEmpty && bigText(c))
+                      Text(value, style: F.cap.copyWith(color: p.ink3)),
+                    if (sub.isNotEmpty) ...[
+                      const SizedBox(height: S.half),
+                      Text(sub,
+                          style: F.over.copyWith(color: p.ink3, height: 1.35)),
+                    ],
+                  ],
+                ),
               ),
-            ),
-            // THE ROW RULE (see MetricRow): the title is the only flexible part,
-            // so every value in a settings list ends on one right edge. Two flex
-            // children would split the width by ratio and break that column.
-            // The value moves UNDER the title at accessibility sizes instead —
-            // "2026-08-16 04:12" is arbitrary-length, and at 3.1× it pushed
-            // itself and the chevron off the right of every settings screen.
-            if (trailing != null) ...[const SizedBox(width: S.x2), trailing!],
-            if (trailing == null && value.isNotEmpty && !bigText(c)) ...[
-              const SizedBox(width: S.x2),
-              Text(value, style: F.cap.copyWith(color: p.ink3)),
+              // THE ROW RULE (see MetricRow): the title is the only flexible
+              // part, so every value in a settings list ends on one right edge.
+              // The value moves UNDER the title at accessibility sizes instead.
+              if (trailing != null) ...[const SizedBox(width: S.x2), trailing!],
+              if (trailing == null && sw != null) ...[
+                const SizedBox(width: S.x2),
+                AppSwitch(sw, onTap == null ? null : (_) => onTap!(),
+                    semanticLabel: title),
+              ],
+              if (trailing == null &&
+                  sw == null &&
+                  value.isNotEmpty &&
+                  !bigText(c)) ...[
+                const SizedBox(width: S.x2),
+                Text(value, style: F.cap.copyWith(color: p.ink3)),
+              ],
+              if (trailing == null && sw == null && chevron && !danger) ...[
+                const SizedBox(width: S.x2),
+                Icon(LucideIcons.chevronRight, size: I.md, color: p.ink3),
+              ],
             ],
-            if (trailing == null && chevron && !danger) ...[
-              const SizedBox(width: S.x2),
-              Icon(LucideIcons.chevronRight, size: I.sm, color: p.ink3),
-            ],
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// A titled card of [SetRow]s, hairline-separated. The hairlines start at
-/// the text, not the card edge (grouped lists with inset hairlines).
+/// A setting with a few named choices: the glyph and name as on a [SetRow],
+/// and the choices under them as a [RangeSegments] across the card, so every
+/// option is in sight and the chosen one is lit.
+class SetChoice extends StatelessWidget {
+  final IconData icon;
+  final String title, sub;
+  final List<String> options;
+  final int index;
+  final ValueChanged<int>? onChanged;
+
+  const SetChoice(this.icon, this.title, this.options, this.index,
+      {super.key, this.sub = '', this.onChanged});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    const indent = I.lg + S.x1 + S.x5 - S.x1;
+    return Padding(
+      padding: const EdgeInsets.only(top: S.x4, bottom: S.x3),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          SizedBox(
+            width: I.lg + S.x1,
+            child: Center(child: Icon(icon, size: I.lg, color: p.ink2)),
+          ),
+          const SizedBox(width: S.x5 - S.x1),
+          Expanded(child: Text(title.toUpperCase(), style: setRowTitle(p))),
+        ]),
+        if (sub.isNotEmpty) ...[
+          const SizedBox(height: S.half),
+          Padding(
+            padding: const EdgeInsets.only(left: indent),
+            child: Text(sub,
+                style: F.over.copyWith(color: p.ink3, height: 1.35)),
+          ),
+        ],
+        const SizedBox(height: S.x3),
+        RangeSegments(
+          [for (final o in options) o.toUpperCase()],
+          index,
+          (i) => onChanged?.call(i),
+          width: null,
+        ),
+      ]),
+    );
+  }
+}
+
+/// A titled run of setting cards, one card per row, 12 apart: the same
+/// heading and spacing as the More tab's groups.
 Widget settingsGroup(BuildContext c, String title, List<Widget> rows) {
   final p = P.of(c);
   return Padding(
-    padding: const EdgeInsets.only(top: S.x4),
+    padding: const EdgeInsets.only(top: S.x6),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (title.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.fromLTRB(S.x1, 0, S.x1, S.x2),
-            child: Text(
-              title,
-              style: F.caps.copyWith(color: p.ink3, letterSpacing: 0.5),
-            ),
+            padding: const EdgeInsets.only(left: S.x1, bottom: S.x3),
+            child: Text(title.toUpperCase(),
+                style: F.caps.copyWith(
+                    color: p.ink2,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.6)),
           ),
-        for (var i = 0; i < rows.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: S.x2),
-            child: Surface(
-              pad: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x1),
-              child: rows[i],
-            ),
+        for (var i = 0; i < rows.length; i++) ...[
+          if (i > 0) const SizedBox(height: S.x3),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: S.x4),
+            decoration: moreCard(p),
+            child: rows[i],
           ),
+        ],
       ],
     ),
   );
@@ -196,12 +280,16 @@ class MoreRow extends StatelessWidget {
   final String title, value;
   final VoidCallback? onTap;
 
+  /// An on/off row: an [AppSwitch] on the right that does what tapping the
+  /// row does, as on a [SetRow].
+  final bool? switchValue;
+
   const MoreRow(IconData this.icon, this.title,
-      {super.key, this.badge, this.value = '', this.onTap})
+      {super.key, this.badge, this.value = '', this.switchValue, this.onTap})
       : glyph = null;
 
   const MoreRow.brand(this.glyph, this.title,
-      {super.key, this.badge, this.value = '', this.onTap})
+      {super.key, this.badge, this.value = '', this.switchValue, this.onTap})
       : icon = null;
 
   @override
@@ -234,18 +322,7 @@ class MoreRow extends StatelessWidget {
       child: Container(
         height: S.x16 - S.x1,
         padding: const EdgeInsets.symmetric(horizontal: S.x4),
-        decoration: BoxDecoration(
-          borderRadius: R.rXl,
-          // Lit from the top left, like the reference's cards.
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color.alphaBlend(p.ink.withValues(alpha: .05), p.card),
-              p.card,
-            ],
-          ),
-        ),
+        decoration: moreCard(p),
         child: Row(children: [
           SizedBox(width: I.lg + S.x1, child: Center(child: mark)),
           const SizedBox(width: S.x5 - S.x1),
@@ -256,7 +333,11 @@ class MoreRow extends StatelessWidget {
                 style: F.cap.copyWith(
                     color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
           ),
-          if (value.isNotEmpty) ...[
+          if (switchValue != null) ...[
+            const SizedBox(width: S.x2),
+            AppSwitch(switchValue!, onTap == null ? null : (_) => onTap!(),
+                semanticLabel: title),
+          ] else if (value.isNotEmpty) ...[
             const SizedBox(width: S.x2),
             Text(value, style: F.cap.copyWith(color: p.ink3)),
           ],
@@ -456,7 +537,7 @@ class ProfileAvatar extends StatelessWidget {
   /// in.
   final Color accent;
   final double size;
-  const ProfileAvatar({super.key, this.accent = C.domHome, this.size = S.x12});
+  const ProfileAvatar({super.key, this.accent = C.dialStrain, this.size = S.x12});
 
   @override
   Widget build(BuildContext c) {
@@ -715,9 +796,7 @@ class ProfileHomeView extends StatelessWidget {
               builder: (c, _) {
                 final u = UpdateService.instance;
                 return MoreRow(LucideIcons.refreshCw, 'Check automatically',
-                    value: u.autoCheckEnabled
-                        ? (l?.stateOn ?? 'On')
-                        : (l?.stateOff ?? 'Off'),
+                    switchValue: u.autoCheckEnabled,
                     onTap: () => u.setAutoCheckEnabled(!u.autoCheckEnabled));
               },
             ),

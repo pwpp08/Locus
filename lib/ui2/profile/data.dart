@@ -343,7 +343,7 @@ class _DataScreenState extends State<DataScreen> {
                   const SizedBox(height: S.x5),
                 ],
                 settingsGroup(c, l?.dataExportGroup ?? 'Export', [
-                  SetRow(LucideIcons.fileSpreadsheet, C.green,
+                  SetRow(LucideIcons.fileSpreadsheet, C.optimal,
                       l?.dataExportSpreadsheets ?? 'Export as spreadsheets',
                       // export-provenance: the daily file now carries `source`
                       // and `algo_version` per day, so an imported vendor
@@ -353,17 +353,17 @@ class _DataScreenState extends State<DataScreen> {
                       sub: l?.dataExportSpreadsheetsSub(kCsvExportSets.length) ??
                           '${kCsvExportSets.length} CSV files: daily metrics, workouts, sleep, journal, labs and all you entered. Each day notes its source and scoring version',
                       onTap: _busy ? null : () => _run(_exportCsv)),
-                  SetRow(LucideIcons.heartPulse, C.red,
+                  SetRow(LucideIcons.heartPulse, C.dialStrain,
                       l?.dataExportHeartRate ?? 'Export heart rate, minute by minute',
                       sub: l?.dataExportHeartRateSub ??
                           'One CSV for the days you pick, with a 1-minute average for every recorded minute. Second-by-second data is in the database export',
                       onTap: _busy ? null : () => _run(_exportHeartRate)),
-                  SetRow(LucideIcons.database, C.blue,
+                  SetRow(LucideIcons.database, C.dialStrain,
                       l?.dataExportDatabase ?? 'Export the database',
                       sub: l?.dataExportDatabaseSub ??
                           'One .db file, lossless, and the only format that restores onto another phone. Any SQLite reader can open it, so keep it safe',
                       onTap: _busy ? null : () => _run(_exportDb)),
-                  SetRow(LucideIcons.lock, C.purple,
+                  SetRow(LucideIcons.lock, C.dialStrain,
                       l?.dataExportEncrypted ?? 'Export an encrypted backup',
                       sub: l?.dataExportEncryptedSub ??
                           'The same full copy, locked with a passphrase, for somewhere like iCloud. Forget the passphrase and no one can open the file',
@@ -371,7 +371,7 @@ class _DataScreenState extends State<DataScreen> {
                 ]),
                 const SizedBox(height: S.x5),
                 settingsGroup(c, l?.dataAutoBackupGroup ?? 'Automatic backup', [
-                  SetRow(LucideIcons.calendarClock, C.purple,
+                  SetRow(LucideIcons.calendarClock, C.dialStrain,
                       l?.dataHowOften ?? 'How often',
                       // Unencrypted, and it says so. The encrypted format is
                       // new and its restore path has not yet run green against
@@ -389,7 +389,7 @@ class _DataScreenState extends State<DataScreen> {
                               return ('', false);
                             })),
                   if (defaultTargetPlatform == TargetPlatform.android)
-                    SetRow(LucideIcons.folder, C.purple,
+                    SetRow(LucideIcons.folder, C.dialStrain,
                         l?.dataBackupFolder ?? 'Backup folder',
                         sub: '$folderLabel\n${l?.dataBackupFolderSub ?? 'Choose where new backups are saved. Existing backups stay where they are'}',
                         onTap: _busy ? null : () => _run(() => _chooseBackupFolder(app))),
@@ -404,19 +404,18 @@ class _DataScreenState extends State<DataScreen> {
                           : _stamp(last),
                       chevron: false),
                   if (backupError != null)
-                    SetRow(LucideIcons.triangleAlert, C.orange,
-                        l?.dataBackupFailed(backupError) ?? 'Backup failed: $backupError',
-                        sub: defaultTargetPlatform == TargetPlatform.android
-                            ? (l?.dataBackupFolderRetry ?? 'Retry with Back up now, or choose another folder')
-                            : (l?.dataBackUpNow ?? 'Back up now'),
+                    SetRow(LucideIcons.triangleAlert, C.strainDown,
+                        'Last backup failed',
+                        sub: '$backupError '
+                            '${defaultTargetPlatform == TargetPlatform.android ? (l?.dataBackupFolderRetry ?? 'Retry with Back up now, or choose another folder') : (l?.dataBackUpNow ?? 'Back up now')}',
                         chevron: false),
-                  SetRow(LucideIcons.hardDriveDownload, C.teal,
+                  SetRow(LucideIcons.hardDriveDownload, C.stressLow,
                       l?.dataBackUpNow ?? 'Back up now',
                       onTap: _busy ? null : () => _run(() => _backupNow(app))),
                 ]),
                 const SizedBox(height: S.x5),
                 settingsGroup(c, l?.dataBringDataInGroup ?? 'Bring data in', [
-                  SetRow(LucideIcons.upload, C.orange,
+                  SetRow(LucideIcons.upload, C.strainDown,
                       l?.dataImportFile ?? 'Import a file',
                       sub: l?.dataImportFileSub ??
                           'A Locus backup, a journal CSV, a raw sensor export or a vendor CSV. Days the band already measured are never overwritten',
@@ -424,7 +423,7 @@ class _DataScreenState extends State<DataScreen> {
                   // Progressive disclosure: two health-store reads, each with
                   // its own consent and its own ceiling, behind one row rather
                   // than two more rows on this screen.
-                  SetRow(LucideIcons.smartphone, C.blue,
+                  SetRow(LucideIcons.smartphone, C.dialStrain,
                       l?.dataFromYourPhone ?? 'From your phone',
                       sub: l?.dataFromYourPhoneSub ??
                           'Resting heart rate, blood pressure, glucose and '
@@ -437,7 +436,7 @@ class _DataScreenState extends State<DataScreen> {
                   // "until Re-analyze data runs" — and nothing in the app ran
                   // it. A flight abroad quietly stopped days updating with no
                   // control anywhere to release them.
-                  SetRow(LucideIcons.refreshCcw, C.blue,
+                  SetRow(LucideIcons.refreshCcw, C.dialStrain,
                       l?.dataReanalyzeEverything ?? 'Re-analyze everything',
                       sub: l?.dataReanalyzeEverythingSub ??
                           'Scores every day again from what is stored. Needed '
@@ -450,7 +449,7 @@ class _DataScreenState extends State<DataScreen> {
                 ]),
                 if (_busy) ...[
                   const SizedBox(height: S.x6),
-                  Center(child: CircularProgressIndicator(color: p.on(C.blue))),
+                  Center(child: CircularProgressIndicator(color: p.on(C.dialStrain))),
                 ],
                 if (_note != null && _note!.isNotEmpty) ...[
                   const SizedBox(height: S.x5),

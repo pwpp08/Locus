@@ -275,11 +275,10 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
 
   Future<void> _pickDate({required bool start}) async {
     final at = start ? _start : _end;
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: at,
-      firstDate: DateTime(2000),
-      lastDate: _now,
+    final picked = await pickDate(context,
+      initial: at,
+      first: DateTime(2000),
+      last: _now,
     );
     if (picked == null || !mounted) return;
     setState(() {
@@ -551,7 +550,7 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
                 const SizedBox(height: S.x5),
                 Text(
                   bad,
-                  style: F.cap.copyWith(color: p.on(C.orange), height: 1.4),
+                  style: F.cap.copyWith(color: p.on(C.strainDown), height: 1.4),
                 ),
               ],
               if (_message != null) ...[

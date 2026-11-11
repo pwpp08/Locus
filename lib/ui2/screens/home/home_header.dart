@@ -74,7 +74,7 @@ Widget? batteryLine(BuildContext c) {
   if (battery == null) return null;
   final (pct, charging) = battery;
   final p = P.of(c);
-  final color = lowBattery(pct, charging) ? p.on(C.red) : p.ink3;
+  final color = lowBattery(pct, charging) ? p.on(C.dialStrain) : p.ink3;
   return Pressable(
     semanticLabel: 'Battery details',
     onTap: () {
@@ -284,7 +284,7 @@ class HomeDeviceStatus extends StatelessWidget {
         if (battery != null) ...[
           Text('${battery.$1.round()}%',
               style: F.n17.copyWith(
-                  color: low ? p.on(C.red) : p.ink, fontWeight: FontWeight.w700)),
+                  color: low ? p.on(C.dialStrain) : p.ink, fontWeight: FontWeight.w700)),
           const SizedBox(width: S.x2),
         ],
         StrapIcon(

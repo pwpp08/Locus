@@ -154,11 +154,10 @@ class _LogWorkoutState extends State<LogWorkout> {
 
   Future<void> _pickDate() async {
     final now = widget.now ?? DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _start,
-      firstDate: DateTime(2000),
-      lastDate: now,
+    final picked = await pickDate(context,
+      initial: _start,
+      first: DateTime(2000),
+      last: now,
     );
     if (picked == null || !mounted) return;
     final span = _end.difference(_start);
@@ -314,25 +313,25 @@ class _LogWorkoutState extends State<LogWorkout> {
                         value: _activity.displayName(c),
                         onTap: _pickActivity,
                       ),
-                  SetRow(LucideIcons.calendar, C.blue,
+                  SetRow(LucideIcons.calendar, C.dialStrain,
                       l?.logWorkoutDateLabel ?? 'Date',
                       value: dayLabel(_start, now: widget.now, l: l),
                       onTap: _pickDate),
-                  SetRow(LucideIcons.play, C.green,
+                  SetRow(LucideIcons.play, C.optimal,
                       l?.logWorkoutStartedLabel ?? 'Started',
                       value:
                           formatMinuteOfDay(_start.hour * 60 + _start.minute),
                       onTap: () => _pickTime(isStart: true)),
-                  SetRow(LucideIcons.square, C.orange,
+                  SetRow(LucideIcons.square, C.strainDown,
                       l?.logWorkoutEndedLabel ?? 'Ended',
                       value: formatMinuteOfDay(_end.hour * 60 + _end.minute),
                       sub: _end.day != _start.day
                           ? (l?.logWorkoutNextMorningSub ?? 'the next morning')
                           : '',
                       onTap: () => _pickTime(isStart: false)),
-                  SetRow(LucideIcons.timer, C.purple,
+                  SetRow(LucideIcons.timer, C.dialStrain,
                       l?.logWorkoutLengthLabel ?? 'Length',
-                      value: mins > 0 ? '$mins min' : '—',
+                      value: mins > 0 ? '$mins min' : '--',
                       chevron: false),
                 ]),
                 const SizedBox(height: S.x4),

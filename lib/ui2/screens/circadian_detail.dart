@@ -363,13 +363,13 @@ class _CircadianDetailState extends State<CircadianDetail> {
               xLabels: d.labels.isEmpty
                   ? const []
                   : [d.labels.first, d.labels.last],
-              legend: [(l?.circadianDetailAsleep ?? 'Asleep', C.indigo)],
+              legend: [(l?.circadianDetailAsleep ?? 'Asleep', C.dialSleep)],
               footnote: l?.circadianDetailSleepFootnote(drawn) ??
                   '$drawn night${drawn == 1 ? '' : 's'}, one column each, '
                       'darker where more of that hour was asleep.',
               child: CustomPaint(
                 size: Size.infinite,
-                painter: Actogram(d.actogram, p.on(C.indigo)),
+                painter: Actogram(d.actogram, p.on(C.dialSleep)),
               ),
             ),
           ),

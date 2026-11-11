@@ -31,7 +31,7 @@ void main() {
     test('black on white is 21:1, a colour on itself is 1:1', () {
       expect(P.contrast(const Color(0xFF000000), const Color(0xFFFFFFFF)),
           closeTo(21, 0.01));
-      expect(P.contrast(C.blue, C.blue), closeTo(1, 0.001));
+      expect(P.contrast(C.dialStrain, C.dialStrain), closeTo(1, 0.001));
     });
   });
 
@@ -162,7 +162,7 @@ void main() {
     test('a wash cannot be turned up past a wash', () {
       // `wash(teal, strength: 1.6)` existed, and `ink3` on it measured 2.99:1.
       for (final p in themes.values) {
-        expect(p.wash(C.teal, strength: 4).a, p.wash(C.teal).a);
+        expect(p.wash(C.stressLow, strength: 4).a, p.wash(C.stressLow).a);
       }
     });
   });
@@ -172,7 +172,7 @@ void main() {
   // The sweep above covers `p.on` and `p.fill`, which is every label and every
   // button — and none of the marks. A chart line's colour IS its information,
   // so it needs the floor as much as text does, and the two palettes the
-  // painters own were spending raw pigment: `C.sky` measured 1.67:1 on a white
+  // painters own were spending raw pigment: `C.dialStrain` measured 1.67:1 on a white
   // card, which made the Light lane — most of a night — very nearly invisible.
   group('a mark is measured like a label', () {
     themes.forEach((name, p) {
@@ -228,18 +228,18 @@ void main() {
     // pass on whichever accents happen to be dark enough. Pin the specific
     // failure it exists to prevent.
     const p = P(false);
-    expect(P.contrast(C.green, p.card), lessThan(_aa),
+    expect(P.contrast(C.optimal, p.card), lessThan(_aa),
         reason: 'raw green on white is 2.28:1 — that is the bug');
-    expect(P.contrast(p.on(C.green), p.card), greaterThanOrEqualTo(_aa));
+    expect(P.contrast(p.on(C.optimal), p.card), greaterThanOrEqualTo(_aa));
     // …and that the fix is a nudge, not a repaint: it must still read green.
-    expect(p.on(C.green).g, greaterThan(p.on(C.green).b));
-    expect(p.on(C.green).g, greaterThan(p.on(C.green).r));
+    expect(p.on(C.optimal).g, greaterThan(p.on(C.optimal).b));
+    expect(p.on(C.optimal).g, greaterThan(p.on(C.optimal).r));
   });
 
   test('solving is memoised — a repaint is not a search', () {
     const p = P(true);
-    final first = p.on(C.purple);
-    expect(identical(p.on(C.purple), first) || p.on(C.purple) == first, isTrue);
+    final first = p.on(C.dialStrain);
+    expect(identical(p.on(C.dialStrain), first) || p.on(C.dialStrain) == first, isTrue);
   });
 
   group('reduced motion collapses every duration', () {

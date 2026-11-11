@@ -29,7 +29,7 @@ Future<void> openActionSheet(BuildContext c) {
       return Column(mainAxisSize: MainAxisSize.min, children: [
         _ActionRow(
           LucideIcons.scale,
-          C.green,
+          C.optimal,
           'Log weight',
           'Keep your profile weight current for calorie accuracy',
           () => then(() => LogWeightSheet.show(c)),

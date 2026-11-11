@@ -44,10 +44,10 @@ void main() {
     _tallPhone(tester);
     await tester.pumpWidget(_wrap(
         const MoreSettingsView(version: '0.9.26 (57)', devMode: false)));
-    expect(find.text('Component gallery'), findsNothing);
-    expect(find.text('Developer'), findsNothing);
+    expect(find.text('COMPONENT GALLERY'), findsNothing);
+    expect(find.text('DEVELOPER'), findsNothing);
     // …and the row that reveals it says nothing about what it does.
-    expect(find.text('Version'), findsOneWidget);
+    expect(find.text('VERSION'), findsOneWidget);
   });
 
   testWidgets('and offers one once it is', (tester) async {
@@ -58,9 +58,9 @@ void main() {
       devMode: true,
       onGallery: () => opened = true,
     )));
-    expect(find.text('Developer'), findsOneWidget);
-    await tester.ensureVisible(find.text('Component gallery'));
-    await tester.tap(find.text('Component gallery'));
+    expect(find.text('DEVELOPER'), findsOneWidget);
+    await tester.ensureVisible(find.text('COMPONENT GALLERY'));
+    await tester.tap(find.text('COMPONENT GALLERY'));
     expect(opened, isTrue);
   });
 
@@ -85,7 +85,7 @@ void main() {
     _tallPhone(tester);
     await tester.pumpWidget(_wrap(const GalleryScreen()));
     await tester.pump();
-    expect(find.text('Running'), findsWidgets);
+    expect(find.text('RUNNING'), findsWidgets);
     expect(gallerySessions, hasLength(Arch.values.length),
         reason: 'One hand-written session per archetype, or one is missing.');
     expect(flowActivities.length, greaterThan(60),
@@ -177,7 +177,7 @@ void main() {
       await tester.pumpWidget(_wrap(ShareSheet(flowFixture(a))));
       await tester.pump();
       expect(tester.takeException(), isNull);
-      expect(find.text('Add a photo'), findsOneWidget, reason: a.name);
+      expect(find.text('ADD A PHOTO'), findsOneWidget, reason: a.name);
       // By type, not by text — 'Share' is also the screen's own title.
       expect(find.byType(BigButton), findsOneWidget, reason: a.name);
       // The two questions this screen used to ask and no longer does.

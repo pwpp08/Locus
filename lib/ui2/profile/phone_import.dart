@@ -232,7 +232,7 @@ class _PhoneImportState extends State<PhoneImport> {
                           BigButton(
                             l?.phoneImportReadRhr ?? 'Read resting heart rate',
                             icon: LucideIcons.heartPulse,
-                            color: C.blue,
+                            color: C.dialStrain,
                             soft: true,
                             onTap: _busy ? null : () => _run(_seedRhr),
                           ),
@@ -244,7 +244,7 @@ class _PhoneImportState extends State<PhoneImport> {
                     const SizedBox(height: S.x3),
                     MetricRow(
                       LucideIcons.heartPulse,
-                      C.blue,
+                      C.dialStrain,
                       l?.phoneImportWhatPhoneSays ?? 'What your phone says',
                       '${seed.baseline.round()}',
                       unit: 'bpm',
@@ -324,7 +324,7 @@ class _PhoneImportState extends State<PhoneImport> {
                             l?.phoneImportReadFrom(storeName) ??
                                 'Read from $storeName',
                             icon: LucideIcons.stethoscope,
-                            color: C.teal,
+                            color: C.stressLow,
                             soft: true,
                             onTap: _busy ? null : () => _run(_syncMeasurements),
                           ),
@@ -337,7 +337,7 @@ class _PhoneImportState extends State<PhoneImport> {
                       const SizedBox(height: S.x3),
                       MetricRow(
                         LucideIcons.clipboardList,
-                        C.teal,
+                        C.stressLow,
                         labels[kind]!,
                         _formatValue(row['value']),
                         unit: '${row['unit'] ?? ''}',
@@ -359,7 +359,7 @@ class _PhoneImportState extends State<PhoneImport> {
                   if (_busy) ...[
                     const SizedBox(height: S.x6),
                     Center(
-                      child: CircularProgressIndicator(color: p.on(C.blue)),
+                      child: CircularProgressIndicator(color: p.on(C.dialStrain)),
                     ),
                   ],
                   if (_note != null && _note!.isNotEmpty) ...[

@@ -4114,11 +4114,10 @@ class _LabFormState extends State<_LabForm> {
         ),
         const SizedBox(height: S.x3),
         TextAction('Taken on $_day', () async {
-          final d = await showDatePicker(
-            context: c,
-            initialDate: DateTime.parse(_day),
-            firstDate: DateTime(2000),
-            lastDate: DateTime.now(),
+          final d = await pickDate(c,
+            initial: DateTime.parse(_day),
+            first: DateTime(2000),
+            last: DateTime.now(),
           );
           if (d != null) setState(() => _day = dayLabelOf(d));
         }),

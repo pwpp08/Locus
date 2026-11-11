@@ -670,7 +670,7 @@ class _StrapPaint extends CustomPainter {
 /// transfer under way. Fills its box.
 class SyncArrowMark extends StatelessWidget {
   final Color color;
-  const SyncArrowMark({super.key, this.color = C.orange});
+  const SyncArrowMark({super.key, this.color = C.strainDown});
 
   @override
   Widget build(BuildContext c) => ExcludeSemantics(

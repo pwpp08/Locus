@@ -285,7 +285,7 @@ void _graphTests() {
         ],
       ));
       expect(g.rest, hasLength(2));
-      expect(g.rest.map((r) => r.$3).toSet(), {C.blue});
+      expect(g.rest.map((r) => r.$3).toSet(), {C.dialStrain});
       expect(g.work, isEmpty);
     });
 
@@ -301,7 +301,7 @@ void _graphTests() {
         {'start_ts': _gAt(18), 'end_ts': _gAt(18, 45), 'type': 'running'},
         {'start_ts': _gAt(20), 'end_ts': _gAt(20, 30), 'type': 'yoga'},
       ]));
-      expect(g.work, [(1080, 1125, C.orange), (1200, 1230, C.orange)]);
+      expect(g.work, [(1080, 1125, C.strainDown), (1200, 1230, C.strainDown)]);
     });
 
     test('a zero-length or backwards span is not a lane', () {

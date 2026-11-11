@@ -266,7 +266,7 @@ class _AiNotesState extends State<_AiNotes> {
                 const SizedBox(height: S.x2),
                 Text(
                   'Unmatched: ${_missed.join(', ')}',
-                  style: F.cap.copyWith(color: C.orange),
+                  style: F.cap.copyWith(color: C.strainDown),
                 ),
               ],
               const SizedBox(height: S.x4),

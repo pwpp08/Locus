@@ -62,8 +62,8 @@ void main() {
             (call) async => null,
           );
       final app = await pump(t);
-      expect(find.text('Backup folder'), findsOneWidget);
-      await t.tap(find.text('Backup folder'));
+      expect(find.text('BACKUP FOLDER'), findsOneWidget);
+      await t.tap(find.text('BACKUP FOLDER'));
       await t.pumpAndSettle();
       expect(app.backupFolder, isNull);
       expect(app.backupCadence, BackupCadence.off);
@@ -85,14 +85,14 @@ void main() {
             };
           });
       final app = await pump(t);
-      await t.tap(find.text('Backup folder'));
+      await t.tap(find.text('BACKUP FOLDER'));
       await t.pumpAndSettle();
       expect(app.backupFolder?.name, 'Personal health backups');
       expect(app.backupCadence, BackupCadence.off);
       expect(app.lastBackupAt, isNull);
       expect(calls, ['pick']);
-      expect(find.text('Use default folder'), findsOneWidget);
-      await t.tap(find.text('Use default folder'));
+      expect(find.text('USE DEFAULT FOLDER'), findsOneWidget);
+      await t.tap(find.text('USE DEFAULT FOLDER'));
       await t.pumpAndSettle();
       expect(app.backupFolder, isNull);
       expect(app.backupCadence, BackupCadence.off);
@@ -115,7 +115,7 @@ void main() {
             );
           });
       final app = await pump(t);
-      await t.tap(find.text('Backup folder'));
+      await t.tap(find.text('BACKUP FOLDER'));
       await t.pumpAndSettle();
       expect(app.backupFolder?.name, 'Backups');
       expect(find.textContaining('No folder picker'), findsOneWidget);
@@ -129,11 +129,15 @@ void main() {
       await prefs.setString(Prefs.backupLastError, 'Choose the folder again.');
       await pump(t);
       expect(
-        find.text('Backup failed: Choose the folder again.'),
+        find.text('LAST BACKUP FAILED'),
         findsOneWidget,
       );
-      expect(find.text('Back up now'), findsOneWidget);
-      expect(find.text('Backup folder'), findsOneWidget);
+      expect(
+        find.textContaining('Choose the folder again.'),
+        findsOneWidget,
+      );
+      expect(find.text('BACK UP NOW'), findsOneWidget);
+      expect(find.text('BACKUP FOLDER'), findsOneWidget);
     },
     variant: TargetPlatformVariant.only(TargetPlatform.android),
   );
@@ -162,9 +166,9 @@ void main() {
     'iOS keeps the existing backup controls without an Android picker',
     (t) async {
       await pump(t);
-      expect(find.text('Backup folder'), findsNothing);
-      expect(find.text('Back up now'), findsOneWidget);
-      expect(find.text('How often'), findsOneWidget);
+      expect(find.text('BACKUP FOLDER'), findsNothing);
+      expect(find.text('BACK UP NOW'), findsOneWidget);
+      expect(find.text('HOW OFTEN'), findsOneWidget);
     },
     variant: TargetPlatformVariant.only(TargetPlatform.iOS),
   );

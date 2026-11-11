@@ -70,7 +70,7 @@ void main() {
 
     testWidgets('no sparkline is drawn beside the number', (t) async {
       await pump(t, const [
-        MetricRow(LucideIcons.activity, C.green, 'HRV', '64',
+        MetricRow(LucideIcons.activity, C.optimal, 'HRV', '64',
             unit: 'ms', series: rising, rising: Rising.good),
       ]);
       expect(find.byType(CustomPaint).evaluate().where((e) {
@@ -83,13 +83,13 @@ void main() {
         (t) async {
       await pump(t, const [
         // Up, and up is good here.
-        MetricRow(LucideIcons.activity, C.green, 'HRV', '64',
+        MetricRow(LucideIcons.activity, C.optimal, 'HRV', '64',
             unit: 'ms', series: rising, rising: Rising.good),
         // Up, and up is bad here — same glyph, different hue.
-        MetricRow(LucideIcons.heart, C.red, 'Resting heart rate', '58',
+        MetricRow(LucideIcons.heart, C.dialStrain, 'Resting heart rate', '58',
             unit: 'bpm', series: rising, rising: Rising.bad),
         // Down, and down is good here.
-        MetricRow(LucideIcons.brain, C.purple, 'Stress', '31',
+        MetricRow(LucideIcons.brain, C.dialStrain, 'Stress', '31',
             unit: '/100', series: falling, rising: Rising.bad),
       ]);
       final marks = t.widgetList<DeltaTriangle>(find.byType(DeltaTriangle)).toList();
@@ -105,7 +105,7 @@ void main() {
     testWidgets('a metric with no settled better direction gets no hue',
         (t) async {
       final p = await pump(t, const [
-        MetricRow(LucideIcons.thermometer, C.orange, 'Skin temperature', '+0.3',
+        MetricRow(LucideIcons.thermometer, C.strainDown, 'Skin temperature', '+0.3',
             unit: '°', series: rising),
       ]);
       final mark = t.widget<DeltaTriangle>(find.byType(DeltaTriangle));
@@ -115,7 +115,7 @@ void main() {
 
     testWidgets('a move inside the noise is flat and unjudged', (t) async {
       final p = await pump(t, const [
-        MetricRow(LucideIcons.activity, C.green, 'HRV', '50',
+        MetricRow(LucideIcons.activity, C.optimal, 'HRV', '50',
             unit: 'ms', series: steady, rising: Rising.good),
       ]);
       // Steady is a short ink3 dash, not an arrow.
@@ -125,7 +125,7 @@ void main() {
 
     testWidgets('too little history draws nothing and says why', (t) async {
       await pump(t, const [
-        MetricRow(LucideIcons.wind, C.teal, 'Respiratory rate', '14.2',
+        MetricRow(LucideIcons.wind, C.stressLow, 'Respiratory rate', '14.2',
             unit: 'br/min', series: [50, 51, 50], rising: Rising.bad),
       ]);
       expect(find.byType(DeltaTriangle), findsNothing);
@@ -140,7 +140,7 @@ void main() {
 
     testWidgets('the arrow survives large text at 390 pt', (t) async {
       await pump(t, const [
-        MetricRow(LucideIcons.heart, C.red, 'Resting heart rate', '58',
+        MetricRow(LucideIcons.heart, C.dialStrain, 'Resting heart rate', '58',
             sub: 'OVERNIGHT', unit: 'bpm', series: rising, rising: Rising.bad),
       ], textScale: 2.0);
       expect(find.byType(DeltaTriangle), findsOneWidget);

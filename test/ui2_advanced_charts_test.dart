@@ -116,7 +116,7 @@ void main() {
 
   testWidgets('laps read top to bottom in the order they were swum',
       (t) async {
-    await t.pumpWidget(_app(const Scaffold(body: LapRows([60, 52, 58], C.blue))));
+    await t.pumpWidget(_app(const Scaffold(body: LapRows([60, 52, 58], C.dialStrain))));
     final y = [
       for (final n in [1, 2, 3]) t.getTopLeft(find.text('Lap $n')).dy,
     ];
@@ -130,7 +130,7 @@ void main() {
   testWidgets('a lap is read as its number and time, the fastest said aloud',
       (t) async {
     final h = t.ensureSemantics();
-    await t.pumpWidget(_app(const Scaffold(body: LapRows([60, 52, 58], C.blue))));
+    await t.pumpWidget(_app(const Scaffold(body: LapRows([60, 52, 58], C.dialStrain))));
     expect(find.bySemanticsLabel(RegExp(r'^Lap 2\s+00:52, fastest$')),
         findsOneWidget);
     expect(find.bySemanticsLabel(RegExp(r'^Lap 1\s+01:00$')), findsOneWidget);

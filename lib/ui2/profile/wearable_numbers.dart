@@ -417,8 +417,8 @@ class _OneNumber extends StatelessWidget {
         Row(children: [
           Expanded(
               child: Text(label, style: F.cap.copyWith(color: p.ink2))),
-          if (estimated) Pill(l.wearableEstimated, C.orange),
-          if (provisional) Pill(l.wearableProvisional, C.orange),
+          if (estimated) Pill(l.wearableEstimated, C.strainDown),
+          if (provisional) Pill(l.wearableProvisional, C.strainDown),
         ]),
         const SizedBox(height: S.x1),
         _Value(value),
@@ -467,8 +467,8 @@ class _SideBySide extends StatelessWidget {
         Row(children: [
           Expanded(
               child: Text(label, style: F.cap.copyWith(color: p.ink2))),
-          if (estimated) Pill(l.wearableEstimated, C.orange),
-          if (provisional) Pill(l.wearableProvisional, C.orange),
+          if (estimated) Pill(l.wearableEstimated, C.strainDown),
+          if (provisional) Pill(l.wearableProvisional, C.strainDown),
         ]),
         const SizedBox(height: S.x2),
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -592,11 +592,11 @@ class WearableUnlocks extends StatelessWidget {
         caps[row] == MetricClass.unavailable &&
         column[row]!.reason == Why.needsStrap;
     final groups = [
-      (l.wearableUnlocksOurs, C.green, (String r) => caps[r] == MetricClass.ours),
-      (l.wearableUnlocksStrap, C.green, withStrap),
-      (l.wearableUnlocksDevice, C.blue,
+      (l.wearableUnlocksOurs, C.optimal, (String r) => caps[r] == MetricClass.ours),
+      (l.wearableUnlocksStrap, C.optimal, withStrap),
+      (l.wearableUnlocksDevice, C.dialStrain,
           (String r) => caps[r] == MetricClass.device),
-      (l.wearableUnlocksEstimated, C.orange,
+      (l.wearableUnlocksEstimated, C.strainDown,
           (String r) => caps[r] == MetricClass.estimated),
       (l.wearableUnlocksNone, C.n500,
           (String r) => caps[r] == MetricClass.unavailable && !withStrap(r)),
@@ -763,22 +763,21 @@ Widget wearableSettingsGroup(BuildContext c) => ListenableBuilder(
         final l = _l(c);
         final d = WearableDisplay.instance;
         return settingsGroup(c, l.wearableSettingsGroup, [
-          SetRow(LucideIcons.columns2, C.indigo, l.wearablePresentationRowTitle,
+          SetRow(LucideIcons.columns2, C.dialSleep, l.wearablePresentationRowTitle,
               sub: l.wearablePresentationRowSub,
               value: d.sideBySide
                   ? l.wearablePresentationSideBySide
                   : l.wearablePresentationOneNumber,
               chevron: false,
               onTap: () => d.setSideBySide(!d.sideBySide)),
-          SetRow(LucideIcons.circleDashed, C.orange, l.wearableEstimatesRowTitle,
+          SetRow(LucideIcons.circleDashed, C.strainDown, l.wearableEstimatesRowTitle,
               sub: l.wearableEstimatesRowSub,
-              value: d.showEstimates ? l.stateOn : l.stateOff,
-              chevron: false,
+              switchValue: d.showEstimates,
               onTap: () => d.setShowEstimates(!d.showEstimates)),
           // Rule R6: each wearable/sensor is off until a developer turns it
           // on here. On a wearable this also makes it the active one.
           for (final w in d.devices)
-            SetRow(LucideIcons.watch, C.green, w.label,
+            SetRow(LucideIcons.watch, C.optimal, w.label,
                 sub: l.wearableFlagRowSub,
                 value: w.active && w.on
                     ? l.wearableFlagActive
@@ -869,7 +868,7 @@ class _DeviceUseSwitchState extends State<DeviceUseSwitch> {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(title, style: F.body.copyWith(color: p.ink)),
-                        Pill(l.deviceUseBeta, C.orange),
+                        Pill(l.deviceUseBeta, C.strainDown),
                       ]),
                   const SizedBox(height: S.x1),
                   Text(d.busy ? l.deviceUseWorking : l.deviceUseBetaSub,

@@ -311,10 +311,10 @@ class AlarmScreenView extends StatefulWidget {
   }
 
   static Color _stateColor(AlarmArmState s) => switch (s) {
-        AlarmArmState.confirmed => C.green,
-        AlarmArmState.pending => C.blue,
-        AlarmArmState.unknown => C.orange,
-        AlarmArmState.none => C.blue,
+        AlarmArmState.confirmed => C.optimal,
+        AlarmArmState.pending => C.dialStrain,
+        AlarmArmState.unknown => C.strainDown,
+        AlarmArmState.none => C.dialStrain,
       };
 
   static IconData _stateIcon(AlarmArmState s) => switch (s) {
@@ -890,7 +890,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                   child: Pill(
                       l?.alarmFiredAt(AlarmScreenView._hhmm(fired)) ??
                           'Fired at ${AlarmScreenView._hhmm(fired)}',
-                      C.green,
+                      C.optimal,
                       icon: LucideIcons.alarmClockCheck),
                 ),
                 const SizedBox(height: S.x6),
@@ -928,7 +928,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                     height: S.x6 + S.x1,
                     alignment: Alignment.center,
                     decoration:
-                        const BoxDecoration(color: C.orange, shape: BoxShape.circle),
+                        const BoxDecoration(color: C.strainDown, shape: BoxShape.circle),
                     child: Text('!',
                         style: F.body.copyWith(
                             color: C.char, fontWeight: FontWeight.w900, height: 1)),
@@ -936,7 +936,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                   const SizedBox(width: S.x3),
                   Text('You have unscheduled days',
                       style: F.body.copyWith(
-                          color: C.orange, fontWeight: FontWeight.w500)),
+                          color: C.strainDown, fontWeight: FontWeight.w500)),
                 ]),
                 const SizedBox(height: S.x5),
                 Padding(
@@ -1021,7 +1021,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                   BigButton(
                     l?.alarmTestTheBuzz ?? 'Test the buzz',
                     icon: LucideIcons.vibrate,
-                    color: C.blue,
+                    color: C.dialStrain,
                     soft: true,
                     onTap: () => _runAction(c, widget.onTest,
                         l?.alarmBuzzingTheBand ?? 'Buzzing the band'),
@@ -1032,7 +1032,7 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                   BigButton(
                     l?.alarmCancelTheAlarm ?? 'Cancel the alarm',
                     icon: LucideIcons.bellOff,
-                    color: C.red,
+                    color: C.dialStrain,
                     soft: true,
                     onTap: () => _runAction(c, widget.onCancel,
                         l?.alarmCancelled ?? 'Alarm cancelled'),

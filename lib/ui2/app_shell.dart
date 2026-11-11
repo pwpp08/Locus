@@ -36,10 +36,10 @@ import 'theme.dart';
 /// The four destinations. The order is stored (a tab's index): the bar's own
 /// order is [kDefaultTabs].
 enum ShellDomain {
-  today('Home', LucideIcons.house, C.domHome),
-  strength('Strength', LucideIcons.dumbbell, C.domMove),
-  health('Health', LucideIcons.heartPulse, C.domHealth),
-  more('More', LucideIcons.menu, C.domMind);
+  today('Home', LucideIcons.house, C.dialStrain),
+  strength('Strength', LucideIcons.dumbbell, C.dialStrain),
+  health('Health', LucideIcons.heartPulse, C.dialStrain),
+  more('More', LucideIcons.menu, C.stressLow);
 
   const ShellDomain(this.label, this.icon, this.accent);
 

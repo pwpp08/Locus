@@ -1502,7 +1502,7 @@ class _WeightTrendState extends State<_WeightTrend> {
                   size: Size.infinite,
                   painter: LineChart(
                     vals,
-                    p.on(C.blue),
+                    p.on(C.dialStrain),
                     fill: false,
                     t: animate(c, 1),
                     axis: axis,

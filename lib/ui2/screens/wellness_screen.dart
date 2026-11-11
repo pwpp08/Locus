@@ -327,7 +327,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
                   'You are ${_hm(debtH * 60)} down against your own need, and '
                       'tonight\'s is ${_hm(needSec / 60)}.',
               l?.wellnessSeeWhatLastNightCost ?? 'See what last night cost you',
-              color: C.indigo,
+              color: C.dialSleep,
               onTap: () => Navigator.of(c).push(
                 MaterialPageRoute<void>(builder: (_) => const SleepDetail()),
               ),
@@ -369,7 +369,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
                     children: [
                       MetricRow(
                         LucideIcons.bedDouble,
-                        C.blue,
+                        C.dialStrain,
                         l?.wellnessTonightsNeed ?? 'Tonight\'s need',
                         _hm(needSec / 60),
                       ),
@@ -378,14 +378,14 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
                       if (debtH != null)
                         MetricRow(
                           LucideIcons.trendingDown,
-                          C.orange,
+                          C.strainDown,
                           l?.wellnessSleepDebt ?? 'Sleep debt',
                           _hm(debtH * 60),
                         ),
                       if (strainMin != null)
                         MetricRow(
                           LucideIcons.flame,
-                          C.purple,
+                          C.dialStrain,
                           l?.wellnessAddedForStrain ?? 'Added for strain',
                           '${strainMin.round()}',
                           unit: 'min',
@@ -393,7 +393,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
                       if (napMin != null)
                         MetricRow(
                           LucideIcons.sun,
-                          C.yellow,
+                          C.recYellow,
                           l?.wellnessCreditedFromNaps ?? 'Credited from naps',
                           '${napMin.round()}',
                           unit: 'min',
@@ -401,14 +401,14 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
                       if (bedMin != null)
                         MetricRow(
                           LucideIcons.moon,
-                          C.indigo,
+                          C.dialSleep,
                           l?.wellnessTargetBedtime ?? 'Target bedtime',
                           formatMinuteOfDay(bedMin.round()),
                         ),
                       if (wakeMin != null)
                         MetricRow(
                           LucideIcons.sunrise,
-                          C.orange,
+                          C.strainDown,
                           l?.wellnessTargetWake ?? 'Target wake',
                           formatMinuteOfDay(wakeMin.round()),
                         ),
@@ -433,7 +433,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
           _journalSubtitle(l),
           l?.wellnessOpen ?? 'Open',
           LucideIcons.notebookPen,
-          C.blue,
+          C.dialStrain,
           onTap: () async {
             await Navigator.of(c).push(
               MaterialPageRoute<void>(builder: (_) => const JournalCompose()),
@@ -498,7 +498,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
                     _habitDaysDone(h.key),
                     _habitDays,
                     l?.wellnessDaysYouDidIt ?? 'Days you did it',
-                    C.domMind,
+                    C.stressLow,
                   ),
                 ],
               ),
@@ -508,7 +508,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
         BigButton(
           l?.wellnessAddAHabit ?? 'Add a habit',
           icon: LucideIcons.plus,
-          color: C.domMind,
+          color: C.stressLow,
           soft: true,
           onTap: () => _addHabit(c),
         ),
@@ -523,7 +523,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
               'Dose, habit difference, and the day of the week',
           l?.wellnessOpen ?? 'Open',
           LucideIcons.scatterChart,
-          C.domMind,
+          C.stressLow,
           onTap: () => Navigator.of(c).push(
             MaterialPageRoute<void>(builder: (_) => const JournalFindings()),
           ),
@@ -861,7 +861,7 @@ Future<MedSchedule?> pickMedSchedule(
               const SizedBox(height: S.x4),
               BigButton(
                 l?.actionSave ?? 'Save',
-                color: C.domMind,
+                color: C.stressLow,
                 onTap: picked.isEmpty
                     ? null
                     : () => Navigator.of(sheet).pop(
@@ -971,11 +971,11 @@ class _Check extends StatelessWidget {
       height: 28,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: on ? p.fill(C.green) : p.ink.withValues(alpha: .09),
+        color: on ? p.fill(C.optimal) : p.ink.withValues(alpha: .09),
       ),
       child: on
           ? Icon(LucideIcons.check,
-              size: I.sm, color: p.inkOn(p.fill(C.green)))
+              size: I.sm, color: p.inkOn(p.fill(C.optimal)))
           : const SizedBox.shrink(),
     );
     if (onTap == null) return box;

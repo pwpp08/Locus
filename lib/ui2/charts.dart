@@ -626,6 +626,9 @@ class Ring extends CustomPainter {
   final Color? bandColor, tickColor;
   final double? tick;
 
+  /// The tick's width, as a share of [stroke].
+  final double tickWidth;
+
   Ring(this.v, this.color, this.track,
       {this.stroke = 10,
       this.t = 1,
@@ -635,7 +638,8 @@ class Ring extends CustomPainter {
       this.band,
       this.bandColor,
       this.tick,
-      this.tickColor});
+      this.tickColor,
+      this.tickWidth = .16});
 
   @override
   void paint(Canvas cv, Size s) {
@@ -671,7 +675,7 @@ class Ring extends CustomPainter {
         c + Offset(cos(a), sin(a)) * (r + stroke / 2),
         Paint()
           ..color = tickColor ?? color
-          ..strokeWidth = stroke * .16,
+          ..strokeWidth = stroke * tickWidth,
       );
     }
     final sweep = 2 * pi * v.clamp(0, 1) * t.clamp(0, 1);
@@ -845,7 +849,7 @@ class Hypnogram extends CustomPainter {
   final double t;
 
   /// The surface's palette. A painter is the one place in this library that
-  /// used to spend RAW pigment: `C.sky` measures **1.67:1** on a white card, so
+  /// used to spend RAW pigment: `C.dialStrain` measures **1.67:1** on a white card, so
   /// the Light lane — the lane most of a night is spent in — was very nearly
   /// invisible in the light theme. A lane's colour IS the information, so it
   /// goes through the same solver every label does.
@@ -1468,7 +1472,7 @@ class DayLanes extends CustomPainter {
       final v = Bars._columns(
           movement, (s.width / 2.5).floor().clamp(1, movement.length));
       final cw = s.width / v.length;
-      final ink = p.on(C.domMove);
+      final ink = p.on(C.dialStrain);
       final watched = Paint()..color = ink.withValues(alpha: .40);
       for (var i = 0; i < v.length; i++) {
         final m = v[i];

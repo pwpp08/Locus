@@ -1,4 +1,5 @@
-// The Health tab: Locus Age and the Journal, one small switch between them.
+// The Health tab: Locus Age and the Journal, the same segmented switch as
+// every other screen between them.
 
 import 'package:flutter/material.dart';
 
@@ -14,8 +15,12 @@ class HealthTab extends StatefulWidget {
 }
 
 class _HealthTabState extends State<HealthTab> {
-  static const _switchH = S.x10 + S.x1;
-  int _page = 0;
+  static const _switchH = S.tap;
+
+  /// The page last shown, kept while the app runs so coming back to the tab
+  /// lands where you were. A fresh launch opens on Age.
+  static int _last = 0;
+  int _page = _last;
 
   @override
   Widget build(BuildContext c) {
@@ -45,45 +50,14 @@ class _HealthTabState extends State<HealthTab> {
             right: 0,
             height: _switchH,
             child: Center(
-              child: Container(
-                padding: const EdgeInsets.all(S.half),
-                decoration: const BoxDecoration(
-                  color: AC.card,
-                  borderRadius: R.rPill,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _option(c, 'AGE', 0),
-                    _option(c, 'JOURNAL', 1),
-                  ],
-                ),
+              child: RangeSegments(
+                const ['AGE', 'JOURNAL'],
+                _page,
+                (i) => setState(() => _page = _last = i),
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _option(BuildContext c, String label, int page) {
-    final on = _page == page;
-    return Pressable(
-      semanticLabel: label,
-      onTap: () => setState(() => _page = page),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: S.x4,
-          vertical: S.x1 + S.half,
-        ),
-        decoration: BoxDecoration(
-          color: on ? DC.edge : null,
-          borderRadius: R.rPill,
-        ),
-        child: Text(
-          label,
-          style: F.dLabel.copyWith(color: on ? DC.ink : DC.ink3),
-        ),
       ),
     );
   }

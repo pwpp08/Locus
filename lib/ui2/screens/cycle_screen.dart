@@ -377,7 +377,7 @@ class _CycleTabState extends State<CycleTab> with RevisionReload {
               ? (l?.cycleUnitCompleteCycle ?? 'complete cycle')
               : (l?.cycleUnitCompleteCycles ?? 'complete cycles'),
           l?.cycleOpenAction ?? 'Open',
-          C.pink,
+          C.rose,
           onTap: () => Navigator.of(
             c,
           ).push(MaterialPageRoute<void>(builder: (_) => _CycleHistory(d))),
@@ -399,7 +399,7 @@ class _CycleTabState extends State<CycleTab> with RevisionReload {
           pad: const EdgeInsets.symmetric(horizontal: S.x4),
           child: MetricRow(
             LucideIcons.circleDot,
-            C.pink,
+            C.rose,
             l?.cycleWhatAppliesToYou ?? 'What applies to you',
             _reproDisplayLabel(l, d.reproState),
             sub: d.reproState == null
@@ -414,7 +414,7 @@ class _CycleTabState extends State<CycleTab> with RevisionReload {
         BigButton(
           l?.cycleLogPeriodButton ?? 'Log a period start today',
           icon: LucideIcons.calendarPlus,
-          color: C.pink,
+          color: C.rose,
           onTap: _logStart,
         ),
         const SizedBox(height: S.x3),
@@ -445,7 +445,7 @@ class _CycleTabState extends State<CycleTab> with RevisionReload {
                 style: F.over.copyWith(color: p.ink3),
               ),
               const Spacer(),
-              if (d.phase != 'unknown') Pill(_phaseLabel(l, d.phase), C.pink),
+              if (d.phase != 'unknown') Pill(_phaseLabel(l, d.phase), C.rose),
             ],
           ),
           const SizedBox(height: S.x2),
@@ -587,13 +587,13 @@ class _CycleTabState extends State<CycleTab> with RevisionReload {
                       vertical: S.x2,
                     ),
                     decoration: BoxDecoration(
-                      color: on.contains(s) ? p.wash(C.pink) : p.card2,
+                      color: on.contains(s) ? p.wash(C.rose) : p.card2,
                       borderRadius: R.rSm,
                     ),
                     child: Text(
                       _symptomLabel(l, s),
                       style: F.cap.copyWith(
-                        color: on.contains(s) ? p.on(C.pink) : p.ink2,
+                        color: on.contains(s) ? p.on(C.rose) : p.ink2,
                         fontWeight: on.contains(s)
                             ? FontWeight.w600
                             : FontWeight.w500,
@@ -1006,7 +1006,7 @@ class _CycleHistoryState extends State<_CycleHistory> {
         c,
         l?.cycleRestingHeartRate ?? 'Resting heart rate',
         l?.cycleUnitBpm ?? 'bpm',
-        C.pink,
+        C.rose,
         rhr,
         cycleDayNoise(d, 'resting_hr'),
       ),
@@ -1014,7 +1014,7 @@ class _CycleHistoryState extends State<_CycleHistory> {
         c,
         l?.cycleHrvRmssdTitle ?? 'HRV',
         l?.cycleUnitMs ?? 'ms',
-        C.purple,
+        C.dialStrain,
         rmssd,
         cycleDayNoise(d, 'hrv_rmssd'),
       ),
@@ -1297,7 +1297,7 @@ class _CycleHistoryState extends State<_CycleHistory> {
               _short(_ymdOf(starts.last), l),
             ],
             legend: [
-              (l?.cycleLegendYourCycles ?? 'Your cycles', p.on(C.pink)),
+              (l?.cycleLegendYourCycles ?? 'Your cycles', p.on(C.rose)),
               (l?.cycleLegendPublishedRange ?? 'Published range', p.ink3),
             ],
             footnote:
@@ -1314,7 +1314,7 @@ class _CycleHistoryState extends State<_CycleHistory> {
                 CustomPaint(
                   painter: Bars(
                     vals,
-                    p.on(C.pink),
+                    p.on(C.rose),
                     t: animate(c, 1),
                     axis: axis,
                   ),
@@ -1413,7 +1413,7 @@ Widget _currentCycleChart(BuildContext c, CycleData d) {
               size: Size.infinite,
               painter: LineChart(
                 vals,
-                p.on(C.pink),
+                p.on(C.rose),
                 fill: false,
                 t: animate(c, 1),
                 axis: axis,

@@ -703,7 +703,7 @@ void main() {
         yAxis: const AxisSpec(min: 40, max: 80, format: axisInt),
         xLabels: const ['7 days ago', 'Today'],
         footnote: 'Your usual range 52–64 bpm',
-        child: CustomPaint(painter: LineChart(const [52.0, 61.0], C.blue)),
+        child: CustomPaint(painter: LineChart(const [52.0, 61.0], C.dialStrain)),
       )));
 
       expect(find.text('bpm'), findsOneWidget);
@@ -722,7 +722,7 @@ void main() {
         unit: 'per night',
         height: 140,
         yAxis: AxisSpec(min: 0, max: 480, ticks: 3, format: axisHm),
-        child: CustomPaint(painter: Bars(const [420.0], C.blue)),
+        child: CustomPaint(painter: Bars(const [420.0], C.dialStrain)),
       )));
       expect(find.text('8h'), findsOneWidget);
       expect(find.text('4h'), findsOneWidget);
@@ -771,7 +771,7 @@ void main() {
             unit: 'counts',
             height: 100,
             yAxis: spec,
-            child: CustomPaint(painter: Bars(const [120.0], C.purple)),
+            child: CustomPaint(painter: Bars(const [120.0], C.dialStrain)),
           );
 
       await tester.pumpWidget(_host(frame()));
@@ -799,7 +799,7 @@ void main() {
         footnote: 'Your usual range is 52-64 bpm.',
         series: const [52.0, null, 48.0, 61.0],
         child: CustomPaint(
-            painter: LineChart(const [52.0, null, 48.0, 61.0], C.blue)),
+            painter: LineChart(const [52.0, null, 48.0, 61.0], C.dialStrain)),
       )));
 
       final node = tester.getSemantics(find.byType(ChartFrame));
@@ -850,7 +850,7 @@ void main() {
             xLabels: const ['22:30', '02:00', '05:30', '07:10'],
             legend: Hypnogram.legend(P(b == Brightness.dark)),
             footnote: 'Relative to your own 14-night baseline.',
-            child: CustomPaint(painter: LineChart(const [40.0, 90.0], C.teal)),
+            child: CustomPaint(painter: LineChart(const [40.0, 90.0], C.stressLow)),
           ),
           scale: 2,
           b: b,
@@ -864,7 +864,7 @@ void main() {
     testWidgets('with no baseline it passes no judgement', (tester) async {
       final handle = tester.ensureSemantics();
       await tester.pumpWidget(_host(const TrendCard('Resting heart rate', '58',
-          'bpm', 'no baseline', 'first readings', [58.0], C.red,
+          'bpm', 'no baseline', 'first readings', [58.0], C.dialStrain,
           up: true, good: null)));
       final label = tester.getSemantics(find.byType(TrendCard)).label;
       // It used to read "…, worse than usual" off a delta of zero against a
@@ -881,7 +881,7 @@ void main() {
         'good', (tester) async {
       final handle = tester.ensureSemantics();
       await tester.pumpWidget(_host(const TrendCard('HRV', '61', 'ms', '+4',
-          'vs your 28-day average', [57.0, 61.0], C.green,
+          'vs your 28-day average', [57.0, 61.0], C.optimal,
           up: true, good: true)));
       expect(tester.getSemantics(find.byType(TrendCard)).label,
           contains('an improvement'));

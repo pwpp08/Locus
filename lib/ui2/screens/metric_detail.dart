@@ -92,7 +92,7 @@ class MetricSpec {
     required this.chartKey,
     required this.title,
     this.unit = '',
-    this.color = C.blue,
+    this.color = C.dialStrain,
     this.icon = LucideIcons.activity,
     this.higherBetter = true,
     this.suppress,
@@ -108,7 +108,7 @@ const _specs = <String, MetricSpec>{
     chartKey: 'resting_hr',
     title: 'Resting heart rate',
     unit: 'bpm',
-    color: C.red,
+    color: C.dialStrain,
     icon: LucideIcons.heart,
     higherBetter: false,
     method: 'The lowest sustained sleeping heart rate of the night, taken over '
@@ -121,7 +121,7 @@ const _specs = <String, MetricSpec>{
     chartKey: 'hrv',
     title: 'HRV',
     unit: 'ms',
-    color: C.green,
+    color: C.optimal,
     icon: LucideIcons.activity,
     method: 'The mean of RMSSD across every 5-minute window of the detected '
         'sleep session that holds at least 20 clean successive differences. '
@@ -139,7 +139,7 @@ const _specs = <String, MetricSpec>{
   'readiness': MetricSpec(
     chartKey: 'recovery',
     title: 'Recovery',
-    color: C.green,
+    color: C.optimal,
     icon: LucideIcons.batteryCharging,
     // The weights are DATA — `readiness_glassbox` emits one per input and the
     // Readiness screen renders them. Repeating them as prose here meant two
@@ -160,7 +160,7 @@ const _specs = <String, MetricSpec>{
     chartKey: 'resp_rate',
     title: 'Respiratory rate',
     unit: 'br/min',
-    color: C.teal,
+    color: C.stressLow,
     icon: LucideIcons.wind,
     higherBetter: false,
     method: 'Breathing rate recovered from respiratory sinus arrhythmia — the '
@@ -177,7 +177,7 @@ const _specs = <String, MetricSpec>{
     chartKey: 'sleep',
     title: 'Time asleep',
     unit: 'min',
-    color: C.blue,
+    color: C.dialStrain,
     icon: LucideIcons.moon,
     method: 'Total sleep time from the wrist z-angle sleep window, staged by a '
         'combined actigraphy and heart-rate model.',
@@ -188,7 +188,7 @@ const _specs = <String, MetricSpec>{
     chartKey: 'efficiency',
     title: 'Sleep efficiency',
     unit: '%',
-    color: C.blue,
+    color: C.dialStrain,
     icon: LucideIcons.bedDouble,
     method: 'Time asleep as a fraction of time in bed.',
     citation: 'AASM sleep-accounting definitions',
@@ -198,7 +198,7 @@ const _specs = <String, MetricSpec>{
     chartKey: 'deep',
     title: 'Deep sleep',
     unit: 'min',
-    color: C.blue,
+    color: C.dialStrain,
     icon: LucideIcons.moon,
     method: 'A low-confidence overlay: a wrist sensor cannot see slow-wave '
         'activity, so deep sleep here is heart-rate flatness inside NREM.',
@@ -209,7 +209,7 @@ const _specs = <String, MetricSpec>{
     chartKey: 'rem',
     title: 'REM sleep',
     unit: 'min',
-    color: C.teal,
+    color: C.stressLow,
     icon: LucideIcons.moon,
     method: 'Staged from beat-timing variability and movement. A wrist sensor '
         'separates REM from light sleep only approximately.',
@@ -220,7 +220,7 @@ const _specs = <String, MetricSpec>{
     chartKey: 'steps',
     title: 'Steps',
     unit: 'steps',
-    color: C.green,
+    color: C.optimal,
     icon: LucideIcons.footprints,
     method: 'Counted, never modelled. A step count comes from a gait-capable '
         'counter: the band\'s 100 Hz pedometer while it streams, or your '
@@ -242,7 +242,7 @@ const _specs = <String, MetricSpec>{
     chartKey: 'calories',
     title: 'Active energy',
     unit: 'kcal',
-    color: C.orange,
+    color: C.strainDown,
     icon: LucideIcons.flame,
     method: 'Heart-rate-to-energy regression over the waking span, anchored on '
         'your weight, age and sex. An estimate, and sensitive to all three.',
@@ -252,7 +252,7 @@ const _specs = <String, MetricSpec>{
   'strain': MetricSpec(
     chartKey: 'strain',
     title: 'Strain',
-    color: C.purple,
+    color: C.dialStrain,
     icon: LucideIcons.zap,
     method: 'Cardiovascular load over the day, compressed onto a 0–21 scale.',
     citation: 'Banister TRIMP family · log-compressed',
@@ -261,7 +261,7 @@ const _specs = <String, MetricSpec>{
   'trimp': MetricSpec(
     chartKey: 'trimp',
     title: 'Heart effort',
-    color: C.purple,
+    color: C.dialStrain,
     icon: LucideIcons.dumbbell,
     method: 'Training impulse: time in each heart-rate zone, weighted by the '
         'physiological cost of that zone.',
@@ -271,7 +271,7 @@ const _specs = <String, MetricSpec>{
   'stress': MetricSpec(
     chartKey: 'stress',
     title: 'Stress',
-    color: C.purple,
+    color: C.dialStrain,
     icon: LucideIcons.brain,
     higherBetter: false,
     method: 'Baevsky stress index over a resting window: a histogram measure of '
@@ -284,7 +284,7 @@ const _specs = <String, MetricSpec>{
     chartKey: 'dip',
     title: 'Overnight HR dip',
     unit: '%',
-    color: C.indigo,
+    color: C.dialSleep,
     icon: LucideIcons.trendingDown,
     method: 'How far sleeping heart rate falls below the waking average.',
     citation: 'Nocturnal dipping literature; personal baseline',
@@ -294,7 +294,7 @@ const _specs = <String, MetricSpec>{
     chartKey: 'hrr',
     title: 'Heart-rate recovery',
     unit: 'bpm',
-    color: C.red,
+    color: C.dialStrain,
     icon: LucideIcons.heartPulse,
     method: 'The drop in heart rate over the 60 seconds after a bout ends, '
         'averaged across the day\'s bouts.',
@@ -304,7 +304,7 @@ const _specs = <String, MetricSpec>{
   'lf_hf': MetricSpec(
     chartKey: 'lf_hf',
     title: 'LF / HF',
-    color: C.purple,
+    color: C.dialStrain,
     icon: LucideIcons.audioWaveform,
     method: 'The ratio of low- to high-frequency power in beat-interval '
         'variability, from a Lomb–Scargle periodogram (the series is unevenly '
@@ -316,7 +316,7 @@ const _specs = <String, MetricSpec>{
     chartKey: 'hrv_cv',
     title: 'HRV stability',
     unit: '%',
-    color: C.green,
+    color: C.optimal,
     icon: LucideIcons.activity,
     higherBetter: false,
     method: 'Within one night: the standard deviation of the night\'s beat '
@@ -330,7 +330,7 @@ const _specs = <String, MetricSpec>{
   'brv': MetricSpec(
     chartKey: 'brv',
     title: 'Breathing variability',
-    color: C.teal,
+    color: C.stressLow,
     icon: LucideIcons.wind,
     higherBetter: false,
     method: 'Coefficient of variation of per-window respiratory rate across '
@@ -345,7 +345,7 @@ const _specs = <String, MetricSpec>{
     chartKey: 'spo2',
     title: 'Blood oxygen',
     unit: '%',
-    color: C.pink,
+    color: C.rose,
     icon: LucideIcons.droplet,
     higherBetter: true,
     method: 'WHOOP\'s own nightly value, read from the blood oxygen column of '
@@ -359,7 +359,7 @@ const _specs = <String, MetricSpec>{
     chartKey: 'nap_min',
     title: 'Daytime sleep',
     unit: 'min',
-    color: C.indigo,
+    color: C.dialSleep,
     icon: LucideIcons.moon,
     method: 'Minutes of sleep detected OUTSIDE the main night: the same wrist '
         'z-angle window detector the night uses, confirmed by a heart-rate dip. '
@@ -371,7 +371,7 @@ const _specs = <String, MetricSpec>{
     chartKey: 'active_min',
     title: 'Movement minutes',
     unit: 'min',
-    color: C.green,
+    color: C.optimal,
     icon: LucideIcons.activity,
     method: 'Minutes whose acceleration sits above a movement floor. That floor '
         'is pooled from your own recent days once there are enough of them, and '
@@ -384,7 +384,7 @@ const _specs = <String, MetricSpec>{
     chartKey: 'wear',
     title: 'Wear time',
     unit: 'min',
-    color: C.green,
+    color: C.optimal,
     icon: LucideIcons.watch,
     method: 'Minutes with a band record present. The band logs to flash only '
         'while it is on a wrist, so record presence IS wear.',
@@ -396,7 +396,7 @@ const _specs = <String, MetricSpec>{
   'skin_temp': MetricSpec(
     chartKey: 'skin_temp',
     title: 'Skin temperature',
-    color: C.orange,
+    color: C.strainDown,
     icon: LucideIcons.thermometer,
     higherBetter: false,
     suppress: 'A deviation, not a temperature. Imported nights carry different '
@@ -1769,7 +1769,7 @@ class _MetricDetailState extends State<MetricDetail> {
                 Text(
                   _signed(rows[i]['delta'] as num?, rows[i]['unit']?.toString()),
                   style: F.body.copyWith(
-                      color: p.on(rows[i]['helped'] == true ? C.green : C.orange),
+                      color: p.on(rows[i]['helped'] == true ? C.optimal : C.strainDown),
                       fontWeight: FontWeight.w600),
                 ),
               ]),
@@ -2022,13 +2022,12 @@ Future<String?> chooseDay(
   final first = DateTime.parse(sorted.first);
   final last = DateTime.parse(sorted.last);
   final want = DateTime.tryParse(current ?? '') ?? last;
-  final picked = await showDatePicker(
-    context: c,
-    initialDate: want.isBefore(first) ? first : (want.isAfter(last) ? last : want),
-    firstDate: first,
-    lastDate: last,
-    selectableDayPredicate: (d) => have.contains(dayLabelOf(d)),
-    helpText: AppLocalizations.of(c)?.metricDetailChooseDayHelp ?? 'Choose a day',
+  final picked = await pickDate(c,
+    initial: want.isBefore(first) ? first : (want.isAfter(last) ? last : want),
+    first: first,
+    last: last,
+    selectable: (d) => have.contains(dayLabelOf(d)),
+    title: AppLocalizations.of(c)?.metricDetailChooseDayHelp ?? 'Choose a day',
   );
   return picked == null ? null : dayLabelOf(picked);
 }
@@ -2210,7 +2209,7 @@ class MonoTable extends StatelessWidget {
     // A row with nothing behind it is dropped, not dashed. On a workbench an
     // em-dash reads as "we tried and got nothing", which is indistinguishable
     // from "this metric does not apply to this night".
-    final present = [for (final r in rows) if (r.$2 != '—' && r.$2.isNotEmpty) r];
+    final present = [for (final r in rows) if (r.$2 != '—' && r.$2 != '--' && r.$2.isNotEmpty) r];
     if (present.isEmpty) return const SizedBox.shrink();
     return Surface(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

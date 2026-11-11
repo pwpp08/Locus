@@ -1064,7 +1064,7 @@ class _TrendCardState extends State<TrendCard> {
     // With no baseline there is no way and no news — an arrow and a hue would
     // both be inventions, so neither is drawn and the label says nothing about
     // better or worse.
-    final dir = j == null ? p.ink3 : p.on(j ? C.green : C.orange);
+    final dir = j == null ? p.ink3 : p.on(j ? C.optimal : C.strainDown);
     final judgement = band != null
         ? '${usualWord(l, side!)}, $verdictDetail'
         : (j == null
@@ -1097,7 +1097,7 @@ class _TrendCardState extends State<TrendCard> {
     final axis = band?.axis(vals, format: _fmt);
     // Every line metric is drawn in the strain blue, sleep in the sleep blue
     // (DESIGN.md §13).
-    final ink = w.color == C.dialSleep || w.color == C.domSleep
+    final ink = w.color == C.dialSleep || w.color == C.dialSleep
         ? C.dialSleep
         : C.dialStrain;
     Widget plot = Stack(fit: StackFit.expand, children: [
@@ -1236,7 +1236,7 @@ class InsightCard extends StatelessWidget {
     super.key,
     this.action = '',
     this.icon,
-    this.color = C.blue,
+    this.color = C.dialStrain,
     this.onTap,
   });
 
@@ -1493,12 +1493,6 @@ class StatusCard extends StatelessWidget {
   /// and the rest of the card (title, body, fix) is identical either way.
   final Widget? leading;
 
-  /// An illustration above the card's copy, for an EMPTY STATE that is an
-  /// invitation rather than a fault (nothing logged yet, no readings yet).
-  /// Never for a missing measurement: a picture there would dress an absence
-  /// up as content.
-  final Art? art;
-
   const StatusCard(
     this.what,
     this.why, {
@@ -1507,7 +1501,6 @@ class StatusCard extends StatelessWidget {
     this.icon = LucideIcons.circleHelp,
     this.onFix,
     this.leading,
-    this.art,
   });
 
   /// Build straight from an abstention — turns the metric's own note into the
@@ -1581,15 +1574,6 @@ class StatusCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (art != null) ...[
-                ExcludeSemantics(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: art!.image(height: S.x16),
-                  ),
-                ),
-                const SizedBox(height: S.x3),
-              ],
               ExcludeSemantics(
                 child: Row(
                   children: [
@@ -2090,7 +2074,7 @@ class Recommendation extends StatelessWidget {
     this.reason,
     this.action, {
     super.key,
-    this.color = C.green,
+    this.color = C.optimal,
     this.onTap,
   });
 
@@ -2208,7 +2192,7 @@ class Observation extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    final ink = p.on(C.orange);
+    final ink = p.on(C.strainDown);
     return Pressable(
       onTap: onTap,
       semanticLabel:
@@ -2463,7 +2447,7 @@ class SubTabs extends StatefulWidget {
     this.index,
     this.onTap, {
     super.key,
-    this.color = C.green,
+    this.color = C.optimal,
     this.disabled = const {},
   });
 
@@ -2704,7 +2688,7 @@ class BigButton extends StatelessWidget {
     final p = P.of(c);
     final hue = color;
     // The old green default meant "the primary"; it is the ink pill now.
-    final primary = hue == null || hue == C.green || hue == C.volt || hue == C.white;
+    final primary = hue == null || hue == C.optimal || hue == C.volt || hue == C.white;
     final faint = p.ink.withValues(alpha: .09);
     final (Color ground, Color ink) = switch (tone) {
       ButtonTone.inverse => (p.inverse, p.onInverse),

@@ -28,7 +28,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 /// ── COLOUR ────────────────────────────────────────────────────────────────
 ///
@@ -44,7 +43,6 @@ class C {
   /// Signal, not brand. NOT a red any more: red text and red lines on a dark
   /// card were lightened to a salmon pink nobody wanted. Destructive actions
   /// are a solid [danger] fill; the only other red is the recovery dial's.
-  static const coral = dialStrain;
 
   /// Secondary dark chips and inactive controls on cream.
   static const slate = Color(0xFF3A444B);
@@ -78,9 +76,6 @@ class C {
   static const danger = foodRed;
 
   // Former Volt domain hues, now the redesign's.
-  static const sky = dialStrain;
-  static const sage = stressLow;
-  static const aqua = stressLow;
 
   /// The hypnogram's lavender ramp, palest to deepest: awake, REM,
   /// light, deep. `lavender` is the light-sleep step; these are the other
@@ -92,25 +87,8 @@ class C {
 
   /// The bottom of the HR-zone ramp (slate-blue → sky → volt → amber →
   /// coral). The one hue here that is not a domain colour: zone 1 has to sit
-  /// below [sky] without being grey, and nothing else needs it.
+  /// below [dialStrain] without being grey, and nothing else needs it.
   static const blueSoft = Color(0xFF93A9C9);
-
-  // ── the old accent names, kept as aliases ──
-  //
-  // Hundreds of call sites name these, so they stay, but each resolves to a
-  // hue of the redesign palette (DESIGN.md §2.4) by what it was used FOR:
-  // "good" is the optimal green, "low / destructive" the strain blue (heart rate's hue), the
-  // blues are strain and activity, indigo is sleep, calm is the stress-low
-  // blue, a warning is the "worse" orange. No off-palette colour survives.
-  static const green = optimal;
-  static const red = dialStrain;
-  static const blue = dialStrain;
-  static const purple = dialStrain;
-  static const indigo = dialSleep;
-  static const teal = stressLow;
-  static const orange = strainDown;
-  static const yellow = recYellow;
-  static const pink = rose;
 
   /// The route ramp, and only the route ramp.
   ///
@@ -159,16 +137,6 @@ class C {
 
   static const white = Color(0xFFFFFFFF);
 
-  /// What each domain's accent resolves to. The active tab is always volt;
-  /// these are the redesign hues (DESIGN.md §2.4): today, activity and heart
-  /// are the strain blue, sleep the sleep blue, mind the calm stress-low
-  /// blue, food red.
-  static const domHome = dialStrain;
-  static const domSleep = dialSleep;
-  static const domHealth = dialStrain;
-  static const domFood = foodRed;
-  static const domMove = dialStrain;
-  static const domMind = stressLow;
 
   // ── the three dials ── the Home screen's score hues, one per dial. Sleep is
   // a steel blue, strain a saturated blue, and recovery is the traffic light
@@ -235,12 +203,10 @@ class C {
   /// Every accent the contrast test sweeps. Adding a colour above without
   /// adding it here means it ships unverified.
   static const all = <Color>[
-    volt, coral, slate, lavender, sky, rose, sage, amber, foodRed, aqua, blueSoft,
+    volt, slate, lavender, rose, amber, foodRed, blueSoft,
     sleepAwake, sleepRem, sleepDeep,
-    green, blue, purple, orange, red, teal, yellow, pink, indigo,
-    domHome, domSleep, domHealth, domFood, domMove, domMind,
     dialSleep, dialStrain, recGreen, recYellow, recRed, optimal, poor,
-    blockSleep, blockSession,
+    strainDown, stressLow, blockSleep, blockSession,
   ];
 }
 
@@ -1329,55 +1295,6 @@ class I {
   static const hero = 48.0;
 }
 
-/// ── ART ── the bundled imagery slots ───────────────────────────────
-///
-/// The ONLY way a screen names an image: no screen writes an asset path. Files
-/// are SVGs under assets/images/; see DESIGN.md §18. A slot whose
-/// file has not landed yet draws NOTHING — never a broken-image icon — so
-/// code can ship before art does.
-enum Art {
-  // Everything is drawn: flat, hand-cut silhouettes in one cream and one
-  // data hue, as SVG — a few hundred bytes each, sharp at any size, and the
-  // same on every platform. 400 x 400 viewBox, centred.
-  ring('art_ring', 'svg'),
-  watch('art_watch', 'svg'),
-  chestStrap('art_chest_strap', 'svg'),
-  workout('art_workout', 'svg'),
-  wellness('art_wellness', 'svg'),
-  sleep('art_sleep', 'svg'),
-  food('art_food', 'svg'),
-  heart('art_heart', 'svg');
-
-  const Art(this.stem, this.ext);
-  final String stem, ext;
-
-  String get asset => 'assets/images/$stem.$ext';
-
-  /// The picture, or nothing. Decorative unless [semanticLabel] is given, in
-  /// which case a screen reader says it.
-  Widget image({String? semanticLabel, double? height, BoxFit fit = BoxFit.contain}) {
-    if (ext == 'svg') {
-      return SvgPicture.asset(
-        asset,
-        height: height,
-        fit: fit,
-        semanticsLabel: semanticLabel,
-        excludeFromSemantics: semanticLabel == null,
-        // A missing file draws nothing, never an error box.
-        errorBuilder: (_, _, _) => const SizedBox.shrink(),
-      );
-    }
-    return Image.asset(
-      asset,
-      height: height,
-      fit: fit,
-      semanticLabel: semanticLabel,
-      excludeFromSemantics: semanticLabel == null,
-      errorBuilder: (_, _, _) => const SizedBox.shrink(),
-    );
-  }
-}
-
 /// ── EFFECTS ── the numbers behind Glass and the one AuroraTile ─────────────
 class Fx {
   /// Glass blur radius (both axes), under a [P.glass] tint.
@@ -1548,7 +1465,7 @@ ThemeData buildTheme(Brightness b) {
     surfaceContainerLow: p.card,
     outline: p.line,
     outlineVariant: p.line,
-    error: p.on(C.coral),
+    error: p.on(C.dialStrain),
     onError: p.card,
   );
   const sheetTop = BorderRadius.vertical(top: Radius.circular(R.xxl));

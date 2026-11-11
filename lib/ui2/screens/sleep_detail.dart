@@ -501,7 +501,6 @@ class _SleepDetailState extends State<SleepDetail> {
           fix: 'Set one manually',
           onFix: _saving || _loading ? null : () => _addWindow(at),
           icon: LucideIcons.moon,
-          art: Art.sleep,
         ),
         ..._windowStatus(c),
         // A day with no main-sleep window can still have naps.

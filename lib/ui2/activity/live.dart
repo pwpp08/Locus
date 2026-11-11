@@ -705,7 +705,7 @@ class LiveShellState extends State<LiveShell> {
                 ),
               ),
               const SizedBox(width: S.x4),
-              _round(p, LucideIcons.square, p.card2, p.on(C.red),
+              _round(p, LucideIcons.square, p.card2, p.on(C.dialStrain),
                   l?.activityLiveFinishSessionLabel ?? 'Finish session',
                   finish),
             ]),
@@ -908,7 +908,7 @@ class LiveHeart extends StatelessWidget {
             height: S.x16,
             child: CustomPaint(
               size: Size.infinite,
-              painter: LineChart(feed.hrCurve, p.on(C.coral),
+              painter: LineChart(feed.hrCurve, p.on(C.dialStrain),
                   fill: false, dotInk: p.bg),
             ),
           ),
@@ -1169,7 +1169,7 @@ class LiveMeasured extends StatelessWidget {
           // it claimed "GPS ACTIVE" with location denied.
           if (f.gpsActive) ...[
             const SizedBox(height: S.x3),
-            Pill(l?.activityLiveRecordingRoute ?? 'Recording route', C.green,
+            Pill(l?.activityLiveRecordingRoute ?? 'Recording route', C.optimal,
                 icon: LucideIcons.mapPin),
           ] else if (_routeIssueCard(ctx, f.routeIssue, f.onFixRoute)
               case final card?) ...[
@@ -1204,8 +1204,8 @@ class LiveMeasured extends StatelessWidget {
                       painter: RouteMap(f.route,
                           slow: p.on(a.color),
                           fast: p.on(a.color),
-                          pinStart: p.on(C.green),
-                          pinEnd: p.on(C.red),
+                          pinStart: p.on(C.optimal),
+                          pinEnd: p.on(C.dialStrain),
                           pinInk: p.card)),
                 ),
               ),
@@ -1686,7 +1686,7 @@ class _LiveStrengthState extends State<LiveStrength> {
           width: S.x10 + S.x1,
           height: S.x10 + S.x1,
           decoration: BoxDecoration(color: p.card2, shape: BoxShape.circle),
-          child: Icon(LucideIcons.square, size: I.sm, color: p.on(C.red)),
+          child: Icon(LucideIcons.square, size: I.sm, color: p.on(C.dialStrain)),
         ),
       ),
     ]);
@@ -1856,7 +1856,7 @@ class _LiveStrengthState extends State<LiveStrength> {
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   textStyle: F.body.copyWith(fontWeight: FontWeight.w700),
-                  hint: '—',
+                  hint: '--',
                 ),
         );
     return Container(
@@ -1990,21 +1990,21 @@ class _LiveStrengthState extends State<LiveStrength> {
           settingsGroup(sheet, 'Session', [
             // The session lives on [LiveDraft], so leaving the screen puts it
             // away; the bar above the tab bar brings it back.
-            SetRow(LucideIcons.chevronDown, C.blue,
+            SetRow(LucideIcons.chevronDown, C.dialStrain,
                 l?.activityLiveMinimiseLabel ?? 'Minimise',
                 onTap: () => then(() => nav.maybePop())),
           ]),
           if (plan.isNotEmpty)
             settingsGroup(sheet, 'Exercise', [
-              SetRow(LucideIcons.repeat, C.blue, 'Swap exercise',
+              SetRow(LucideIcons.repeat, C.dialStrain, 'Swap exercise',
                   onTap: () => then(changeExercise)),
-              SetRow(LucideIcons.plus, C.blue,
+              SetRow(LucideIcons.plus, C.dialStrain,
                   l?.activityLiveAddExerciseTitle ?? 'Add exercise',
                   onTap: () => then(addExercise)),
               if (plan.length > 1)
-                SetRow(LucideIcons.skipForward, C.blue, 'Skip exercise',
+                SetRow(LucideIcons.skipForward, C.dialStrain, 'Skip exercise',
                     onTap: () => then(skipExercise)),
-              SetRow(LucideIcons.scale, C.blue, 'Log the rest as bodyweight',
+              SetRow(LucideIcons.scale, C.dialStrain, 'Log the rest as bodyweight',
                   onTap: () => then(() {
                         final rows = _rowsFor(key);
                         setState(() {
@@ -2184,13 +2184,13 @@ class _LiveSwimState extends State<LiveSwim> {
                 width: 110,
                 height: 110,
                 decoration: BoxDecoration(
-                    color: p.fill(C.blue), shape: BoxShape.circle),
+                    color: p.fill(C.dialStrain), shape: BoxShape.circle),
                 child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(LucideIcons.plus, size: I.xl, color: p.inkOn(p.fill(C.blue))),
+                      Icon(LucideIcons.plus, size: I.xl, color: p.inkOn(p.fill(C.dialStrain))),
                       Text(l?.activityLiveLapButtonLabel ?? 'LAP',
-                          style: F.over.copyWith(color: p.inkOn(p.fill(C.blue)))),
+                          style: F.over.copyWith(color: p.inkOn(p.fill(C.dialStrain)))),
                     ]),
               ),
             ),
@@ -2219,13 +2219,13 @@ class _LiveSwimState extends State<LiveSwim> {
                           horizontal: S.x3, vertical: S.x2),
                       decoration: BoxDecoration(
                           color:
-                              poolLen == len ? p.wash(C.blue) : p.card2,
+                              poolLen == len ? p.wash(C.dialStrain) : p.card2,
                           borderRadius: R.rSm),
                       child: Text(
                         '$len ${uiText(context, 'm')}',
                           style: F.cap.copyWith(
                               color: poolLen == len
-                                  ? p.on(C.blue)
+                                  ? p.on(C.dialStrain)
                                   : p.ink2)),
                     ),
                   ),
@@ -2245,7 +2245,7 @@ class _LiveSwimState extends State<LiveSwim> {
                         color: p.ink, fontWeight: FontWeight.w600)),
               ),
               const SizedBox(height: S.x3),
-              LapRows(secs, C.blue),
+              LapRows(secs, C.dialStrain),
               const SizedBox(height: S.x3),
               Text(
                   l?.activityLiveLapsFootnote(clock(fastest)) ??
@@ -2389,7 +2389,7 @@ class _LiveFlowState extends State<LiveFlow>
           Container(
             height: 210,
             decoration: BoxDecoration(
-                borderRadius: R.rXl, color: p.wash(C.teal)),
+                borderRadius: R.rXl, color: p.wash(C.stressLow)),
             child: Stack(alignment: Alignment.center, children: [
               AnimatedBuilder(
                 animation: breath,
@@ -2401,18 +2401,18 @@ class _LiveFlowState extends State<LiveFlow>
                     size: const Size(170, 170),
                     painter: BreathRing(
                         animate(ctx, Curves.easeInOut.transform(breath.value)),
-                        p.on(C.teal))),
+                        p.on(C.stressLow))),
               ),
               Column(mainAxisSize: MainAxisSize.min, children: [
                 Icon(LucideIcons.personStanding,
-                    size: I.hero, color: p.on(C.teal)),
+                    size: I.hero, color: p.on(C.stressLow)),
                 const SizedBox(height: S.x2),
                 Text(_poseLabel(ctx, poses[pose]),
                     style: F.t2.copyWith(color: p.ink)),
                 const SizedBox(height: S.x1),
                 Text(l?.activityLiveHoldTime(clock(hold)) ??
                     'Hold · ${clock(hold)}',
-                    style: F.cap.copyWith(color: p.on(C.teal))),
+                    style: F.cap.copyWith(color: p.on(C.stressLow))),
               ]),
             ]),
           ),
@@ -2421,7 +2421,7 @@ class _LiveFlowState extends State<LiveFlow>
             Expanded(
               child: BigButton(l?.activityLivePreviousLabel ?? 'Previous',
                   icon: LucideIcons.chevronLeft,
-                  color: C.teal,
+                  color: C.stressLow,
                   soft: true,
                   onTap: () => _go(pose - 1)),
             ),
@@ -2429,7 +2429,7 @@ class _LiveFlowState extends State<LiveFlow>
             Expanded(
               child: BigButton(l?.activityLiveNextPose ?? 'Next pose',
                   icon: LucideIcons.chevronRight,
-                  color: C.teal,
+                  color: C.stressLow,
                   onTap: () => _go(pose + 1)),
             ),
           ]),
@@ -2443,7 +2443,7 @@ class _LiveFlowState extends State<LiveFlow>
                             right: i == poses.length - 1 ? 0 : 3),
                         height: 5,
                         decoration: BoxDecoration(
-                            color: i <= pose ? p.on(C.teal) : p.track,
+                            color: i <= pose ? p.on(C.stressLow) : p.track,
                             borderRadius: R.rPill),
                       ),
                     )),
@@ -2746,7 +2746,7 @@ class _LiveIntervalState extends State<LiveInterval> {
         final p = P.of(ctx);
         final l = AppLocalizations.of(ctx);
         final f = widget.feed?.call() ?? LiveFeed.none;
-        final col = work ? C.red : C.teal;
+        final col = work ? C.dialStrain : C.stressLow;
         // At least [widget.rounds] the row is drawn for, and more once the
         // session has done more. '/ 8' was a denominator nothing enforced.
         final pips = round > widget.rounds ? round : widget.rounds;
@@ -2798,7 +2798,7 @@ class _LiveIntervalState extends State<LiveInterval> {
                             EdgeInsets.only(right: i == pips - 1 ? 0 : S.x1),
                         height: 6,
                         decoration: BoxDecoration(
-                            color: i < round ? p.on(C.red) : p.track,
+                            color: i < round ? p.on(C.dialStrain) : p.track,
                             borderRadius: R.rPill),
                       ),
                     )),

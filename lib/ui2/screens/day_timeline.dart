@@ -148,7 +148,7 @@ List<Moment> dayMoments({
         title: l?.dayTimelineAsleep ?? 'Asleep',
         detail: '${_span(on, off)} · ${_dur((off - on) / 60, l)}',
         icon: LucideIcons.moon,
-        color: C.blue,
+        color: C.dialStrain,
       ),
     );
   }
@@ -164,7 +164,7 @@ List<Moment> dayMoments({
         title: l?.dayTimelineNap ?? 'Nap',
         detail: '${_span(on, off)} · ${_dur(n['duration_min'] as num?, l)}',
         icon: LucideIcons.bedDouble,
-        color: C.indigo,
+        color: C.dialSleep,
       ),
     );
   }
@@ -191,7 +191,7 @@ List<Moment> dayMoments({
               : type.replaceAll('_', ' ')),
       detail: bits.join(' · '),
       icon: act?.icon ?? LucideIcons.dumbbell,
-      color: act?.color ?? C.orange,
+      color: act?.color ?? C.strainDown,
     ));
   }
 
@@ -233,7 +233,7 @@ List<Moment> dayMoments({
         detail: l?.dayTimelineBpmAt(v.round(), clockOfTs(t)) ??
             '${v.round()} bpm at ${clockOfTs(t)}',
         icon: e.$3,
-        color: C.red,
+        color: C.dialStrain,
       ));
     }
   }
@@ -261,7 +261,7 @@ List<Moment> dayMoments({
       title: d.label,
       detail: l?.dayTimelineTakenAt(clockOfTs(d.at)) ?? 'Taken at ${clockOfTs(d.at)}',
       icon: LucideIcons.pill,
-      color: C.purple,
+      color: C.dialStrain,
     ));
   }
 
@@ -296,7 +296,7 @@ List<Moment> dayMoments({
             '$n${spec == null || spec.unit.isEmpty ? '' : ' ${spec.custom ? spec.unit : localizedText(l, spec.unit)}'} · '
             '${l?.dayTimelineLastAt(clockOfTs(at)) ?? 'last at ${clockOfTs(at)}'}',
         icon: LucideIcons.notebookPen,
-        color: C.domMind,
+        color: C.stressLow,
       ),
     );
   });
@@ -536,9 +536,9 @@ DayGraph dayGraph(Map<String, dynamic> timeline, {List<Object?>? hrOverride}) {
   // for the same fact.
   final rest = <(int, int, Color)>[
     for (final s in (timeline['sleep'] as List?) ?? const [])
-      if (s is Map) ?span(s['onset_ts'], s['wake_ts'], C.blue),
+      if (s is Map) ?span(s['onset_ts'], s['wake_ts'], C.dialStrain),
     for (final s in (timeline['naps'] as List?) ?? const [])
-      if (s is Map) ?span(s['start'], s['end'], C.blue),
+      if (s is Map) ?span(s['start'], s['end'], C.dialStrain),
   ];
   // ONE COLOUR FOR EVERY WORKOUT. The list below draws each activity in its
   // own, which is where that distinction is readable; up here it would be four
@@ -546,7 +546,7 @@ DayGraph dayGraph(Map<String, dynamic> timeline, {List<Object?>? hrOverride}) {
   // swatch that lied about three quarters of the blocks.
   final work = <(int, int, Color)>[
     for (final s in (timeline['sessions'] as List?) ?? const [])
-      if (s is Map) ?span(s['start_ts'], s['end_ts'], C.orange),
+      if (s is Map) ?span(s['start_ts'], s['end_ts'], C.strainDown),
   ];
 
   return DayGraph(
@@ -933,7 +933,7 @@ Widget? dayGraphCard(BuildContext c, DayGraph g,
   if (axis == null && !zoomed) return null;
   final start = g.dayStart;
 
-  final asleep = p.on(C.blue), workout = p.on(C.orange);
+  final asleep = p.on(C.dialStrain), workout = p.on(C.strainDown);
   final gaps = g.unmeasured;
   return Surface(
     child: ChartFrame(
@@ -964,7 +964,7 @@ Widget? dayGraphCard(BuildContext c, DayGraph g,
         if (g.rest.isNotEmpty) (l?.dayTimelineAsleep ?? 'Asleep', asleep),
         if (g.work.isNotEmpty) (l?.dayTimelineWorkout ?? 'Workout', workout),
         if (g.movement.any((v) => v != null))
-          (l?.dayTimelineMoving ?? 'Moving', p.on(C.domMove)),
+          (l?.dayTimelineMoving ?? 'Moving', p.on(C.dialStrain)),
         if (gaps.isNotEmpty) (l?.dayTimelineNotRecorded ?? 'Not recorded', p.card2),
       ],
       series: curve,
@@ -991,7 +991,7 @@ Widget? dayGraphCard(BuildContext c, DayGraph g,
               // No fill under the line: the area would swallow the bands behind
               // it, and the bands are the half of this picture the curve cannot
               // say on its own.
-              painter: LineChart(curve, p.on(C.red), fill: false, axis: axis),
+              painter: LineChart(curve, p.on(C.dialStrain), fill: false, axis: axis),
             ),
           ),
         ],

@@ -128,7 +128,7 @@ class EnergyReserveCard extends StatelessWidget {
             children: [
               tile('CHARGED', '+${data.charged}', C.recGreen),
               const SizedBox(width: S.x3),
-              tile('DRAINED', '-${data.drained}', C.orange),
+              tile('DRAINED', '-${data.drained}', C.strainDown),
             ],
           ),
           if (data.activities.isNotEmpty) ...[
@@ -263,7 +263,7 @@ class _ChartPainter extends CustomPainter {
       canvas.drawCircle(
         Offset(x(a.ts), y(levelAt(a.ts))),
         S.x1,
-        Paint()..color = C.orange,
+        Paint()..color = C.strainDown,
       );
     }
     final end = Offset(x(pts.last.$1), y(pts.last.$2));

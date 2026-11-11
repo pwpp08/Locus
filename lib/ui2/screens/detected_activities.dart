@@ -398,7 +398,7 @@ class _ActivityProposalCardState extends State<ActivityProposalCard> {
                 ),
               ),
               if (widget.highlighted)
-                Icon(LucideIcons.bell, color: p.on(C.domHealth), size: I.md),
+                Icon(LucideIcons.bell, color: p.on(C.dialStrain), size: I.md),
             ],
           ),
           const SizedBox(height: S.x1),
@@ -561,7 +561,7 @@ class _DetectedActivitiesCardState extends State<DetectedActivitiesCard>
               : (l?.activityPending(n) ?? '$n to review'),
           l?.activityReview ?? 'Review',
           LucideIcons.radar,
-          C.domHome,
+          C.dialStrain,
           onTap: () => go(c, const DetectedActivitiesScreen()),
         ),
       );
@@ -580,7 +580,7 @@ class _DetectedActivitiesCardState extends State<DetectedActivitiesCard>
         ),
         if (_error != null) ...[
           const SizedBox(height: S.x2),
-          Text(_error!, style: F.cap.copyWith(color: C.orange)),
+          Text(_error!, style: F.cap.copyWith(color: C.strainDown)),
         ],
         if (items.length > 1)
           Align(

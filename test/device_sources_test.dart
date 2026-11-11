@@ -77,7 +77,7 @@ void main() {
       home: MyDevicesView(sources: const [], onAddSensor: () {}),
     ));
     await t.pumpAndSettle();
-    expect(find.text('Add a sensor'), findsOneWidget);
+    expect(find.text('ADD A SENSOR'), findsOneWidget);
     const t1 = SourceTier.beatToBeat;
     expect(find.text('Tier ${t1.rank} · ${t1.label}'), findsNothing);
     expect(find.text('Nothing here yet'), findsNothing);

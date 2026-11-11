@@ -270,7 +270,7 @@ class _LogWeightSheetState extends State<LogWeightSheet> {
           BigButton(
             _saving ? 'Saving…' : 'Save weight',
             icon: LucideIcons.check,
-            color: C.domHome,
+            color: C.dialStrain,
             onTap: _saving ? null : _save,
           ),
           const SizedBox(height: S.x3),

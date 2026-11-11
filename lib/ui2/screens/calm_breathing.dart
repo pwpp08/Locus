@@ -596,7 +596,7 @@ class _CalmBreathingState extends State<CalmBreathing>
                   icon: (_running || _quiet != null)
                       ? LucideIcons.square
                       : LucideIcons.play,
-                  color: C.domMind,
+                  color: C.stressLow,
                   soft: _running || _quiet != null,
                   onTap: _quiet == 'post'
                       ? _endWindows
@@ -663,7 +663,7 @@ class _Setup extends StatelessWidget {
             padding: const EdgeInsets.only(top: S.x3),
             child: Surface(
               onTap: () => onPattern(b),
-              color: b.key == pattern.key ? P.of(c).wash(C.domMind) : null,
+              color: b.key == pattern.key ? P.of(c).wash(C.stressLow) : null,
               child: Row(
                 children: [
                   Expanded(
@@ -683,7 +683,7 @@ class _Setup extends StatelessWidget {
                             ),
                             if (b.coherenceRated) ...[
                               const SizedBox(width: S.x2),
-                              Pill(l?.calmBreathingScoredPill ?? 'Scored', C.domMind),
+                              Pill(l?.calmBreathingScoredPill ?? 'Scored', C.stressLow),
                             ],
                           ],
                         ),
@@ -698,7 +698,7 @@ class _Setup extends StatelessWidget {
                   const SizedBox(width: S.x3),
                   Text(
                     '${b.rate.toStringAsFixed(1)}/min',
-                    style: F.n17.copyWith(color: p.on(C.domMind)),
+                    style: F.n17.copyWith(color: p.on(C.stressLow)),
                   ),
                 ],
               ),
@@ -720,14 +720,14 @@ class _Setup extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: S.x3),
                           decoration: BoxDecoration(
-                            color: m == minutes ? p.fill(C.domMind) : p.card,
+                            color: m == minutes ? p.fill(C.stressLow) : p.card,
                             borderRadius: R.rMd,
                           ),
                           child: Center(
                             child: Text(
                               l?.calmBreathingMinutesAbbrev(m) ?? '$m min',
                               style: F.body.copyWith(
-                                color: m == minutes ? p.inkOn(p.fill(C.domMind)) : p.ink2,
+                                color: m == minutes ? p.inkOn(p.fill(C.stressLow)) : p.ink2,
                               ),
                             ),
                           ),
@@ -768,7 +768,7 @@ class _Setup extends StatelessWidget {
     final on = windows && connected;
     return Surface(
       onTap: connected ? () => onWindows(!windows) : null,
-      color: on ? p.wash(C.domMind) : null,
+      color: on ? p.wash(C.stressLow) : null,
       semanticLabel: l?.calmBreathingWindowRowSemantic ??
           'Measure before and after, adds four minutes',
       child: Row(
@@ -777,7 +777,7 @@ class _Setup extends StatelessWidget {
           Icon(
             on ? LucideIcons.circleCheck : LucideIcons.circle,
             size: I.md,
-            color: on ? p.on(C.domMind) : p.ink3,
+            color: on ? p.on(C.stressLow) : p.ink3,
           ),
           const SizedBox(width: S.x3),
           Expanded(
@@ -1114,7 +1114,7 @@ class _Result extends StatelessWidget {
         else
           SignalCard(
             LucideIcons.wind,
-            C.domMind,
+            C.stressLow,
             l?.calmBreathingCardiacCoherence ?? 'Cardiac coherence',
             m!.value!.toStringAsFixed(0),
             sub: l?.calmBreathingHowStronglyFollowedPace ??

@@ -571,10 +571,10 @@ void main() {
           const SizedBox(
               height: 4200,
               child: MoreSettingsView(version: '1', devMode: true)));
-      expect(find.text('Wearable numbers'), findsOneWidget);
-      expect(find.text('Garmin watch'), findsOneWidget);
+      expect(find.text('WEARABLE NUMBERS'), findsOneWidget);
+      expect(find.text('GARMIN WATCH'), findsOneWidget);
       expect(find.text('Active'), findsOneWidget);
-      expect(find.text('Chest strap'), findsOneWidget);
+      expect(find.text('CHEST STRAP'), findsOneWidget);
       expect(find.text("Experimental. On uses this device's data for your "
           'numbers'), findsNWidgets(2));
     });
@@ -585,8 +585,8 @@ void main() {
           const SizedBox(
               height: 4200,
               child: MoreSettingsView(version: '1', devMode: false)));
-      expect(find.text('Wearable numbers'), findsNothing);
-      expect(find.text('Chest strap'), findsNothing);
+      expect(find.text('WEARABLE NUMBERS'), findsNothing);
+      expect(find.text('CHEST STRAP'), findsNothing);
     });
   });
 }

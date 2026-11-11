@@ -381,7 +381,7 @@ List<double> _decodeZoneMinutes(Object? raw) => [
 /// summary's full result the way History opens one: what Share sends.
 Future<ActivityResult> sessionResultOf(AppState app, Map<String, dynamic> r) {
   final a = activityByName(r['type'] as String?) ??
-      Activity(importedWorkoutTitle(r['type']), LucideIcons.activity, C.purple,
+      Activity(importedWorkoutTitle(r['type']), LucideIcons.activity, C.dialStrain,
           Track.duration, 5.0);
   final ts = (r['start_ts'] as num?)?.toInt() ?? 0;
   return _detailOf(

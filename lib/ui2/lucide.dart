@@ -50,6 +50,7 @@ class LucideIcons {
   static const IconData bug = base.LucideIcons.bug300;
   static const IconData calendar = base.LucideIcons.calendar300;
   static const IconData calendarClock = base.LucideIcons.calendarClock300;
+  static const IconData calendarHeart = base.LucideIcons.calendarHeart300;
   static const IconData calendarDays = base.LucideIcons.calendarDays300;
   static const IconData calendarOff = base.LucideIcons.calendarOff300;
   static const IconData calendarRange = base.LucideIcons.calendarRange300;
@@ -186,6 +187,7 @@ class LucideIcons {
   static const IconData search = base.LucideIcons.search300;
   static const IconData searchX = base.LucideIcons.searchX300;
   static const IconData send = base.LucideIcons.send300;
+  static const IconData server = base.LucideIcons.server300;
   static const IconData settings = base.LucideIcons.settings300;
   static const IconData share2 = base.LucideIcons.share2300;
   static const IconData shieldCheck = base.LucideIcons.shieldCheck300;

@@ -155,7 +155,7 @@ class BandNotificationsView extends StatelessWidget {
                   )
                 else ...[
                   settingsGroup(c, l?.bandNotifRelayGroup ?? 'Relay', [
-                    SetRow(LucideIcons.bellRing, C.purple,
+                    SetRow(LucideIcons.bellRing, C.dialStrain,
                         l?.bandNotifBuzzOnAppNotifs ??
                             'Buzz on app notifications',
                         // What is actually true, and no more. The relay reads
@@ -167,13 +167,10 @@ class BandNotificationsView extends StatelessWidget {
                         // stored" was the wrong claim to make about it.
                         sub: l?.bandNotifBuzzSub ??
                             'The strap buzzes when an app below notifies you. Only the app’s name is kept, on this phone; what a notification says is never read',
-                        value: enabled
-                            ? (l?.stateOn ?? 'On')
-                            : (l?.stateOff ?? 'Off'),
-                        chevron: false,
+                        switchValue: enabled,
                         onTap: () => onEnabled?.call(!enabled)),
                     if (enabled && granted)
-                      SetRow(LucideIcons.listChecks, C.teal,
+                      SetRow(LucideIcons.listChecks, C.stressLow,
                           l?.bandNotifAppsArmed ?? 'Apps armed',
                           value: '$_armed', chevron: false),
                   ]),
@@ -197,19 +194,13 @@ class BandNotificationsView extends StatelessWidget {
                     // picked below: a call is three long buzzes, a Google Tasks
                     // reminder two short ones.
                     settingsGroup(c, 'Patterns', [
-                      SetRow(LucideIcons.phoneIncoming, C.green, 'Incoming calls',
+                      SetRow(LucideIcons.phoneIncoming, C.optimal, 'Incoming calls',
                           sub: 'Three long buzzes while it rings',
-                          value: callsOn
-                              ? (l?.stateOn ?? 'On')
-                              : (l?.stateOff ?? 'Off'),
-                          chevron: false,
+                          switchValue: callsOn,
                           onTap: () => onCalls?.call(!callsOn)),
-                      SetRow(LucideIcons.listChecks, C.blue, 'Google Tasks',
+                      SetRow(LucideIcons.listChecks, C.dialStrain, 'Google Tasks',
                           sub: 'Two short buzzes for a reminder',
-                          value: tasksOn
-                              ? (l?.stateOn ?? 'On')
-                              : (l?.stateOff ?? 'Off'),
-                          chevron: false,
+                          switchValue: tasksOn,
                           onTap: () => onTasks?.call(!tasksOn)),
                     ]),
                     const SizedBox(height: S.x4),
@@ -288,9 +279,9 @@ class _AppRow extends StatelessWidget {
                     height: 32,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                        color: p.wash(C.purple), borderRadius: R.rSm),
+                        color: p.wash(C.dialStrain), borderRadius: R.rSm),
                     child: Icon(LucideIcons.appWindow,
-                        size: I.sm, color: p.on(C.purple)),
+                        size: I.sm, color: p.on(C.dialStrain)),
                   ),
           ),
           const SizedBox(width: S.x3),
@@ -311,7 +302,7 @@ class _AppRow extends StatelessWidget {
           const SizedBox(width: S.x2),
           Text(app.on ? (l?.bandNotifBuzzes ?? 'Buzzes') : (l?.stateOff ?? 'Off'),
               style: F.cap.copyWith(
-                  color: app.on ? p.on(C.green) : p.ink3,
+                  color: app.on ? p.on(C.optimal) : p.ink3,
                   fontWeight: FontWeight.w600)),
         ]),
       ),

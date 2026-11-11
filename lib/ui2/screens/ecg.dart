@@ -80,7 +80,7 @@ class EcgEntryCard extends StatelessWidget {
       l?.ecgEntryMeta ?? 'WHOOP MG · band-reported',
       l?.ecgOpen ?? 'Open',
       LucideIcons.activity,
-      C.domHealth,
+      C.dialStrain,
       onTap: () => go(c, const EcgHomeScreen()),
     );
   }
@@ -172,7 +172,7 @@ class _EcgHomeScreenState extends State<EcgHomeScreen> {
                 : (l?.ecgNeedsMg ?? 'Take ECG needs a connected WHOOP MG.'),
             l?.ecgTakeEcg ?? 'Take ECG',
             LucideIcons.heartPulse,
-            C.domHealth,
+            C.dialStrain,
             onTap: canTake ? () => _take(c, app) : null,
           ),
           const SizedBox(height: S.x4),
@@ -183,7 +183,6 @@ class _EcgHomeScreenState extends State<EcgHomeScreen> {
                   'Readings you take are saved here and stay readable while '
                       'the band is away.',
               icon: LucideIcons.activity,
-              art: Art.heart,
             ),
           if (_readings.isNotEmpty)
             Section(
@@ -281,7 +280,7 @@ class EcgWristSheet extends StatelessWidget {
               ),
             ),
             if (current == w)
-              Icon(LucideIcons.check, size: I.md, color: C.domHealth),
+              Icon(LucideIcons.check, size: I.md, color: C.dialStrain),
           ],
         ),
       ),
@@ -483,13 +482,13 @@ class EcgCaptureBody extends StatelessWidget {
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(vertical: S.x3),
             decoration: BoxDecoration(
-              color: primary ? p.fill(C.domHealth) : p.card2,
+              color: primary ? p.fill(C.dialStrain) : p.card2,
               borderRadius: R.rMd,
             ),
             child: Text(
               label,
               style: F.body.copyWith(
-                color: primary ? p.inkOn(p.fill(C.domHealth)) : p.ink,
+                color: primary ? p.inkOn(p.fill(C.dialStrain)) : p.ink,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -556,7 +555,7 @@ class EcgCaptureBody extends StatelessWidget {
             status,
             key: const ValueKey('ecg-status'),
             style: F.head.copyWith(
-              color: s.phase == EcgCapturePhase.contactLost ? C.orange : p.ink,
+              color: s.phase == EcgCapturePhase.contactLost ? C.strainDown : p.ink,
             ),
           ),
           if (measuring) ...[
@@ -569,7 +568,7 @@ class EcgCaptureBody extends StatelessWidget {
                   value: s.progress / 100,
                   minHeight: 8,
                   backgroundColor: p.track,
-                  color: C.domHealth,
+                  color: C.dialStrain,
                 ),
               ),
             ),
@@ -938,9 +937,9 @@ class _EcgDetailScreenState extends State<EcgDetailScreen> {
                                 painter: EcgWaveformPainter(
                                   packets: packets,
                                   pxPerSecond: px,
-                                  color: C.domHealth,
+                                  color: C.dialStrain,
                                   grid: p.line,
-                                  gap: p.wash(C.orange),
+                                  gap: p.wash(C.strainDown),
                                 ),
                               ),
                             ),
@@ -965,11 +964,11 @@ class _EcgDetailScreenState extends State<EcgDetailScreen> {
               children: [
                 kv(
                   l?.ecgAvgHr ?? 'Average heart rate',
-                  r.avgHr == null ? '—' : '${r.avgHr} ${uiText(c, 'bpm')}',
+                  r.avgHr == null ? '--' : '${r.avgHr} ${uiText(c, 'bpm')}',
                 ),
                 kv(
                   l?.ecgQuality ?? 'Signal quality',
-                  r.quality == null ? '—' : '${r.quality}',
+                  r.quality == null ? '--' : '${r.quality}',
                 ),
                 kv(
                   l?.ecgDuration ?? 'Duration',
