@@ -5,14 +5,20 @@
 // apk.yml), and a tagged release is cut for a version. Both carry the APK as a
 // plain file, not a zip.
 //
-// How a build knows it is out of date. Every build has the same version
-// number until someone bumps it, so the version alone says nothing about a
-// rolling release. CI therefore stamps each build with the commit it was built
-// from and when ([kBuildSha], [kBuildTime]), and names the APK after the same
-// commit (`locus-0.11.4-c07d50f.apk`). A release is an update when its commit
-// is not the one installed and it was published after the installed build was
-// made. Where a build carries no stamp (a local one) the version number is
-// compared instead.
+// How a build knows it is out of date. The version number only moves when
+// someone bumps it, so CI gives every build its own build number, the
+// workflow's run number (which only ever grows), and names the APK after the
+// version, that build and the commit (`locus-0.11.4.87-c07d50f.apk`). A
+// release is an update when its build number is higher than the installed
+// one. A release named the older way (`locus-0.11.4-c07d50f.apk`) is an
+// update when its commit is not the installed one and it was published after
+// this build was made ([kBuildSha], [kBuildTime]); with no stamp at all (a
+// local build) the version number is compared.
+//
+// When it looks. On launch and whenever the app comes back to the
+// foreground, at most every [UpdateService._recheckAfterSec]. A release the
+// user already answered "Later" to is not offered again by itself; the More
+// tab still says an update is ready.
 //
 // How it installs. The APK is downloaded inside the app (checked against the
 // SHA-256 GitHub publishes for the file), then Android's installer is opened;
@@ -70,17 +76,37 @@ class ReleaseInfo {
   String get versionClean =>
       tagName.replaceFirst(RegExp(r'^[vV]'), '').split('+').first.trim();
 
-  /// `locus-0.11.4-c07d50f.apk` → 0.11.4 and c07d50f.
-  static final _name = RegExp(r'^locus-(\d+(?:\.\d+)*)-([0-9a-f]{7,40})\.apk$');
+  /// `locus-0.11.4.87-c07d50f.apk` → 0.11.4, build 87 and c07d50f; the older
+  /// `locus-0.11.4-c07d50f.apk` has no build.
+  static final _name =
+      RegExp(r'^locus-(\d+\.\d+\.\d+)(?:\.(\d+))?-([0-9a-f]{7,40})\.apk$');
   String? get apkVersion => _name.firstMatch(apkName ?? '')?.group(1);
 
-  /// The commit the file was built from, when its name says.
-  String? get sha => _name.firstMatch(apkName ?? '')?.group(2);
+  /// The CI build number, when the file's name carries one.
+  int? get build => int.tryParse(_name.firstMatch(apkName ?? '')?.group(2) ?? '');
 
-  /// The version a person reads: `0.11.4 · c07d50f`, or the tag.
+  /// The commit the file was built from, when its name says.
+  String? get sha => _name.firstMatch(apkName ?? '')?.group(3);
+
+  /// The version a person reads: `v0.11.4 · build 87`, or the commit for a
+  /// file named the older way, or the tag.
   String get label {
     final v = apkVersion ?? versionClean;
+    if (build != null) return 'v$v · build $build';
     return sha == null ? 'v$v' : 'v$v · $sha';
+  }
+
+  /// What changed, as the release notes say it: the commit message, without
+  /// the boilerplate older rolling releases wrapped it in or a co-author line.
+  String get whatsNew {
+    var s = body.trim();
+    s = s.replaceFirst(RegExp(r'^Built from [0-9a-f]{7,40}:\s*'), '');
+    s = s.replaceFirst(RegExp(r'\s*Replaced on every push to main\.?\s*$'), '');
+    return s
+        .split('\n')
+        .where((l) => !l.trimLeft().startsWith('Co-Authored-By:'))
+        .join('\n')
+        .trim();
   }
 
   String get formattedSize {
@@ -159,8 +185,13 @@ class UpdateService extends ChangeNotifier {
   static const String autoCheckKey = 'auto_check_updates';
   static const String _kLastCheck = 'locus_last_update_check_ts';
 
-  /// How soon an automatic check may repeat.
-  static const int _recheckAfterSec = 4 * 3600;
+  /// The release last offered automatically and answered "Later": not
+  /// offered again by itself.
+  static const String _kDeclined = 'locus_update_declined';
+
+  /// How soon an automatic check may repeat: coming back to the app more
+  /// often than this reuses the last answer.
+  static const int _recheckAfterSec = 15 * 60;
 
   static final UpdateService instance = UpdateService._();
   UpdateService._();
@@ -172,18 +203,22 @@ class UpdateService extends ChangeNotifier {
   String? _lastError;
   String _currentVersion = '';
 
+  /// This build's build number (the CI run, or the pubspec's for a local
+  /// build).
+  int? _currentBuildNumber;
+
   ReleaseInfo? get latestRelease => _latestRelease;
   bool get hasUpdate => _hasUpdate;
   bool get isChecking => _checking;
   String? get lastError => _lastError;
   String get currentVersion => _currentVersion;
 
-  /// What is installed, as a person reads it: `v0.11.4 · c07d50f`.
+  /// What is installed, as a person reads it: `v0.11.4 · build 87`.
   String get currentBuild => _currentVersion.isEmpty
       ? ''
-      : (kBuildSha.isEmpty
+      : _currentBuildNumber == null
           ? 'v$_currentVersion'
-          : 'v$_currentVersion · $kBuildSha');
+          : 'v$_currentVersion · build $_currentBuildNumber';
 
   /// Whether [remote] is strictly newer than [current] (0.11.3 vs 0.11.4).
   static bool isNewerVersion(String current, String remote) {
@@ -222,9 +257,12 @@ class UpdateService extends ChangeNotifier {
   static bool isUpdate(
     ReleaseInfo r, {
     required String version,
+    int? build,
     String sha = kBuildSha,
     String builtAt = kBuildTime,
   }) {
+    final theirBuild = r.build;
+    if (theirBuild != null && build != null) return theirBuild > build;
     final theirs = r.sha;
     if (theirs != null && sha.isNotEmpty) {
       // The same commit, however either is abbreviated.
@@ -264,7 +302,9 @@ class UpdateService extends ChangeNotifier {
 
     final c = client ?? http.Client();
     try {
-      _currentVersion = (await PackageInfo.fromPlatform()).version;
+      final info = await PackageInfo.fromPlatform();
+      _currentVersion = info.version;
+      _currentBuildNumber = int.tryParse(info.buildNumber);
 
       final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       if (!force &&
@@ -288,8 +328,9 @@ class UpdateService extends ChangeNotifier {
       }
       final release = pickRelease(jsonDecode(resp.body) as List<dynamic>);
       _latestRelease = release;
-      _hasUpdate =
-          release != null && isUpdate(release, version: _currentVersion);
+      _hasUpdate = release != null &&
+          isUpdate(release,
+              version: _currentVersion, build: _currentBuildNumber);
       return now();
     } catch (e) {
       _lastError = '$e';
@@ -390,11 +431,19 @@ class UpdateService extends ChangeNotifier {
     }
   }
 
+  /// The key a release is remembered by when it is declined.
+  static String _keyOf(ReleaseInfo r) => r.apkName ?? r.tagName;
+
+  /// "Later" on a release offered by itself: it is not offered again.
+  void decline(ReleaseInfo r) => Prefs.setString(_kDeclined, _keyOf(r));
+
   Future<void> check(BuildContext context, {bool manual = false}) async {
     final res = await checkForUpdates(force: manual);
     if (!context.mounted) return;
-    if (res.hasUpdate && res.latestRelease != null) {
-      await UpdateDialog.show(context, release: res.latestRelease!);
+    final r = res.latestRelease;
+    if (res.hasUpdate && r != null) {
+      if (!manual && Prefs.getString(_kDeclined, '') == _keyOf(r)) return;
+      await UpdateDialog.show(context, release: r);
     } else if (manual) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -408,8 +457,17 @@ class UpdateService extends ChangeNotifier {
     }
   }
 
+  /// On launch and on every return to the foreground. Throttled by
+  /// [checkForUpdates]; never while a sheet from an earlier check is open.
   Future<void> checkOnStartup(BuildContext context) async {
-    if (!autoCheckEnabled || !context.mounted) return;
-    await check(context, manual: false);
+    if (!autoCheckEnabled || !context.mounted || _offering) return;
+    _offering = true;
+    try {
+      await check(context, manual: false);
+    } finally {
+      _offering = false;
+    }
   }
+
+  bool _offering = false;
 }

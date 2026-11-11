@@ -318,6 +318,7 @@ const _notComponents = {
   'ProfileSetupScreen', 'ProfileSetupView',
   // profile routes
   'ProfileHome', 'ProfileHomeView', 'MoreSettings', 'MoreSettingsView',
+  'MyProfileSettings', 'DeviceSettings', 'HealthSettings',
   'NotificationSettings', 'NotificationSettingsView', 'EditProfile',
   'EditProfileView', 'DataScreen', 'AlarmScreen', 'AlarmScreenView',
   'HeartRateSettingsScreen',

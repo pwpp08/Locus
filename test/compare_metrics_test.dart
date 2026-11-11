@@ -51,30 +51,6 @@ void main() {
     await Prefs.ensureLoaded();
   });
 
-  group('compareCorrelation', () {
-    final days = [for (var i = 0; i < 20; i++) shiftDay(_today, -i)];
-    test('opposite series read as moving in opposite directions', () {
-      final a = {for (var i = 0; i < 20; i++) days[i]: 50.0 + i};
-      final b = {for (var i = 0; i < 20; i++) days[i]: 70.0 - i * 2};
-      final c = compareCorrelation(a, b, days: days)!;
-      expect(c.r, closeTo(-1, 1e-9));
-      expect(c.n, 20);
-      expect(compareSentence('HRV', 'resting HR', c),
-          contains('moved in opposite directions'));
-    });
-
-    test('too few paired days says nothing', () {
-      final a = {for (var i = 0; i < 9; i++) days[i]: i.toDouble()};
-      expect(compareCorrelation(a, a, days: days), isNull);
-    });
-
-    test('a flat series has no correlation', () {
-      final a = {for (final d in days) d: 5.0};
-      final b = {for (var i = 0; i < 20; i++) days[i]: i.toDouble()};
-      expect(compareCorrelation(a, b, days: days), isNull);
-    });
-  });
-
   test('each metric keeps its own shape; zones stack in colour', () {
     final hrv = compareSeriesOf(
         trendMetricOf('hrv')!,
@@ -94,9 +70,8 @@ void main() {
     expect(zones.values.last, 30);
   });
 
-  test('the two series use the hours-vs-needed pair, whatever the metrics',
-      () {
-    expect(kCompareColours, (C.optimal, C.dialSleep));
+  test('the two series are blue and amber, whatever the metrics', () {
+    expect(kCompareColours, (C.dialStrain, C.amber));
   });
 
   testWidgets('both metrics share one chart', (t) async {
@@ -116,8 +91,8 @@ void main() {
     expect(find.text('COMPARE METRICS'), findsOneWidget);
     expect(find.byType(ScrubArea), findsOneWidget);
     expect(find.byType(ScrubLine), findsNothing);
-    // Four weeks of both: the relationship is stated.
-    expect(find.textContaining('Over these four weeks'), findsOneWidget);
+    // The chart is the whole story: no sentence under it.
+    expect(find.textContaining('Over these four weeks'), findsNothing);
   });
 
   testWidgets('a touch reads the day out for both', (t) async {

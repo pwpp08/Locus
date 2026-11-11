@@ -45,7 +45,7 @@ import '../../ble/oura_link.dart' show pairOuraRingWithTypedKey;
 import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
 import '../onboarding/pairing.dart' show PairingScreen;
-import '../onboarding/welcome.dart' show OnboardingStep;
+import '../onboarding/welcome.dart' show OnboardingLink, OnboardingStep;
 import '../screens/dial_parts.dart' show kDialGround, kDialMargin;
 import '../ui2.dart';
 import '../profile/devices.dart' show kPairableSensors, sensorIcon;
@@ -431,16 +431,8 @@ class DevicePickerView extends StatelessWidget {
                 ),
                 if (onSkip != null) ...[
                   const SizedBox(height: S.x5),
-                  BigButton(l?.pairingSkipForNow ?? 'Skip for now',
-                      color: C.dialStrain, soft: true, onTap: onSkip),
-                  const SizedBox(height: S.x3),
-                  Text(
-                    l?.pairingSkipNote ??
-                        'The app opens without a band. Nothing is measured until '
-                            'one is paired.',
-                    textAlign: TextAlign.center,
-                    style: F.dTiny.copyWith(color: DC.ink3, height: 1.4),
-                  ),
+                  OnboardingLink(l?.pairingSkipForNow ?? 'Skip for now',
+                      onTap: onSkip),
                 ],
                 ],
               ),

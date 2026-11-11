@@ -21,7 +21,7 @@ import '../../state/app_state.dart';
 import '../../state/prefs.dart';
 import '../screens/dial_parts.dart' show dialCard, kDialPad;
 import '../ui2.dart';
-import 'welcome.dart' show OnboardingPage, onboardingHeroSize;
+import 'welcome.dart' show OnboardingLink, OnboardingPage, onboardingHeroSize;
 
 /// Onboarding steps the user deliberately walked past.
 ///
@@ -198,6 +198,7 @@ class PairingView extends StatelessWidget {
             c, bandStatusFor(connection: 'disconnected', blocker: blocker))
         : null;
     return OnboardingPage(
+      step: 2,
       hero: _ScanRings(phase),
       title: _title(c, phase, blocker),
       body: _body(c, phase, blocker),
@@ -216,19 +217,11 @@ class PairingView extends StatelessWidget {
             busy: busy,
             onTap: busy ? null : onPair),
         if (onSkip != null && phase != PairPhase.paired) ...[
-          const SizedBox(height: S.x3),
+          const SizedBox(height: S.x2),
           // Never disabled, not even mid-scan: waiting out a scan you
           // already know will fail is exactly the trap this exists for.
-          BigButton(l?.pairingSkipForNow ?? 'Skip for now',
-              soft: true, onTap: onSkip),
-          const SizedBox(height: S.x3),
-          Text(
-            l?.pairingSkipNote ??
-                'The app opens without a band. Nothing is measured until one '
-                    'is paired.',
-            textAlign: TextAlign.center,
-            style: F.dTiny.copyWith(color: DC.ink3, height: 1.4),
-          ),
+          OnboardingLink(l?.pairingSkipForNow ?? 'Skip for now',
+              onTap: onSkip),
         ],
       ],
     );

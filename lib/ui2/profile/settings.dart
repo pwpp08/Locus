@@ -30,11 +30,19 @@ import '../../state/clock_format.dart';
 import '../../state/prefs.dart';
 import '../../state/units_controller.dart';
 import '../../telemetry/health_uploader.dart';
-import '../../theme/theme_controller.dart';
 import '../ui2.dart';
 import '../screens/coach.dart';
 import '../screens/heart_rate_settings.dart';
-import '../screens/step_calibration_screen.dart';
+import '../screens/home_screen.dart' show deviceBatteryOf;
+import '../screens/sleep_planner.dart' show plannerKeepsConsistent;
+import '../screens/watch_compare_screen.dart' show WatchCompareScreen;
+import '../screens/weight_trend_screen.dart' show WeightTrendScreen;
+import '../../updater/update_service.dart';
+import 'account_screen.dart' show AccountScreen;
+import 'band_notifications.dart' show BandNotifications;
+import 'data.dart' show DataScreen;
+import 'devices.dart' show MyDevices;
+import 'storage_screen.dart' show StorageScreen;
 import 'gallery.dart';
 import 'gestures.dart';
 import 'profile.dart';
@@ -72,11 +80,15 @@ class _MoreSettingsState extends State<MoreSettings> {
 
   String _version = '';
   int _taps = 0;
+  int? _bytes;
 
   @override
   void initState() {
     super.initState();
     _readVersion();
+    context.read<AppState>().dataFileBytes().then((b) {
+      if (mounted) setState(() => _bytes = b);
+    }).catchError((Object _) {});
     // The developer wearable toggles list the paired devices; best-effort.
     if (_dev) {
       WearableDisplay.instance.loadDevices().catchError((Object _) {});
@@ -113,7 +125,6 @@ class _MoreSettingsState extends State<MoreSettings> {
   Widget build(BuildContext c) {
     final app = c.watch<AppState>();
     final units = c.watch<UnitsController>();
-    final theme = c.watch<ThemeController>();
     final clock = c.watch<ClockFormatController>();
     return MoreSettingsView(
       version: _version,
@@ -122,12 +133,8 @@ class _MoreSettingsState extends State<MoreSettings> {
       onToggleDev: () => _setDev(false),
       onGallery: () => goto(c, const GalleryScreen()),
       units: units.system.label,
-      appearance: theme.choice.label,
       clockFormat: clock.format,
-      cycleTracking: app.cycleTrackingEnabled,
-      zoneAlertEnabled: app.zoneAlertEnabled,
-      zoneAlertZone: app.zoneAlertTargetZone,
-      phoneSteps: app.phoneStepsEnabled,
+      storage: _bytes == null ? '' : formatBytes(_bytes!),
       telemetry: app.telemetryConsent,
       // Shown when the build has the feature OR when this install already
       // consented under an older build. A consent that cannot be withdrawn is
@@ -142,11 +149,10 @@ class _MoreSettingsState extends State<MoreSettings> {
       updateChecks: app.updateChecksEnabled,
       updateAvailable: app.updateAvailable,
       updateMandatory: app.updateMandatory,
-      onEditProfile: () => goto(c, const EditProfile()),
+      onUpdates: () => UpdateService.instance.check(c, manual: true),
       onNotifications: () => goto(c, const NotificationSettings()),
       onAutomation: () => goto(c, const AutomationSettings()),
       onUnits: (i) => units.setSystem(UnitSystem.values[i]),
-      onAppearance: (i) => theme.setChoice(AppThemeChoice.values[i]),
       // the wind-down body bakes the time in when it's armed, re-arm it now
       onClockFormat: (i) async {
         try {
@@ -155,19 +161,11 @@ class _MoreSettingsState extends State<MoreSettings> {
           await app.refreshAiReminders();
         }
       },
-      onToggleCycleTracking: () =>
-          app.setCycleTrackingEnabled(!app.cycleTrackingEnabled),
-      onTogglePhoneSteps: () => app.phoneStepsEnabled
-          ? app.disablePhoneSteps()
-          : app.requestPhoneSteps(),
       onToggleTelemetry: () => app.setTelemetryConsent(!app.telemetryConsent),
       onToggleHealthShare: () => _toggleHealthShare(c, app),
       onToggleHealthSync: () => _toggleHealthSync(app),
       onToggleUpdateChecks: () =>
           app.setUpdateChecksEnabled(!app.updateChecksEnabled),
-      onToggleZoneAlert: () =>
-          app.setZoneAlertEnabled(!app.zoneAlertEnabled),
-      onZoneAlertZone: app.setZoneAlertTargetZone,
       onReset: () => _confirmReset(c, app),
     );
   }
@@ -350,17 +348,14 @@ Future<void> _confirmReset(BuildContext c, AppState app) async {
 }
 
 class MoreSettingsView extends StatelessWidget {
-  final String units, appearance;
+  final String units;
 
   /// 12- or 24-hour clock, or whatever the OS says ("System", the default).
   final ClockFormat clockFormat;
-  final bool phoneSteps, telemetry, cycleTracking;
+  final bool telemetry;
 
-  /// The live-workout HR-zone-crossing haptic. Off by default; [zoneAlertZone]
-  /// (1..5) is only meaningful — and only drawn — while this is on.
-  final bool zoneAlertEnabled;
-  final int zoneAlertZone;
-
+  /// How much room the data takes ("1.4 GB"); empty until it is read.
+  final String storage;
 
   /// The health-contribution row appears only where it means something: a
   /// build that has the feature, or an install that already said yes to it.
@@ -373,7 +368,7 @@ class MoreSettingsView extends StatelessWidget {
   final HealthLinkState healthState;
   final String healthStore;
 
-  /// The update-check row appears only on a build that can check.
+  /// The legacy release-server check appears only on a build that can check.
   final bool showUpdateChecks, updateChecks;
 
   /// What the last check ANSWERED. The check itself was already running and
@@ -391,36 +386,30 @@ class MoreSettingsView extends StatelessWidget {
 
   final VoidCallback? onVersionTap, onToggleDev, onGallery;
 
-  final VoidCallback? onEditProfile,
-      onNotifications,
+  /// Look for a newer build now; null hides the app-update rows.
+  final VoidCallback? onUpdates;
+
+  final VoidCallback? onNotifications,
       onAutomation,
-      onTogglePhoneSteps,
       onToggleTelemetry,
-      onToggleCycleTracking,
       onToggleHealthShare,
       onToggleHealthSync,
       onToggleUpdateChecks,
-      onToggleZoneAlert,
       onReset;
 
-  /// The index of the choice tapped: units (metric, imperial), appearance
-  /// (system, light, dark), time format (system, 24 h, 12 h). The zone is
-  /// 1 to 5.
-  final ValueChanged<int>? onUnits, onAppearance, onClockFormat, onZoneAlertZone;
+  /// The index of the choice tapped: units (metric, imperial), time format
+  /// (system, 24 h, 12 h).
+  final ValueChanged<int>? onUnits, onClockFormat;
 
   const MoreSettingsView({
     super.key,
     this.units = 'Metric',
-    this.appearance = 'System',
     this.clockFormat = ClockFormat.system,
-    this.phoneSteps = false,
+    this.storage = '',
     this.healthSync = false,
     this.healthState = HealthLinkState.unknown,
     this.healthStore = 'Apple Health',
     this.telemetry = false,
-    this.cycleTracking = false,
-    this.zoneAlertEnabled = false,
-    this.zoneAlertZone = 3,
     this.showHealthShare = false,
     this.healthShare = false,
     this.showUpdateChecks = false,
@@ -432,20 +421,15 @@ class MoreSettingsView extends StatelessWidget {
     this.onVersionTap,
     this.onToggleDev,
     this.onGallery,
-    this.onEditProfile,
+    this.onUpdates,
     this.onNotifications,
     this.onAutomation,
     this.onUnits,
-    this.onAppearance,
     this.onClockFormat,
-    this.onTogglePhoneSteps,
     this.onToggleTelemetry,
-    this.onToggleCycleTracking,
     this.onToggleHealthShare,
     this.onToggleHealthSync,
     this.onToggleUpdateChecks,
-    this.onToggleZoneAlert,
-    this.onZoneAlertZone,
     this.onReset,
   });
 
@@ -453,226 +437,320 @@ class MoreSettingsView extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
-    const appearances = ['System', 'Light', 'Dark'];
-    return Scaffold(
-      backgroundColor: p.bg,
+    return settingsPage(c, l?.settingsNavTitle ?? 'Settings', [
+      // The app itself. You, the band and your health each have a page of
+      // their own on the More tab; nothing here repeats them.
+      //
+      // Every group is named for the question it answers, in the order
+      // people come looking: how the app reads, what may interrupt, updates,
+      // what it talks to, the coach's model, your data, privacy, then help.
+      // The one destructive action sits alone at the end.
+      settingsGroup(c, 'Display', [
+        SetChoice(
+            LucideIcons.ruler,
+            l?.settingsUnitsRowTitle ?? 'Units',
+            const ['Metric', 'Imperial'],
+            units == 'Imperial' ? 1 : 0,
+            onChanged: onUnits),
+        SetChoice(
+            LucideIcons.clock,
+            l?.settingsClockFormatRowTitle ?? 'Time format',
+            [
+              l?.settingsClockFormatSystem ?? ClockFormat.system.label,
+              l?.settingsClockFormat24h ?? ClockFormat.h24.label,
+              l?.settingsClockFormat12h ?? ClockFormat.h12.label,
+            ],
+            clockFormat.index,
+            onChanged: onClockFormat),
+      ]),
+      settingsGroup(c, 'Notifications', [
+        SetRow(LucideIcons.bell, C.dialStrain,
+            l?.settingsManageNotificationsRowTitle ?? 'Manage notifications',
+            sub: l?.settingsManageNotificationsRowSub ??
+                'What may interrupt you, quiet hours, and off '
+                    'switches for all of them',
+            onTap: onNotifications),
+      ]),
+      if (onUpdates != null || showUpdateChecks)
+        settingsGroup(c, 'Updates', [
+          if (onUpdates != null)
+            AnimatedBuilder(
+              animation: UpdateService.instance,
+              builder: (c, _) {
+                final u = UpdateService.instance;
+                return SetRow(LucideIcons.downloadCloud, C.dialStrain,
+                    'App updates',
+                    value: u.isChecking
+                        ? 'Checking…'
+                        : u.hasUpdate
+                            ? 'Update ready'
+                            : u.currentBuild,
+                    onTap: u.isChecking ? null : onUpdates);
+              },
+            ),
+          if (onUpdates != null)
+            AnimatedBuilder(
+              animation: UpdateService.instance,
+              builder: (c, _) {
+                final u = UpdateService.instance;
+                return SetRow(LucideIcons.refreshCw, C.dialStrain,
+                    'Check automatically',
+                    sub: 'Looks for a newer build when the app opens',
+                    switchValue: u.autoCheckEnabled,
+                    onTap: () => u.setAutoCheckEnabled(!u.autoCheckEnabled));
+              },
+            ),
+          if (showUpdateChecks)
+            SetRow(LucideIcons.refreshCw, C.dialStrain,
+                l?.settingsCheckForUpdatesRowTitle ?? 'Check for updates',
+                sub: updateMandatory
+                    ? (l?.settingsUpdateBelowMinimum ??
+                        'This build is below the minimum supported '
+                            'build. Install the newer release from GitHub')
+                    : updateAvailable
+                        ? (l?.settingsUpdateAvailable ??
+                            'A newer build is published on GitHub')
+                        : (l?.settingsUpdateCheckSub ??
+                            'Asks the release server on launch. It sees '
+                                'your IP address and when you open the app'),
+                switchValue: updateChecks,
+                onTap: onToggleUpdateChecks),
+        ]),
+      settingsGroup(c, 'Connected apps', [
+        SetRow(LucideIcons.heartPulse, C.dialStrain,
+            l?.settingsWriteToHealthStoreRowTitle(healthStore) ??
+                'Write to $healthStore',
+            sub: healthSyncSub(c, healthSync, healthState, healthStore),
+            switchValue: healthSync,
+            onTap: onToggleHealthSync),
+        SetRow(LucideIcons.upload, C.dialStrain, 'Import WHOOP data',
+            sub: 'Your recovery, sleep, strain and workouts from a '
+                'WHOOP export',
+            onTap: () => goto(c, const WhoopImportScreen())),
+        SetRow(LucideIcons.workflow, C.dialStrain,
+            l?.settingsTaskerShortcutsRowTitle ?? 'Tasker and Shortcuts',
+            // The row states the asymmetry rather than leaving it to the
+            // screen.
+            sub: l?.settingsTaskerShortcutsRowSub ??
+                'Android only for events out. iOS can buzz the band '
+                    'but cannot be triggered by it',
+            onTap: onAutomation),
+      ]),
+      settingsGroup(c, 'AI provider', [
+        SetRow.brand((t) => CoachMark(size: I.lg, color: t), C.dialStrain,
+            'Model and key',
+            sub: 'The AI coach’s model, its API key and how it answers',
+            onTap: () => goto(c, const CoachSetup())),
+      ]),
+      settingsGroup(c, l?.profileYourDataGroup ?? 'Your data', [
+        SetRow(LucideIcons.hardDriveDownload, C.dialStrain,
+            l?.profileExportRow ?? 'Export and backup',
+            onTap: () => goto(c, const DataScreen())),
+        SetRow(LucideIcons.cloud, C.dialStrain, 'Cloud account',
+            onTap: () => goto(c, const AccountScreen())),
+        SetRow(LucideIcons.database, C.dialStrain,
+            l?.profileStorage ?? 'Storage',
+            value: storage,
+            onTap: () => goto(c, const StorageScreen())),
+      ]),
+      settingsGroup(c, l?.settingsGroupPrivacy ?? 'Privacy', [
+        SetRow(LucideIcons.bug, C.dialStrain,
+            l?.settingsCrashReportsRowTitle ?? 'Crash reports',
+            sub: l?.settingsCrashReportsRowSub ??
+                'Nothing is sent until you say so',
+            switchValue: telemetry,
+            onTap: onToggleTelemetry),
+        if (showHealthShare)
+          SetRow(LucideIcons.cloudUpload, C.dialStrain,
+              l?.settingsContributeHealthDataRowTitle ??
+                  'Contribute my health data',
+              sub: l?.settingsContributeHealthDataRowSub ??
+                  'Uploads your whole database once a day, on '
+                      'Wi-Fi and charging, to improve the algorithms',
+              switchValue: healthShare,
+              onTap: onToggleHealthShare),
+      ]),
+      settingsGroup(c, 'Help and about', [
+        SetRow(LucideIcons.messageSquareWarning, C.dialStrain,
+            l?.settingsReportIssueRowTitle ?? 'Report an issue',
+            sub: l?.settingsReportIssueRowSub ??
+                'Sends what you choose to the maintainers, encrypted',
+            onTap: () => goto(c, const ReportIssueScreen())),
+        // Where the licences of what this app uses are written out in full.
+        SetRow(LucideIcons.scale, C.dialStrain,
+            l?.settingsNoticesLicencesRowTitle ?? 'Notices and licences',
+            sub: l?.settingsNoticesLicencesRowSub ??
+                'Who this app is not, and whose data it uses',
+            onTap: () => launchUrl(
+                Uri.parse('https://openstrap.github.io/edge/notice.html'),
+                mode: LaunchMode.externalApplication)),
+        if (version.isNotEmpty)
+          SetRow(LucideIcons.info, C.dialStrain,
+              l?.settingsVersionRowTitle ?? 'Version',
+              value: version, chevron: false, onTap: onVersionTap),
+      ]),
+      // How a non-WHOOP wearable's numbers are drawn. Developer only while
+      // every wearable is (rule R6).
+      if (devMode) wearableSettingsGroup(c),
+      if (devMode)
+        settingsGroup(c, l?.settingsGroupDeveloper ?? 'Developer', [
+          SetRow(LucideIcons.layoutGrid, C.dialStrain,
+              l?.settingsComponentGalleryRowTitle ?? 'Component gallery',
+              sub: l?.settingsComponentGalleryRowSub ??
+                  'Every component, at any text scale, in either theme',
+              onTap: onGallery),
+          SetRow(LucideIcons.code, C.dialStrain,
+              l?.settingsDeveloperModeRowTitle ?? 'Developer mode',
+              switchValue: true, onTap: onToggleDev),
+        ]),
+      const SizedBox(height: S.x10),
+      Center(
+        child: BigButton(l?.settingsResetAllDataRowTitle ?? 'Reset all data',
+            icon: LucideIcons.trash2,
+            tone: ButtonTone.danger,
+            compact: true,
+            onTap: onReset),
+      ),
+      const SizedBox(height: S.x3),
+      Text('Deletes everything this app has stored on this phone. It asks first.',
+          textAlign: TextAlign.center, style: F.over.copyWith(color: p.ink3)),
+    ]);
+  }
+}
+
+/// A settings page: the bar with its name, then its groups.
+Widget settingsPage(BuildContext c, String title, List<Widget> children) =>
+    Scaffold(
+      backgroundColor: P.of(c).bg,
       body: SafeArea(
         child: Column(children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: S.x4),
-            child: NavBar(l?.settingsNavTitle ?? 'Settings'),
+            child: NavBar(title),
           ),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
-              children: [
-                // Alarm, Cloud account, Export, Band buzzes, Compare with watch,
-                // Edit profile and the app update check are NOT here: each
-                // lives in one place, the More tab, because two doors to one
-                // thing is how a user ends up unsure which is the real one.
-                //
-                // Every group is named for the question it answers, and in the
-                // order people come looking: the band, how the app looks, what
-                // may interrupt, what is tracked, what it talks to, privacy,
-                // then help. The one destructive action sits alone at the end.
-                settingsGroup(c, l?.settingsGroupTheBand ?? 'Band', [
-                  SetRow(LucideIcons.heart, C.dialStrain, 'Heart rate zones',
-                      sub: 'Your zones, resting and maximum heart rate',
-                      onTap: () => goto(c, const HeartRateSettingsScreen())),
-                  // Off by default — an existing user did not ask their band
-                  // to start buzzing mid-workout. The target zone only appears
-                  // once it is on.
-                  SetRow(LucideIcons.heartPulse, C.dialStrain,
-                      l?.settingsZoneAlertRowTitle ?? 'HR zone alert',
-                      sub: l?.settingsZoneAlertRowSub ??
-                          'Buzz when your heart rate crosses into or out of '
-                              'the target zone during a live workout',
-                      switchValue: zoneAlertEnabled,
-                      onTap: onToggleZoneAlert),
-                  if (zoneAlertEnabled)
-                    SetChoice(
-                        LucideIcons.target,
-                        l?.settingsZoneAlertTargetRowTitle ?? 'Target zone',
-                        const ['1', '2', '3', '4', '5'],
-                        (zoneAlertZone - 1).clamp(0, 4),
-                        onChanged: (i) => onZoneAlertZone?.call(i + 1)),
-                  // The picker died with the old ui tree and the engine kept
-                  // running against a mapping nothing could set.
-                  SetRow(LucideIcons.hand, C.dialStrain,
-                      l?.settingsDoubleTapRowTitle ?? 'Double-tap',
-                      sub: l?.settingsDoubleTapRowSub ??
-                          'What a double-tap on the band does',
-                      onTap: () => goto(c, const BandGestures())),
-                  SetRow(LucideIcons.footprints, C.dialStrain, 'Step counter',
-                      sub: 'How the band\'s step count is corrected against '
-                          'your phone\'s',
-                      onTap: () => goto(c, const StepCalibrationScreen())),
-                ]),
-                settingsGroup(c, 'Display', [
-                  SetChoice(LucideIcons.sunMoon, 'Appearance', appearances,
-                      appearances.indexOf(appearance).clamp(0, 2),
-                      onChanged: onAppearance),
-                  SetChoice(
-                      LucideIcons.ruler,
-                      l?.settingsUnitsRowTitle ?? 'Units',
-                      const ['Metric', 'Imperial'],
-                      units == 'Imperial' ? 1 : 0,
-                      onChanged: onUnits),
-                  SetChoice(
-                      LucideIcons.clock,
-                      l?.settingsClockFormatRowTitle ?? 'Time format',
-                      [
-                        l?.settingsClockFormatSystem ?? ClockFormat.system.label,
-                        l?.settingsClockFormat24h ?? ClockFormat.h24.label,
-                        l?.settingsClockFormat12h ?? ClockFormat.h12.label,
-                      ],
-                      clockFormat.index,
-                      onChanged: onClockFormat),
-                ]),
-                settingsGroup(c, 'Notifications', [
-                  SetRow(LucideIcons.bell, C.dialStrain,
-                      l?.settingsManageNotificationsRowTitle ??
-                          'Manage notifications',
-                      sub: l?.settingsManageNotificationsRowSub ??
-                          'What may interrupt you, quiet hours, and off '
-                              'switches for all of them',
-                      onTap: onNotifications),
-                ]),
-                settingsGroup(c, 'Tracking', [
-                  // Says what switching it off does, so nobody wonders whether
-                  // it throws the entries away.
-                  SetRow(LucideIcons.calendarHeart, C.rose, 'Cycle tracking',
-                      sub: 'Log your cycle on its own screen. Off hides it and '
-                          'keeps what you logged',
-                      switchValue: cycleTracking,
-                      onTap: onToggleCycleTracking),
-                  SetRow(LucideIcons.footprints, C.dialStrain,
-                      l?.settingsStepsRowTitle ?? 'Steps',
-                      sub: l?.settingsStepsRowSub ??
-                          'This phone’s own step counter, for the hours the '
-                              'band doesn’t cover. Nothing leaves the device',
-                      switchValue: phoneSteps,
-                      onTap: onTogglePhoneSteps),
-                ]),
-                settingsGroup(c, 'Connected apps', [
-                  // The row P1 was missing: the permission request, the retry
-                  // and the four gates behind it had no way to be switched on.
-                  SetRow(LucideIcons.heartPulse, C.dialStrain,
-                      l?.settingsWriteToHealthStoreRowTitle(healthStore) ??
-                          'Write to $healthStore',
-                      sub: healthSyncSub(c, healthSync, healthState, healthStore),
-                      switchValue: healthSync,
-                      onTap: onToggleHealthSync),
-                  SetRow(LucideIcons.upload, C.dialStrain, 'Import WHOOP data',
-                      sub: 'Your recovery, sleep, strain and workouts from a '
-                          'WHOOP export',
-                      onTap: () => goto(c, const WhoopImportScreen())),
-                  SetRow.brand((t) => CoachMark(size: I.lg, color: t),
-                      C.dialStrain, 'AI coach',
-                      sub: 'The model, its API key and how it answers',
-                      onTap: () => goto(c, const CoachSetup())),
-                  SetRow(LucideIcons.workflow, C.dialStrain,
-                      l?.settingsTaskerShortcutsRowTitle ??
-                          'Tasker and Shortcuts',
-                      // The row states the asymmetry rather than leaving it to
-                      // the screen.
-                      sub: l?.settingsTaskerShortcutsRowSub ??
-                          'Android only for events out. iOS can buzz the band '
-                              'but cannot be triggered by it',
-                      onTap: onAutomation),
-                ]),
-                settingsGroup(c, l?.settingsGroupPrivacy ?? 'Privacy', [
-                  SetRow(LucideIcons.bug, C.dialStrain,
-                      l?.settingsCrashReportsRowTitle ?? 'Crash reports',
-                      sub: l?.settingsCrashReportsRowSub ??
-                          'Nothing is sent until you say so',
-                      switchValue: telemetry,
-                      onTap: onToggleTelemetry),
-                  if (showHealthShare)
-                    SetRow(LucideIcons.cloudUpload, C.dialStrain,
-                        l?.settingsContributeHealthDataRowTitle ??
-                            'Contribute my health data',
-                        sub: l?.settingsContributeHealthDataRowSub ??
-                            'Uploads your whole database once a day, on '
-                                'Wi-Fi and charging, to improve the algorithms',
-                        switchValue: healthShare,
-                        onTap: onToggleHealthShare),
-                ]),
-                settingsGroup(c, 'Help and about', [
-                  SetRow(LucideIcons.messageSquareWarning, C.dialStrain,
-                      l?.settingsReportIssueRowTitle ?? 'Report an issue',
-                      sub: l?.settingsReportIssueRowSub ??
-                          'Sends what you choose to the maintainers, encrypted',
-                      onTap: () => goto(c, const ReportIssueScreen())),
-                  if (showUpdateChecks)
-                    SetRow(LucideIcons.refreshCw, C.dialStrain,
-                        l?.settingsCheckForUpdatesRowTitle ??
-                            'Check for updates',
-                        sub: updateMandatory
-                            ? (l?.settingsUpdateBelowMinimum ??
-                                'This build is below the minimum supported '
-                                    'build. Install the newer release from GitHub')
-                            : updateAvailable
-                                ? (l?.settingsUpdateAvailable ??
-                                    'A newer build is published on GitHub')
-                                : (l?.settingsUpdateCheckSub ??
-                                    'Asks the release server on launch. It sees '
-                                        'your IP address and when you open the app'),
-                        switchValue: updateChecks,
-                        onTap: onToggleUpdateChecks),
-                  // Where the licences of what this app uses are written out
-                  // in full.
-                  SetRow(LucideIcons.scale, C.dialStrain,
-                      l?.settingsNoticesLicencesRowTitle ??
-                          'Notices and licences',
-                      sub: l?.settingsNoticesLicencesRowSub ??
-                          'Who this app is not, and whose data it uses',
-                      onTap: () => launchUrl(
-                          Uri.parse(
-                              'https://openstrap.github.io/edge/notice.html'),
-                          mode: LaunchMode.externalApplication)),
-                  if (version.isNotEmpty)
-                    SetRow(LucideIcons.info, C.dialStrain,
-                        l?.settingsVersionRowTitle ?? 'Version',
-                        value: version, chevron: false, onTap: onVersionTap),
-                ]),
-                // How a non-WHOOP wearable's numbers are drawn. Developer
-                // only while every wearable is (rule R6).
-                if (devMode) wearableSettingsGroup(c),
-                if (devMode)
-                  settingsGroup(c, l?.settingsGroupDeveloper ?? 'Developer', [
-                    SetRow(LucideIcons.layoutGrid, C.dialStrain,
-                        l?.settingsComponentGalleryRowTitle ??
-                            'Component gallery',
-                        sub: l?.settingsComponentGalleryRowSub ??
-                            'Every component, at any text scale, in either '
-                                'theme',
-                        onTap: onGallery),
-                    SetRow(LucideIcons.code, C.dialStrain,
-                        l?.settingsDeveloperModeRowTitle ?? 'Developer mode',
-                        switchValue: true, onTap: onToggleDev),
-                  ]),
-                const SizedBox(height: S.x10),
-                Center(
-                  child: BigButton(
-                      l?.settingsResetAllDataRowTitle ?? 'Reset all data',
-                      icon: LucideIcons.trash2,
-                      tone: ButtonTone.danger,
-                      compact: true,
-                      onTap: onReset),
-                ),
-                const SizedBox(height: S.x3),
-                Text(
-                    'Deletes everything this app has stored on this phone. '
-                    'It asks first.',
-                    textAlign: TextAlign.center,
-                    style: F.over.copyWith(color: p.ink3)),
-              ],
+              children: children,
             ),
           ),
         ]),
       ),
     );
+
+// ══════════════════ MY PROFILE · DEVICE · HEALTH ══════════════════
+
+/// Everything about you: who you are and what you weigh.
+class MyProfileSettings extends StatelessWidget {
+  const MyProfileSettings({super.key});
+
+  @override
+  Widget build(BuildContext c) {
+    final app = c.watch<AppState>();
+    final wKg = (app.user?['weight_kg'] as num?)?.toDouble();
+    final weight = wKg == null ? '' : c.watch<UnitsController>().weight(wKg);
+    final l = AppLocalizations.of(c);
+    return settingsPage(c, 'My profile', [
+      settingsGroup(c, '', [
+        SetRow(LucideIcons.userRound, C.dialStrain,
+            l?.profileEditProfile ?? 'Edit profile',
+            sub: 'Your name and the body details the scores use',
+            onTap: () => goto(c, const EditProfile())),
+        SetRow(LucideIcons.scale, C.dialStrain, 'Weight',
+            sub: 'Your weight over time, and a new reading',
+            value: weight,
+            onTap: () => goto(c, const WeightTrendScreen())),
+      ]),
+    ]);
+  }
+}
+
+/// Everything about the band: the devices, what makes it buzz, what its
+/// double-tap does, and the watch it can be compared with.
+class DeviceSettings extends StatelessWidget {
+  const DeviceSettings({super.key});
+
+  @override
+  Widget build(BuildContext c) {
+    final app = c.watch<AppState>();
+    final l = AppLocalizations.of(c);
+    final battery = deviceBatteryOf(c);
+    final android = defaultTargetPlatform == TargetPlatform.android;
+    return settingsPage(c, 'Device settings', [
+      settingsGroup(c, l?.settingsGroupTheBand ?? 'Band', [
+        SetRow(LucideIcons.watch, C.dialStrain,
+            l?.profileMyDevices ?? 'My devices',
+            sub: 'Your band, its battery and the sensors paired with it',
+            value: battery == null ? '' : '${battery.$1.round()}%',
+            onTap: () => goto(c, const MyDevices())),
+        // Reading which app notified is an Android capability; elsewhere the
+        // row is not drawn.
+        if (android)
+          SetRow(LucideIcons.vibrate, C.dialStrain, 'Band buzzes',
+              sub: 'Which phone notifications the band buzzes for',
+              onTap: () => goto(c, const BandNotifications())),
+        // The picker died with the old ui tree and the engine kept running
+        // against a mapping nothing could set.
+        SetRow(LucideIcons.hand, C.dialStrain,
+            l?.settingsDoubleTapRowTitle ?? 'Double-tap',
+            sub: l?.settingsDoubleTapRowSub ??
+                'What a double-tap on the band does',
+            onTap: () => goto(c, const BandGestures())),
+        // Off by default — an existing user did not ask their band to start
+        // buzzing mid-workout. The target zone only appears once it is on.
+        SetRow(LucideIcons.heartPulse, C.dialStrain,
+            l?.settingsZoneAlertRowTitle ?? 'HR zone alert',
+            sub: l?.settingsZoneAlertRowSub ??
+                'Buzz when your heart rate crosses into or out of '
+                    'the target zone during a live workout',
+            switchValue: app.zoneAlertEnabled,
+            onTap: () => app.setZoneAlertEnabled(!app.zoneAlertEnabled)),
+        if (app.zoneAlertEnabled)
+          SetChoice(
+              LucideIcons.target,
+              l?.settingsZoneAlertTargetRowTitle ?? 'Target zone',
+              const ['1', '2', '3', '4', '5'],
+              (app.zoneAlertTargetZone - 1).clamp(0, 4),
+              onChanged: (i) => app.setZoneAlertTargetZone(i + 1)),
+      ]),
+      settingsGroup(c, 'Other devices', [
+        SetRow(LucideIcons.gitCompareArrows, C.dialStrain, 'Compare with watch',
+            sub: 'Your band’s numbers next to another watch’s',
+            onTap: () => goto(c, const WatchCompareScreen())),
+      ]),
+    ]);
+  }
+}
+
+/// Everything health: your heart rate zones and what the sleep planner
+/// plans for.
+class HealthSettings extends StatefulWidget {
+  const HealthSettings({super.key});
+
+  @override
+  State<HealthSettings> createState() => _HealthSettingsState();
+}
+
+class _HealthSettingsState extends State<HealthSettings> {
+  @override
+  Widget build(BuildContext c) {
+    final consistent = plannerKeepsConsistent;
+    return settingsPage(c, 'Health settings', [
+      settingsGroup(c, 'Heart', [
+        SetRow(LucideIcons.heart, C.dialStrain, 'Heart rate zones',
+            sub: 'Your zones, resting and maximum heart rate',
+            onTap: () => goto(c, const HeartRateSettingsScreen())),
+      ]),
+      settingsGroup(c, 'Sleep', [
+        SetChoice(LucideIcons.moon, 'Sleep goal',
+            const ['Sleep need', 'Consistent'], consistent ? 1 : 0,
+            onChanged: (i) {
+          Prefs.setString(
+              Prefs.sleepPlannerGoal, i == 1 ? 'consistent' : 'optimize');
+          setState(() {});
+        }),
+      ]),
+    ]);
   }
 }
 
@@ -1223,6 +1301,9 @@ class _EditProfileViewState extends State<EditProfileView> {
       TextEditingController(text: _u.weightField(widget.initial['weight_kg'] as num?));
   late String? _sex = (widget.initial['sex'] as String?)?.toLowerCase();
 
+  /// The stored keys, in the switcher's order. Unset selects nothing.
+  static const _sexKeys = ['m', 'f', 'other'];
+
   /// When the store last gave us something. Null is "never", which is also
   /// what an unreadable preference reads as — the first-run word on the button
   /// is the safe one either way.
@@ -1350,31 +1431,17 @@ class _EditProfileViewState extends State<EditProfileView> {
                 Text(l?.settingsSexFieldLabel ?? 'SEX',
                     style: F.over.copyWith(color: p.ink3)),
                 const SizedBox(height: S.x2),
-                Wrap(spacing: S.x2, runSpacing: S.x2, children: [
-                  for (final (key, label) in [
-                    ('m', l?.settingsSexMale ?? 'Male'),
-                    ('f', l?.settingsSexFemale ?? 'Female'),
-                    ('other', l?.settingsSexPreferNotToSay ?? 'Prefer not to say'),
-                  ])
-                    Pressable(
-                      onTap: () => setState(() => _sex = key),
-                      semanticLabel: label,
-                      child: Container(
-                        alignment: Alignment.center,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: S.x4, vertical: S.x2),
-                        decoration: BoxDecoration(
-                          color: _sex == key
-                              ? p.ink
-                              : p.ink.withValues(alpha: .09),
-                          borderRadius: R.rLg,
-                        ),
-                        child: Text(label.toUpperCase(),
-                            style: F.caps.copyWith(
-                                color: _sex == key ? p.bg : p.ink2)),
-                      ),
-                    ),
-                ]),
+                // The switcher every other choice in settings uses.
+                RangeSegments(
+                  [
+                    (l?.settingsSexMale ?? 'Male').toUpperCase(),
+                    (l?.settingsSexFemale ?? 'Female').toUpperCase(),
+                    'OTHER',
+                  ],
+                  _sexKeys.indexOf(_sex ?? ''),
+                  (i) => setState(() => _sex = _sexKeys[i]),
+                  width: null,
+                ),
                 const SizedBox(height: S.x4),
                 _text(c, _age, l?.settingsAgeYearsFieldLabel ?? 'AGE (YEARS)',
                     TextInputType.number),

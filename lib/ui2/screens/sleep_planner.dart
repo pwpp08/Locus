@@ -27,6 +27,7 @@ import '../../state/prefs.dart';
 import '../profile/alarm.dart' show AlarmArmState, AlarmScreen;
 import '../ui2.dart';
 import 'alarm_mode_sheet.dart';
+import 'dial_parts.dart' show dialCard, kDialMargin, kDialPad;
 import 'home_screen.dart' show alarmArmOfContext, clock, go, repoOf;
 
 /// Tonight's sleep need, its parts, and the time in bed that covers it.
@@ -49,6 +50,10 @@ class SleepPlan {
   /// Your usual wake time, minute of day, as the coach learned it.
   final int? usualWakeMin;
 
+  /// Your actual bedtime and wake time: the medians of your last seven
+  /// recorded nights (three at least). Null under that.
+  final int? habitBedMin, habitWakeMin;
+
   const SleepPlan({
     this.needMin,
     this.baselineMin,
@@ -56,6 +61,8 @@ class SleepPlan {
     this.napMin,
     this.inBedMin,
     this.usualWakeMin,
+    this.habitBedMin,
+    this.habitWakeMin,
   });
 
   /// Sleep debt, as it ACTUALLY landed in [needMin]: the need less every
@@ -78,8 +85,13 @@ class SleepPlan {
   int? bedtimeFor(int? wakeMin) =>
       wakeMin == null || inBedMin == null ? null : (wakeMin - inBedMin!) % 1440;
 
-  /// Your usual bedtime: your usual wake time less your usual time in bed.
-  int? get usualBedMin => bedtimeFor(usualWakeMin);
+  /// The optimal night: in bed early enough to cover the whole need before
+  /// your usual wake time.
+  int? get optimalBedMin => bedtimeFor(usualWakeMin);
+
+  /// Your usual bedtime, the one "stay consistent" keeps: the time you really
+  /// go to bed. Until a few nights give one, the optimal one.
+  int? get usualBedMin => habitBedMin ?? optimalBedMin;
 
   static int? _min(Object? v) => v is num ? v.round() : null;
 
@@ -109,6 +121,8 @@ class SleepPlan {
           ? null
           : ((wake - bed) % 1440).round(),
       usualWakeMin: wake?.round(),
+      habitBedMin: _min(coach['habit_bed_min']),
+      habitWakeMin: _min(coach['habit_wake_min']),
     );
   }
 }
@@ -460,32 +474,11 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                   ),
                   Expanded(
                     child: Center(
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Text('SLEEP PLANNER',
-                            style: F.body.copyWith(
-                                color: p.ink,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.6)),
-                        const SizedBox(width: S.x3),
-                        Pressable(
-                          onTap: () => showSleepRecommendation(c, plan),
-                          semanticLabel: 'How the plan is made',
-                          child: Container(
-                            width: S.x5,
-                            height: S.x5,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: p.ink.withValues(alpha: .35), width: S.half),
-                            ),
-                            child: Center(
-                              child: Text('?',
-                                  style: F.cap.copyWith(
-                                      color: p.ink2, fontWeight: FontWeight.w700, height: 1)),
-                            ),
-                          ),
-                        ),
-                      ]),
+                      child: Text('SLEEP PLANNER',
+                          style: F.body.copyWith(
+                              color: p.ink,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.6)),
                     ),
                   ),
                   Pressable(
@@ -544,11 +537,11 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                     ),
                   ),
                 ]),
-                const Spacer(flex: 1),
+                const SizedBox(height: S.x2),
                 Center(
                   child: Container(
-                    width: S.x10 + S.x1,
-                    height: S.x10 + S.x1,
+                    width: S.x8 + S.x1,
+                    height: S.x8 + S.x1,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(color: p.ink, width: S.half),
@@ -558,7 +551,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                         painter: LocusMarkPainter(ink: p.ink)),
                   ),
                 ),
-                const Spacer(flex: 2),
+                const SizedBox(height: S.x4),
                 // Three lines high whatever it says, so what is under it does
                 // not move when the sentence changes length.
                 ConstrainedBox(
@@ -573,7 +566,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                             height: 1.3)),
                   ),
                 ),
-                const Spacer(flex: 2),
+                const Spacer(flex: 1),
                 Center(
                   child: Text('TOMORROW I WANT TO',
                       style: F.over.copyWith(
@@ -602,19 +595,20 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                     ),
                   ),
                 ),
-                const Spacer(flex: 3),
+                const Spacer(flex: 2),
                 _PlannerBar(
                   bed: bed,
                   wake: wake,
                   bedLabel: isNow ? 'Now' : (bed == null ? '--' : clock(bed)),
                   wakeLabel: wake == null ? '--' : clock(wake),
                   inBedLabel: hMm(inBed),
-                  recFrom: usualBed,
+                  recFrom: plan.optimalBedMin,
                   recTo: usualWake,
                   alarmOn: planAlarm != null,
                   onWake: () => _pickWake(wake),
+                  onInBed: () => showSleepRecommendation(c, plan),
                 ),
-                const Spacer(flex: 1),
+                const Spacer(flex: 2),
               ]),
                   ),
                 ),
@@ -776,12 +770,13 @@ class _GoalSheet extends StatelessWidget {
 }
 
 /// The night as a bar: where it starts and ends, the time in bed between, and
-/// under it the window your own nights recommend.
-class _PlannerBar extends StatelessWidget {
+/// under it the optimal window your own nights give. It slides a little under
+/// a finger and springs back to the time in bed, centred, when let go.
+class _PlannerBar extends StatefulWidget {
   final int? bed, wake, recFrom, recTo;
   final String bedLabel, wakeLabel, inBedLabel;
   final bool alarmOn;
-  final VoidCallback onWake;
+  final VoidCallback onWake, onInBed;
 
   const _PlannerBar({
     required this.bed,
@@ -793,6 +788,7 @@ class _PlannerBar extends StatelessWidget {
     required this.recTo,
     required this.alarmOn,
     required this.onWake,
+    required this.onInBed,
   });
 
   // Where the two ends of the night stand across the screen, and where the
@@ -802,141 +798,217 @@ class _PlannerBar extends StatelessWidget {
   // Down the bar, from the top of the times.
   static const _labelsH = 72.0, _barTop = 100.0, _barH = 34.0, _height = 190.0;
 
+  /// The furthest the bar slides: it gives less the further it is pulled.
+  static const _reach = S.x16;
+
+  /// How far before bedtime a time still reads as "before bed" on the bar,
+  /// rather than as late the next day.
+  static const _leadMin = 6 * 60;
+
+  @override
+  State<_PlannerBar> createState() => _PlannerBarState();
+}
+
+class _PlannerBarState extends State<_PlannerBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _back = AnimationController(vsync: this)
+    ..addListener(() => setState(() {
+          _dx = _from * (1 - Ease.emphasized.transform(_back.value));
+        }));
+  double _pull = 0, _dx = 0, _from = 0;
+
+  @override
+  void dispose() {
+    _back.dispose();
+    super.dispose();
+  }
+
+  void _drag(double dx) {
+    _pull += dx;
+    // Rubber band: follows the finger at first, then stiffens to _reach.
+    const r = _PlannerBar._reach;
+    setState(() => _dx = r * (2 / (1 + math.exp(-2 * _pull / r)) - 1));
+  }
+
+  void _release(double _) {
+    _pull = 0;
+    // A cancel also comes as the page closes: nothing to spring back then.
+    if (_dx == 0) return;
+    _from = _dx;
+    _back.forward(from: 0);
+  }
+
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    return LayoutBuilder(builder: (c, box) {
-      final w = box.maxWidth + S.gutter * 2;
-      // In this widget's own coordinates (the screen's, less the gutter).
-      double x(double f) => w * f - S.gutter;
-      final xl = x(_lo), xr = x(_hi);
-      final span = bed == null || wake == null ? null : (wake! - bed!) % 1440;
-      // A time on the bar's own scale; null off the plan.
-      double? xAt(int? t) {
-        if (t == null || span == null || span == 0) return null;
-        final rel = ((t - bed! + 720) % 1440) - 720;
-        return xl + rel / span * (xr - xl);
-      }
+    final bed = widget.bed, wake = widget.wake;
+    _back.duration = motion(c, Motion.slow);
+    return SideDrag(
+      onStart: _back.stop,
+      onDrag: _drag,
+      onRelease: _release,
+      child: Transform.translate(
+        offset: Offset(_dx, 0),
+        child: LayoutBuilder(builder: (c, box) {
+          final w = box.maxWidth + S.gutter * 2;
+          // In this widget's own coordinates (the screen's, less the gutter).
+          double x(double f) => w * f - S.gutter;
+          final xl = x(_PlannerBar._lo), xr = x(_PlannerBar._hi);
+          final span = bed == null || wake == null ? null : (wake - bed) % 1440;
+          // A time on the bar's own scale: minutes after bedtime, or up to
+          // _leadMin before it. Kept on screen.
+          double? xAt(int? t) {
+            if (t == null || span == null || span == 0) return null;
+            var rel = (t - bed!) % 1440;
+            if (rel > 1440 - _PlannerBar._leadMin) rel -= 1440;
+            return (xl + rel / span * (xr - xl))
+                .clamp(S.x2 - S.gutter, w - S.gutter - S.x2);
+          }
 
-      Widget time(String t, String caption, double cx, {VoidCallback? onTap}) =>
-          Positioned(
-            left: cx - S.x16,
-            width: S.x16 * 2,
-            top: 0,
-            height: _labelsH,
-            child: Pressable(
-              onTap: onTap,
-              semanticLabel: '$caption $t',
-              child: Column(children: [
-                Text(t,
-                    style: F.n34.copyWith(color: p.ink, fontWeight: FontWeight.w800)),
-                const SizedBox(height: S.x2),
-                Text(caption,
+          Widget time(String t, String caption, double cx,
+                  {VoidCallback? onTap}) =>
+              Positioned(
+                left: cx - S.x16,
+                width: S.x16 * 2,
+                top: 0,
+                height: _PlannerBar._labelsH,
+                child: Pressable(
+                  onTap: onTap,
+                  semanticLabel: '$caption $t',
+                  child: Column(children: [
+                    Text(t,
+                        style: F.n34
+                            .copyWith(color: p.ink, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: S.x2),
+                    Text(caption,
+                        textAlign: TextAlign.center,
+                        style: F.over.copyWith(
+                            color: p.ink3,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: .9)),
+                  ]),
+                ),
+              );
+
+          final from = xAt(widget.recFrom), to = xAt(widget.recTo);
+          final haveRec = from != null && to != null && to > from;
+          final muted = C.dialSleep.withValues(alpha: .85);
+          const barTop = _PlannerBar._barTop, barH = _PlannerBar._barH;
+          return SizedBox(
+            height: _PlannerBar._height,
+            child: Stack(clipBehavior: Clip.none, children: [
+              time(widget.bedLabel, 'SUGGESTED\nTIME TO BED',
+                  x(_PlannerBar._loText)),
+              time(widget.wakeLabel, 'YOUR\nWAKE TIME', x(_PlannerBar._hiText),
+                  onTap: widget.onWake),
+              Positioned(
+                left: -S.gutter,
+                right: -S.gutter,
+                top: 0,
+                height: _PlannerBar._height,
+                child: CustomPaint(
+                  painter: _BarPaint(
+                    ink: p.ink,
+                    stripe: p.ink.withValues(alpha: .3),
+                    band: Color.alphaBlend(C.char.withValues(alpha: .85), p.bg),
+                    dash: p.ink3,
+                    xl: w * _PlannerBar._lo,
+                    xr: w * _PlannerBar._hi,
+                    from: haveRec ? from + S.gutter : null,
+                    to: haveRec ? to + S.gutter : null,
+                    barTop: barTop,
+                    barH: barH,
+                    dropFrom: _PlannerBar._labelsH + S.half,
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                top: barTop - S.x5 - S.half,
+                child: Text('TIME IN BED',
                     textAlign: TextAlign.center,
                     style: F.over.copyWith(
-                        color: p.ink3, fontWeight: FontWeight.w800, letterSpacing: .9)),
-              ]),
-            ),
-          );
-
-      final from = xAt(recFrom), to = xAt(recTo);
-      final haveRec = from != null && to != null && to > from;
-      final muted = C.dialSleep.withValues(alpha: .85);
-      return SizedBox(
-        height: _height,
-        child: Stack(clipBehavior: Clip.none, children: [
-          time(bedLabel, 'SUGGESTED\nTIME TO BED', x(_loText)),
-          time(wakeLabel, 'YOUR\nWAKE TIME', x(_hiText), onTap: onWake),
-          Positioned(
-            left: -S.gutter,
-            right: -S.gutter,
-            top: 0,
-            height: _height,
-            child: CustomPaint(
-              painter: _BarPaint(
-                ink: p.ink,
-                stripe: p.ink.withValues(alpha: .3),
-                band: Color.alphaBlend(C.char.withValues(alpha: .85), p.bg),
-                dash: p.ink3,
-                xl: w * _lo,
-                xr: w * _hi,
-                from: haveRec ? from + S.gutter : null,
-                to: haveRec ? to + S.gutter : null,
-                barTop: _barTop,
-                barH: _barH,
-                dropFrom: _labelsH + S.half,
+                        color: p.ink,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2)),
               ),
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: _barTop - 22,
-            child: Text('TIME IN BED',
-                textAlign: TextAlign.center,
-                style: F.over.copyWith(
-                    color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: _barTop - S.x1 - S.half,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: S.x5, vertical: S.x2),
-                decoration: BoxDecoration(
-                  color: Color.alphaBlend(C.char.withValues(alpha: .95), p.bg),
-                  borderRadius: R.rPill,
-                  border: Border.all(color: p.ink, width: S.half),
+              // The time in bed opens what it is made of.
+              Positioned(
+                left: 0,
+                right: 0,
+                top: barTop - S.x1 - S.half,
+                child: Center(
+                  child: Pressable(
+                    onTap: widget.onInBed,
+                    semanticLabel:
+                        'Time in bed ${widget.inBedLabel}. How it is made',
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(
+                          S.x5, S.x2, S.x4, S.x2),
+                      decoration: BoxDecoration(
+                        color:
+                            Color.alphaBlend(C.char.withValues(alpha: .95), p.bg),
+                        borderRadius: R.rPill,
+                        border: Border.all(color: p.ink, width: S.half),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text(widget.inBedLabel,
+                            style: F.n24.copyWith(
+                                color: p.ink, fontWeight: FontWeight.w800)),
+                        const SizedBox(width: S.x2),
+                        Icon(LucideIcons.info, size: I.sm, color: p.ink3),
+                      ]),
+                    ),
+                  ),
                 ),
-                child: Text(inBedLabel,
-                    style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w800)),
               ),
-            ),
-          ),
-          if (alarmOn)
-            Positioned(
-              left: xr - S.x4 - S.half,
-              top: _barTop - S.x8 - S.x2,
-              child: Container(
-                width: S.x8,
-                height: S.x8,
-                decoration: BoxDecoration(color: p.ink, shape: BoxShape.circle),
-                child: Center(child: StrapIcon(color: C.char, height: S.x4)),
-              ),
-            ),
-          // What your own nights recommend, or why there is nothing yet.
-          Positioned(
-            left: 0,
-            right: 0,
-            top: _barTop + _barH + S.x4,
-            child: Center(
-              child: haveRec
-                  ? Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text('RECOMMENDED',
-                          style: F.caps.copyWith(
-                              color: muted, fontWeight: FontWeight.w800, letterSpacing: 1)),
-                      const SizedBox(height: S.x1),
-                      Text('${clock(recFrom!)} - ${clock(recTo!)}',
-                          style: F.num(F.cap).copyWith(color: p.ink3)),
-                    ])
-                  : Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text('OPTIMAL',
-                          style: F.caps.copyWith(
-                              color: muted, fontWeight: FontWeight.w800, letterSpacing: 1)),
-                      const SizedBox(height: S.x2),
+              if (widget.alarmOn)
+                Positioned(
+                  left: xr - S.x4 - S.half,
+                  top: barTop - S.x8 - S.x2,
+                  child: Container(
+                    width: S.x8,
+                    height: S.x8,
+                    decoration:
+                        BoxDecoration(color: p.ink, shape: BoxShape.circle),
+                    child: Center(child: StrapIcon(color: C.char, height: S.x4)),
+                  ),
+                ),
+              // The optimal night your own nights give, or why there is none.
+              Positioned(
+                left: 0,
+                right: 0,
+                top: barTop + barH + S.x4,
+                child: Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text('OPTIMAL',
+                        style: F.caps.copyWith(
+                            color: muted,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1)),
+                    const SizedBox(height: S.x1),
+                    if (haveRec)
                       Text(
-                          'Three consecutive nights of sleep needed to\ncalculate optimal bed and wake times.',
+                          '${clock(widget.recFrom!)} - ${clock(widget.recTo!)}',
+                          style: F.num(F.cap).copyWith(color: p.ink3))
+                    else
+                      Text(
+                          'Three nights of sleep needed to calculate\n'
+                          'optimal bed and wake times.',
                           textAlign: TextAlign.center,
                           style: F.over.copyWith(
-                              color: muted, fontWeight: FontWeight.w500, height: 1.5)),
-                    ]),
-            ),
-          ),
-        ]),
-      );
-    });
+                              color: muted,
+                              fontWeight: FontWeight.w500,
+                              height: 1.5)),
+                  ]),
+                ),
+              ),
+            ]),
+          );
+        }),
+      ),
+    );
   }
 }
 
@@ -977,12 +1049,13 @@ class _BarPaint extends CustomPainter {
       dashed(Path()..moveTo(x, dropFrom)..lineTo(x, barTop), line, S.x1, S.x1);
     }
     // The band, edge to edge, hatched between the two ends.
-    canvas.drawRect(Rect.fromLTWH(0, barTop, size.width, barH), Paint()..color = band);
+    final run = Rect.fromLTRB(-size.width, barTop, size.width * 2, barTop + barH);
+    canvas.drawRect(run, Paint()..color = band);
     final edge = Paint()
       ..color = ink.withValues(alpha: .16)
       ..strokeWidth = 1;
     for (final y in [barTop, barTop + barH]) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), edge);
+      canvas.drawLine(Offset(run.left, y), Offset(run.right, y), edge);
     }
     const inset = S.x1 + S.half;
     canvas.save();
@@ -1033,133 +1106,114 @@ class _BarPaint extends CustomPainter {
       old.xl != xl || old.xr != xr || old.from != from || old.to != to;
 }
 
-/// YOUR SLEEP RECOMMENDATION: the sheet behind the time in bed.
+/// YOUR SLEEP RECOMMENDATION: what the time in bed is made of, opened from
+/// the time in bed itself. A dial sheet: the need, its parts under it, the
+/// time awake, and the time in bed they add up to.
 Future<void> showSleepRecommendation(BuildContext c, SleepPlan plan) =>
-    showDialog<void>(
-      context: c,
-      builder: (_) => _RecommendationDialog(plan),
+    AppSheet.open<void>(
+      c,
+      bare: true,
+      scroll: true,
+      builder: (_) => _RecommendationSheet(plan),
     );
 
-class _RecommendationDialog extends StatelessWidget {
+class _RecommendationSheet extends StatelessWidget {
   final SleepPlan plan;
-  const _RecommendationDialog(this.plan);
+  const _RecommendationSheet(this.plan);
 
   @override
   Widget build(BuildContext c) {
-    final caps = F.caps.copyWith(color: C.char);
-    final sub = F.caps.copyWith(color: C.n500);
-    final val = F.body.copyWith(color: C.char, fontWeight: FontWeight.w700);
-    final subNum = F.body.copyWith(color: C.n500, fontWeight: FontWeight.w600);
-
-    Widget row(String label, String value, {bool minor = false}) => Padding(
-          padding: EdgeInsets.only(
-              left: minor ? S.x2 : 0, top: S.x2, bottom: S.x2),
+    Widget row(String label, String value,
+            {bool minor = false, bool last = false}) =>
+        Container(
+          constraints: BoxConstraints(minHeight: minor ? S.x10 : S.x12),
+          padding: EdgeInsets.only(left: minor ? S.x4 : 0),
+          decoration: BoxDecoration(
+            border: last
+                ? null
+                : const Border(
+                    bottom: BorderSide(color: DC.line, width: S.hair)),
+          ),
           child: Row(children: [
-            Expanded(child: Text(label, style: minor ? sub : caps)),
-            Text(value, style: minor ? subNum : val),
+            Expanded(
+              child: Text(label,
+                  style: F.dLabel.copyWith(color: minor ? DC.ink3 : DC.ink2)),
+            ),
+            Text(value,
+                style: F.dText.copyWith(
+                    color: minor ? DC.ink2 : DC.ink,
+                    fontWeight: FontWeight.w600)),
           ]),
         );
 
-    return Dialog(
-      backgroundColor: C.white,
-      insetPadding: const EdgeInsets.symmetric(horizontal: S.x4),
-      shape: const RoundedRectangleBorder(borderRadius: R.rXl),
+    return Container(
+      decoration: const BoxDecoration(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(R.xxl)),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [DC.sheetTop, DC.sheetFoot],
+        ),
+      ),
+      padding: EdgeInsets.fromLTRB(kDialMargin, S.x4 + S.half + S.hair,
+          kDialMargin, S.x6 + MediaQuery.paddingOf(c).bottom),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(S.x6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: S.x3),
-                  child: Text('YOUR SLEEP RECOMMENDATION', style: caps),
-                ),
+            Center(
+              child: Container(
+                width: S.x16 + S.x2,
+                height: S.x1 + S.hair,
+                decoration:
+                    const BoxDecoration(color: DC.grab, borderRadius: R.rPill),
               ),
-              Pressable(
-                onTap: () => Navigator.of(c).pop(),
-                semanticLabel: 'Close',
-                child: const SizedBox(
-                  width: S.tap,
-                  height: S.tap,
-                  child: Icon(LucideIcons.x, size: I.lg, color: C.char),
-                ),
-              ),
-            ]),
-            const SizedBox(height: S.x4),
-            Text(
-              'Locus uses your own nights — how long you sleep when nothing '
-              'cuts it short, and how efficiently you sleep — to set a time in '
-              'bed that covers tonight’s sleep need, including what today’s '
-              'strain, recent sleep debt and naps add or take away.',
-              style: F.body.copyWith(color: C.n400, height: 1.4),
             ),
-            const SizedBox(height: S.x5),
+            const SizedBox(height: S.x6),
+            Semantics(
+              header: true,
+              child: Text('YOUR SLEEP RECOMMENDATION',
+                  textAlign: TextAlign.center,
+                  style: F.dLabel.copyWith(color: DC.ink2)),
+            ),
+            const SizedBox(height: S.x2),
+            Text(hMm(plan.inBedMin),
+                textAlign: TextAlign.center,
+                style: F.n34.copyWith(color: DC.ink)),
+            const SizedBox(height: S.x1),
+            Text('TIME IN BED',
+                textAlign: TextAlign.center,
+                style: F.dTiny.copyWith(color: DC.ink3)),
+            const SizedBox(height: S.x6),
             Container(
-              padding: const EdgeInsets.fromLTRB(S.x4, S.x3, S.x4, S.x4),
-              decoration: const BoxDecoration(color: C.mint, borderRadius: R.rSm),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              padding: const EdgeInsets.symmetric(horizontal: kDialPad),
+              decoration: dialCard(),
+              child: Column(children: [
                 row('SLEEP NEED', hMm(plan.needMin)),
-                const _Dashes(),
                 row('BASELINE', hMm(plan.baselineMin), minor: true),
-                row('RECENT STRAIN', hMm(plan.strainMin, sign: true), minor: true),
+                row('RECENT STRAIN', hMm(plan.strainMin, sign: true),
+                    minor: true),
                 row('SLEEP DEBT', hMm(plan.debtMin, sign: true), minor: true),
                 // A nap credit takes sleep OFF the need.
                 row('RECENT NAPS',
                     plan.napMin == null ? '--' : '−${hMm(plan.napMin)}',
                     minor: true),
-                const _Dashes(),
-                row('SLEEP GOAL', hMm(plan.needMin)),
-                row('AVERAGE AWAKE TIME', hMm(plan.awakeMin, sign: true)),
-                const SizedBox(height: S.x2),
-                Container(height: S.half, color: C.char),
-                const SizedBox(height: S.x4),
-                Row(children: [
-                  Expanded(child: Text('RECOMMENDED\nTIME IN BED', style: caps)),
-                  Text(hMm(plan.inBedMin),
-                      style: F.n34.copyWith(color: C.char, fontWeight: FontWeight.w700)),
-                ]),
+                row('AVERAGE AWAKE TIME', hMm(plan.awakeMin, sign: true),
+                    last: true),
               ]),
+            ),
+            const SizedBox(height: S.x4),
+            Text(
+              'Your sleep need is your baseline, the sleep you get on nights '
+              'nothing cuts short, plus what today’s strain and recent sleep '
+              'debt add, less your naps. Time in bed adds the time you usually '
+              'lie awake.',
+              style: F.dText.copyWith(color: DC.body, height: 1.45),
             ),
           ],
         ),
       ),
     );
   }
-}
-
-/// A dashed rule across the panel.
-class _Dashes extends StatelessWidget {
-  const _Dashes();
-
-  @override
-  Widget build(BuildContext c) => const Padding(
-        padding: EdgeInsets.symmetric(vertical: S.x1),
-        child: SizedBox(
-          height: S.half,
-          width: double.infinity,
-          child: CustomPaint(painter: _DashPainter(C.n400)),
-        ),
-      );
-}
-
-class _DashPainter extends CustomPainter {
-  final Color color;
-  const _DashPainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = size.height;
-    const dash = S.x2, gap = S.x1;
-    for (var x = 0.0; x < size.width; x += dash + gap) {
-      canvas.drawLine(Offset(x, size.height / 2),
-          Offset((x + dash).clamp(0, size.width), size.height / 2), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashPainter old) => old.color != color;
 }

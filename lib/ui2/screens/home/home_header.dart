@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -11,7 +13,7 @@ import '../../../theme/theme_switcher.dart' show themedRoute;
 import '../../grammar.dart' show Pressable;
 import '../../marks.dart' show BoldChevron, StrapIcon, SyncArrowMark;
 import '../../profile/devices.dart' show MyDevices, formatDayTime;
-import '../../theme.dart' show C, DC, F, I, Motion, P, R, S;
+import '../../theme.dart' show C, DC, Ease, F, I, Motion, P, R, S, motion;
 import '../../ui2.dart' show LucideIcons;
 import '../battery_detail_screen.dart';
 import '../recovery_calendar.dart' show openRecoveryCalendar;
@@ -377,6 +379,72 @@ SyncBarState syncBarStateOf({
         : now.difference(at).inMinutes < kCaughtUpMinutes
             ? SyncBarState.caughtUp
             : SyncBarState.behind;
+
+/// How long "Caught up" stays once a catch-up has landed, before the bar
+/// folds away.
+final kCaughtUpShown = Motion.linger * 2;
+
+/// The sync bar as Home shows it, 8 under the header: while the band's data
+/// is catching up, and while it is not up to date (both worth a tap). "Caught
+/// up" shows only for [kCaughtUpShown] after a catch-up lands, then the bar
+/// folds away; opening Home on data that is already current shows nothing.
+class HomeSyncBanner extends StatefulWidget {
+  final SyncBarState state;
+  final String syncedTo;
+  final VoidCallback? onTap;
+  const HomeSyncBanner({
+    super.key,
+    required this.state,
+    required this.syncedTo,
+    this.onTap,
+  });
+
+  @override
+  State<HomeSyncBanner> createState() => _HomeSyncBannerState();
+}
+
+class _HomeSyncBannerState extends State<HomeSyncBanner> {
+  bool _landed = false;
+  Timer? _fold;
+
+  @override
+  void didUpdateWidget(HomeSyncBanner old) {
+    super.didUpdateWidget(old);
+    if (old.state == SyncBarState.catchingUp &&
+        widget.state == SyncBarState.caughtUp) {
+      _landed = true;
+      _fold?.cancel();
+      _fold = Timer(kCaughtUpShown, () {
+        if (mounted) setState(() => _landed = false);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _fold?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final show = widget.state != SyncBarState.caughtUp || _landed;
+    return AnimatedSize(
+      duration: motion(c, Motion.slow),
+      curve: Ease.standard,
+      alignment: Alignment.topCenter,
+      child: show
+          ? Padding(
+              padding: const EdgeInsets.only(top: S.x2),
+              child: HomeSyncBar(
+                  state: widget.state,
+                  syncedTo: widget.syncedTo,
+                  onTap: widget.onTap),
+            )
+          : const SizedBox(width: double.infinity),
+    );
+  }
+}
 
 /// The black bar under Home's header: whether the band's data has caught up,
 /// and the time it is synced to. Measured off the reference: 54 tall, radius

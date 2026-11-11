@@ -1,6 +1,6 @@
-// The More tab has to reach Settings, the updater and the band buzzes, and
-// every one of them has to be in exactly ONE place: here or in Settings, never
-// both. They were once in both, which left people unsure which was the real one.
+// The More tab is five doors: My profile, Reports, Device settings, Health
+// settings and Settings. Every setting is behind exactly one of them; two
+// doors to one thing is how people end up unsure which is the real one.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,55 +24,68 @@ void main() {
     await t.pumpAndSettle();
   }
 
-  testWidgets('Settings, updates and band buzzes are on the More tab',
+  testWidgets('the More tab is five doors, each opening its own page',
       (t) async {
     final taps = <String>[];
     await pump(
       t,
       ProfileHomeView(
         tab: true,
+        onProfile: () => taps.add('profile'),
+        onReports: () => taps.add('reports'),
+        onDevice: () => taps.add('device'),
+        onHealth: () => taps.add('health'),
         onSettings: () => taps.add('settings'),
-        onUpdates: () => taps.add('updates'),
-        onBuzz: () => taps.add('buzz'),
       ),
     );
-    expect(find.text('SETTINGS'), findsOneWidget);
-    expect(find.text('APP UPDATES'), findsOneWidget);
-    expect(find.text('CHECK AUTOMATICALLY'), findsOneWidget);
-    expect(find.text('BAND BUZZES'), findsOneWidget);
-
-    for (final row in ['SETTINGS', 'APP UPDATES', 'BAND BUZZES']) {
+    const rows = [
+      'MY PROFILE',
+      'REPORTS',
+      'DEVICE SETTINGS',
+      'HEALTH SETTINGS',
+      'SETTINGS',
+    ];
+    for (final row in rows) {
       await t.ensureVisible(find.text(row));
       await t.tap(find.text(row));
       await t.pump();
     }
-    expect(taps, ['settings', 'updates', 'buzz']);
+    expect(taps, ['profile', 'reports', 'device', 'health', 'settings']);
+    // Nothing else: every setting is behind one of the five.
+    expect(find.byType(MoreRow), findsNWidgets(rows.length));
   });
 
-  testWidgets('a phone that cannot read other apps’ notifications has no '
-      'band-buzz row', (t) async {
+  testWidgets('Settings holds the app, and none of what moved out', (t) async {
     await pump(
-      t,
-      ProfileHomeView(tab: true, onSettings: () {}, onUpdates: () {}),
-    );
-    expect(find.text('SETTINGS'), findsOneWidget);
-    expect(find.text('BAND BUZZES'), findsNothing);
-  });
-
-  testWidgets('what lives on More is not repeated in Settings', (t) async {
-    await pump(t, const MoreSettingsView(version: '0.11.4', devMode: false));
-    for (final moved in [
+        t, MoreSettingsView(version: '0.11.4', devMode: false, onUpdates: () {}));
+    for (final gone in [
+      'APPEARANCE',
+      'CYCLE TRACKING',
+      'STEPS',
+      'STEP COUNTER',
       'ALARM',
-      'CLOUD ACCOUNT',
-      'EXPORT AND BACKUP',
+      'JOURNAL',
+      'LOCUS AGE',
+      'HEART RATE ZONES',
+      'DOUBLE-TAP',
       'COMPARE WITH WATCH',
-      'CHECK FOR UPDATES',
-      'CHECK AUTOMATICALLY',
     ]) {
-      expect(find.text(moved), findsNothing, reason: '$moved moved to More');
+      expect(find.text(gone), findsNothing, reason: '$gone is not an app setting');
     }
-    // Settings keeps what is a preference, not a destination.
-    expect(find.text('UNITS'), findsOneWidget);
-    expect(find.text('HEART RATE ZONES'), findsOneWidget);
+    for (final kept in [
+      'UNITS',
+      'TIME FORMAT',
+      'MANAGE NOTIFICATIONS',
+      'APP UPDATES',
+      'CHECK AUTOMATICALLY',
+      'IMPORT WHOOP DATA',
+      'TASKER AND SHORTCUTS',
+      'MODEL AND KEY',
+      'EXPORT AND BACKUP',
+      'CLOUD ACCOUNT',
+      'STORAGE',
+    ]) {
+      expect(find.text(kept), findsWidgets, reason: '$kept is in Settings');
+    }
   });
 }

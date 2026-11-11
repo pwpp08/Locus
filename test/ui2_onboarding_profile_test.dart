@@ -84,15 +84,13 @@ Map<String, Widget> _cases() => {
           initial: const {'sex': 'f', 'age': 34, 'weight_kg': 61.5},
           onSave: (_) async {}),
       'profile_home': const ProfileHomeView(
-        stats: ProfileStats(
-            name: 'Sahil', sources: 2, storageBytes: 1503238553),
+        stats: ProfileStats(name: 'Sahil', weight: '61.5 kg'),
       ),
       'profile_home_loading': const ProfileHomeView(),
       'my_devices': MyDevicesView(sources: [_band, _phone]),
       'my_devices_empty': const MyDevicesView(),
       'device_detail': DeviceDetailView(_band, onFind: () {}, onForget: () {}),
-      'more_settings': const MoreSettingsView(
-          units: 'Metric', appearance: 'Dark', phoneSteps: true),
+      'more_settings': const MoreSettingsView(units: 'Metric', storage: '1.4 GB'),
       // The alarm's three confirmation states are the point of the screen: it
       // must not draw a confident tick over an alarm the band never
       // acknowledged.

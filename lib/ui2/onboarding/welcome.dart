@@ -571,17 +571,22 @@ class WelcomeView extends StatelessWidget {
     final o = outcome;
     return OnboardingPage(
       step: 1,
-      hero: const _DialsHero(),
+      hero: const _MarkHero(),
       title: l?.welcomeHeadline ?? 'Your band, decoded here',
-      titleStyle: F.display,
       body: l?.welcomeSubhead ??
           'Every number is computed on this phone from the raw signal.',
       below: [
         const SizedBox(height: S.x4),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: _LocalChip(l?.pillLocalNoCloud ?? 'Local · no cloud'),
-        ),
+        // Local, said once and quietly: a shield and the words, no chip.
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Icon(LucideIcons.shieldCheck, size: I.sm, color: C.optimal),
+          const SizedBox(width: S.x2),
+          Flexible(
+            child: Text(
+                (l?.pillLocalNoCloud ?? 'Local · no cloud').toUpperCase(),
+                style: F.dLabel.copyWith(color: DC.ink2)),
+          ),
+        ]),
         if (o != null) ...[
           const SizedBox(height: S.x6),
           ImportReport(o),
@@ -589,156 +594,52 @@ class WelcomeView extends StatelessWidget {
       ],
       actions: [
         BigButton(l?.welcomeSetUpMyBand ?? 'Set up my band',
-            icon: LucideIcons.bluetooth, onTap: busy ? null : onNew),
-        const SizedBox(height: S.x3),
+            onTap: busy ? null : onNew),
+        const SizedBox(height: S.x2),
         // One primary path. Importing first is a real choice but a rarer
-        // one, so it is the soft pill under it rather than a second ink one.
-        BigButton(
+        // one, so it is the quiet link under it rather than a second button.
+        OnboardingLink(
           busy
               ? (l?.welcomeImporting ?? 'Importing…')
               : (l?.welcomeBringMyHistoryFirst ?? 'Bring my history first'),
-          icon: LucideIcons.upload,
-          soft: true,
-          busy: busy,
           onTap: busy ? null : onImport,
-        ),
-        const SizedBox(height: S.x3),
-        Text(
-          // Was: "imported days are marked as imported — they are never
-          // mixed into days this app measured itself". There is no source
-          // column on day_result or metric_series, two of the four
-          // importers write no marker at all, and imported values do feed
-          // the same rolling baselines. What IS true is the half that
-          // protects data: no import overwrites a day this band measured.
-          l?.welcomeImportFooterNote ??
-              'A sensor export, a Locus backup or a vendor CSV. Imported days count toward your usual range, and never overwrite a day the band measured.',
-          textAlign: TextAlign.center,
-          style: F.dTiny.copyWith(color: DC.ink3, height: 1.4),
         ),
       ],
     );
   }
 }
 
-/// "Local · no cloud": a shield in the optimal green and the words in
-/// tracked capitals, on the cards' veil.
-class _LocalChip extends StatelessWidget {
-  final String text;
-  const _LocalChip(this.text);
+/// The side of the onboarding picture: half the page, never over 200.
+double onboardingHeroSize(BuildContext c) =>
+    math.min(MediaQuery.sizeOf(c).width * .5, S.x16 * 3 + S.x2);
+
+/// The welcome's picture: the Locus mark writing itself, the wordmark under
+/// it. Nothing else — the brand, quietly, in the middle of the page.
+/// Decorative: a screen reader is told nothing.
+class _MarkHero extends StatelessWidget {
+  const _MarkHero();
 
   @override
-  Widget build(BuildContext c) => Container(
-        padding: const EdgeInsets.fromLTRB(S.x2 + S.half, S.x2, S.x3, S.x2),
-        decoration:
-            const BoxDecoration(color: DC.weekCard, borderRadius: R.rPill),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(LucideIcons.shieldCheck, size: I.sm, color: C.optimal),
-          const SizedBox(width: S.x2),
-          Flexible(
-            child: Text(text.toUpperCase(),
-                style: F.dLabel.copyWith(color: DC.ink)),
-          ),
+  Widget build(BuildContext c) => const ExcludeSemantics(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          LocusMark(size: S.x16 + S.x8, animate: true),
+          SizedBox(height: S.x6),
+          Wordmark(color: DC.pure),
         ]),
       );
 }
 
-/// The side of the onboarding picture: 58 % of the page, never over 232.
-double onboardingHeroSize(BuildContext c) =>
-    math.min(MediaQuery.sizeOf(c).width * .58, S.x16 * 4 - S.x6);
-
-/// The welcome's picture, drawn in the app's own language: the three home
-/// dials (strain outside, recovery, sleep inside) filling once around the
-/// Locus mark as it writes itself, the wordmark under them. Decorative: the
-/// arcs are nobody's numbers, and a screen reader is told nothing.
-class _DialsHero extends StatefulWidget {
-  const _DialsHero();
-
-  @override
-  State<_DialsHero> createState() => _DialsHeroState();
-}
-
-class _DialsHeroState extends State<_DialsHero>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c =
-      AnimationController(vsync: this, duration: Motion.write);
-
-  // Strain, recovery, sleep: how far each arc runs, and when it starts and
-  // stops within the one draw-in.
-  static const _rings = [
-    (C.dialStrain, .64, 0.0, .7),
-    (C.recGreen, .78, .15, .85),
-    (C.dialSleep, .88, .3, 1.0),
-  ];
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_c.isAnimating || _c.value > 0) return;
-    if (Motion.enabled(context)) {
-      _c.forward();
-    } else {
-      _c.value = 1;
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext c) {
-    final d = onboardingHeroSize(c);
-    final stroke = d * .05;
-    final step = stroke * 1.7;
-    return ExcludeSemantics(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        SizedBox.square(
-          dimension: d,
-          child: AnimatedBuilder(
-            animation: _c,
-            builder: (_, mark) => Stack(alignment: Alignment.center, children: [
-              for (var i = 0; i < _rings.length; i++)
-                SizedBox.square(
-                  dimension: d - 2 * i * step,
-                  child: CustomPaint(
-                    painter: Ring(
-                      _rings[i].$2,
-                      _rings[i].$1,
-                      DC.track,
-                      stroke: stroke,
-                      solid: true,
-                      flatStart: true,
-                      t: Ease.standard.transform(Interval(
-                              _rings[i].$3, _rings[i].$4)
-                          .transform(_c.value)),
-                    ),
-                  ),
-                ),
-              ?mark,
-            ]),
-            child: LocusMark(size: d * .3, animate: true),
-          ),
-        ),
-        const SizedBox(height: S.x6),
-        const Wordmark(color: DC.pure),
-      ]),
-    );
-  }
-}
-
-/// Every onboarding screen's frame: the dial screens' ground, the step on
-/// top, a picture taking the room that is left, then the headline, its line,
-/// anything the state adds, and the actions at the foot. Short pages keep the
-/// actions down at the thumb; long ones (large text, an import report)
-/// scroll as one.
+/// Every onboarding screen's frame: the dial screens' ground, the progress
+/// along the top, a picture centred in the room that is left, then the
+/// headline and one line under it, centred, and the actions at the foot. A
+/// page without a picture (a form) reads left-aligned from the top instead.
+/// Short pages keep the actions down at the thumb; long ones (large text, an
+/// import report) scroll as one.
 class OnboardingPage extends StatelessWidget {
   /// 1-based, or null off the numbered flow.
   final int? step;
   final Widget? hero;
   final String title;
-  final TextStyle? titleStyle;
   final String? body;
   final List<Widget> below, actions;
 
@@ -747,7 +648,6 @@ class OnboardingPage extends StatelessWidget {
     required this.title,
     this.step,
     this.hero,
-    this.titleStyle,
     this.body,
     this.below = const [],
     this.actions = const [],
@@ -755,62 +655,74 @@ class OnboardingPage extends StatelessWidget {
 
   // Char in both themes.
   @override
-  Widget build(BuildContext c) => AlwaysChar(
-        child: Scaffold(
-          backgroundColor: DC.bgFoot,
-          body: DecoratedBox(
-            decoration: kDialGround,
-            child: SafeArea(
-              child: CustomScrollView(slivers: [
-                // The padding sits inside: a SliverPadding round a
-                // SliverFillRemaining loses its foot to the fill.
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                        kDialMargin, S.x4, kDialMargin, S.x6),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (step case final s?) OnboardingStep(s),
-                        if (hero case final h?)
-                          Expanded(
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: S.x6),
-                              child: Center(child: h),
-                            ),
-                          )
-                        else
-                          const SizedBox(height: S.x8),
-                        Text(title,
-                            style:
-                                (titleStyle ?? F.t1).copyWith(color: DC.ink)),
-                        if (body case final b?) ...[
-                          const SizedBox(height: S.x3),
-                          Text(b, style: F.dBody.copyWith(color: DC.ink2)),
-                        ],
-                        ...below,
-                        if (hero == null) const Spacer(),
-                        if (actions.isNotEmpty) ...[
-                          const SizedBox(height: S.x8),
-                          ...actions,
-                        ],
+  Widget build(BuildContext c) {
+    final centred = hero != null;
+    final align = centred ? TextAlign.center : TextAlign.start;
+    return AlwaysChar(
+      child: Scaffold(
+        backgroundColor: DC.bgFoot,
+        body: DecoratedBox(
+          decoration: kDialGround,
+          child: SafeArea(
+            child: CustomScrollView(slivers: [
+              // The padding sits inside: a SliverPadding round a
+              // SliverFillRemaining loses its foot to the fill.
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      kDialMargin, S.x4, kDialMargin, S.x5),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (step case final s?) OnboardingStep(s),
+                      if (hero case final h?)
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: S.x6),
+                            child: Center(child: h),
+                          ),
+                        )
+                      else
+                        const SizedBox(height: S.x10),
+                      Semantics(
+                        header: true,
+                        child: Text(title,
+                            textAlign: align,
+                            style: F.t1.copyWith(color: DC.ink, height: 1.2)),
+                      ),
+                      if (body case final b?) ...[
+                        const SizedBox(height: S.x3),
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: centred ? S.x4 : 0),
+                          child: Text(b,
+                              textAlign: align,
+                              style: F.dBody
+                                  .copyWith(color: DC.ink2, height: 1.45)),
+                        ),
                       ],
-                    ),
+                      ...below,
+                      if (hero == null) const Spacer(),
+                      if (actions.isNotEmpty) ...[
+                        const SizedBox(height: S.x8),
+                        ...actions,
+                      ],
+                    ],
                   ),
                 ),
-              ]),
-            ),
+              ),
+            ]),
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
-/// Where the user is in setup: the step in tracked capitals on the left, and
-/// on the right one pip per step (done in the strain blue, the current one a
-/// long white bar, the rest slate). The words carry the meaning;
-/// the pips say nothing to a screen reader.
+/// Where the user is in setup: one thin segment per step across the top,
+/// lit up to the current one. The segments say nothing to a screen reader;
+/// the label does.
 class OnboardingStep extends StatelessWidget {
   /// 1-based: welcome, pick a band, about you.
   final int step;
@@ -821,41 +733,56 @@ class OnboardingStep extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final l = AppLocalizations.of(c);
-    return SizedBox(
-      height: S.x6,
-      child: Row(children: [
-        Expanded(
-          child: Text(
-              (l?.onboardingStepOf(step, total) ?? 'Step $step of $total')
-                  .toUpperCase(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: F.dLabel.copyWith(color: DC.ink2)),
-        ),
-        ExcludeSemantics(
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
+    return Semantics(
+      label: l?.onboardingStepOf(step, total) ?? 'Step $step of $total',
+      child: ExcludeSemantics(
+        child: SizedBox(
+          height: S.x6,
+          child: Row(children: [
             for (var i = 1; i <= total; i++) ...[
               if (i > 1) const SizedBox(width: S.x1 + S.half),
-              AnimatedContainer(
-                duration: motion(c, Motion.slow),
-                curve: Ease.standard,
-                width: i == step ? S.x6 : S.x1 + S.half,
-                height: S.x1 + S.half,
-                decoration: BoxDecoration(
-                  color: i < step
-                      ? C.dialStrain
-                      : i == step
-                          ? DC.pure
-                          : DC.dim,
-                  borderRadius: R.rPill,
+              Expanded(
+                child: AnimatedContainer(
+                  duration: motion(c, Motion.slow),
+                  curve: Ease.standard,
+                  height: S.x1,
+                  decoration: BoxDecoration(
+                    color: i <= step ? DC.pure : DC.dim,
+                    borderRadius: R.rPill,
+                  ),
                 ),
               ),
             ],
           ]),
         ),
-      ]),
+      ),
     );
   }
+}
+
+/// The quiet second way on: the words alone in tracked capitals, no button
+/// ground, still a full tap tall. Under a page's one [BigButton].
+class OnboardingLink extends StatelessWidget {
+  final String label;
+  final VoidCallback? onTap;
+  const OnboardingLink(this.label, {super.key, this.onTap});
+
+  @override
+  Widget build(BuildContext c) => Pressable(
+        onTap: onTap,
+        semanticLabel: label,
+        child: SizedBox(
+          height: S.tap,
+          child: Center(
+            child: Text(label.toUpperCase(),
+                textAlign: TextAlign.center,
+                style: F.dNav.copyWith(
+                    color: onTap == null ? DC.ink3 : DC.ink2,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2)),
+          ),
+        ),
+      );
 }
 
 /// What the import got, and what it could not use. The second half is the

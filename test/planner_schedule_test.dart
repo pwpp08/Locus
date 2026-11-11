@@ -216,5 +216,18 @@ void main() {
     // No sleep need on record: no invented times, dashes.
     expect(find.text('OFF'), findsWidgets);
     expect(find.textContaining('learn your sleep need'), findsOneWidget);
+
+    // The timeline slides under a finger, a little, and springs back to the
+    // time in bed centred.
+    final home = t.getCenter(find.text('TIME IN BED'));
+    final g = await t.startGesture(home);
+    await g.moveBy(const Offset(400, 0));
+    await t.pump();
+    final pulled = t.getCenter(find.text('TIME IN BED')).dx - home.dx;
+    expect(pulled, greaterThan(0));
+    expect(pulled, lessThanOrEqualTo(S.x16), reason: 'it gives, then stops');
+    await g.up();
+    await t.pumpAndSettle();
+    expect(t.getCenter(find.text('TIME IN BED')).dx, closeTo(home.dx, .5));
   });
 }

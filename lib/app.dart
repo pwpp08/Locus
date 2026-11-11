@@ -125,7 +125,6 @@ class _OpenStrapAppState extends State<OpenStrapApp> with WidgetsBindingObserver
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.watch<ThemeController>();
     final locale = context.watch<LocaleController>();
     locale.useForPresentation();
     final twelveHour = !context.watch<ClockFormatController>().resolve24h(
@@ -133,10 +132,11 @@ class _OpenStrapAppState extends State<OpenStrapApp> with WidgetsBindingObserver
     return MaterialApp(
       title: 'Locus',
       debugShowCheckedModeBanner: false,
-      // The palette is the design system's, the CHOICE is still the user's.
-      theme: buildTheme(Brightness.light),
+      // Dark, always: the dial screens and the whole design system are drawn
+      // for it, and there is no appearance setting any more.
+      theme: buildTheme(Brightness.dark),
       darkTheme: buildTheme(Brightness.dark),
-      themeMode: theme.materialThemeMode,
+      themeMode: ThemeMode.dark,
       locale: locale.locale, // null = follow the OS locale
       // First, so a 12-hour choice reaches the time pickers (see the delegate).
       localizationsDelegates: [
@@ -469,7 +469,7 @@ class _Shell extends StatefulWidget {
   State<_Shell> createState() => _ShellState();
 }
 
-class _ShellState extends State<_Shell> {
+class _ShellState extends State<_Shell> with WidgetsBindingObserver {
   /// A launch always opens on Home: the tab is not kept once the app is
   /// closed, so it never reopens on a screen from the last time.
   ShellDomain _domain = ShellDomain.today;
@@ -506,6 +506,16 @@ class _ShellState extends State<_Shell> {
       unawaited(UpdateService.instance.cleanupInstalled());
       UpdateService.instance.checkOnStartup(context);
     });
+    // Android mostly brings the app back rather than launching it again, so
+    // the launch check alone almost never ran. Look again on every return.
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      UpdateService.instance.checkOnStartup(context);
+    }
   }
 
   bool _pending = false;
@@ -563,6 +573,7 @@ class _ShellState extends State<_Shell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _app?.navRequest.removeListener(_consumeSoon);
     _app?.screenRequest.removeListener(_consumeSoon);
     super.dispose();

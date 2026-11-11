@@ -449,6 +449,18 @@ Map<String, dynamic> buildCrossDayBundle(
   ];
   final effs = <double>[for (final d in days) ?_numOrNull(d['efficiency'])];
   final typicalWakeMin = _median(wakeMins);
+  // The habit itself, for the planner's "stay consistent": the median bedtime
+  // and wake time of the last 7 recorded nights, on a noon-to-noon clock so a
+  // 23:30 and a 00:30 night average to midnight, not to noon. Three nights at
+  // least, as WHOOP's own planner asks; under that it is absent.
+  final recentWindows =
+      windows.length > 7 ? windows.sublist(windows.length - 7) : windows;
+  final habitBedMin = recentWindows.length < 3
+      ? null
+      : _median([for (final w in recentWindows) w.onset])! % 1440;
+  final habitWakeMin = recentWindows.length < 3
+      ? null
+      : _median([for (final w in recentWindows) w.wake])! % 1440;
   // NO INVENTED 88 %. Bedtime is "wake − need ÷ efficiency", so a substituted
   // efficiency moves the recommendation by real minutes (at a need of 8 h, 88 %
   // vs a true 95 % is 36 min of bedtime the user did not need to give up). A
@@ -634,6 +646,10 @@ Map<String, dynamic> buildCrossDayBundle(
       'consistency': consistency,
       'bedtime': bedtime.toJson((v) => v.toJson()),
       'wake': wakeRec.toJson((v) => v.toJson()),
+      // Clock minutes of the usual bedtime and wake time (see above). Null
+      // under three recorded nights.
+      'habit_bed_min': habitBedMin,
+      'habit_wake_min': habitWakeMin,
     },
     'strain_coach': strainTgt.toJson((v) => v.toJson()),
     'percentiles': percentiles,

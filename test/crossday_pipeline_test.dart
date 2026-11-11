@@ -487,6 +487,21 @@ void main() {
     });
   });
 
+  test('the habit is the median of the last nights, absent under three', () {
+    int tod(int sec) {
+      final t = DateTime.fromMillisecondsSinceEpoch(sec * 1000);
+      return t.hour * 60 + t.minute;
+    }
+
+    final coach =
+        (buildCrossDayBundle(_synthDays(10), const {})['sleep_coach'] as Map);
+    expect((coach['habit_bed_min'] as num).round(), tod(23 * 3600));
+    expect((coach['habit_wake_min'] as num).round(), tod(31 * 3600));
+    final few =
+        (buildCrossDayBundle(_synthDays(2), const {})['sleep_coach'] as Map);
+    expect(few['habit_bed_min'], isNull);
+  });
+
   group('bedtime needs a measured efficiency', () {
     test('no efficiency history → bedtime and wake are absent, not 88 %', () {
       // The old `_median(effs) ?? 88.0` was an invented baseline: bedtime is

@@ -3,9 +3,8 @@
 // nights as ranges on a clock — the first read on the left axis and the second
 // on the right, each axis in its metric's colour. Two column metrics stand
 // side by side in each day's slot; a line runs over any columns. Touching a
-// day reads it out for both. A week pager steps back through earlier weeks,
-// and a line under the chart says whether the two have moved together over
-// the four weeks up to the one shown — only when enough days pair up.
+// day reads it out for both. A week pager under the chart steps back through
+// earlier weeks. Tapping either figure's name picks another metric for it.
 
 import 'dart:math' as math;
 
@@ -42,55 +41,10 @@ typedef CompareData = ({
   Map<String, ({double bed, double wake})>? spans,
 });
 
-/// How two daily series moved together over the days both have: Pearson's r
-/// and how many days it rests on. Null under [minDays] paired days, or when
-/// either series is flat (r is undefined).
-({double r, int n})? compareCorrelation(
-  Map<String, double> a,
-  Map<String, double> b, {
-  required List<String> days,
-  int minDays = 10,
-}) {
-  final xs = <double>[], ys = <double>[];
-  for (final d in days) {
-    final x = a[d], y = b[d];
-    if (x == null || y == null || !x.isFinite || !y.isFinite) continue;
-    xs.add(x);
-    ys.add(y);
-  }
-  final n = xs.length;
-  if (n < minDays) return null;
-  final mx = xs.reduce((p, q) => p + q) / n;
-  final my = ys.reduce((p, q) => p + q) / n;
-  var sxy = 0.0, sxx = 0.0, syy = 0.0;
-  for (var i = 0; i < n; i++) {
-    final dx = xs[i] - mx, dy = ys[i] - my;
-    sxy += dx * dy;
-    sxx += dx * dx;
-    syy += dy * dy;
-  }
-  if (sxx <= 0 || syy <= 0) return null;
-  return (r: sxy / math.sqrt(sxx * syy), n: n);
-}
-
-/// The relationship in a sentence, for [compareCorrelation]'s result.
-String compareSentence(String a, String b, ({double r, int n}) c) {
-  final s = c.r.abs();
-  final how = s < .2
-      ? 'barely moved together'
-      : c.r > 0
-      ? (s < .5 ? 'tended to rise and fall together' : 'rose and fell together')
-      : (s < .5
-            ? 'tended to move in opposite directions'
-            : 'moved in opposite directions');
-  return 'Over these four weeks, $a and $b $how '
-      '(r ${c.r < 0 ? '−' : ''}${s.toStringAsFixed(2)}, ${c.n} days).';
-}
-
-/// The two series' colours: the pair the sleep chart already uses for hours
-/// against need, so a comparison reads in the app's own colours whatever the
-/// two metrics are (and never as two shades of one family).
-const kCompareColours = (C.optimal, C.dialSleep);
+/// The two series' colours: the strain blue and amber, opposite each other on
+/// the wheel, so the two read apart at a glance whatever the metrics are
+/// (and never as two shades of one family).
+const kCompareColours = (C.dialStrain, C.amber);
 
 class CompareMetricsCard extends StatefulWidget {
   final TrendLoader loader;
@@ -200,25 +154,13 @@ class _CompareMetricsCardState extends State<CompareMetricsCard> {
     final da = _data[a.id], db = _data[b.id];
     final (ca, cb) = kCompareColours;
 
-    // Four weeks up to the one shown, the day in progress left out.
-    final corrDays = [
-      for (var i = 27; i >= 0; i--)
-        if (shiftDay(end, -i) != widget.today) shiftDay(end, -i),
-    ];
-    final corr = da == null || db == null
-        ? null
-        : compareCorrelation(da.daily, db.daily, days: corrDays);
-    final paired = da == null || db == null
-        ? 0
-        : corrDays
-              .where((d) => da.daily[d] != null && db.daily[d] != null)
-              .length;
-
+    // The Strain & Recovery card's anatomy: the title in capitals with its
+    // door on the right, then the two figures, the chart, and the week.
     return Container(
-      padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x4),
+      padding: const EdgeInsets.all(S.x5),
       decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Pressable(
             onTap: widget.onOpen,
@@ -228,42 +170,74 @@ class _CompareMetricsCardState extends State<CompareMetricsCard> {
             child: SizedBox(
               height: S.tap,
               child: Row(
-                children: [
-                  Icon(LucideIcons.gitCompareArrows, size: I.md, color: p.ink3),
-                  const SizedBox(width: S.x3),
-                  Expanded(
-                    child: Text(
-                      'COMPARE METRICS',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: F.caps.copyWith(color: p.ink),
+              children: [
+                Expanded(
+                  child: Text(
+                    'COMPARE METRICS',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: F.caps.copyWith(
+                      color: p.ink,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  if (widget.onOpen != null)
-                    BoldChevron(
-                      left: false,
-                      color: p.ink3,
-                      height: S.x3 + S.half,
-                    ),
-                ],
-              ),
+                ),
+                if (widget.onOpen != null)
+                  BoldChevron(
+                    left: false,
+                    color: p.ink2,
+                    height: S.x3 + S.half,
+                  ),
+              ],
+            ),
             ),
           ),
           const SizedBox(height: S.x2),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _Chip(m: a, onTap: () => _choose(c, 0)),
+                child: _Readout(
+                  m: a,
+                  data: da,
+                  color: ca,
+                  end: end,
+                  today: widget.today,
+                  firstDay: widget.firstDay,
+                  at: _at,
+                  onPick: () => _choose(c, 0),
+                ),
               ),
-              const SizedBox(width: S.x2),
+              const SizedBox(width: S.x4),
               Expanded(
-                child: _Chip(m: b, onTap: () => _choose(c, 1)),
+                child: _Readout(
+                  m: b,
+                  data: db,
+                  color: cb,
+                  end: end,
+                  today: widget.today,
+                  firstDay: widget.firstDay,
+                  at: _at,
+                  right: true,
+                  onPick: () => _choose(c, 1),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: S.x1),
-          Align(
-            alignment: Alignment.centerRight,
+          const SizedBox(height: S.x2),
+          if (da == null || db == null)
+            const SizedBox(height: _CompareChart.height)
+          else
+            _CompareChart(
+              a: compareSeriesOf(a, da, end: end, firstDay: widget.firstDay),
+              b: compareSeriesOf(b, db, end: end, firstDay: widget.firstDay),
+              ca: ca,
+              cb: cb,
+              end: end,
+              onScrub: (i) => setState(() => _at = i),
+            ),
+          const SizedBox(height: S.x2),
+          Center(
             child: WindowPager(
               range,
               onEarlier: canEarlier
@@ -280,87 +254,16 @@ class _CompareMetricsCardState extends State<CompareMetricsCard> {
                     }),
             ),
           ),
-          const SizedBox(height: S.x2),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _Readout(
-                  m: a,
-                  data: da,
-                  color: ca,
-                  end: end,
-                  today: widget.today,
-                  firstDay: widget.firstDay,
-                  at: _at,
-                ),
-              ),
-              const SizedBox(width: S.x3),
-              Expanded(
-                child: _Readout(
-                  m: b,
-                  data: db,
-                  color: cb,
-                  end: end,
-                  today: widget.today,
-                  firstDay: widget.firstDay,
-                  at: _at,
-                  right: true,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: S.x3),
-          if (da == null || db == null)
-            const SizedBox(height: _CompareChart.height)
-          else
-            _CompareChart(
-              a: compareSeriesOf(a, da, end: end, firstDay: widget.firstDay),
-              b: compareSeriesOf(b, db, end: end, firstDay: widget.firstDay),
-              ca: ca,
-              cb: cb,
-              end: end,
-              onScrub: (i) => setState(() => _at = i),
-            ),
-          const SizedBox(height: S.x4),
-          Container(height: S.hair, color: p.line),
-          const SizedBox(height: S.x3),
-          Text(
-            corr == null
-                ? (da == null || db == null
-                      ? ' '
-                      : paired < 10
-                      ? 'Fewer than 10 days with both in these four weeks: '
-                            'too few to say how they move together.'
-                      : 'One of them held steady these four weeks, so there '
-                            'is no movement to compare.')
-                : compareSentence(_short(a), _short(b), corr),
-            style: F.cap.copyWith(color: p.ink2, height: 1.45),
-          ),
-          if (corr != null) ...[
-            const SizedBox(height: S.x1),
-            Text(
-              'Moving together is not cause and effect.',
-              style: F.cap.copyWith(color: p.ink3),
-            ),
-          ],
         ],
       ),
     );
   }
-
-  static String _short(TrendMetric m) => switch (m.id) {
-    'hrv' => 'HRV',
-    'resting_hr' => 'resting HR',
-    'resp_rate' => 'respiratory rate',
-    'vo2max' => 'VO₂ max',
-    _ => m.title.toLowerCase(),
-  };
 }
 
-/// One metric's figure over the chart: its name in its colour, the week's
-/// figure (or the touched day's), and what that figure is. The first metric
-/// reads from the left, the second from the right, as their axes do.
+/// One metric's figure over the chart, and the way to change the metric: its
+/// colour and name with a caret (tap to pick another), the week's figure (or
+/// the touched day's), and what that figure is. The first metric reads from
+/// the left, the second from the right, as their axes do.
 class _Readout extends StatelessWidget {
   final TrendMetric m;
   final CompareData? data;
@@ -369,6 +272,7 @@ class _Readout extends StatelessWidget {
   final String? firstDay;
   final int? at;
   final bool right;
+  final VoidCallback onPick;
 
   const _Readout({
     required this.m,
@@ -378,6 +282,7 @@ class _Readout extends StatelessWidget {
     required this.today,
     required this.firstDay,
     required this.at,
+    required this.onPick,
     this.right = false,
   });
 
@@ -415,58 +320,68 @@ class _Readout extends StatelessWidget {
     final caption = dt != null
         ? '${weekdayShortName(dt.weekday, l)}, ${monthShortName(dt.month, l)} ${dt.day}'
         : (m.weekly ? 'Weekly total' : 'Average');
-    return Column(
-      crossAxisAlignment: right
-          ? CrossAxisAlignment.end
-          : CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
+    final align = right ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    return Pressable(
+      onTap: onPick,
+      semanticLabel: '${m.title}. Change',
+      child: ConstrainedBox(
+        // Full width, so each figure sits on its own axis's side.
+        constraints: const BoxConstraints(
+            minHeight: S.tap, minWidth: double.infinity),
+        child: Column(
+          crossAxisAlignment: align,
           children: [
-            Container(
-              width: S.x2,
-              height: S.x2,
-              decoration: BoxDecoration(
-                color: p.fill(color),
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: S.x2),
-            Flexible(
-              child: Text(
-                compareChipName(m).toUpperCase(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: F.over.copyWith(
-                  color: p.ink,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: S.x2,
+                  height: S.x2,
+                  decoration: BoxDecoration(
+                    color: p.fill(color),
+                    shape: BoxShape.circle,
+                  ),
                 ),
-              ),
+                const SizedBox(width: S.x2),
+                Flexible(
+                  child: Text(
+                    compareChipName(m).toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: F.over.copyWith(
+                      color: p.ink2,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: S.x1),
+                Icon(LucideIcons.chevronDown, size: I.sm, color: p.ink3),
+              ],
             ),
+            const SizedBox(height: S.x1),
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: d == null ? ' ' : trendFormat(m, v),
+                    style: F.num(
+                      F.n24,
+                    ).copyWith(color: p.ink, fontWeight: FontWeight.w700),
+                  ),
+                  if (v != null && m.unit != null)
+                    TextSpan(
+                      text: ' ${m.unit}',
+                      style: F.cap.copyWith(color: p.ink3),
+                    ),
+                ],
+              ),
+              maxLines: 1,
+            ),
+            Text(caption.toUpperCase(), style: F.over.copyWith(color: p.ink3)),
           ],
         ),
-        const SizedBox(height: S.x1),
-        Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: d == null ? ' ' : trendFormat(m, v),
-                style: F.num(
-                  F.n24,
-                ).copyWith(color: p.ink, fontWeight: FontWeight.w700),
-              ),
-              if (v != null && m.unit != null)
-                TextSpan(
-                  text: ' ${m.unit}',
-                  style: F.cap.copyWith(color: p.ink3),
-                ),
-            ],
-          ),
-          maxLines: 1,
-        ),
-        Text(caption.toUpperCase(), style: F.over.copyWith(color: p.ink3)),
-      ],
+      ),
     );
   }
 }
@@ -581,8 +496,8 @@ CompareSeries compareSeriesOf(
 
 /// The two series on one plot: [a] on the left axis, [b] on the right.
 class _CompareChart extends StatelessWidget {
-  static const height = S.x16 * 3 + S.x10;
-  static const _inset = EdgeInsets.fromLTRB(S.x10, S.x3, S.x10, S.x8);
+  static const height = S.x16 * 3 + S.x12;
+  static const _inset = EdgeInsets.fromLTRB(S.x10, S.x3, S.x10, S.x10);
 
   final CompareSeries a, b;
   final Color ca, cb;
@@ -644,14 +559,19 @@ class _CompareChart extends StatelessWidget {
           ca: p.fill(ca),
           cb: p.fill(cb),
           line: p.line,
-          card: p.card,
+          card: p.bg,
+          band: p.ink.withValues(alpha: .10),
           xLabels: [
             for (final d in days) '${weekdayShortName(d.weekday, l)}\n${d.day}',
           ],
-          axisA: F.num(F.over).copyWith(color: p.on(ca)),
-          axisB: F.num(F.over).copyWith(color: p.on(cb)),
-          xStyle: F.over.copyWith(color: p.ink3),
-          xOn: F.over.copyWith(color: p.ink, fontWeight: FontWeight.w800),
+          axisA: F.num(F.over)
+              .copyWith(color: p.on(ca), fontWeight: FontWeight.w700),
+          axisB: F.num(F.over)
+              .copyWith(color: p.on(cb), fontWeight: FontWeight.w700),
+          xStyle: F.num(F.over).copyWith(
+              color: p.ink3, fontWeight: FontWeight.w600, height: 1.2),
+          xOn: F.num(F.over).copyWith(
+              color: p.ink, fontWeight: FontWeight.w800, height: 1.2),
           at: at,
           inset: _inset,
         ),
@@ -662,7 +582,7 @@ class _CompareChart extends StatelessWidget {
 
 class _ComparePainter extends CustomPainter {
   final CompareSeries a, b;
-  final Color ca, cb, line, card;
+  final Color ca, cb, line, card, band;
   final List<String> xLabels;
   final TextStyle axisA, axisB, xStyle, xOn;
   final int? at;
@@ -675,6 +595,7 @@ class _ComparePainter extends CustomPainter {
     required this.cb,
     required this.line,
     required this.card,
+    required this.band,
     required this.xLabels,
     required this.axisA,
     required this.axisB,
@@ -707,6 +628,20 @@ class _ComparePainter extends CustomPainter {
     const n = 7;
     final slot = plot.width / n;
     double cx(int i) => plot.left + (i + .5) * slot;
+    // Untouched, the newest day carries the column band; a touch moves it to
+    // the ScrubArea, which draws it behind this chart.
+    final focus = at ?? n - 1;
+    if (at == null) {
+      final w = math.min(slot * .8, S.x12);
+      cv.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTRB(cx(focus) - w / 2, math.max(0.0, plot.top - S.x3),
+              cx(focus) + w / 2, size.height),
+          const Radius.circular(S.x1),
+        ),
+        Paint()..color = band,
+      );
+    }
 
     // Gridlines on the left metric's ticks (the right one's when the left has
     // nothing this week); each axis labelled in its own metric's colour.
@@ -832,7 +767,7 @@ class _ComparePainter extends CustomPainter {
         path,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = S.half + S.hair
+          ..strokeWidth = S.half + .2
           ..strokeJoin = StrokeJoin.round
           ..strokeCap = StrokeCap.round
           ..color = colour,
@@ -841,8 +776,16 @@ class _ComparePainter extends CustomPainter {
         final v = s.values[i];
         if (v == null) continue;
         final pt = Offset(cx(i), s.y(v, plot));
-        cv.drawCircle(pt, S.x1 + S.hair, Paint()..color = card);
-        cv.drawCircle(pt, S.x1 - S.hair, Paint()..color = colour);
+        // The ring the Strain & Recovery card marks its days with.
+        cv.drawCircle(pt, S.x1 + S.x1 * .625, Paint()..color = card);
+        cv.drawCircle(
+          pt,
+          S.x1 + S.hair,
+          Paint()
+            ..color = colour
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = S.half + .4,
+        );
       }
     }
 
@@ -850,8 +793,8 @@ class _ComparePainter extends CustomPainter {
       _text(
         cv,
         xLabels[i],
-        i == at ? xOn : xStyle,
-        Offset(cx(i), plot.bottom + S.x2),
+        i == focus ? xOn : xStyle,
+        Offset(cx(i), plot.bottom + S.x3),
         ax: .5,
         ay: 0,
         align: TextAlign.center,
@@ -861,7 +804,12 @@ class _ComparePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ComparePainter o) =>
-      o.a != a || o.b != b || o.at != at || o.ca != ca || o.cb != cb;
+      o.a != a ||
+      o.b != b ||
+      o.at != at ||
+      o.ca != ca ||
+      o.cb != cb ||
+      o.band != band;
 }
 
 /// A metric's name short enough for half a row.
@@ -883,45 +831,6 @@ String compareChipName(TrendMetric m) => switch (m.id) {
   'vo2max' => 'VO₂ max',
   _ => m.title,
 };
-
-/// A slot's metric: its colour, its name, tap to change.
-class _Chip extends StatelessWidget {
-  final TrendMetric m;
-  final VoidCallback onTap;
-  const _Chip({required this.m, required this.onTap});
-
-  @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    return Pressable(
-      onTap: onTap,
-      semanticLabel: '${m.title}. Change',
-      child: Container(
-        height: S.tap,
-        padding: const EdgeInsets.symmetric(horizontal: S.x3),
-        decoration: BoxDecoration(color: p.card2, borderRadius: R.rLg),
-        child: Row(
-          children: [
-            Icon(m.icon, size: I.md, color: trendColorOf(m)),
-            const SizedBox(width: S.x2),
-            Expanded(
-              child: Text(
-                compareChipName(m),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: F.cap.copyWith(
-                  color: p.ink,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            Icon(LucideIcons.chevronDown, size: I.sm, color: p.ink3),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 /// Every metric that can be drawn, by group; pops the chosen id.
 class _MetricList extends StatelessWidget {

@@ -158,15 +158,6 @@ bool workoutLiveOf(BuildContext c) {
   }
 }
 
-/// Whether cycle tracking is on, or false in a golden.
-bool cycleTrackingOf(BuildContext c) {
-  try {
-    return c.select<AppState, bool>((a) => a.cycleTrackingEnabled);
-  } catch (_) {
-    return false;
-  }
-}
-
 // ═══════════════════ the screen ═══════════════════
 
 /// A day for Home to show, asked for by another screen (a report's best and
@@ -794,9 +785,9 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       _header(c, d.dayId),
       // Today's sync bar, once the band has sent anything at all.
       if (isToday)
-        if (lastDataAtOf(c) case final at?) ...[
-          const SizedBox(height: S.x2),
-          HomeSyncBar(
+        if (lastDataAtOf(c) case final at?)
+          HomeSyncBanner(
+            key: const ValueKey('sync-banner'),
             state: syncBarStateOf(
                 syncing: syncingNowOf(c), at: at, now: DateTime.now()),
             syncedTo: syncedToText(at, todayLabel(widget.now), l),
@@ -805,7 +796,6 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
               null => null,
             },
           ),
-        ],
       if (rebuilt != null) ...[rebuilt, const SizedBox(height: S.x3)],
       ...?_bodyWatch(c, d, todayLabel(widget.now)),
       const SizedBox(height: S.x5),

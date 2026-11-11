@@ -62,6 +62,28 @@ void main() {
       expect(r.formattedSize, '41.0 MB');
     });
 
+    test('a CI build carries its build number, and that is its name', () {
+      final r = ReleaseInfo.fromJson(_release(apk: 'locus-0.11.4.87-c07d50f.apk'));
+      expect(r.apkVersion, '0.11.4');
+      expect(r.build, 87);
+      expect(r.sha, 'c07d50f');
+      expect(r.label, 'v0.11.4 · build 87');
+    });
+
+    test('what is new is the commit message, without the old boilerplate', () {
+      expect(
+          ReleaseInfo.fromJson(_release(
+                  body: 'Built from c07d50f: Fix sync. Replaced on every push '
+                      'to main.'))
+              .whatsNew,
+          'Fix sync.');
+      expect(
+          ReleaseInfo.fromJson(_release(
+                  body: 'Fix sync\n\n- the bar hides\n\nCo-Authored-By: X <x@y>'))
+              .whatsNew,
+          'Fix sync\n\n- the bar hides');
+    });
+
     test('a tagged release has no commit in its name; the tag is the version',
         () {
       final r = ReleaseInfo.fromJson(
@@ -112,6 +134,14 @@ void main() {
       expect(newer(version: '0.11.3'), isTrue);
       expect(newer(version: '0.11.4'), isFalse);
       expect(newer(version: '0.12.0'), isFalse);
+    });
+
+    test('between two numbered builds the build number decides', () {
+      final b87 =
+          ReleaseInfo.fromJson(_release(apk: 'locus-0.11.4.87-c07d50f.apk'));
+      expect(UpdateService.isUpdate(b87, version: '0.11.4', build: 85), isTrue);
+      expect(UpdateService.isUpdate(b87, version: '0.11.4', build: 87), isFalse);
+      expect(UpdateService.isUpdate(b87, version: '0.11.4', build: 90), isFalse);
     });
 
     test('semantic versions compare numerically, not as text', () {
@@ -177,6 +207,11 @@ void main() {
   });
 
   group('the update sheet', () {
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      await Prefs.ensureLoaded();
+    });
+
     Future<void> open(WidgetTester t, ReleaseInfo r) async {
       t.view.physicalSize = const Size(390 * 3, 900 * 3);
       t.view.devicePixelRatio = 3;
@@ -199,10 +234,10 @@ void main() {
     testWidgets('says what is available and offers to install it here',
         (t) async {
       await open(t, ReleaseInfo.fromJson(_release()));
-      expect(find.text('Update available'), findsOneWidget);
-      expect(find.textContaining('v0.11.4 · c07d50f'), findsOneWidget);
+      expect(find.text('UPDATE AVAILABLE'), findsOneWidget);
+      expect(find.text('v0.11.4 · c07d50f'), findsWidgets);
       expect(find.text('UPDATE NOW'), findsOneWidget);
-      expect(find.text('Built from c07d50f: fix things.'), findsOneWidget);
+      expect(find.text('fix things.'), findsOneWidget);
       expect(find.text('OPEN IN BROWSER'), findsNothing,
           reason: 'the browser is the way out of a failure, not the first move');
     });
@@ -218,7 +253,7 @@ void main() {
       await open(t, ReleaseInfo.fromJson(_release()));
       await t.tap(find.text('LATER'));
       await t.pumpAndSettle();
-      expect(find.text('Update available'), findsNothing);
+      expect(find.text('UPDATE AVAILABLE'), findsNothing);
     });
   });
 }

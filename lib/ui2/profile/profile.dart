@@ -22,21 +22,10 @@ import '../../state/app_state.dart';
 import '../../state/prefs.dart';
 import '../../state/units_controller.dart';
 import '../ui2.dart';
-import '../screens/action_sheet.dart' show openCoach;
-import '../screens/locus_age.dart' show LocusAgeScreen;
 import '../screens/reports.dart' show ReportsScreen;
-import 'storage_screen.dart' show StorageScreen;
 import '../screens/home_screen.dart' show deviceBatteryOf;
-import '../screens/watch_compare_screen.dart' show WatchCompareScreen;
-import '../screens/weight_trend_screen.dart' show WeightTrendScreen;
-import '../screens/journal_compose.dart' show JournalCompose;
 import '../../updater/update_service.dart';
-import 'alarm.dart' show AlarmScreen;
-import 'band_notifications.dart' show BandNotifications;
 import 'data_highlights.dart' show DataHighlightsScreen;
-import 'data.dart';
-import 'account_screen.dart';
-import 'devices.dart';
 import 'settings.dart';
 
 // ══════════════════ shared list furniture ══════════════════
@@ -596,24 +585,15 @@ String formatBytes(int b) {
 
 // ══════════════════ 1 · PROFILE HOME ══════════════════
 
-/// What the profile screen still shows: who you are, how many sources are
-/// live, and how much room the data takes.
-///
-/// The workouts / records / days / sessions counters are gone with the tile
-/// that displayed them. They cost a `getRecords()` and a whole year-of-workouts
-/// query on every open, so leaving the fields behind would have kept paying for
-/// numbers nobody reads.
+/// What the More tab shows before you open anything: your name and weight.
 class ProfileStats {
   final String? name;
-  final int sources;
-  final int? storageBytes;
 
   /// The saved weight, already in the reader's units ("61.5 kg"); null until
   /// one is set.
   final String? weight;
 
-  const ProfileStats(
-      {this.name, this.sources = 0, this.storageBytes, this.weight});
+  const ProfileStats({this.name, this.weight});
 }
 
 class ProfileHome extends StatefulWidget {
@@ -626,32 +606,16 @@ class ProfileHome extends StatefulWidget {
 }
 
 class _ProfileHomeState extends State<ProfileHome> {
-  /// Re-read after every screen this one pushes. It used to be a single
-  /// `late final` Future, so pairing a band from My sources (which auto-pops
-  /// straight back here) left the row reading "0 sources", and an import or a
-  /// reset left Storage on the old size until the screen was left and
-  /// re-entered.
+  /// Re-read after every page this one pushes: an edited name or a new
+  /// weight shows the moment the page closes.
   late Future<ProfileStats> _stats = _load();
 
   Future<ProfileStats> _load() async {
     final app = context.read<AppState>();
-    final repo = app.repo;
-    final sources = liveSources(app).length;
     final wKg = (app.user?['weight_kg'] as num?)?.toDouble();
-    final weight =
-        wKg == null ? null : context.read<UnitsController>().weight(wKg);
-    if (repo == null) {
-      return ProfileStats(
-          name: app.user?['name'] as String?,
-          sources: sources,
-          weight: weight);
-    }
-    final bytes = await app.dataFileBytes();
     return ProfileStats(
       name: app.user?['name'] as String?,
-      sources: sources,
-      storageBytes: bytes,
-      weight: weight,
+      weight: wKg == null ? null : context.read<UnitsController>().weight(wKg),
     );
   }
 
@@ -671,16 +635,11 @@ class _ProfileHomeState extends State<ProfileHome> {
     builder: (c, snap) => ProfileHomeView(
       tab: widget.tab,
       stats: snap.data,
-      onDevices: () => _open(c, const MyDevices()),
+      onProfile: () => _open(c, const MyProfileSettings()),
+      onReports: () => _open(c, const ReportsScreen()),
+      onDevice: () => _open(c, const DeviceSettings()),
+      onHealth: () => _open(c, const HealthSettings()),
       onSettings: () => _open(c, const MoreSettings()),
-      onUpdates: () => UpdateService.instance.check(c, manual: true),
-      // Reading which app notified is an Android capability; elsewhere the
-      // row is not drawn.
-      onBuzz: Platform.isAndroid
-          ? () => _open(c, const BandNotifications())
-          : null,
-      onExport: () => _open(c, const DataScreen()),
-      onEdit: () => _open(c, const EditProfile()),
     ),
   );
 }
@@ -689,27 +648,22 @@ class ProfileHomeView extends StatelessWidget {
   /// Null while the counts are still being read — the numbers are absent, not
   /// zero, and a zero rendered during a load is a wrong number on screen.
   final ProfileStats? stats;
-  final VoidCallback? onDevices, onSettings, onExport, onEdit;
 
-  /// Look for a newer build now; null hides the row.
-  final VoidCallback? onUpdates;
+  /// The five doors: you, your reports, the band, health, and the app.
+  final VoidCallback? onProfile, onReports, onDevice, onHealth, onSettings;
 
-  /// Open what makes the strap buzz; null hides the row (not Android).
-  final VoidCallback? onBuzz;
-
-  /// The More tab: a tab title instead of a back bar, and the app settings.
+  /// The More tab: a tab title instead of a back bar.
   final bool tab;
 
   const ProfileHomeView({
     super.key,
     this.tab = false,
     this.stats,
-    this.onDevices,
+    this.onProfile,
+    this.onReports,
+    this.onDevice,
+    this.onHealth,
     this.onSettings,
-    this.onUpdates,
-    this.onBuzz,
-    this.onExport,
-    this.onEdit,
   });
 
   @override
@@ -722,85 +676,32 @@ class ProfileHomeView extends StatelessWidget {
       children: [
         const SizedBox(height: S.x4),
         ProfilePhotoHeader(name: s?.name),
-        const SizedBox(height: S.x2),
-        // Ordered by what people come here for: their data first, then who
-        // they are, the band, the health tools, and the app itself. Each
-        // thing is on this tab or in Settings, never both: this tab is what
-        // you open to look at or use; Settings is the switches behind them.
-        moreGroup(c, l?.profileYourDataGroup ?? 'Your data', [
-          // Export straight from here: it used to be five taps deep.
-          MoreRow(LucideIcons.hardDriveDownload,
-              l?.profileExportRow ?? 'Export and backup',
-              onTap: onExport),
-          MoreRow(LucideIcons.cloud, 'Cloud account',
-              onTap: () => goto(c, const AccountScreen())),
-          MoreRow(LucideIcons.database, l?.profileStorage ?? 'Storage',
-              value: s?.storageBytes == null ? '' : formatBytes(s!.storageBytes!),
-              onTap: () => goto(c, const StorageScreen())),
-        ]),
-        moreGroup(c, 'Profile', [
-          MoreRow(LucideIcons.userRound, l?.profileEditProfile ?? 'Edit profile',
-              onTap: onEdit),
-          MoreRow(LucideIcons.scale, 'Weight',
-              value: s?.weight ?? '',
-              onTap: () => goto(c, const WeightTrendScreen())),
-        ]),
-        moreGroup(c, 'Band', [
-          // The band's battery rides the devices row: this is where "is my
-          // band all right?" is asked from every tab.
-          Builder(builder: (c) {
-            final battery = deviceBatteryOf(c);
-            return MoreRow(LucideIcons.watch, l?.profileMyDevices ?? 'My devices',
-                badge: LucideIcons.settings,
-                value: battery == null ? '' : '${battery.$1.round()}%',
-                onTap: onDevices);
-          }),
-          MoreRow(LucideIcons.alarmClock, l?.settingsAlarmRowTitle ?? 'Alarm',
-              onTap: () => goto(c, const AlarmScreen())),
-          if (onBuzz != null)
-            MoreRow(LucideIcons.vibrate, 'Band buzzes', onTap: onBuzz),
-        ]),
-        if (tab)
-          moreGroup(c, 'Health & coaching', [
-            MoreRow(LucideIcons.notebookPen, 'Journal',
-                onTap: () => goto(c, const JournalCompose())),
-            MoreRow(LucideIcons.hourglass, 'Locus Age',
-                onTap: () => goto(c, const LocusAgeScreen(page: true))),
-            MoreRow(LucideIcons.calendarRange, 'Reports',
-                onTap: () => goto(c, const ReportsScreen())),
-            MoreRow.brand((t, size) => CoachMark(size: size, color: t),
-                AppLocalizations.of(c)?.profileAiCoach ?? 'AI coach',
-                onTap: () => openCoach(c)),
-            MoreRow(LucideIcons.gitCompareArrows, 'Compare with watch',
-                onTap: () => goto(c, const WatchCompareScreen())),
-          ]),
-        moreGroup(c, 'App', [
-          MoreRow(LucideIcons.settings, 'Settings', onTap: onSettings),
-          if (onUpdates != null)
-            AnimatedBuilder(
-              animation: UpdateService.instance,
-              builder: (c, _) {
-                final u = UpdateService.instance;
-                return MoreRow(LucideIcons.downloadCloud, 'App updates',
-                    value: u.isChecking
-                        ? 'Checking\u2026'
-                        : u.hasUpdate
-                            ? 'Update ready'
-                            : u.currentBuild,
-                    onTap: u.isChecking ? null : onUpdates);
-              },
-            ),
-          if (onUpdates != null)
-            AnimatedBuilder(
-              animation: UpdateService.instance,
-              builder: (c, _) {
-                final u = UpdateService.instance;
-                return MoreRow(LucideIcons.refreshCw, 'Check automatically',
-                    switchValue: u.autoCheckEnabled,
-                    onTap: () => u.setAutoCheckEnabled(!u.autoCheckEnabled));
-              },
-            ),
-        ]),
+        const SizedBox(height: S.x8),
+        // Five doors, each to a page of its own: who you are, what the weeks
+        // added up to, the band, your health settings, and the app. Every
+        // setting is behind exactly one of them.
+        MoreRow(LucideIcons.userRound, 'My profile',
+            value: s?.weight ?? '', onTap: onProfile),
+        const SizedBox(height: S.x3),
+        MoreRow(LucideIcons.calendarRange, 'Reports', onTap: onReports),
+        const SizedBox(height: S.x3),
+        // The band's battery rides its row: this is where "is my band all
+        // right?" is asked from every tab.
+        Builder(builder: (c) {
+          final battery = deviceBatteryOf(c);
+          return MoreRow(LucideIcons.watch, 'Device settings',
+              value: battery == null ? '' : '${battery.$1.round()}%',
+              onTap: onDevice);
+        }),
+        const SizedBox(height: S.x3),
+        MoreRow(LucideIcons.heartPulse, 'Health settings', onTap: onHealth),
+        const SizedBox(height: S.x3),
+        AnimatedBuilder(
+          animation: UpdateService.instance,
+          builder: (c, _) => MoreRow(LucideIcons.settings, 'Settings',
+              value: UpdateService.instance.hasUpdate ? 'Update ready' : '',
+              onTap: onSettings),
+        ),
       ],
     );
     // The tab is hosted by the shell's scaffold; the pushed screen brings its

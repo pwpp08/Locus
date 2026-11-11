@@ -875,7 +875,7 @@ class _GaugePainter extends CustomPainter {
 }
 
 /// The 30 days up to the day shown: each day's mean score as a column in its
-/// own stress colour, their average dashed behind them. A day with too little
+/// level's colour (low, medium, high), their average dashed behind them. A day with too little
 /// scored is a gap. Today, still running, stays out of the average.
 class StressTrendCard extends StatefulWidget {
   final StressSource? source;
@@ -975,7 +975,10 @@ class _StressTrendCardState extends State<StressTrendCard> {
               tickText: (t) => t.toStringAsFixed(1),
               avg: avg,
               color: C.stressMedium,
-              colorOf: (_, v) => stressColor(v),
+              // One colour per level, as the gauge's legend has them: a
+              // blend between stops made a calm day and a medium one two
+              // shades of the same teal.
+              colorOf: (_, v) => _levelColor(stressLevel(v)),
               height: S.x16 * 3 + S.x10,
               label: 'Average stress, last 30 days',
               describe: (i) {
@@ -1006,7 +1009,8 @@ class _StressTrendCardState extends State<StressTrendCard> {
       title: '30-day trend',
       child: Text(
         'Each column is one day\'s average stress, 0 to 3, across the minutes '
-        'it could be scored, coloured as the gauge is. A day needs six hours '
+        'it could be scored, in its level’s colour: blue low, green medium, '
+        'orange high. A day needs six hours '
         'scored to be shown. The dashed line is the average of the days shown.',
         style: F.body.copyWith(color: p.ink2, height: 1.4),
       ),

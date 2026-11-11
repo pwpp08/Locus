@@ -2178,10 +2178,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                 title: 'What is Compare metrics?',
                 body: 'Two of your metrics, week by week, each drawn the way '
                     'its own chart draws it. Touch a day on either to read it '
-                    'on both, and step back through earlier weeks. The line '
-                    'under the charts says whether the two have risen and '
-                    'fallen together over the four weeks up to the one shown, '
-                    'once at least ten days have both.',
+                    'on both, step back through earlier weeks, and tap '
+                    'either name to compare another metric.',
               ),
               const SizedBox(height: S.x6),
             ] else ...[

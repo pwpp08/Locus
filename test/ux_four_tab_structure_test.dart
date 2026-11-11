@@ -9,7 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:openstrap_edge/state/app_state.dart';
 import 'package:openstrap_edge/state/prefs.dart';
-import 'package:openstrap_edge/ui2/onboarding/profile_setup.dart';
 import 'package:openstrap_edge/ui2/profile/profile.dart';
 import 'package:openstrap_edge/ui2/screens/home_screen.dart'
     show firstWeekCard;
@@ -36,29 +35,6 @@ void main() {
             'once it knows your normal'),
         findsOneWidget);
     expect(find.text('2 days recorded so far'), findsOneWidget);
-  });
-
-  testWidgets('onboarding offers cycle tracking, on for a female profile',
-      (t) async {
-    t.view.physicalSize = const Size(390 * 3, 1600 * 3);
-    t.view.devicePixelRatio = 3;
-    addTearDown(t.view.reset);
-    bool? saved;
-    await t.pumpWidget(_app(ProfileSetupView(
-      onSave: (_) async {},
-      onCycleTracking: (on) async => saved = on,
-    )));
-    final toggle = find.byType(AppSwitch);
-    expect(toggle, findsOneWidget);
-    expect(t.widget<AppSwitch>(toggle).value, isFalse);
-
-    await t.tap(find.text('FEMALE'));
-    await t.pump();
-    expect(t.widget<AppSwitch>(toggle).value, isTrue);
-
-    await t.tap(find.text('CONTINUE'));
-    await t.pump();
-    expect(saved, isTrue);
   });
 
   test('cycle tracking defaults on for a female profile, and a choice wins',

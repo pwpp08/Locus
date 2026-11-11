@@ -54,7 +54,7 @@ import 'alarm.dart' show AlarmCountdown;
 import '../activity/share.dart' show ShareSheet, shareOrigin;
 import '../activity/summary.dart';
 import '../onboarding/welcome.dart'
-    show ImportOutcome, ImportReport, OnboardingStep;
+    show ImportOutcome, ImportReport, OnboardingLink, OnboardingStep;
 // Screens are deliberately not re-exported from the ui2 barrel (see the
 // barrel test), so their components are imported by path.
 import '../screens/screens.dart';
@@ -658,6 +658,11 @@ Map<String, Widget> _nutritionAndWellnessCases() {
       SizedBox(height: S.x3),
       HomeSyncBar(state: SyncBarState.behind, syncedTo: 'Mon 9:40 PM'),
     ]),
+    // Home's banner: the bar while catching up (Caught up only shows for a
+    // moment after a catch-up, so its resting state is nothing).
+    'onboarding_link': OnboardingLink('Skip for now', onTap: () {}),
+    'home_sync_banner': const HomeSyncBanner(
+        state: SyncBarState.catchingUp, syncedTo: '10:18 AM'),
     // A report's ring at the size it has on a phone, and Best Day's.
     'score_ring': Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
       ScoreRing(

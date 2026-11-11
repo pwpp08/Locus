@@ -4,14 +4,23 @@
 // the phone asks for its usual confirmation, and the new build deletes the
 // download when it starts. Where that cannot work (the install permission
 // refused, no network) the sheet says why and offers the browser instead.
+//
+// It is a dial-screen sheet: the slate gradient, the grab bar, the title in
+// tracked capitals. Under the Locus mark, the new build in large type; a card
+// with what is installed, what is new and the download's size, values flush
+// right; what changed, from the release notes; then the actions.
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../updater/update_service.dart';
 import '../grammar.dart';
+import '../logo.dart';
+import '../profile/devices.dart' show formatDayTime;
 import '../lucide.dart';
+import '../screens/dial_parts.dart' show dialCard, kDialMargin, kDialPad;
 import '../theme.dart';
 
 class UpdateDialog extends StatefulWidget {
@@ -24,6 +33,7 @@ class UpdateDialog extends StatefulWidget {
       AppSheet.open<void>(
         context,
         scroll: true,
+        bare: true,
         builder: (_) => UpdateDialog(release: release),
       );
 
@@ -35,8 +45,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
   StreamSubscription<UpdateProgress>? _sub;
   UpdateProgress? _progress;
 
-  bool get _busy =>
-      _progress != null && _progress!.phase != 'error';
+  bool get _busy => _progress != null && _progress!.phase != 'error';
 
   @override
   void dispose() {
@@ -52,105 +61,119 @@ class _UpdateDialogState extends State<UpdateDialog> {
     });
   }
 
+  void _later(BuildContext c) {
+    UpdateService.instance.decline(widget.release);
+    Navigator.of(c).pop();
+  }
+
   @override
   Widget build(BuildContext c) {
-    final p = P.of(c);
     final r = widget.release;
     final svc = UpdateService.instance;
     final prog = _progress;
     final failed = prog?.phase == 'error';
     final canInstall = r.apkUrl != null;
-    final notes = r.body.trim();
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-          S.gutter, S.x3, S.gutter, S.x5 + MediaQuery.paddingOf(c).bottom),
+    final notes = r.whatsNew;
+    final published = r.publishedAt?.toLocal();
+    return Container(
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.sizeOf(c).height * .92),
+      decoration: const BoxDecoration(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(R.xxl)),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [DC.sheetTop, DC.sheetFoot],
+        ),
+      ),
+      padding: EdgeInsets.fromLTRB(kDialMargin, S.x4 + S.half + S.hair,
+          kDialMargin, S.x5 + MediaQuery.paddingOf(c).bottom),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Center(
             child: Container(
-              width: S.x10,
-              height: S.x1,
-              decoration: BoxDecoration(color: p.line, borderRadius: R.rPill),
+              width: S.x16 + S.x2,
+              height: S.x1 + S.hair,
+              decoration:
+                  const BoxDecoration(color: DC.grab, borderRadius: R.rPill),
             ),
           ),
-          const SizedBox(height: S.x5),
-          Row(
-            children: [
-              Container(
-                width: S.x10 + S.x1,
-                height: S.x10 + S.x1,
-                decoration: BoxDecoration(
-                    color: p.wash(C.dialStrain), shape: BoxShape.circle),
-                child: Icon(LucideIcons.downloadCloud, size: I.md, color: p.on(C.dialStrain)),
-              ),
-              const SizedBox(width: S.x3),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Semantics(
-                      header: true,
-                      child: Text('Update available',
-                          style: F.t2.copyWith(color: p.ink)),
-                    ),
-                    const SizedBox(height: S.x1),
-                    Text(
-                      '${svc.currentBuild.isEmpty ? 'This build' : svc.currentBuild}'
-                      '  →  ${r.label}',
-                      style: F.num(F.cap).copyWith(
-                          color: p.on(C.dialStrain), fontWeight: FontWeight.w600),
+          const SizedBox(height: S.x6),
+          const Center(child: LocusMark(size: S.x12)),
+          const SizedBox(height: S.x4),
+          Semantics(
+            header: true,
+            child: Text('UPDATE AVAILABLE',
+                textAlign: TextAlign.center,
+                style: F.dLabel.copyWith(color: DC.ink2)),
+          ),
+          const SizedBox(height: S.x2),
+          Text(r.label,
+              textAlign: TextAlign.center,
+              style: F.dHead.copyWith(color: DC.ink)),
+          const SizedBox(height: S.x6),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: kDialPad),
+                    decoration: dialCard(),
+                    child: Column(children: [
+                      _Row('Installed',
+                          svc.currentBuild.isEmpty ? '--' : svc.currentBuild),
+                      _Row('New', r.label, tone: C.optimal),
+                      if (published != null)
+                        _Row('Published',
+                            formatDayTime(published, AppLocalizations.of(c))),
+                      if (r.formattedSize.isNotEmpty)
+                        _Row('Download', r.formattedSize, last: true),
+                    ]),
+                  ),
+                  if (notes.isNotEmpty && !_busy) ...[
+                    const SizedBox(height: S.x3),
+                    Container(
+                      padding: const EdgeInsets.all(kDialPad),
+                      decoration: dialCard(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('WHAT’S NEW',
+                              style: F.dLabel.copyWith(color: DC.ink)),
+                          const SizedBox(height: S.x3),
+                          Text(notes,
+                              style: F.dText
+                                  .copyWith(color: DC.body, height: 1.45)),
+                        ],
+                      ),
                     ),
                   ],
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-          if (r.formattedSize.isNotEmpty) ...[
-            const SizedBox(height: S.x3),
-            Row(
-              children: [
-                Icon(LucideIcons.hardDrive, size: I.sm, color: p.ink3),
-                const SizedBox(width: S.x2),
-                Text('Download: ${r.formattedSize}',
-                    style: F.cap.copyWith(color: p.ink3)),
-              ],
-            ),
-          ],
-          if (notes.isNotEmpty && !_busy) ...[
-            const SizedBox(height: S.x4),
-            Text('WHAT’S IN IT', style: F.over.copyWith(color: p.ink3)),
-            const SizedBox(height: S.x2),
-            Container(
-              constraints: const BoxConstraints(maxHeight: S.x16 * 3),
-              padding: const EdgeInsets.all(S.x3),
-              decoration: BoxDecoration(color: p.card2, borderRadius: R.rMd),
-              child: SingleChildScrollView(
-                child: Text(notes, style: F.cap.copyWith(color: p.ink)),
-              ),
-            ),
-          ],
-          const SizedBox(height: S.x5),
+          const SizedBox(height: S.x6),
           if (_busy) ...[
             _Bar(
-              value: prog!.phase == 'installing' ? 1 : prog.percent / 100,
-              color: p.fill(C.dialStrain),
-              track: p.track,
-            ),
-            const SizedBox(height: S.x2),
+                value: prog!.phase == 'installing' ? 1 : prog.percent / 100),
+            const SizedBox(height: S.x3),
             Text(
               prog.phase == 'installing'
-                  ? 'Opening the installer…'
-                  : 'Downloading ${prog.percent}%',
+                  ? 'OPENING THE INSTALLER'
+                  : 'DOWNLOADING ${prog.percent}%',
               textAlign: TextAlign.center,
-              style: F.cap.copyWith(color: p.ink2),
+              style: F.dLabel.copyWith(color: DC.ink2),
             ),
           ] else ...[
             if (failed) ...[
               Text(prog!.message ?? 'The update did not install.',
-                  style: F.cap.copyWith(color: p.on(C.strainDown), height: 1.4)),
-              const SizedBox(height: S.x3),
+                  textAlign: TextAlign.center,
+                  style: F.dText.copyWith(color: C.strainDown, height: 1.4)),
+              const SizedBox(height: S.x4),
             ],
             if (canInstall)
               BigButton(
@@ -159,7 +182,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 onTap: _start,
               ),
             if (failed || !canInstall) ...[
-              const SizedBox(height: S.x2),
+              const SizedBox(height: S.x3),
               BigButton(
                 'Open in browser',
                 icon: LucideIcons.externalLink,
@@ -170,10 +193,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 },
               ),
             ],
-            const SizedBox(height: S.x2),
-            Center(
-              child: TextAction('Later', () => Navigator.of(c).pop()),
-            ),
+            const SizedBox(height: S.x3),
+            BigButton('Later', soft: true, onTap: () => _later(c)),
           ],
         ],
       ),
@@ -181,23 +202,50 @@ class _UpdateDialogState extends State<UpdateDialog> {
   }
 }
 
-/// A slim bar: the share done in [color] over [track].
+/// A row of the version card: the name in tracked capitals on the left, the
+/// value flush right.
+class _Row extends StatelessWidget {
+  final String label, value;
+  final Color tone;
+  final bool last;
+  const _Row(this.label, this.value, {this.tone = DC.ink, this.last = false});
+
+  @override
+  Widget build(BuildContext c) => Container(
+        constraints: const BoxConstraints(minHeight: S.x12),
+        decoration: BoxDecoration(
+          border: last
+              ? null
+              : const Border(bottom: BorderSide(color: DC.line, width: S.hair)),
+        ),
+        child: Row(children: [
+          Text(label.toUpperCase(), style: F.dLabel.copyWith(color: DC.ink2)),
+          const SizedBox(width: S.x4),
+          Expanded(
+            child: Text(value,
+                textAlign: TextAlign.right,
+                style: F.dText.copyWith(color: tone, fontWeight: FontWeight.w600)),
+          ),
+        ]),
+      );
+}
+
+/// A slim bar: the share done in the strain blue over the dials' track.
 class _Bar extends StatelessWidget {
   final double value;
-  final Color color, track;
-  const _Bar({required this.value, required this.color, required this.track});
+  const _Bar({required this.value});
 
   @override
   Widget build(BuildContext c) => ClipRRect(
         borderRadius: R.rPill,
         child: SizedBox(
-          height: S.x2,
+          height: S.x1 + S.half,
           child: Stack(children: [
-            Positioned.fill(child: ColoredBox(color: track)),
+            const Positioned.fill(child: ColoredBox(color: DC.track)),
             FractionallySizedBox(
               widthFactor: value.clamp(0.0, 1.0),
               heightFactor: 1,
-              child: ColoredBox(color: color),
+              child: const ColoredBox(color: C.dialStrain),
             ),
           ]),
         ),

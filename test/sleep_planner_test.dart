@@ -14,6 +14,8 @@ Map<String, dynamic> _insights({
   double? osdH = 8.5,
   int? strain = 12,
   int? nap = 20,
+  int? habitBed,
+  int? habitWake,
 }) =>
     {
       'sleep_coach': {
@@ -22,6 +24,8 @@ Map<String, dynamic> _insights({
         'wake': {'value': {'wake_min_of_day': wake}},
         'strain_bonus_min': strain,
         'nap_credit_min': nap,
+        'habit_bed_min': habitBed,
+        'habit_wake_min': habitWake,
       },
       'sleep_debt': {'value': {'osd_hours': osdH}},
     };
@@ -46,6 +50,15 @@ void main() {
     final p = SleepPlan.of(_insights());
     expect(p.bedtimeFor(5 * 60 + 50), 20 * 60 + 4);
     expect(p.bedtimeFor(null), isNull);
+  });
+
+  test('your usual bedtime is the one you keep, not the optimal one', () {
+    final p = SleepPlan.of(_insights(habitBed: 23 * 60 + 40, habitWake: 410));
+    expect(p.usualBedMin, 23 * 60 + 40);
+    expect(p.optimalBedMin, 21 * 60 + 4,
+        reason: 'the optimal night still covers the whole need');
+    // Fewer than three nights: no habit yet, and the optimal one stands in.
+    expect(SleepPlan.of(_insights()).usualBedMin, 21 * 60 + 4);
   });
 
   test('the baseline is clamped the way the pipeline clamps it', () {
