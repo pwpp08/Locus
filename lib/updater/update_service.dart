@@ -6,8 +6,9 @@
 // plain file, not a zip.
 //
 // How a build knows it is out of date. The version number only moves when
-// someone bumps it, so CI gives every build its own build number, the
-// workflow's run number (which only ever grows), and names the APK after the
+// someone bumps it, so CI gives every build its own build number, its commit
+// count on main (which only ever grows, and which tagged releases share), and
+// names the APK after the
 // version, that build and the commit (`locus-0.11.4.87-c07d50f.apk`). A
 // release is an update when its build number is higher than the installed
 // one. A release named the older way (`locus-0.11.4-c07d50f.apk`) is an
@@ -203,8 +204,8 @@ class UpdateService extends ChangeNotifier {
   String? _lastError;
   String _currentVersion = '';
 
-  /// This build's build number (the CI run, or the pubspec's for a local
-  /// build).
+  /// This build's build number (its commit count on CI, or the pubspec's for
+  /// a local build).
   int? _currentBuildNumber;
 
   ReleaseInfo? get latestRelease => _latestRelease;

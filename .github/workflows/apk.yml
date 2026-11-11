@@ -6,10 +6,12 @@ name: apk
 # pre-release called `latest`, replaced on every successful build, so the
 # newest APK is always one stable link, also the plain .apk:
 #     https://github.com/<owner>/<repo>/releases/tag/latest
-# The app's own updater (lib/updater) reads the same release. Each build gets
-# the run number as its build number (Android's versionCode, which only ever
-# grows), shown as `v0.11.4 · build 87`, and is stamped with its commit and
-# time (GIT_SHA, BUILD_TIME); the APK is named `locus-0.11.4.87-<sha>.apk`.
+# The app's own updater (lib/updater) reads the same release. Each build's
+# build number (Android's versionCode) is the commit count of what it builds,
+# `git rev-list --count HEAD`: it only grows along main, and build.yml uses the
+# same counter, so a tagged release is never a downgrade from a CI build. It is
+# shown as `v0.11.4 · build 2295`, and the build is stamped with its commit and
+# time (GIT_SHA, BUILD_TIME); the APK is named `locus-0.11.4.2295-<sha>.apk`.
 #
 # SIGNING. Android refuses to install an APK over an older one signed with a
 # different key, so for updates in place the key must be the same every build.
@@ -47,6 +49,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0   # the whole history: the build number is its commit count
+
+      - name: Count the build
+        id: count
+        run: echo "build=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@v5
         with:
@@ -86,17 +93,17 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: flutter build apk --release --target-platform android-arm64 --dart-define-from-file=.env --build-number=${{ github.run_number }} --dart-define=GIT_SHA=${GITHUB_SHA::7} --dart-define=BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        run: flutter build apk --release --target-platform android-arm64 --dart-define-from-file=.env --build-number=${{ steps.count.outputs.build }} --dart-define=GIT_SHA=${GITHUB_SHA::7} --dart-define=BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
       - name: Name the APK after the commit
         id: name
         run: |
           mkdir -p dist
           ver=$(grep -E '^version:' pubspec.yaml | head -1 | awk '{print $2}')
-          apk="dist/locus-${ver%%+*}.${{ github.run_number }}-${GITHUB_SHA::7}.apk"
+          apk="dist/locus-${ver%%+*}.${{ steps.count.outputs.build }}-${GITHUB_SHA::7}.apk"
           cp build/app/outputs/flutter-apk/app-release.apk "$apk"
           echo "apk=$apk" >> "$GITHUB_OUTPUT"
-          echo "label=${ver%%+*} build ${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          echo "label=${ver%%+*} build ${{ steps.count.outputs.build }}" >> "$GITHUB_OUTPUT"
 
       # The plain .apk on the run page, not a zip: `archive: false` uploads the
       # single file as it is and names the artifact after it.

@@ -15,6 +15,11 @@ jobs:
   # in particular was protecting a job it could not stop.
   preflight:
     runs-on: ubuntu-latest
+    outputs:
+      # The Android versionCode for this release: the tagged commit's commit
+      # count, the same counter apk.yml numbers every CI build with, so a
+      # release installs over any CI build of an earlier commit.
+      build: ${{ steps.code.outputs.build }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,6 +44,7 @@ jobs:
       # This guard turns that class of mistake into a red build instead of a
       # broken release.
       - name: Guard — versionCode present, matches tag, and strictly increasing
+        id: code
         run: |
           set -euo pipefail
           ver=$(grep -E '^version:' pubspec.yaml | head -1 | awk '{print $2}')
@@ -64,21 +70,29 @@ jobs:
             *) echo "::error::tag '$GITHUB_REF_NAME' does not match pubspec versionName '$name'."; exit 1 ;;
           esac
 
-          # versionCode must exceed the highest already-released versionCode, or
-          # the new APK can't install over existing devices.
+          # The versionCode is the tagged commit's commit count, the counter
+          # apk.yml gives every CI build, not pubspec's +BUILD: a release cut
+          # from pubspec's 85 would be a downgrade from any CI build after it.
+          code=$(git rev-list --count HEAD)
+
+          # It must exceed the highest already-released versionCode, or the new
+          # APK can't install over existing devices. Older releases used
+          # pubspec's +BUILD, newer ones their commit count: take the larger.
           max=0
           for t in $(git tag -l 'v*'); do
             [ "$t" = "$GITHUB_REF_NAME" ] && continue
             pv=$(git show "$t:pubspec.yaml" 2>/dev/null | grep -E '^version:' | head -1 | awk '{print $2}' || true)
             b=${pv#*+}
-            printf '%s' "$b" | grep -qE '^[0-9]+$' || continue
-            [ "$b" -gt "$max" ] && max=$b
+            if printf '%s' "$b" | grep -qE '^[0-9]+$' && [ "$b" -gt "$max" ]; then max=$b; fi
+            n=$(git rev-list --count "$t" 2>/dev/null || echo 0)
+            if [ "$n" -gt "$max" ]; then max=$n; fi
           done
-          if [ "$build" -le "$max" ]; then
-            echo "::error::versionCode $build is not greater than the highest released versionCode $max — installs would be blocked as a downgrade."
+          if [ "$code" -le "$max" ]; then
+            echo "::error::versionCode $code is not greater than the highest released versionCode $max — installs would be blocked as a downgrade."
             exit 1
           fi
-          echo "versionCode $build (versionName $name) OK — exceeds prior max $max."
+          echo "build=$code" >> "$GITHUB_OUTPUT"
+          echo "versionCode $code (versionName $name) OK — exceeds prior max $max."
 
   android:
     needs: preflight
@@ -143,7 +157,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: flutter build apk --release --target-platform android-arm64 --dart-define-from-file=.env --dart-define=GIT_SHA=${GITHUB_SHA::7} --dart-define=BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        run: flutter build apk --release --target-platform android-arm64 --dart-define-from-file=.env --build-number=${{ needs.preflight.outputs.build }} --dart-define=GIT_SHA=${GITHUB_SHA::7} --dart-define=BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
       - name: Name the APK after the version
         id: rename
