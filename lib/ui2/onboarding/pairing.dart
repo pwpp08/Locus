@@ -214,9 +214,9 @@ class PairingView extends StatelessWidget {
               Icon(LucideIcons.bluetoothOff, size: I.xl, color: p.on(C.blue))
             else
               switch (phase) {
-                PairPhase.scanning => const BandStage(Art.watch, height: 180),
-                PairPhase.paired => const BandStage(Art.watch, height: 180),
-                _ => const BandStage(Art.watch, height: 140),
+                PairPhase.scanning => const BandStage(height: 180),
+                PairPhase.paired => const BandStage(height: 180),
+                _ => const BandStage(height: 140),
               },
             const SizedBox(height: S.x5),
             Text(_title(c, phase, blocker),

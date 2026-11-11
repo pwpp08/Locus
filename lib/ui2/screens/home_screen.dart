@@ -17,7 +17,7 @@ import '../../compute/findings.dart' show isRecentFindingDate;
 import '../../compute/onehz_pipeline.dart'
     show readinessInputShortfallNote, readinessUnstableBaselineNote;
 import '../../data/day_label.dart'
-    show dayLabelOf, localDayStartSec, todayLabel;
+    show dayLabelBefore, dayLabelOf, localDayStartSec, todayLabel;
 import '../../data/db.dart' show DbRebuild, LocalDb;
 import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
@@ -64,7 +64,7 @@ import 'plus_menu.dart';
 import 'readiness_detail.dart';
 import 'recovery_calendar.dart' show openRecoveryCalendar;
 import 'sleep_detail.dart';
-import 'sleep_planner.dart' show alarmItemsOf, firstAlarmWakeMin;
+import 'sleep_planner.dart' show alarmItemsOf, firstAlarmWakeMin, plannedBedMin;
 import 'start_activity.dart';
 import 'strain_recovery_card.dart';
 import 'strength_trainer.dart';
@@ -505,32 +505,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     final midnight = midnightAt.millisecondsSinceEpoch ~/ 1000;
     if (day == todayLabel()) {
       try {
-        final timeline = await repo.getDayTimeline(day);
-        final strain = await repo.getDayStrain(day);
-        final overview = await repo.getDayOverview(day);
-        final sleep = await repo.getDaySleepV2(day);
-        final custom = Prefs.getInt('custom_max_hr', 0);
-        final hasNight = sleep['has_sleep'] == true;
-        energy = energyReserve(
-          hr: [
-            for (final e in (timeline['hr'] as List?) ?? const [])
-              if (e is Map && e['t'] is num && e['v'] is num)
-                ((e['t'] as num).round(), (e['v'] as num).toDouble()),
-          ],
-          onsetTs: hasNight ? (sleep['onset_ts'] as num?)?.round() : null,
-          wakeTs: hasNight ? (sleep['wake_ts'] as num?)?.round() : null,
-          recovery: daily['recovery']?[day],
-          restingHr: (overview['resting_hr'] as num?)?.toDouble(),
-          maxHr: custom > 0
-              ? custom.toDouble()
-              : (strain['max_hr_used'] as num?)?.toDouble(),
-          midnight: midnight,
-          naps: [
-            for (final n in naps)
-              if (n['start'] is num && n['end'] is num)
-                ((n['start'] as num).round(), (n['end'] as num).round()),
-          ],
-        );
+        energy = await _energyFor(repo, day, daily, naps, midnight);
       } catch (_) {}
     }
     if (!mounted) return;
@@ -550,6 +525,98 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     unawaited(healthGlanceOf(context).then((h) {
       if (mounted) setState(() => _health = h);
     }).catchError((Object _) {}));
+  }
+
+  /// Today's energy reserve, carried over from yesterday's: yesterday's run
+  /// to last night's onset gives the level the night starts from, as the
+  /// battery-style scores do. Without a yesterday, the morning is anchored on
+  /// today's recovery instead.
+  Future<EnergyReserve?> _energyFor(
+    LocalRepository repo,
+    String day,
+    Map<String, Map<String, double>> daily,
+    List<Map<String, dynamic>> naps,
+    int midnight,
+  ) async {
+    final src = _stressSource ??= StressSource(repo);
+    final custom = Prefs.getInt('custom_max_hr', 0);
+
+    List<(int, double)> hrOf(Map<String, dynamic> timeline) => [
+          for (final e in (timeline['hr'] as List?) ?? const [])
+            if (e is Map && e['t'] is num && e['v'] is num)
+              ((e['t'] as num).round(), (e['v'] as num).toDouble()),
+        ];
+
+    Future<List<(int, double)>> scoresOf(String d) async {
+      final start = localDayStartSec(d);
+      if (start == null) return const [];
+      try {
+        final data = await src.load(d);
+        return [
+          for (var i = 0; i < data.scores.length; i++)
+            if (data.scores[i] != null) (start + i * 60, data.scores[i]!),
+        ];
+      } catch (_) {
+        return const [];
+      }
+    }
+
+    final timeline = await repo.getDayTimeline(day);
+    final strain = await repo.getDayStrain(day);
+    final overview = await repo.getDayOverview(day);
+    final sleep = await repo.getDaySleepV2(day);
+    final hasNight = sleep['has_sleep'] == true;
+    final onset = hasNight ? (sleep['onset_ts'] as num?)?.round() : null;
+    final wake = hasNight ? (sleep['wake_ts'] as num?)?.round() : null;
+    final restingHr = (overview['resting_hr'] as num?)?.toDouble();
+    final maxHr = custom > 0
+        ? custom.toDouble()
+        : (strain['max_hr_used'] as num?)?.toDouble();
+    final todayHr = hrOf(timeline);
+    final todayScores = await scoresOf(day);
+
+    // Yesterday, run up to last night's onset.
+    double? onsetLevel;
+    final yday = dayLabelBefore(day, 1);
+    if (onset != null && yday != null) {
+      try {
+        final ySleep = await repo.getDaySleepV2(yday);
+        final yOverview = await repo.getDayOverview(yday);
+        final yStrain = await repo.getDayStrain(yday);
+        final yHasNight = ySleep['has_sleep'] == true;
+        final yRun = energyReserve(
+          hr: [...hrOf(await repo.getDayTimeline(yday)), ...todayHr],
+          onsetTs: yHasNight ? (ySleep['onset_ts'] as num?)?.round() : null,
+          wakeTs: yHasNight ? (ySleep['wake_ts'] as num?)?.round() : null,
+          recovery: daily['recovery']?[yday],
+          restingHr: (yOverview['resting_hr'] as num?)?.toDouble() ?? restingHr,
+          maxHr: custom > 0
+              ? custom.toDouble()
+              : (yStrain['max_hr_used'] as num?)?.toDouble() ?? maxHr,
+          midnight: localDayStartSec(yday) ?? midnight,
+          stress: [...await scoresOf(yday), ...todayScores],
+          until: onset,
+        );
+        onsetLevel = yRun?.level;
+      } catch (_) {}
+    }
+
+    return energyReserve(
+      hr: todayHr,
+      onsetTs: onset,
+      wakeTs: wake,
+      recovery: daily['recovery']?[day],
+      restingHr: restingHr,
+      maxHr: maxHr,
+      midnight: midnight,
+      naps: [
+        for (final n in naps)
+          if (n['start'] is num && n['end'] is num)
+            ((n['start'] as num).round(), (n['end'] as num).round()),
+      ],
+      stress: todayScores,
+      onsetLevel: onsetLevel,
+    );
   }
 
   EnergyReserve? _energy;
@@ -846,7 +913,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           final first = firstAlarmWakeMin(alarm, items: items);
           final wake = first ?? d.plan.usualWakeMin;
           return _TonightsSleep(
-            bedtimeMin: d.plan.bedtimeFor(wake) ?? d.bedtime.value?.round(),
+            bedtimeMin: plannedBedMin(d.plan, wake) ?? d.bedtime.value?.round(),
             wakeMin: alarm?.$1 == null ? wake : null,
             wakeIsAlarm: first != null,
             alarm: alarm,

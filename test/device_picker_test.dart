@@ -84,12 +84,10 @@ void main() {
       expect(find.text('Oura Ring'), findsOneWidget);
       expect(find.text('Polar H10'), findsOneWidget);
       // sensorIcon('oura') => circleDot, everything else => heartPulse — the
-      // whole point of stamping `entryId` onto a mixed-type scan result.
-      // Since the drawn art landed, a ring (sensorArt('oura') => Art.ring)
-      // shows its picture and no glyph; a generic HR strap has no drawing and
-      // keeps the heartPulse icon.
-      expect(find.byType(SvgPicture), findsOneWidget);
-      expect(find.byIcon(LucideIcons.circleDot), findsNothing);
+      // whole point of stamping `entryId` onto a mixed-type scan result. The
+      // rows are icon rows: no drawn device art.
+      expect(find.byType(SvgPicture), findsNothing);
+      expect(find.byIcon(LucideIcons.circleDot), findsOneWidget);
       expect(find.byIcon(LucideIcons.heartPulse), findsOneWidget);
     });
 

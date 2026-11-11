@@ -47,7 +47,7 @@ import '../../state/app_state.dart';
 import '../onboarding/pairing.dart' show PairingScreen;
 import '../onboarding/welcome.dart' show OnboardingStep;
 import '../ui2.dart';
-import '../profile/devices.dart' show kPairableSensors, sensorArt, sensorIcon;
+import '../profile/devices.dart' show kPairableSensors, sensorIcon;
 import '../profile/pair_sensor.dart' show PairSensorScreen;
 import '../profile/profile.dart' show SetRow;
 
@@ -281,10 +281,8 @@ class _DevicePickerScreenState extends State<DevicePickerScreen> {
       e.isFramed ? LucideIcons.watch : sensorIcon(e.id);
 }
 
-/// A sensor's row: its drawn picture where there is one, the Lucide glyph
-/// where there is not (a thermometer, a scale).
+/// A sensor's row: its Lucide glyph in a chip, the type and its line.
 Widget _sensorRow({
-  required Art? art,
   required IconData icon,
   required Color color,
   required String title,
@@ -292,10 +290,7 @@ Widget _sensorRow({
   bool chevron = true,
   VoidCallback? onTap,
 }) =>
-    art == null
-        ? SetRow(icon, color, title, sub: sub, chevron: chevron, onTap: onTap)
-        : SetRow.brand((_) => art.image(height: I.lg), color, title,
-            sub: sub, chevron: chevron, onTap: onTap);
+    SetRow(icon, color, title, sub: sub, chevron: chevron, onTap: onTap);
 
 /// The pure half — every state this screen can be in, from values, so a
 /// test can render each one without a radio.
@@ -398,8 +393,6 @@ class DevicePickerView extends StatelessWidget {
                           children: [
                             for (var i = 0; i < categories.length; i++) ...[
                               _sensorRow(
-                                art: sensorArt(categories[i].entry.id,
-                                    framed: categories[i].entry.isFramed),
                                 icon: categories[i].icon,
                                 color: C.blue,
                                 title: uiText(c, categories[i].entry.label),
@@ -554,7 +547,6 @@ class _NearbySection extends StatelessWidget {
         : '${cand.rssi} dBm';
     final idle = cand.label == null ? '…$tail · $signal' : signal;
     return _sensorRow(
-      art: sensorArt(cand.entryId),
       icon: sensorIcon(cand.entryId),
       color: C.green,
       title: cand.label ?? cand.entryId,

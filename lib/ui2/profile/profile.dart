@@ -24,6 +24,7 @@ import '../../state/units_controller.dart';
 import '../ui2.dart';
 import '../screens/action_sheet.dart' show openCoach;
 import '../screens/locus_age.dart' show LocusAgeScreen;
+import '../screens/reports.dart' show ReportsScreen;
 import 'storage_screen.dart' show StorageScreen;
 import '../screens/home_screen.dart' show deviceBatteryOf;
 import '../screens/watch_compare_screen.dart' show WatchCompareScreen;
@@ -684,6 +685,8 @@ class ProfileHomeView extends StatelessWidget {
                 onTap: () => goto(c, const JournalCompose())),
             MoreRow(LucideIcons.hourglass, 'Locus Age',
                 onTap: () => goto(c, const LocusAgeScreen(page: true))),
+            MoreRow(LucideIcons.calendarRange, 'Reports',
+                onTap: () => goto(c, const ReportsScreen())),
             MoreRow.brand((t, size) => CoachMark(size: size, color: t),
                 AppLocalizations.of(c)?.profileAiCoach ?? 'AI coach',
                 onTap: () => openCoach(c)),

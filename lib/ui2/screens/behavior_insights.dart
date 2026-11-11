@@ -214,7 +214,7 @@ class _BehaviorInsightsScreenState extends State<BehaviorInsightsScreen> {
               style: F.dText.copyWith(color: DC.ink2)),
         ]),
         const SizedBox(height: S.x12 + S.x1),
-        const _ImpactHeader(),
+        const ImpactHeader(),
         const SizedBox(height: S.x2 + S.hair),
         if (_loading && _d == null)
           const Padding(
@@ -293,8 +293,8 @@ class _SparkPaint extends CustomPainter {
   bool shouldRepaint(_SparkPaint old) => false;
 }
 
-class _ImpactHeader extends StatelessWidget {
-  const _ImpactHeader();
+class ImpactHeader extends StatelessWidget {
+  const ImpactHeader({super.key});
 
   @override
   Widget build(BuildContext c) {
@@ -336,7 +336,7 @@ class _ImpactHeader extends StatelessWidget {
   }
 }
 
-String _impactText(double v) {
+String impactText(double v) {
   final r = v.round();
   return r > 0 ? '+$r%' : '$r%';
 }
@@ -345,16 +345,16 @@ Color _barColor(double v) => v.abs() < _strongImpact
     ? DC.stageAwake
     : (v > 0 ? C.optimal : C.poor);
 
-Color _textColor(double v) => v.abs() < _strongImpact
+Color impactTextColor(double v) => v.abs() < _strongImpact
     ? DC.ink2
     : (v > 0 ? C.optimal : C.poor);
 
 /// The stripes with a dot at their middle and a bar out from it: [v] of [scale]
 /// from the middle to the end. Null [v]: only the small dot.
-class _ImpactBarPaint extends CustomPainter {
+class ImpactBarPaint extends CustomPainter {
   final double? v;
   final double scale;
-  const _ImpactBarPaint(this.v, this.scale);
+  const ImpactBarPaint(this.v, this.scale);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -377,7 +377,7 @@ class _ImpactBarPaint extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ImpactBarPaint old) => old.v != v || old.scale != scale;
+  bool shouldRepaint(ImpactBarPaint old) => old.v != v || old.scale != scale;
 }
 
 class _ImpactRow extends StatelessWidget {
@@ -393,7 +393,7 @@ class _ImpactRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: S.x2 + S.hair),
       child: Pressable(
         onTap: onTap,
-        semanticLabel: '${b.title}: ${_impactText(v)} Recovery',
+        semanticLabel: '${b.title}: ${impactText(v)} Recovery',
         child: Container(
           constraints:
               const BoxConstraints(minHeight: S.x16 + S.x3 + S.hair + S.hair),
@@ -426,14 +426,14 @@ class _ImpactRow extends StatelessWidget {
               Expanded(
                 child: CustomPaint(
                   size: const Size(double.infinity, S.x2 + S.half),
-                  painter: _ImpactBarPaint(v, scale),
+                  painter: ImpactBarPaint(v, scale),
                 ),
               ),
               SizedBox(
                 width: S.x10 + S.x1,
-                child: Text(_impactText(v),
+                child: Text(impactText(v),
                     textAlign: TextAlign.right,
-                    style: F.nWeek.copyWith(color: _textColor(v))),
+                    style: F.nWeek.copyWith(color: impactTextColor(v))),
               ),
             ]),
           ]),
@@ -491,7 +491,7 @@ class _LockedRow extends StatelessWidget {
               const Expanded(
                 child: CustomPaint(
                   size: Size(double.infinity, S.x2 + S.half),
-                  painter: _ImpactBarPaint(null, 1),
+                  painter: ImpactBarPaint(null, 1),
                 ),
               ),
               const SizedBox(width: S.x3),
@@ -749,7 +749,7 @@ class BehaviorDetailsScreen extends StatelessWidget {
                   size: const Size(double.infinity, S.x2 + S.half),
                   // Half as far as on the list: this bar has its figure to say
                   // how big it is.
-                  painter: _ImpactBarPaint(v, scale * 2.2),
+                  painter: ImpactBarPaint(v, scale * 2.2),
                 ),
               ),
               const SizedBox(width: S.x4),
@@ -761,9 +761,9 @@ class BehaviorDetailsScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Text(_impactText(v).replaceAll('%', ''),
-                        style: F.nImpact.copyWith(color: _textColor(v))),
-                    Text('%', style: F.nSmall.copyWith(color: _textColor(v))),
+                    Text(impactText(v).replaceAll('%', ''),
+                        style: F.nImpact.copyWith(color: impactTextColor(v))),
+                    Text('%', style: F.nSmall.copyWith(color: impactTextColor(v))),
                   ],
                 ),
             ]),

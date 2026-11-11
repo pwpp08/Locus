@@ -177,7 +177,9 @@ class _WindowEditorState extends State<WindowEditor> {
     final pts = await (widget.hr ?? _readHr)(a, b);
     // The band's own seconds; a test that hands in its own heart rate gets no
     // movement rather than a read of whatever database is open.
-    final mv = widget.hr == null ? await readMovement(a, b) : const <MovePoint>[];
+    final mv = widget.hr == null
+        ? await readMovement(a, b)
+        : const <MovePoint>[];
     if (!mounted) return;
     setState(() {
       _hr = pts;
@@ -455,33 +457,39 @@ class _WindowEditorState extends State<WindowEditor> {
       height: h,
       child: Builder(
         builder: (c) {
-          return Scrubber(
-            value: null,
-            onChanged: _drag,
-            onLift: () {
-              _dragMode = null;
-              _dragInitialT = null;
-              _initialStartSec = null;
-              _initialEndSec = null;
-              _ensure();
-            },
-            yieldToScroll: true,
-            onPinch: _pinch,
-            label: 'Heart rate around the window',
-            describe: (f) {
-              final t = _at(from + (f * _span).round());
-              return formatClock(t.hour, t.minute);
-            },
-            child: WindowChart(
-              hr: _hr,
-              movement: _move,
-              from: from,
-              span: _span,
-              start: s,
-              end: e,
-              kind: widget.kind,
-              empty: _hr.isEmpty && !_loading,
+          return withWindowTicks(
+            Scrubber(
+              value: null,
+              onChanged: _drag,
+              onLift: () {
+                _dragMode = null;
+                _dragInitialT = null;
+                _initialStartSec = null;
+                _initialEndSec = null;
+                _ensure();
+              },
+              yieldToScroll: true,
+              onPinch: _pinch,
+              label: 'Heart rate around the window',
+              describe: (f) {
+                final t = _at(from + (f * _span).round());
+                return formatClock(t.hour, t.minute);
+              },
+              child: WindowChart(
+                hr: _hr,
+                movement: _move,
+                from: from,
+                span: _span,
+                start: s,
+                end: e,
+                kind: widget.kind,
+                empty: _hr.isEmpty && !_loading,
+              ),
             ),
+            _hr,
+            _move,
+            from,
+            _span,
           );
         },
       ),
@@ -504,6 +512,10 @@ class WindowChart extends StatelessWidget {
   /// Nothing was recorded here: says so instead of an empty grid.
   final bool empty;
 
+  /// What the chart sits on, for the knock-out round its handles; the page
+  /// when null.
+  final Color? ground;
+
   const WindowChart({
     super.key,
     required this.hr,
@@ -514,6 +526,7 @@ class WindowChart extends StatelessWidget {
     required this.end,
     required this.kind,
     this.empty = false,
+    this.ground,
   });
 
   @override
@@ -542,6 +555,7 @@ class WindowChart extends StatelessWidget {
                   ink: p.ink,
                   ink3: p.ink3,
                   grid: p.line,
+                  ground: ground ?? p.bg,
                 ),
               ),
             ),
@@ -838,10 +852,12 @@ class _WindowPreviewState extends State<WindowPreview> {
         Row(
           children: [
             Flexible(
-              child: Text('HEART RATE',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: F.caps.copyWith(color: p.ink)),
+              child: Text(
+                'HEART RATE',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: F.caps.copyWith(color: p.ink),
+              ),
             ),
             const SizedBox(width: S.x2),
             Text('bpm', style: F.num(F.cap).copyWith(color: p.ink3)),
@@ -850,17 +866,23 @@ class _WindowPreviewState extends State<WindowPreview> {
         const SizedBox(height: S.x2),
         SizedBox(
           height: widget.height,
-          child: Scrubber(
-            value: null,
-            onChanged: _touch,
-            onLift: _onLift,
-            yieldToScroll: true,
-            onPinch: _pinch,
-            label: widget.onChanged == null
-                ? 'Heart rate around the detected window'
-                : 'Heart rate and the window; drag a line to move it',
-            describe: (f) => _clock(_viewFrom + f * _viewSpan),
-            child: chart,
+          child: withWindowTicks(
+            Scrubber(
+              value: null,
+              onChanged: _touch,
+              onLift: _onLift,
+              yieldToScroll: true,
+              onPinch: _pinch,
+              label: widget.onChanged == null
+                  ? 'Heart rate around the detected window'
+                  : 'Heart rate and the window; drag a line to move it',
+              describe: (f) => _clock(_viewFrom + f * _viewSpan),
+              child: chart,
+            ),
+            _hr ?? const [],
+            _move,
+            _viewFrom,
+            _viewSpan,
           ),
         ),
       ],
@@ -881,6 +903,9 @@ class _WindowPreviewState extends State<WindowPreview> {
       end: _curEnd,
       kind: widget.kind,
       empty: _hr != null && _hr!.isEmpty,
+      ground: widget.zoomable
+          ? null
+          : Color.alphaBlend(p.ink.withValues(alpha: .08), p.card),
     );
 
     if (widget.zoomable) return _zoomable(c, p, chartWidget);
@@ -898,155 +923,119 @@ class _WindowPreviewState extends State<WindowPreview> {
     final timeRangeStr =
         '${formatClock(dtStart.hour, dtStart.minute)} - ${formatClock(dtEnd.hour, dtEnd.minute)}';
 
+    Widget tool(IconData icon, String label, VoidCallback onTap) => Pressable(
+      onTap: onTap,
+      semanticLabel: label,
+      child: SizedBox(
+        width: S.tap,
+        height: S.tap,
+        child: Center(
+          child: Icon(icon, size: I.md, color: p.ink2),
+        ),
+      ),
+    );
+
+    // An inner block on the sheet's card: ink 8 % over it, radius 12, no
+    // outline (DESIGN.md §10.5).
     return Container(
       decoration: BoxDecoration(
-        color: p.card,
+        color: Color.alphaBlend(p.ink.withValues(alpha: .08), p.card),
         borderRadius: R.rLg,
-        border: Border.all(color: p.line.withValues(alpha: .6), width: 1),
       ),
-      padding: const EdgeInsets.all(S.x3),
+      padding: const EdgeInsets.fromLTRB(S.x4, S.x1, S.x1, S.x4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: S.x2,
-            runSpacing: S.x2,
+          Row(
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'HEART RATE WINDOW',
-                    style: F.caps.copyWith(color: p.ink3, letterSpacing: 1.2),
+              Flexible(
+                child: Text(
+                  'HEART RATE WINDOW',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: F.caps.copyWith(
+                    color: p.ink,
+                    fontWeight: FontWeight.w700,
                   ),
-                  const SizedBox(width: S.x2),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: S.x2,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color:
-                          (widget.kind == WindowKind.workout
-                                  ? C.dialStrain
-                                  : C.dialSleep)
-                              .withValues(alpha: .15),
-                      borderRadius: R.rSm,
-                    ),
-                    child: Text(
-                      durStr,
-                      style: F.num(F.over).copyWith(
-                        color: widget.kind == WindowKind.workout
-                            ? C.dialStrain
-                            : C.dialSleep,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (isInteractive) ...[
-                    Pressable(
-                      onTap: () => _zoom(0.67),
-                      semanticLabel: 'Zoom in',
-                      child: Container(
-                        padding: const EdgeInsets.all(S.x1),
-                        decoration: BoxDecoration(
-                          color: p.card2,
-                          borderRadius: R.rSm,
-                        ),
-                        child: Icon(LucideIcons.plus, size: I.sm, color: p.ink),
-                      ),
-                    ),
-                    const SizedBox(width: S.x1),
-                    Pressable(
-                      onTap: () => _zoom(1.5),
-                      semanticLabel: 'Zoom out',
-                      child: Container(
-                        padding: const EdgeInsets.all(S.x1),
-                        decoration: BoxDecoration(
-                          color: p.card2,
-                          borderRadius: R.rSm,
-                        ),
-                        child: Icon(
-                          LucideIcons.minus,
-                          size: I.sm,
-                          color: p.ink,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: S.x2),
-                  ],
-                  if (widget.onExpand != null)
-                    Pressable(
-                      onTap: widget.onExpand,
-                      semanticLabel: 'Open full window editor',
-                      child: Container(
-                        padding: const EdgeInsets.all(S.x1),
-                        decoration: BoxDecoration(
-                          color: p.card2,
-                          borderRadius: R.rSm,
-                        ),
-                        child: Icon(
-                          LucideIcons.maximize2,
-                          size: I.sm,
-                          color: p.ink,
-                        ),
-                      ),
-                    ),
-                ],
+              const SizedBox(width: S.x2),
+              Pill(
+                durStr,
+                widget.kind == WindowKind.workout ? C.dialStrain : C.dialSleep,
               ),
-            ],
-          ),
-          const SizedBox(height: S.x2),
-          SizedBox(
-            height: widget.height,
-            child: isInteractive
-                ? Scrubber(
-                    value: null,
-                    onChanged: _drag,
-                    onLift: _onLift,
-                    yieldToScroll: true,
-                    onPinch: _pinch,
-                    label: 'Heart rate window',
-                    describe: (f) {
-                      final t = _at(_viewFrom + (f * _viewSpan).round());
-                      return formatClock(t.hour, t.minute);
-                    },
-                    child: chartWidget,
-                  )
-                : (widget.onExpand != null
-                      ? Pressable(
-                          onTap: widget.onExpand,
-                          semanticLabel: 'Open window editor',
-                          child: chartWidget,
-                        )
-                      : chartWidget),
-          ),
-          const SizedBox(height: S.x2),
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: S.x2,
-            runSpacing: S.x1,
-            children: [
-              Text(
-                timeRangeStr,
-                style: F.num(
-                  F.over,
-                ).copyWith(color: p.ink2, fontWeight: FontWeight.w600),
-              ),
-              if (isInteractive)
-                Text(
-                  'Slide lines • Drag center • Pinch / +/- to zoom',
-                  style: F.over.copyWith(color: p.ink3),
+              const Spacer(),
+              if (isInteractive) ...[
+                tool(LucideIcons.plus, 'Zoom in', () => _zoom(0.67)),
+                tool(LucideIcons.minus, 'Zoom out', () => _zoom(1.5)),
+              ],
+              if (widget.onExpand != null)
+                tool(
+                  LucideIcons.maximize2,
+                  'Open full window editor',
+                  widget.onExpand!,
                 ),
             ],
+          ),
+          const SizedBox(height: S.x1),
+          Padding(
+            padding: const EdgeInsets.only(right: S.x3),
+            child: SizedBox(
+              height: widget.height,
+              child: withWindowTicks(
+                isInteractive
+                    ? Scrubber(
+                        value: null,
+                        onChanged: _drag,
+                        onLift: _onLift,
+                        yieldToScroll: true,
+                        onPinch: _pinch,
+                        label: 'Heart rate window',
+                        describe: (f) {
+                          final t = _at(_viewFrom + (f * _viewSpan).round());
+                          return formatClock(t.hour, t.minute);
+                        },
+                        child: chartWidget,
+                      )
+                    : (widget.onExpand != null
+                          ? Pressable(
+                              onTap: widget.onExpand,
+                              semanticLabel: 'Open window editor',
+                              child: chartWidget,
+                            )
+                          : chartWidget),
+                _hr ?? const [],
+                _move,
+                _viewFrom,
+                _viewSpan,
+              ),
+            ),
+          ),
+          const SizedBox(height: S.x3),
+          Padding(
+            padding: const EdgeInsets.only(right: S.x3),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  timeRangeStr,
+                  style: F.num(
+                    F.cap,
+                  ).copyWith(color: p.ink, fontWeight: FontWeight.w700),
+                ),
+                if (isInteractive) ...[
+                  const SizedBox(width: S.x3),
+                  Expanded(
+                    child: Text(
+                      'Drag a line or the middle. Pinch to zoom.',
+                      textAlign: TextAlign.right,
+                      style: F.cap.copyWith(color: p.ink3),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
       ),
@@ -1054,11 +1043,121 @@ class _WindowPreviewState extends State<WindowPreview> {
   }
 }
 
+const double _top = S.x8, _bottom = S.x6, _laneH = S.x8;
+
+bool _hasLane(List<MovePoint> movement) => movement.any((m) => m.v > 0);
+
+/// The plot inside a window chart of [size]. The movement lane takes its
+/// height from the plot's foot, above the clock times; no movement, no lane.
+Rect _plotOf(Size size, List<MovePoint> movement) {
+  final lane = _hasLane(movement) ? _laneH : 0.0;
+  return Rect.fromLTRB(
+    0,
+    _top,
+    size.width,
+    size.height - _bottom - lane - (lane > 0 ? S.x1 : 0),
+  );
+}
+
+/// The heart-rate scale of a window chart: the beats in view, rounded out to
+/// 25 bpm with 4 bpm of room and at least 50 bpm of span, the workout chart's
+/// rule (DESIGN.md §12.10). A tick every 25.
+({double lo, double hi, List<double> ticks}) windowHrScale(
+  List<HrPoint> hr,
+  int from,
+  int to,
+) {
+  var lo = 50.0, hi = 125.0;
+  final vs = [
+    for (final p in hr)
+      if (p.t >= from && p.t <= to) p.v,
+  ];
+  if (vs.isNotEmpty) {
+    lo = ((vs.reduce(math.min) - 4) / 25).floor() * 25.0;
+    hi = ((vs.reduce(math.max) + 4) / 25).ceil() * 25.0;
+    if (hi - lo < 50) hi = lo + 50;
+  }
+  return (lo: lo, hi: hi, ticks: [for (var v = lo; v <= hi + .1; v += 25) v]);
+}
+
+/// The y labels of a window chart, for the gutter left of it:
+/// `F.num(F.over)` w600 ink3, right-aligned 8 short of the chart and centred
+/// on their lines.
+class WindowTicks extends StatelessWidget {
+  final List<HrPoint> hr;
+  final List<MovePoint> movement;
+  final int from, span;
+  const WindowTicks({
+    super.key,
+    required this.hr,
+    this.movement = const [],
+    required this.from,
+    required this.span,
+  });
+
+  @override
+  Widget build(BuildContext c) => CustomPaint(
+    painter: _TicksPainter(hr, movement, from, span, P.of(c).ink3),
+  );
+}
+
+class _TicksPainter extends CustomPainter {
+  final List<HrPoint> hr;
+  final List<MovePoint> movement;
+  final int from, span;
+  final Color ink3;
+  _TicksPainter(this.hr, this.movement, this.from, this.span, this.ink3);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final plot = _plotOf(size, movement);
+    final scale = windowHrScale(hr, from, from + span);
+    for (final v in scale.ticks) {
+      final y =
+          plot.bottom - (v - scale.lo) / (scale.hi - scale.lo) * plot.height;
+      final tp = TextPainter(
+        text: TextSpan(
+          text: '${v.round()}',
+          style: F.num(
+            F.over,
+          ).copyWith(color: ink3, fontWeight: FontWeight.w600),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(size.width - S.x2 - tp.width, y - tp.height / 2));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_TicksPainter o) =>
+      o.hr != hr || o.from != from || o.span != span || o.movement != movement;
+}
+
+/// [chart] with its y labels in a 40 gutter to its left. The gutter sits
+/// outside the chart, so a finger's fraction across the chart is still its
+/// fraction of the time in view.
+Widget withWindowTicks(
+  Widget chart,
+  List<HrPoint> hr,
+  List<MovePoint> movement,
+  int from,
+  int span,
+) => Row(
+  crossAxisAlignment: CrossAxisAlignment.stretch,
+  children: [
+    SizedBox(
+      width: S.x10,
+      child: WindowTicks(hr: hr, movement: movement, from: from, span: span),
+    ),
+    Expanded(child: chart),
+  ],
+);
+
 class _WindowChartPainter extends CustomPainter {
   final List<HrPoint> hr;
   final List<MovePoint> movement;
   final int from, span, start, end;
-  final Color tint, line, ink, ink3, grid;
+  final Color tint, line, ink, ink3, grid, ground;
 
   _WindowChartPainter({
     required this.hr,
@@ -1072,33 +1171,22 @@ class _WindowChartPainter extends CustomPainter {
     required this.ink,
     required this.ink3,
     required this.grid,
+    required this.ground,
   });
-
-  static const _top = S.x8, _bottom = S.x6, _laneH = S.x8;
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
-    // The movement lane takes its height from the foot of the plot, above the
-    // clock times; no movement, no lane, and the plot keeps the room.
-    final lane = movement.any((m) => m.v > 0) ? _laneH : 0.0;
-    final plot =
-        Rect.fromLTRB(0, _top, w, size.height - _bottom - lane - (lane > 0 ? S.x1 : 0));
+    final lane = _hasLane(movement) ? _laneH : 0.0;
+    final plot = _plotOf(size, movement);
     double xOf(int t) => (t - from) / span * w;
     final to = from + span;
     final shown = [
       for (final p in hr)
         if (p.t >= from && p.t <= to) p,
     ];
-
-    // The scale: the visible heart rate, padded to whole tens.
-    var lo = 40.0, hi = 120.0;
-    if (shown.isNotEmpty) {
-      final vs = shown.map((p) => p.v);
-      lo = ((vs.reduce(math.min) - 5) / 10).floor() * 10.0;
-      hi = ((vs.reduce(math.max) + 5) / 10).ceil() * 10.0;
-      if (hi - lo < 30) hi = lo + 30;
-    }
+    final scale = windowHrScale(hr, from, to);
+    final lo = scale.lo, hi = scale.hi;
     double yOf(double v) => plot.bottom - (v - lo) / (hi - lo) * plot.height;
 
     // The window, behind everything: a soft fill and a lit band at the top.
@@ -1114,14 +1202,14 @@ class _WindowChartPainter extends CustomPainter {
       );
     }
 
-    // Three grid lines and their labels.
+    // A solid 1 px line on every tick; their labels sit in the gutter
+    // [WindowTicks] draws beside the chart.
     final gp = Paint()
       ..color = grid
       ..strokeWidth = 1;
-    for (final v in [lo, (lo + hi) / 2, hi]) {
+    for (final v in scale.ticks) {
       final y = yOf(v);
       canvas.drawLine(Offset(0, y), Offset(w, y), gp);
-      _text(canvas, '${v.round()}', Offset(S.x1, y - S.x4), ink3);
     }
 
     // The heart rate, broken where the band was off.
@@ -1153,51 +1241,63 @@ class _WindowChartPainter extends CustomPainter {
 
     // The movement lane, on the same clock as the line above it.
     final laneRect = Rect.fromLTRB(
-        0, plot.bottom + S.x1, w, plot.bottom + S.x1 + lane);
+      0,
+      plot.bottom + S.x1,
+      w,
+      plot.bottom + S.x1 + lane,
+    );
     if (lane > 0) {
-      canvas.drawLine(Offset(0, laneRect.bottom), Offset(w, laneRect.bottom), gp);
+      canvas.drawLine(
+        Offset(0, laneRect.bottom),
+        Offset(w, laneRect.bottom),
+        gp,
+      );
       paintWindowed(
         canvas,
         laneRect,
         x0,
         x1,
-        () => paintMovement(canvas, laneRect, movement, (t) => xOf(t.round()),
-            ink.withValues(alpha: .45)),
+        () => paintMovement(
+          canvas,
+          laneRect,
+          movement,
+          (t) => xOf(t.round()),
+          ink.withValues(alpha: .45),
+        ),
       );
     }
     final floor = lane > 0 ? laneRect.bottom : plot.bottom;
 
-    // The two lines, each with a handle at its foot and mid-height grab grip.
+    // The two lines: ink, from just above the plot to its foot, each with a
+    // grip at mid-height and a dot at its foot, both knocked out of the
+    // ground the way a chart's markers are.
     for (final t in [start, end]) {
       final x = xOf(t);
       if (x < -S.x2 || x > w + S.x2) continue;
-      final lp = Paint()
-        ..color = ink
-        ..strokeWidth = S.half;
-      canvas.drawLine(Offset(x, plot.top - S.x2), Offset(x, floor), lp);
-      // Foot circle
+      canvas.drawLine(
+        Offset(x, plot.top - S.x2),
+        Offset(x, floor),
+        Paint()
+          ..color = ink
+          ..strokeWidth = S.half,
+      );
+      final midY = (plot.top + plot.bottom) / 2;
+      final grip = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(x, midY),
+          width: S.x2 - S.half,
+          height: S.x5,
+        ),
+        const Radius.circular(R.sm / 2),
+      );
+      canvas.drawRRect(grip.inflate(S.half), Paint()..color = ground);
+      canvas.drawRRect(grip, Paint()..color = ink);
       canvas.drawCircle(
         Offset(x, floor),
-        S.x1 + S.half,
-        Paint()..color = ink,
+        S.x1 + S.half + S.half,
+        Paint()..color = ground,
       );
-
-      // Mid-height grab handle pill
-      final midY = (plot.top + plot.bottom) / 2;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(center: Offset(x, midY), width: S.x2, height: S.x6),
-          const Radius.circular(S.x1),
-        ),
-        Paint()..color = ink,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(center: Offset(x, midY), width: 1.5, height: S.x3),
-          const Radius.circular(0.75),
-        ),
-        Paint()..color = tint,
-      );
+      canvas.drawCircle(Offset(x, floor), S.x1 + S.half, Paint()..color = ink);
     }
 
     // Clock times along the foot, at a step that leaves room for each.
@@ -1217,7 +1317,7 @@ class _WindowChartPainter extends CustomPainter {
       _text(
         canvas,
         formatClock(d.hour, d.minute),
-        Offset(x, size.height - _bottom + S.x1),
+        Offset(x, floor + S.x1 + S.x2),
         ink3,
         centre: true,
       );
@@ -1234,7 +1334,9 @@ class _WindowChartPainter extends CustomPainter {
     final tp = TextPainter(
       text: TextSpan(
         text: s,
-        style: F.num(F.over).copyWith(color: color),
+        style: F.num(
+          F.over,
+        ).copyWith(color: color, fontWeight: FontWeight.w600),
       ),
       textDirection: TextDirection.ltr,
     )..layout();

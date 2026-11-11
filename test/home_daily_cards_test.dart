@@ -25,6 +25,8 @@ Set<DailyCardKind> _kinds(
   bool nightIsToday = true,
   bool illnessShown = false,
   int stepGoal = 10000,
+  double? strainNow,
+  double? stepsNow,
 }) => {
   for (final card in dailyCardsFor(
     today: _today,
@@ -34,6 +36,8 @@ Set<DailyCardKind> _kinds(
     nightIsToday: nightIsToday,
     illnessShown: illnessShown,
     stepGoal: stepGoal,
+    strainNow: strainNow,
+    stepsNow: stepsNow,
   ))
     card.kind,
 };
@@ -349,6 +353,22 @@ void main() {
       isEmpty,
       reason: 'today is not over',
     );
+  });
+
+  test('today: a goal reached shows the moment it is reached', () {
+    // Recovery 60 sets a 7.4 to 15.4 target.
+    expect(_kinds({}, recovery: 60, strainNow: 6), isEmpty);
+    expect(_kinds({}, recovery: 60, strainNow: 9.2),
+        {DailyCardKind.targetReached});
+    expect(_kinds({}, recovery: 60, strainNow: 16.1),
+        {DailyCardKind.strainOver});
+    expect(_kinds({}, strainNow: 12), isEmpty,
+        reason: 'no recovery, no target');
+    expect(_kinds({}, recovery: 60, strainNow: 12, nightIsToday: false),
+        isEmpty,
+        reason: 'last night not scored, so no target yet');
+    expect(_kinds({}, stepsNow: 10400), {DailyCardKind.stepGoalToday});
+    expect(_kinds({}, stepsNow: 9999), isEmpty);
   });
 
   test('overnight cards wait for last night to be scored', () {

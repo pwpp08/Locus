@@ -32,6 +32,7 @@ import '../screens/home_screen.dart'
 import '../screens/metric_detail.dart' show dayNavRow, detailScaffold;
 import '../screens/trend_view.dart';
 import '../../theme/theme_switcher.dart' show themedRoute;
+import '../screens/training_readiness_card.dart' show TrainingReadinessCard;
 import '../screens/workout_detail.dart' show WorkoutDetailScreen;
 import '../ui2.dart';
 import 'catalogue.dart' show activityByName;
@@ -384,6 +385,11 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
           const SizedBox(height: S.x6),
           ..._absence(p, l, d),
           _band(d.strain),
+          // Readiness is a morning's question: only today has it.
+          if (today == todayLabel()) ...[
+            const SizedBox(height: S.x8),
+            TrainingReadinessCard(key: ValueKey(today), day: today),
+          ],
           const SizedBox(height: S.x8),
           _todaysActivities(p, l),
           const SizedBox(height: S.x8),

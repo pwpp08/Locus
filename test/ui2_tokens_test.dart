@@ -404,6 +404,12 @@ const _notComponents = {
   'BehaviorInsightsScreen', 'BehaviorDetailsScreen', 'EditTimeInBedSheet',
   'DialScaffold', 'DialRing', 'CaretPanel', 'TierBar',
   'ValueDelta', 'DialInfo', 'HatchBar', 'WeekChart', 'WeekCard',
+  // Behavior Insights' column heads, shared with the report's journal card.
+  'ImpactHeader',
+  // The weekly and monthly reports: dial-screen routes laid out for the full
+  // page (three 100 pt rings across, cards at the page's width) that read
+  // seven series and the journal. reports_test pumps them at 3.1x.
+  'ReportsScreen', 'ReportScreen', 'ReportBody', 'ReportRow',
   // tabs and drill-downs
   'HomeScreen', 'HealthScreen', 'WorkoutScreen', 'NutritionScreen',
   'WellnessScreen', 'CycleTab', 'MetricDetail', 'ReadinessDetail',
@@ -461,6 +467,12 @@ const _notComponents = {
   'IdentifyActivityScreen', 'LogWorkout',
   'DetectedActivitiesScreen', 'StrengthTrainerScreen', 'StrengthRecordScreen', 'StrengthWorkoutScreen', 'PlusMenu',
   'WindowEditor', 'WindowPreview',
+  // The window chart's bpm gutter: drawn against the chart's own plot rect,
+  // meaningless on its own.
+  'WindowTicks',
+  // Strain's training readiness: reads five series, the load and the last
+  // 72 h of sessions. Its body, TrainingReadinessView, is in the gallery.
+  'TrainingReadinessCard',
   // The activity list is a sheet's whole page; the start screen owns the live
   // heart rate and opens a session.
   'ActivityChooser', 'StartActivityScreen',

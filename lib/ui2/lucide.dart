@@ -52,6 +52,7 @@ class LucideIcons {
   static const IconData calendarClock = base.LucideIcons.calendarClock300;
   static const IconData calendarDays = base.LucideIcons.calendarDays300;
   static const IconData calendarOff = base.LucideIcons.calendarOff300;
+  static const IconData calendarRange = base.LucideIcons.calendarRange300;
   static const IconData calendarPlus = base.LucideIcons.calendarPlus300;
   static const IconData camera = base.LucideIcons.camera300;
   static const IconData cameraOff = base.LucideIcons.cameraOff300;

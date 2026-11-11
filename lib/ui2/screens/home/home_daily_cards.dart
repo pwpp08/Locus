@@ -75,6 +75,7 @@ enum DailyCardKind {
   tempOff,
   hrvLow,
   debtBuilding,
+  strainOver,
   backToGreen,
   greenTarget,
   hrvBest,
@@ -86,6 +87,8 @@ enum DailyCardKind {
   restorative,
   consistencySlipping,
   consistencyHigh,
+  targetReached,
+  stepGoalToday,
   targetMet,
   stepGoal,
 }
@@ -135,6 +138,8 @@ Future<List<DailyCard>> loadDailyCards(
     nightIsToday: d.heldOverNight == null,
     illnessShown: d.illnessState != null && d.illnessState != 'green',
     stepGoal: d.stepGoal,
+    strainNow: d.strain.value?.toDouble(),
+    stepsNow: d.steps.value?.toDouble(),
   );
 }
 
@@ -144,6 +149,8 @@ Future<List<DailyCard>> loadDailyCards(
 /// absent). [nightIsToday] is false when last night has not been scored, so
 /// nothing overnight is said about it. [illnessShown]: Home already carries
 /// the raised-resting-heart-rate observation, so that card stands down.
+/// [strainNow] and [stepsNow] are today's running figures: the cards they
+/// raise appear the moment the day earns them, not the morning after.
 List<DailyCard> dailyCardsFor({
   required String today,
   required Map<String, Map<String, double>> series,
@@ -152,6 +159,8 @@ List<DailyCard> dailyCardsFor({
   bool nightIsToday = true,
   bool illnessShown = false,
   int stepGoal = kDefaultStepGoal,
+  double? strainNow,
+  double? stepsNow,
 }) {
   final out = <DailyCard>[];
   String? dayBack(int n) => dayLabelBefore(today, n);
@@ -450,6 +459,41 @@ List<DailyCard> dailyCardsFor({
         );
       }
     }
+  }
+
+  // ── today, as it happens ──
+  final target = whoopStrainTarget(rec);
+  if (strainNow != null && target != null) {
+    if (strainNow > target.hi) {
+      out.add(
+        DailyCard(
+          DailyCardKind.strainOver,
+          "Past today's strain target",
+          'Strain is ${one(strainNow)}, over the ${one(target.lo)}–'
+              '${one(target.hi)} your recovery set. Anything more today adds '
+              'to what tonight has to recover.',
+        ),
+      );
+    } else if (strainNow >= target.lo) {
+      out.add(
+        DailyCard(
+          DailyCardKind.targetReached,
+          'Strain target reached',
+          "Today's strain of ${one(strainNow)} is inside the "
+              '${one(target.lo)}–${one(target.hi)} target your recovery set.',
+        ),
+      );
+    }
+  }
+  if (stepsNow != null && stepGoal > 0 && stepsNow >= stepGoal) {
+    out.add(
+      DailyCard(
+        DailyCardKind.stepGoalToday,
+        'Step goal reached',
+        '${thousands(stepsNow)} steps so far today, past your goal of '
+            '${thousands(stepGoal)}.',
+      ),
+    );
   }
 
   // ── yesterday, which is finished ──

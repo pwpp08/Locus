@@ -579,6 +579,7 @@ A stack of small cards, each one thing worth a sentence today, read off stored s
 - **Stack**: the card beneath peeks 10 under the top one, 12 narrower on each side, at 55 %. All cards in the deck are as tall as the tallest; that height eases (`Motion.slow`) when it changes, and to nothing with the gap above it when the last card goes.
 - **Throw**: the top card follows the finger sideways, tilting up to 0.1 rad about its foot. Let go past 35 % of the width, or flicked faster than 700 px/s, and it flies off at the finger's speed (`easeOutCubic`, `Motion.fast`…`Motion.slow`), fading after 45 % of the width, with a `selectionClick`. Anything less springs back (stiffness 420, damping 0.78); a finger can catch it mid-spring. The card beneath rises to full size and fades its words in over the first 60 % of the throw. Reduced motion: the card still follows the finger, and everything after lands at once.
 - **Once a day**: a card put away (thrown or checked off) is stored against the local day in `Prefs.dailyCardsDismissed` and does not come back that day; the next day overwrites the key.
+- **During the day**: three cards come from today as it happens, read off today's live strain and steps rather than a stored night. **Strain target reached** (`targetReached`, the open box) once today's strain is inside the target this morning's recovery set; **Past today's strain target** (`strainOver`, words only, ranked with the warnings) once it is over the top of it; **Step goal reached** (`stepGoalToday`, the open box) once today's steps pass the goal. Each needs this morning's recovery (or the goal) and today's figure; either missing, no card.
 
 ### 11.5 My Day
 
@@ -892,6 +893,10 @@ Opened from a dashboard row, a week card chevron, or a detail screen. One metric
 - **Strain never falls through a day.** The headline and the curve are the analytics' net curve held at its running peak (`compute/strain_peak.dart`, `kAlgoVersion` 115): effort once earned stays earned. Peak HR and Worn under the curve sit inset `S.x5`, under the plot rather than the axis.
 - **Time in zones** and **What this is made of** (`card2` panel, `F.cap` ink3). The zones card's link, "How these are set", opens **Heart rate settings** (the same screen Settings opens: personalized zones, resting and max HR). There is no second zones screen.
 
+### 14.1-r Training readiness (`training_readiness_card.dart`, `compute/training_readiness.dart`, today's Strain only)
+
+Under the band sentence, a `Surface` (padding 20/9/20/17): `TRAINING READINESS` in `F.over` w700 tracking 1.2 with an ⓘ at `I.md` ink2; the score in `F.n34` w700 with `of 100` in `F.cap` ink2 on its baseline; the level (`PRIME` 95+, `HIGH` 75+, `MODERATE` 50+, `LOW` 25+, `POOR`) in the label style ink2; one sentence in `F.body` w400 ink2 naming the weakest factor under 75, if any; then seven rows 63.6 tall on ink 8 % hairlines: a factor icon at `I.md` ink3, the label, and its value in `F.n17` w700. The rows: Recovery time (`timer`, hours still owed, 0.2 · strain² per session over the last 72 h), Last night's sleep (`moon`), Recovery (`heartPulse`), HRV status (`activity`, the 7-night mean against the 30 nights before), Load ratio (`gauge`, 7-day over 42-day load), Sleep, last 3 nights (`bedDouble`), Stress, last 3 days (`brain`). Each factor scores 0–100; the score is 0.7 of their mean plus 0.3 of the lowest, so one poor factor holds it back. Fewer than four factors with stored inputs and there is no score.
+
 ### 14.1a The dial screens' parts (`dial_parts.dart`, tokens in `theme.dart` `DC`)
 
 Sleep, Recovery, Behavior Insights and Behavior Details are one family, measured from the user's reference recordings at 1.5 px per dp. The sizes below are the reference's: check against it before changing one, not against what looks comfortable.
@@ -1027,6 +1032,7 @@ A standard sheet (`AppSheet.open`, scrolling, the grab bar, `F.t2` title "Edit a
 ### 14.4c Set sleep (`window_editor.dart`)
 
 - **Set sleep** (the window editor): the heart-rate chart with the two window lines, `+` / `−` at its top right to zoom (and two fingers); **no interval buttons** (30M, 2H, 6H, 1D, 2D are gone). Start and End tiles open the time picker (§10.7).
+- **The activity's heart-rate window** (`WindowPreview`): one card, ink 8 % over `card`, `R.lg`, no border, padding 16/4/4/16. Its head: `HEART RATE WINDOW` in `F.caps` w700, the length as a `Pill` in the activity's tint, and three bare tools at `I.md` ink2 in 44 boxes (plus, minus, maximise). The chart has gridlines on a bpm scale in 25 bpm steps (`windowHrScale`), labelled right-aligned in a 40 gutter (`WindowTicks`). Each handle is an ink line 2 wide with a grip (6 × 20, knocked out of the ground) at mid-height and a dot of radius 6 in a ground of radius 8 at its foot. Under the chart: the range in `F.num(F.cap)` w700 ink and, right-aligned, "Drag a line or the middle. Pinch to zoom." in `F.cap` ink3.
 - **An existing night is edited from Edit Time in Bed** (§14.1c). The old sleep-window sheet is gone with the Total sleep hero. There is no "Back to automatic".
 - **Ending a started sleep or nap** is instant: the window is saved and the screen closes; the night re-derives in the background and Home re-reads when it lands.
 
@@ -1043,7 +1049,7 @@ One list names an activity everywhere the app asks: Add activity, Start activity
 
 ### 14.4b Sleep Planner (`screens/sleep_planner.dart`)
 
-Top to bottom on the slate-to-bg gradient: the nav row (back, `SLEEP PLANNER` and a 20 ring with `?`, and the schedule button: a 36 ring with a calendar and a moon in it, centred on the title's line, its ON/OFF tag hanging under it without taking any of the row's height); the Locus mark in a 44 ring; the headline in `F.head` w500, always three lines high so nothing under it moves; `TOMORROW I WANT TO` and the goal as a **full pill** (ink 1 px border, `F.body` caps); then the night: the suggested bedtime and the wake time in `F.n34` over two-line captions, dashed drops to the ends of a strip edged top and bottom with hairlines and hatched between two ink end caps; **TIME IN BED** over a pill (not a rectangle) with the length in `F.n24`; the OPTIMAL rule and note, or the recommended window's bracket. The dock: a card with `R.xl` top corners, the strap, `ALARM` and the switch, and two boxes 20 apart, `R.sm` corners and a darker edge.
+Top to bottom on the slate-to-bg gradient: the nav row (back, `SLEEP PLANNER` and a 20 ring with `?`, and the schedule button: a 36 ring with a calendar and a moon in it, centred on the title's line, its ON/OFF tag hanging under it without taking any of the row's height); the Locus mark in a 44 ring; the headline in `F.head` w500, always three lines high so nothing under it moves; `TOMORROW I WANT TO` and the goal as a **full pill** (ink 1 px border, `F.body` caps); then the night: the suggested bedtime and the wake time in `F.n34` over two-line captions, dashed drops to the ends of a strip edged top and bottom with hairlines and hatched between two ink end caps; **TIME IN BED** over a pill (not a rectangle) with the length in `F.n24`; the OPTIMAL rule and note, or the recommended window's bracket. **The suggestion follows the goal.** *Sleep need* suggests the bedtime that covers tonight's need by the wake time. *Consistency* suggests the user's usual bedtime: "Try getting to bed by 22:40, your usual time, to stay consistent. It covers 92% of your Sleep Need by 07:00." With too few nights to know the usual: "Sleep Planner needs a few nights to learn your usual bedtime." Home's tonight card uses the same `plannedBedMin`. The dock: a card with `R.xl` top corners, the strap, `ALARM` and the switch, and two boxes 20 apart, `R.sm` corners and a darker edge.
 
 ### 14.5a Band buzz patterns (`notify/notification_relay.dart`)
 
@@ -1059,6 +1065,7 @@ With band notifications on and permitted, two phone events have a buzz pattern o
 - It is drawn as a blue → green → warm → orange sweep that dims at both ends, with an ink needle.
 - `0.0` and `3.0` are written under the two ends.
 - `stressColor(score)` interpolates the four stops.
+- **30-DAY TREND** (`StressTrendCard`), 32 under the day's chart: a `Surface` with the title in `F.caps` w700 and an ⓘ at `I.lg` ink2 in a 44 box; a `ScrubReadout` (`Average` or the touched day, one decimal); then a `ScrubColumns` of each day's mean stress (a day needs 6 h scored), 0–3 with ticks at 0, 1, 2, 3, every column in `stressColor` of its own value, the dashed 30-day average across, and a date under every seventh column from the newest. While today is running it is left out of the average, and a line under the chart says so.
 
 ### 14.5a Health Monitor (`health_monitor.dart`, tokens in `theme.dart` `HM`)
 
@@ -1121,7 +1128,20 @@ The Health tab (`health_tab.dart`) is two pages under a small `AGE | JOURNAL` sw
 
 ### 14.8a Energy reserve (`home/home_energy.dart`, Home)
 
-The level, a 46-tick bar, the wake level, the day's line on 0-100 with 33 / 67 guides, CHARGED and DRAINED tiles and any effort listed under them. Green from 67, yellow from 34, red under it. Estimated from recovery, sleep and heart-rate reserve (`compute/energy_reserve.dart`); any missing input hides the card.
+The level, a 46-tick bar, the wake level, the day's line on 0-100 with 33 / 67 guides, CHARGED and DRAINED tiles and any effort listed under them. Green from 67, yellow from 34, red under it. Worked out minute by minute (`compute/energy_reserve.dart`), the way a body-battery reserve is described: it runs 5–100 and carries over from one day to the next. Asleep it charges up to 0.2 a minute, less the more stressed the night (0.11 a minute where sleep stress is not scored). Awake and calm (stress under 25 % of the scale) it charges up to 0.05 a minute; above that, stress drains it from 0.03 to 0.12 a minute; effort (heart-rate reserve over 40 %) drains at its own rate. Last night starts from where yesterday's reserve stood at sleep onset; without that, from the morning's recovery (25 + 0.7 × recovery). CHARGED and DRAINED count from midnight. Any missing input hides the card.
+
+### 14.8b Reports (`screens/reports.dart`, `compute/period_report.dart`, More → Health & coaching)
+
+Two dial screens (§14.1a: `DialScaffold`, `dialCard`, page margin 18).
+
+- **Reports**: `RangeSegments` WEEKLY / MONTHLY across the page, then the periods newest first, grouped under their month (a week files under the month it starts in; months under their year) in `F.dInsight` ink, 18 above and 10 below. Each row is a `dialCard` 63.6 tall, 9 apart, padding 18: the range (`2 NOV - 8 NOV`, or the month) in `F.dInsight` white, `Partial week` / `Partial month` under it in `F.dLegend` ink2 while the period holds today; then a 24 recovery ring (stroke 3.5, `DC.track`), its mean in `F.nSmall` right-aligned in 40, and a chevron at `I.lg` ink2.
+- **Weekly / Monthly Report**: the share icon (`share2`, `I.lg`) shares the report as text. Under the bar: the period in a `WindowPager` spread across a 195 `DC.chip` pill; `RangeSegments` WEEK / MONTH, 151 wide; then
+  - **three rings** 100 across, stroke 7, flush with the margins: average sleep performance (`dialSleep`), recovery (`recoveryColor`) and strain (`dialStrain`, 0–21, no %). The figure in `F.n24` with a small unit; `AVG SLEEP` in `F.dLabel` 9 under the ring; the change on the period before in `F.dTiny`, `optimal` when better, `strainDown` when worse, ink2 for strain or no change.
+  - **the summary**: one or two sentences in `F.dBody` w400, line height 1.38, inside a 1 px `coachEdgeB` → `coachEdgeA` edge, `R.xl`, no fill.
+  - **cards**, each a `dialCard` with the title in `F.dLabel`, a note ("Days", "vs. last") in `F.dTiny` ink2 and a `DialInfo`: **Recovery Breakdown** (a 13.5 bar split green / yellow / red with 2 gaps, then a 25.6-pitch legend: 12 dot, the count in `F.n17`, the band in `F.dLabel` ink2); **Averages** (seven rows 63.6 tall on `DC.line` hairlines: the name, the value in `F.nRow` with its unit in `F.dText`, last period's under it in `F.dLegend` ink2, and a 9 triangle: green for better, `strainDown` for worse, ink2 for strain); **Training Balance** (7-day over 42-day mean strain: Easing off under 0.8, Balanced to 1.3, Overreaching over it, in `F.t2` w700; the ratio in `F.dTiny`; a sentence; it needs 14 days of strain in the 42); **Top Journal Effects** (`VIEW ALL` opens Behavior Insights; Behavior Insights' column heads; the three journal entries with the biggest effect, each in a `DC.weekCard` block with its impact bar, figure and "20 days with, 60 without. 90% CI −33% to −22%"); **Best and Worst Day** (rows 106 tall: the day, a 58 recovery ring, the day's strain in `F.nRow` `dialStrain`; the chevron opens that day's Recovery).
+  - Gaps: 26 under the rings' captions, 39 and 37 under the summary and the breakdown, 16 between the rest.
+  - At large text sizes rows grow and figures shrink to fit; nothing is cut.
+- **What counts**: weeks run Monday to Sunday, months the calendar month. Recovery and sleep count today once they are in; today's strain does not, nor does it count against its target. Every figure is a mean of the stored days that have it, `--` when none do. The journal's 90% interval is the difference of the two means ± 1.645 standard errors (unpooled).
 
 ---
 
@@ -1198,7 +1218,7 @@ Every new public widget needs a case in `lib/ui2/profile/gallery.dart` (or an en
 ## 18. Imagery
 
 - Images are bundled and offline; nothing is fetched at runtime. A screen never writes an asset path: it uses `Art.<slot>.image()` (`theme.dart`), which draws nothing, never a broken-image icon, when a file is missing.
-- All imagery is a flat, hand-cut SVG silhouette (ring, watch, chest strap, workout, wellness, sleep, food, heart) in one cream and one data hue, on a 400 × 400 viewBox, centred. There are no bitmap device photographs: the band on the welcome and pairing screens is the watch silhouette.
+- All imagery is a flat, hand-cut SVG silhouette (ring, watch, chest strap, workout, wellness, sleep, food, heart) in one cream and one data hue, on a 400 × 400 viewBox, centred. There are no bitmap device photographs. The welcome and pairing screens show no device at all: their stage (`BandStage`) is a rich `Surface` with the Locus mark writing itself in the dial colours (60 % of the stage's height) over the wordmark, 20 below it. The sensor rows in the device picker are icon rows.
 - Art is decorative unless given a `semanticLabel`. It never carries another maker's logo or name: devices are generic.
 - Exercise photos come from the bundled Free Exercise DB (public domain, credited in `NOTICE.md`), cover-cropped 192 × 128 JPEG thumbnails, with a dumbbell tile as the placeholder.
 - The `AuroraTile` grain is `assets/images/grain.png` tiled at 4 % opacity, painted once behind a `RepaintBoundary`.

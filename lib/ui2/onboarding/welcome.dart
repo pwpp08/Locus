@@ -580,7 +580,7 @@ class WelcomeView extends StatelessWidget {
           children: [
             const OnboardingStep(1),
             const SizedBox(height: S.x5),
-            BandStage(Art.watch, height: 200),
+            const BandStage(height: 200),
             const SizedBox(height: S.x5),
             Text(l?.welcomeHeadline ?? 'Your band, decoded here',
                 style: F.t1.copyWith(color: p.ink)),
@@ -591,8 +591,11 @@ class WelcomeView extends StatelessWidget {
               style: F.body.copyWith(color: p.ink2),
             ),
             const SizedBox(height: S.x6),
-            Pill(l?.pillLocalNoCloud ?? 'Local · no cloud', C.green,
-                icon: LucideIcons.shieldCheck),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Pill(l?.pillLocalNoCloud ?? 'Local · no cloud', C.green,
+                  icon: LucideIcons.shieldCheck),
+            ),
             const SizedBox(height: S.x8),
             BigButton(l?.welcomeSetUpMyBand ?? 'Set up my band',
                 icon: LucideIcons.bluetooth,
@@ -638,18 +641,39 @@ class WelcomeView extends StatelessWidget {
   }
 }
 
-/// The band's picture on a graded card (DESIGN.md §18: the app paints the
-/// ground behind the art). Decorative: no semantics.
+/// The onboarding's picture: the Locus mark, written once in the dials'
+/// colours, over the wordmark, on a rich graded card (DESIGN.md §10.5, §14.11:
+/// the same mark the app starts on). Decorative: no semantics.
 class BandStage extends StatelessWidget {
-  final Art art;
   final double height;
 
-  const BandStage(this.art, {super.key, required this.height});
+  const BandStage({super.key, required this.height});
 
   @override
   Widget build(BuildContext c) => Surface(
         tone: PanelTone.rich,
-        child: Center(child: art.image(height: height)),
+        child: ExcludeSemantics(
+          child: SizedBox(
+            height: height,
+            // At large text the wordmark grows; the pair shrinks to the stage
+            // rather than spilling out of it.
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LocusMark(
+                    size: height * .6,
+                    animate: true,
+                    tint: LocusTint.dials,
+                  ),
+                  const SizedBox(height: S.x5),
+                  Wordmark(color: P.of(c).ink),
+                ],
+              ),
+            ),
+          ),
+        ),
       );
 }
 

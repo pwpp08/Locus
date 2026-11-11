@@ -3693,7 +3693,12 @@ class WindowPager extends StatelessWidget {
   final String label;
   final VoidCallback? onEarlier, onLater;
 
-  const WindowPager(this.label, {super.key, this.onEarlier, this.onLater});
+  /// The chevrons out at the ends of the space it is given, the label
+  /// centred between them (the report's pill).
+  final bool spread;
+
+  const WindowPager(this.label,
+      {super.key, this.onEarlier, this.onLater, this.spread = false});
 
   @override
   Widget build(BuildContext c) {
@@ -3718,10 +3723,12 @@ class WindowPager extends StatelessWidget {
       children: [
         step(true, onEarlier),
         Flexible(
+          fit: spread ? FlexFit.tight : FlexFit.loose,
           child: Text(
             label.toUpperCase(),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            textAlign: spread ? TextAlign.center : null,
             style: F.over.copyWith(
                 color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1),
           ),

@@ -409,7 +409,10 @@ _Art? _artOf(DailyCard card) {
       right: S.x12 + S.x1,
       pad: S.x6 + S.hair,
     ),
-    DailyCardKind.targetMet || DailyCardKind.stepGoal => (
+    DailyCardKind.targetMet ||
+    DailyCardKind.stepGoal ||
+    DailyCardKind.targetReached ||
+    DailyCardKind.stepGoalToday => (
       picture: const _Box(),
       gap: S.x5,
       right: S.x12 + S.x2 + S.hair,

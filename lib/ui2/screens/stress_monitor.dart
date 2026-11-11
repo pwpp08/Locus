@@ -90,11 +90,22 @@ class StressMonitorData {
   }
 }
 
+/// Minutes a day needs scored before its share of high stress (or its mean) is
+/// read: the same six hours the typical-day split asks for.
+const kStressDayMinScored = 360;
+
+double _highPct(List<double?> scores) {
+  final m = stressMinutes(scores);
+  return m.high / (m.low + m.medium + m.high) * 100;
+}
+
+double _meanScore(List<double?> scores) {
+  final xs = [for (final s in scores) ?s];
+  return xs.reduce((a, b) => a + b) / xs.length;
+}
+
 /// Reads and scores days, keeping each day's series so paging back and forth
 /// does not decode the same bundle twice.
-/// Minutes a day needs scored before its share of high stress is read: the same
-/// six hours the typical-day split asks for.
-const kStressDayMinScored = 360;
 
 class StressSource {
   final LocalRepository repo;
@@ -152,7 +163,15 @@ class StressSource {
   /// The share of each of [days] in the high stress zone, 0–100, each against
   /// the two weeks before it. A day with too little scored is left out. The
   /// scoring runs off the UI isolate: this is a season of minutes.
-  Future<Map<String, double>> highPctByDay(List<String> days) async {
+  Future<Map<String, double>> highPctByDay(List<String> days) =>
+      _perDay(days, _highPct);
+
+  /// Each of [days]' mean score, 0–3, on the same terms as [highPctByDay].
+  Future<Map<String, double>> avgByDay(List<String> days) =>
+      _perDay(days, _meanScore);
+
+  Future<Map<String, double>> _perDay(
+      List<String> days, double Function(List<double?>) read) async {
     final inputs = <String, StressDayInput>{};
     final need = {
       for (final d in days)
@@ -174,9 +193,10 @@ class StressSource {
         if (today == null) continue;
         final base = stressBaseline([for (final p in prior[d]!) ?inputs[p]]);
         if (base == null) continue;
-        final mins = stressMinutes(stressScores(today, base));
-        final scored = mins.low + mins.medium + mins.high;
-        if (scored >= kStressDayMinScored) out[d] = mins.high / scored * 100;
+        final scores = stressScores(today, base);
+        if (scores.where((s) => s != null).length >= kStressDayMinScored) {
+          out[d] = read(scores);
+        }
       }
       return out;
     });
@@ -338,26 +358,38 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
           if (loading)
             const SizedBox(
                 height: S.x16 * 3, child: Center(child: CircularProgressIndicator()))
-          else if (d == null)
-            const StatusCard('No data', 'Nothing is stored for this day yet.',
-                fix: '', icon: LucideIcons.brain)
-          else if (d.baseline == null)
-            const StatusCard(
-              'Building your baseline',
-              'Stress is read against your own last 14 days, so it needs at '
-                  'least three of them with quiet, awake heart rate and HRV. '
-                  'Wear the band through a few more days and it will appear.',
-              fix: '',
-              icon: LucideIcons.brain,
-            )
-          else if (last == null)
-            const StatusCard('No heart rate on this day',
-                'The band recorded no heart rate, so there is nothing to score.',
-                fix: '', icon: LucideIcons.heartOff)
           else ...[
-            _chart(p, d, last),
-            const SizedBox(height: S.x8),
-            _totalDay(p, d, date, l),
+            if (d == null)
+              const StatusCard('No data', 'Nothing is stored for this day yet.',
+                  fix: '', icon: LucideIcons.brain)
+            else if (d.baseline == null)
+              const StatusCard(
+                'Building your baseline',
+                'Stress is read against your own last 14 days, so it needs at '
+                    'least three of them with quiet, awake heart rate and HRV. '
+                    'Wear the band through a few more days and it will appear.',
+                fix: '',
+                icon: LucideIcons.brain,
+              )
+            else if (last == null)
+              const StatusCard('No heart rate on this day',
+                  'The band recorded no heart rate, so there is nothing to score.',
+                  fix: '', icon: LucideIcons.heartOff)
+            else
+              _chart(p, d, last),
+            if (_source != null) ...[
+              const SizedBox(height: S.x8),
+              StressTrendCard(
+                key: ValueKey(_day),
+                source: _source!,
+                day: _day,
+                today: _today,
+              ),
+            ],
+            if (d != null && d.baseline != null && last != null) ...[
+              const SizedBox(height: S.x8),
+              _totalDay(p, d, date, l),
+            ],
           ],
         ]),
       ),
@@ -840,4 +872,144 @@ class _GaugePainter extends CustomPainter {
   @override
   bool shouldRepaint(_GaugePainter old) =>
       old.value != value || old.track != track || old.needle != needle;
+}
+
+/// The 30 days up to the day shown: each day's mean score as a column in its
+/// own stress colour, their average dashed behind them. A day with too little
+/// scored is a gap. Today, still running, stays out of the average.
+class StressTrendCard extends StatefulWidget {
+  final StressSource? source;
+  final String day, today;
+
+  /// Each day's mean score, handed in by a test in place of [source].
+  final Map<String, double>? data;
+  const StressTrendCard({
+    super.key,
+    this.source,
+    required this.day,
+    required this.today,
+    this.data,
+  });
+
+  static const days = 30;
+
+  @override
+  State<StressTrendCard> createState() => _StressTrendCardState();
+}
+
+class _StressTrendCardState extends State<StressTrendCard> {
+  late final List<String> _days = [
+    for (var i = StressTrendCard.days - 1; i >= 0; i--) shiftDay(widget.day, -i),
+  ];
+  late final Future<Map<String, double>> _avg = widget.data != null
+      ? Future.value(widget.data!)
+      : widget.source?.avgByDay(_days) ?? Future.value(const {});
+  int? _at;
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final l = AppLocalizations.of(c);
+    return FutureBuilder<Map<String, double>>(
+      future: _avg,
+      builder: (c, snap) {
+        final byDay = snap.data;
+        if (byDay == null || byDay.isEmpty) return const SizedBox.shrink();
+        final values = [for (final d in _days) byDay[d]];
+        final running = widget.day == widget.today && byDay[widget.today] != null;
+        final counted = [
+          for (final d in _days)
+            if (!(running && d == widget.today)) ?byDay[d],
+        ];
+        final avg = counted.isEmpty
+            ? null
+            : counted.reduce((a, b) => a + b) / counted.length;
+        final at = _at;
+        final date = DateTime.parse(_days[at ?? 0]);
+        final shown = at == null ? avg : values[at];
+        final last = _days.length - 1;
+        final today = DateTime.parse(widget.today);
+        return Surface(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(
+                child: Text('30-DAY TREND',
+                    style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+              ),
+              Pressable(
+                onTap: () => _info(c),
+                semanticLabel: 'About the 30-day trend',
+                child: SizedBox(
+                  width: S.tap,
+                  height: S.tap,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Icon(LucideIcons.info, size: I.lg, color: p.ink2),
+                  ),
+                ),
+              ),
+            ]),
+            const SizedBox(height: S.x1),
+            ScrubReadout(
+              caption: at == null
+                  ? 'Average'
+                  : '${weekdayShortName(date.weekday, l)}, '
+                      '${monthShortName(date.month, l)} ${date.day}',
+              value: shown == null ? '--' : shown.toStringAsFixed(1),
+            ),
+            const SizedBox(height: S.x3),
+            ScrubColumns(
+              values: values,
+              xLabels: [
+                for (var i = 0; i <= last; i++)
+                  (last - i) % 7 == 0
+                      ? () {
+                          final d = DateTime.parse(_days[i]);
+                          return '${monthShortName(d.month, l)}\n${d.day}';
+                        }()
+                      : '',
+              ],
+              lo: 0,
+              hi: 3,
+              ticks: const [0, 1, 2, 3],
+              tickText: (t) => t.toStringAsFixed(1),
+              avg: avg,
+              color: C.stressMedium,
+              colorOf: (_, v) => stressColor(v),
+              height: S.x16 * 3 + S.x10,
+              label: 'Average stress, last 30 days',
+              describe: (i) {
+                final d = DateTime.parse(_days[i]);
+                return '${monthShortName(d.month, l)} ${d.day}: '
+                    '${values[i] == null ? 'no reading' : values[i]!.toStringAsFixed(1)}';
+              },
+              onScrub: (i) => setState(() => _at = i),
+            ),
+            if (running) ...[
+              const SizedBox(height: S.x2),
+              Text(
+                'Average does not include today '
+                '(${monthShortName(today.month, l)} ${today.day})',
+                style: F.cap.copyWith(color: p.ink3),
+              ),
+            ],
+          ]),
+        );
+      },
+    );
+  }
+
+  void _info(BuildContext c) {
+    final p = P.of(c);
+    AppSheet.show<void>(
+      c,
+      title: '30-day trend',
+      child: Text(
+        'Each column is one day\'s average stress, 0 to 3, across the minutes '
+        'it could be scored, coloured as the gauge is. A day needs six hours '
+        'scored to be shown. The dashed line is the average of the days shown.',
+        style: F.body.copyWith(color: p.ink2, height: 1.4),
+      ),
+    );
+  }
 }

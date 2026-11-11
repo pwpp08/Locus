@@ -43,6 +43,9 @@ class BehaviorImpact {
 
   /// Mean Recovery on each side. Null with too few days to compare.
   final double? meanYes, meanNo;
+
+  /// Standard error of [impact] (unpooled), or null while locked.
+  final double? se;
   const BehaviorImpact({
     required this.kind,
     required this.title,
@@ -50,11 +53,19 @@ class BehaviorImpact {
     required this.no,
     this.meanYes,
     this.meanNo,
+    this.se,
   });
 
   /// Points of Recovery between the two sides, or null while locked.
   double? get impact =>
       meanYes == null || meanNo == null ? null : meanYes! - meanNo!;
+
+  /// The 90% confidence interval of [impact], or null while locked.
+  ({double lo, double hi})? get ci90 {
+    final d = impact, e = se;
+    if (d == null || e == null) return null;
+    return (lo: d - 1.645 * e, hi: d + 1.645 * e);
+  }
 
   bool get auto =>
       kind != BehaviorKind.journalTag && kind != BehaviorKind.journalAnswer;
@@ -87,6 +98,12 @@ BehaviorImpact impactOf(
   double? mean(List<double> xs) =>
       xs.length < kBehaviorMinDays ? null : xs.reduce((a, b) => a + b) / xs.length;
   final enough = y.length >= kBehaviorMinDays && n.length >= kBehaviorMinDays;
+  // Sample variance over n: the squared standard error of a side's mean.
+  double vOverN(List<double> xs) {
+    final m = xs.reduce((a, b) => a + b) / xs.length;
+    final ss = xs.fold(0.0, (a, x) => a + (x - m) * (x - m));
+    return ss / (xs.length - 1) / xs.length;
+  }
   return BehaviorImpact(
     kind: kind,
     title: title,
@@ -94,6 +111,7 @@ BehaviorImpact impactOf(
     no: n.length,
     meanYes: enough ? mean(y) : null,
     meanNo: enough ? mean(n) : null,
+    se: enough ? math.sqrt(vOverN(y) + vOverN(n)) : null,
   );
 }
 

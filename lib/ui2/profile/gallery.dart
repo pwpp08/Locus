@@ -64,6 +64,8 @@ import 'profile.dart';
 import 'wearable_numbers.dart';
 import '../../compute/energy_reserve.dart';
 import '../screens/home/home_energy.dart';
+import '../../compute/training_readiness.dart';
+import '../screens/training_readiness_card.dart' show TrainingReadinessView;
 
 /// A deterministic series — a gallery cannot depend on random data.
 final _series =
@@ -452,7 +454,7 @@ Map<String, Widget> componentCases() => {
       'onboarding_step': const AlwaysChar(child: OnboardingStep(2)),
       // The band's picture on its card (draws only the card until the art
       // file is bundled).
-      'band_stage': const AlwaysChar(child: BandStage(Art.watch, height: 160)),
+      'band_stage': const AlwaysChar(child: BandStage(height: 160)),
       // The one theme override: a card inside it is Char whatever the app is.
       'always_char': AlwaysChar(
         child: Builder(
@@ -668,6 +670,31 @@ Map<String, Widget> _chartCases() {
 /// that has not come due yet.
 Map<String, Widget> _nutritionAndWellnessCases() {
   return {
+    // A month of daily stress with two unscored days and today still running,
+    // so the dashed average leaves today out.
+    'stress_trend': StressTrendCard(
+      day: '2026-11-05',
+      today: '2026-11-05',
+      data: {
+        for (var i = 0; i < 30; i++)
+          if (i != 6 && i != 19)
+            dayLabelOf(DateTime(2026, 10, 7 + i)): .6 + (i * 37 % 17) / 10,
+      },
+    ),
+    // One factor low, so the sentence names it.
+    'training_readiness': const TrainingReadinessView(TrainingReadiness(
+      score: 68,
+      recoveryHours: 9.5,
+      factors: {
+        ReadinessFactor.recoveryTime: 80,
+        ReadinessFactor.sleep: 87,
+        ReadinessFactor.recovery: 74,
+        ReadinessFactor.hrv: 100,
+        ReadinessFactor.load: 52,
+        ReadinessFactor.sleepHistory: 85,
+        ReadinessFactor.stressHistory: 100,
+      },
+    )),
     'energy_reserve': EnergyReserveCard(
       midnight: 1786665600,
       data: EnergyReserve(

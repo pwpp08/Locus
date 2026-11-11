@@ -59,6 +59,66 @@ void main() {
       expect(rest.activities, isEmpty);
     });
 
+    test('awake: a calm minute charges, a stressed one drains', () {
+      expect(energyRatePerMin(asleep: false, stress: .2), greaterThan(0));
+      expect(energyRatePerMin(asleep: false, stress: 1.5), lessThan(0));
+      expect(energyRatePerMin(asleep: false, stress: 2.8),
+          lessThan(energyRatePerMin(asleep: false, stress: 1.5)));
+      // Effort drains faster than any stress sitting still.
+      expect(energyRatePerMin(asleep: false, stress: .2, hrr: .7),
+          lessThan(energyRatePerMin(asleep: false, stress: 3)));
+    });
+
+    test('a calm night charges more than a restless one', () {
+      EnergyReserve night(double score) => energyReserve(
+            hr: day(58, mins: 1),
+            onsetTs: wake - 8 * 3600,
+            wakeTs: wake,
+            recovery: null,
+            restingHr: 55,
+            maxHr: 190,
+            midnight: midnight - 3600,
+            onsetLevel: 20,
+            stress: [
+              for (var t = wake - 8 * 3600; t < wake; t += 60) (t, score),
+            ],
+          )!;
+      final calm = night(.1), restless = night(1.2);
+      expect(calm.wokeLevel, greaterThan(restless.wokeLevel));
+      // A calm 8 h night puts back most of a drained battery.
+      expect(calm.wokeLevel - 20, inInclusiveRange(60, 80));
+    });
+
+    test('yesterday carries over: a lower start, a lower morning', () {
+      EnergyReserve from(double start) => energyReserve(
+            hr: day(58, mins: 1),
+            onsetTs: wake - 8 * 3600,
+            wakeTs: wake,
+            recovery: 90,
+            restingHr: 55,
+            maxHr: 190,
+            midnight: midnight,
+            onsetLevel: start,
+          )!;
+      expect(from(10).wokeLevel, lessThan(from(40).wokeLevel));
+    });
+
+    test('never under 5 nor over 100', () {
+      final r = energyReserve(
+        hr: day(185, mins: 600),
+        onsetTs: wake - 8 * 3600,
+        wakeTs: wake,
+        recovery: 60,
+        restingHr: 55,
+        maxHr: 190,
+        midnight: midnight,
+      )!;
+      expect(r.level, kEnergyFloor);
+      for (final (_, v) in r.points) {
+        expect(v, inInclusiveRange(kEnergyFloor, kEnergyCeiling));
+      }
+    });
+
     test('time off the wrist changes nothing', () {
       final r = run([
         (wake, 58),

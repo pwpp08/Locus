@@ -78,6 +78,9 @@ class SleepPlan {
   int? bedtimeFor(int? wakeMin) =>
       wakeMin == null || inBedMin == null ? null : (wakeMin - inBedMin!) % 1440;
 
+  /// Your usual bedtime: your usual wake time less your usual time in bed.
+  int? get usualBedMin => bedtimeFor(usualWakeMin);
+
   static int? _min(Object? v) => v is num ? v.round() : null;
 
   static Map<String, dynamic>? _value(Object? env) {
@@ -169,6 +172,17 @@ int? plannedWakeMin(SleepPlan plan, (DateTime?, AlarmArmState)? alarm,
   if (set >= 0) return set;
   return plan.usualWakeMin;
 }
+
+/// Whether the planner's goal is to keep the usual schedule rather than to
+/// reach the sleep need.
+bool get plannerKeepsConsistent =>
+    Prefs.getString(Prefs.sleepPlannerGoal, 'optimize') == 'consistent';
+
+/// Tonight's bedtime for the planner's goal: the usual one to stay consistent,
+/// else the one that covers the sleep need before [wake]. The planner and Home
+/// both read it, so they never suggest two bedtimes.
+int? plannedBedMin(SleepPlan plan, int? wake) =>
+    plannerKeepsConsistent ? plan.usualBedMin : plan.bedtimeFor(wake);
 
 /// `8:43`; with [sign], `+0:12` / `−0:05`.
 String hMm(int? min, {bool sign = false}) {
@@ -312,14 +326,10 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
     final items = _mgr?.alarms ?? const <AlarmItem>[];
     final now = DateTime.now();
     final wake = plannedWakeMin(plan, alarm, items: items);
-    final goal = Prefs.getString(Prefs.sleepPlannerGoal, 'optimize');
+    final consistent = plannerKeepsConsistent;
     final usualWake = plan.usualWakeMin;
-    final usualBed = usualWake == null || plan.inBedMin == null
-        ? null
-        : (usualWake - plan.inBedMin!) % 1440;
-    var bed = goal == 'consistent' && usualBed != null
-        ? usualBed
-        : plan.bedtimeFor(wake);
+    final usualBed = plan.usualBedMin;
+    var bed = plannedBedMin(plan, wake);
     // Past the suggested bedtime and still before the wake time: it is now.
     final nowMin = now.hour * 60 + now.minute;
     var isNow = false;
@@ -338,13 +348,33 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
         : (alarm?.$1 == null ? null : alarm!.$1!.hour * 60 + alarm.$1!.minute);
     final scheduleOn = items.any((a) => a.enabled && a.id != kPlannerAlarmId);
 
-    final headline = plan.needMin == null || bed == null || wake == null
-        ? 'Sleep Planner needs a few nights to learn your sleep need.'
-        : isNow
-            ? 'Try getting to bed now to achieve 100% Sleep Need by '
-                '${_said(wake)}.'
-            : 'Try getting to bed by ${_said(bed)} to achieve 100% Sleep '
-                'Need by ${_said(wake)}.';
+    // How much of the need the night in bed covers, at your usual efficiency.
+    final covers = inBed == null || plan.inBedMin == null || plan.inBedMin! <= 0
+        ? null
+        : (inBed / plan.inBedMin! * 100).round();
+    final String headline;
+    if (consistent) {
+      final needPart = covers == null || wake == null
+          ? ''
+          : covers >= 100
+              ? ' It covers your full Sleep Need by ${_said(wake)}.'
+              : ' It covers $covers% of your Sleep Need by ${_said(wake)}.';
+      headline = usualBed == null || bed == null
+          ? 'Sleep Planner needs a few nights to learn your usual bedtime.'
+          : isNow
+              ? 'Try getting to bed now to stay close to your usual bedtime '
+                  'of ${_said(usualBed)}.$needPart'
+              : 'Try getting to bed by ${_said(bed)}, your usual time, to '
+                  'stay consistent.$needPart';
+    } else {
+      headline = plan.needMin == null || bed == null || wake == null
+          ? 'Sleep Planner needs a few nights to learn your sleep need.'
+          : isNow
+              ? 'Try getting to bed now to achieve 100% Sleep Need by '
+                  '${_said(wake)}.'
+              : 'Try getting to bed by ${_said(bed)} to achieve 100% Sleep '
+                  'Need by ${_said(wake)}.';
+    }
 
     Widget dockButton(String label, String value, VoidCallback onTap) => Expanded(
           child: Pressable(
@@ -563,7 +593,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                         border: Border.all(color: p.ink, width: S.half),
                       ),
                       child: Text(
-                          goal == 'consistent' ? 'STAY CONSISTENT' : 'REACH MY SLEEP NEED',
+                          consistent ? 'STAY CONSISTENT' : 'REACH MY SLEEP NEED',
                           textAlign: TextAlign.center,
                           style: F.caps.copyWith(
                               color: p.ink,
