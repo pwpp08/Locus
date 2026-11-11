@@ -12,6 +12,14 @@ means a WHOOP number moved. Fix the change, not the golden.
 
 ## History
 
+- v116, 2026-11-11: regenerated with the owner's approval, for the Sleep
+  Planner's "stay consistent" (`crossday_pipeline.dart`). The sleep coach
+  gains `habit_bed_min` and `habit_wake_min`, the median bedtime and wake
+  time of the last seven recorded nights (null under three). No stored day
+  value moved and `kAlgoVersion` stays 116: the cross-day rollup is rebuilt on
+  every derive, so the keys arrive with the next sync. Generated on CI under
+  UTC, +05:30 and -04:00 (temporary `golden-regen-habit` branch).
+
 - v116: regenerated with the owner's approval, for WHOOP parity
   (`compute/whoop_scores.dart`). Recovery is WHOOP's fitted logistic, so
   `readiness`, its `composite_z`, drivers (HRV, RHR, RR; temp leaves) and note
