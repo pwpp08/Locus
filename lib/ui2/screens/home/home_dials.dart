@@ -18,12 +18,16 @@ const kDialOrder = [
   HomeRingKind.strain,
 ];
 
-(double, double)? strainBand(HomeData d) {
+/// The day's strain target as fractions of the dial: the recommended range
+/// and its optimal, drawn exactly as on the strain screen's ring.
+({(double, double) band, double optimal})? strainBand(HomeData d) {
   final t = d.strainTarget;
   final lo = (t?['low'] as num?)?.toDouble();
   final hi = (t?['high'] as num?)?.toDouble();
   if (lo == null || hi == null || hi <= lo || lo < 0) return null;
-  return (lo / 21, hi / 21);
+  final mid = ((t?['value'] as num?)?.toDouble() ?? (lo + hi) / 2)
+      .clamp(lo, hi);
+  return (band: (lo / 21, hi / 21), optimal: mid / 21);
 }
 
 (String, String, double?, Color) dialFace(RingState r, HomeData d, P p) {
@@ -226,11 +230,12 @@ class HomeScoreDial extends StatelessWidget {
                               t: animate(c, 1),
                               solid: true,
                               flatStart: true,
-                              band: target,
+                              band: target?.band,
                               bandColor: Color.alphaBlend(
                                   p.ink.withValues(alpha: .24), p.track),
-                              tick: target?.$1,
-                              tickColor: p.ink),
+                              tick: target?.optimal,
+                              tickColor: p.ink,
+                              tickWidth: .26),
                     ),
                     Padding(
                       padding: EdgeInsets.all(stroke + S.x2),

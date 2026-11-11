@@ -19,8 +19,7 @@ import 'dial_parts.dart';
 import '../../l10n/app_localizations.dart';
 import 'home/home_data.dart'
     show monthName, monthShortName, recoveryColor, weekdayShortName;
-import 'home_screen.dart' show repoOf;
-import 'readiness_detail.dart';
+import 'home_screen.dart' show openDayOnHome, repoOf;
 import 'trend_view.dart' show shiftDay;
 
 /// Every series a report reads, per local day.
@@ -97,9 +96,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
       for (final m in series?.values ?? const <Map<String, double>>[])
         ...m.keys,
     ].fold<String?>(null, (a, d) => a == null || d.compareTo(a) < 0 ? d : a);
+    // Only the weeks (or months) something was stored in.
+    final dataDays = reportDataDays(series ?? const {});
     final periods = first == null
         ? const <(String, String)>[]
-        : reportPeriods(_span, first, today);
+        : [
+            for (final (from, to) in reportPeriods(_span, first, today))
+              if (periodHasData(dataDays, from, to, today)) (from, to),
+          ];
 
     final rows = <Widget>[];
     String? group;
@@ -339,8 +343,28 @@ class _ReportScreenState extends State<ReportScreen> {
         ...m.keys,
     ].fold<String?>(null, (a, d) => a == null || d.compareTo(a) < 0 ? d : a);
     final (from, to) = periodOf(_span, _day);
-    final earlier = first != null && from.compareTo(first) > 0;
-    final later = to.compareTo(today) < 0;
+    // The pager steps to the nearest period with something stored, as the
+    // list offers only those.
+    final dataDays = reportDataDays(series ?? const {});
+    String? earlier, later;
+    if (first != null) {
+      var p = periodBefore(_span, from);
+      while (p.$2.compareTo(first) >= 0) {
+        if (periodHasData(dataDays, p.$1, p.$2, today)) {
+          earlier = p.$1;
+          break;
+        }
+        p = periodBefore(_span, p.$1);
+      }
+      p = periodOf(_span, shiftDay(to, 1));
+      while (p.$1.compareTo(today) <= 0) {
+        if (periodHasData(dataDays, p.$1, p.$2, today)) {
+          later = p.$1;
+          break;
+        }
+        p = periodOf(_span, shiftDay(p.$2, 1));
+      }
+    }
     final word = _span == ReportSpan.week ? 'week' : 'month';
 
     return DialScaffold(
@@ -370,12 +394,12 @@ class _ReportScreenState extends State<ReportScreen> {
             child: WindowPager(
               reportRange(_span, from, to, l),
               spread: true,
-              onEarlier: earlier
-                  ? () => setState(() => _day = periodBefore(_span, from).$1)
-                  : null,
-              onLater: later
-                  ? () => setState(() => _day = shiftDay(to, 1))
-                  : null,
+              onEarlier: earlier == null
+                  ? null
+                  : () => setState(() => _day = earlier!),
+              onLater: later == null
+                  ? null
+                  : () => setState(() => _day = later!),
             ),
           ),
         ),
@@ -462,10 +486,13 @@ class ReportBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext c) {
-    final journal = [
-      for (final b in rankedOf(effects ?? const []))
+    final logged = [
+      for (final b in effects ?? const <BehaviorImpact>[])
         if (!b.auto) b,
-    ]..sort((a, b) => b.impact!.abs().compareTo(a.impact!.abs()));
+    ];
+    final journal = rankedOf(logged)
+      ..sort((a, b) => b.impact!.abs().compareTo(a.impact!.abs()));
+    final next = lockedOf(logged);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -479,9 +506,14 @@ class ReportBody extends StatelessWidget {
         _Averages(r),
         const SizedBox(height: S.x4),
         _Balance(r),
-        if (journal.isNotEmpty) ...[
+        // Shown once the journal is read, unlocked or not: an empty report
+        // should say what it is waiting for, not drop the card.
+        if (effects != null) ...[
           const SizedBox(height: S.x4),
-          _Effects(journal.take(3).toList()),
+          _Effects(
+            journal.take(3).toList(),
+            next: next.isEmpty ? null : next.first,
+          ),
         ],
         if (r.best != null) ...[const SizedBox(height: S.x4), _BestWorst(r)],
       ],
@@ -496,98 +528,130 @@ class _Rings extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final word = r.span == ReportSpan.week ? 'week' : 'month';
-    Widget ring(String label, ReportMetric m, double max, Color color) {
-      final v = r.now[m], b = r.before[m];
-      final strain = m == ReportMetric.strain;
-      final d = v == null || b == null ? null : v - b;
-      final shown = d == null
-          ? null
-          : (strain ? (d * 10).round() / 10 : d.round().toDouble());
-      final delta = shown == null
-          ? 'No last $word'
-          : shown == 0
-          ? 'Same as last $word'
-          : '${shown > 0 ? '+' : '−'}${strain ? shown.abs().toStringAsFixed(1) : shown.abs().round()} vs. last $word';
-      final tone = shown == null || shown == 0 || strain
-          ? DC.ink2
-          : (shown > 0 ? C.optimal : C.strainDown);
-      // Three columns a little wider than a ring, the outer two flush with
-      // the page's margin.
-      return SizedBox(
-        width: _ring + S.x1 + S.hair,
-        child: Column(
-          children: [
-            SizedBox.square(
-              dimension: _ring,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  CustomPaint(
-                    size: const Size.square(_ring),
-                    painter: Ring(
-                      ((v ?? 0) / max).clamp(0.0, 1.0),
-                      color,
-                      DC.track,
-                      stroke: _stroke,
-                      solid: true,
-                      flatStart: true,
-                      softStart: true,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(S.x3),
-                    child: _fit(
-                      _figure(
-                        v == null ? '--' : _fmt(m, v),
-                        strain || v == null ? '' : '%',
-                        F.n24,
-                        F.nTiny,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: S.x2 + S.hair),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                'AVG $label',
-                maxLines: 1,
-                style: F.dLabel.copyWith(color: DC.ink),
-              ),
-            ),
-            const SizedBox(height: S.x2 + S.hair),
-            Text(
-              delta,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: F.dTiny.copyWith(color: tone),
-            ),
-          ],
-        ),
-      );
-    }
-
     final rec = r.now[ReportMetric.recovery];
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        ring('SLEEP', ReportMetric.sleepPerformance, 100, C.dialSleep),
-        ring(
-          'RECOVERY',
-          ReportMetric.recovery,
-          100,
-          rec == null ? DC.track : recoveryColor(rec),
-        ),
-        ring('STRAIN', ReportMetric.strain, 21, C.dialStrain),
-      ],
+    return LayoutBuilder(
+      builder: (c, box) {
+        final col = box.maxWidth / 3;
+        final size = col * _ringFill;
+        Widget ring(String label, ReportMetric m, double max, Color color) {
+          final v = r.now[m], b = r.before[m];
+          final strain = m == ReportMetric.strain;
+          final d = v == null || b == null ? null : v - b;
+          final shown = d == null
+              ? null
+              : (strain ? (d * 10).round() / 10 : d.round().toDouble());
+          final delta = shown == null
+              ? 'No last $word'
+              : shown == 0
+              ? 'Same as last $word'
+              : '${shown > 0 ? '+' : '−'}${strain ? shown.abs().toStringAsFixed(1) : shown.abs().round()} vs. last $word';
+          final tone = shown == null || shown == 0 || strain
+              ? DC.ink2
+              : (shown > 0 ? C.optimal : C.strainDown);
+          return SizedBox(
+            width: col,
+            child: Column(
+              children: [
+                ScoreRing(
+                  size: size,
+                  frac: (v ?? 0) / max,
+                  color: color,
+                  value: v == null ? '--' : _fmt(m, v),
+                  unit: strain || v == null ? '' : '%',
+                ),
+                // 12 % of the ring from its foot to the label's capitals.
+                const SizedBox(height: S.x2),
+                _fit(
+                  Text(
+                    'AVG $label',
+                    maxLines: 1,
+                    style: F.dNav.copyWith(color: DC.ink),
+                  ),
+                ),
+                const SizedBox(height: S.x1 + S.half),
+                Text(
+                  delta,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: F.dTiny.copyWith(color: tone),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Row(
+          children: [
+            ring('SLEEP', ReportMetric.sleepPerformance, 100, C.dialSleep),
+            ring(
+              'RECOVERY',
+              ReportMetric.recovery,
+              100,
+              rec == null ? DC.track : recoveryColor(rec),
+            ),
+            ring('STRAIN', ReportMetric.strain, 21, C.dialStrain),
+          ],
+        );
+      },
     );
   }
 }
 
-const _ring = S.x16 + S.x8 + S.x1;
-const _stroke = S.x1 + S.half + S.hair;
+// Measured on the reference dials: a ring fills 83 % of its third of the row,
+// its stroke is 6.6 % of the ring, the digits stand 22.9 % of it tall (the
+// numeral face's capitals are 74.5 % of its size, measured in a render) and
+// the unit is about three quarters of the digits.
+const _ringFill = .83;
+const _ringStroke = .066;
+const _figureBox = .229 / .745;
+
+/// A score on its ring, as the home dials draw one: [frac] of the way round
+/// in [color] on the track, the figure and its unit across the middle.
+class ScoreRing extends StatelessWidget {
+  final double size, frac;
+  final Color color;
+  final String value, unit;
+  const ScoreRing({
+    super.key,
+    required this.size,
+    required this.frac,
+    required this.color,
+    required this.value,
+    this.unit = '',
+  });
+
+  @override
+  Widget build(BuildContext c) {
+    final stroke = size * _ringStroke;
+    return SizedBox.square(
+      dimension: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CustomPaint(
+            size: Size.square(size),
+            painter: Ring(
+              frac.clamp(0.0, 1.0),
+              color,
+              DC.track,
+              stroke: stroke,
+              solid: true,
+              flatStart: true,
+            ),
+          ),
+          SizedBox(
+            width: size - stroke * 2 - S.x2,
+            height: size * _figureBox,
+            child: FittedBox(
+              fit: BoxFit.contain,
+              child: _figure(value, unit, F.n34, F.n24),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// [w] at its own size, or shrunk to the space it has (large text).
 Widget _fit(Widget w, [Alignment alignment = Alignment.center]) =>
@@ -614,7 +678,7 @@ Widget _figure(
     children: [
       Text(value, style: big.copyWith(color: color)),
       if (unit.isNotEmpty) ...[
-        const SizedBox(width: S.half / 2),
+        const SizedBox(width: S.hair),
         Text(unit, style: small.copyWith(color: color)),
       ],
     ],
@@ -881,9 +945,14 @@ class _AverageRow extends StatelessWidget {
               style: F.dLabel.copyWith(color: DC.ink),
             ),
           ),
-          Flexible(
+          const SizedBox(width: S.x3),
+          // No flex: the figures end on one right edge, against the triangle.
+          // A loose Flexible here left them in the middle of the card.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: S.x16 + S.x8),
             child: _fit(
               Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   _figure(_fmt(m, v), v == null ? '' : unit, F.nRow, F.dText),
@@ -898,7 +967,7 @@ class _AverageRow extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: S.x5 - S.hair,
+            width: S.x6,
             child: Align(alignment: Alignment.centerRight, child: mark),
           ),
         ],
@@ -976,7 +1045,10 @@ class _Balance extends StatelessWidget {
 
 class _Effects extends StatelessWidget {
   final List<BehaviorImpact> top;
-  const _Effects(this.top);
+
+  /// The logged behavior closest to unlocking, shown while none has.
+  final BehaviorImpact? next;
+  const _Effects(this.top, {this.next});
 
   @override
   Widget build(BuildContext c) {
@@ -1005,74 +1077,106 @@ class _Effects extends StatelessWidget {
           'The journal entries whose days line up with the biggest change in '
           'next-morning recovery, over the last 90 days. An association in your '
           'own history, not proof of cause.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: S.x4 + S.hair),
-          const ImpactHeader(),
-          const SizedBox(height: S.x2 + S.hair),
-          for (final b in top)
-            Container(
-              margin: const EdgeInsets.only(bottom: S.x2 + S.hair),
-              padding: const EdgeInsets.fromLTRB(
-                kDialPad,
-                S.x3 + S.hair,
-                kDialPad,
-                S.x3 + S.half,
-              ),
-              decoration: const BoxDecoration(
-                color: DC.weekCard,
-                borderRadius: R.rLg,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    b.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: F.dBody.copyWith(
-                      color: DC.ink,
-                      fontWeight: FontWeight.w400,
+      child: top.isEmpty
+          ? _locked()
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: S.x4 + S.hair),
+                const ImpactHeader(),
+                const SizedBox(height: S.x2 + S.hair),
+                for (final b in top)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: S.x2 + S.hair),
+                    padding: const EdgeInsets.fromLTRB(
+                      kDialPad,
+                      S.x3 + S.hair,
+                      kDialPad,
+                      S.x3 + S.half,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: DC.weekCard,
+                      borderRadius: R.rLg,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          b.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: F.dBody.copyWith(
+                            color: DC.ink,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        const SizedBox(height: S.x3),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CustomPaint(
+                                size: const Size(double.infinity, S.x2),
+                                painter: ImpactBarPaint(b.impact, scale),
+                              ),
+                            ),
+                            SizedBox(
+                              width: S.x12 + S.hair,
+                              child: _fit(
+                                Text(
+                                  impactText(b.impact!),
+                                  style: F.nWeek.copyWith(
+                                    color: impactTextColor(b.impact!),
+                                  ),
+                                ),
+                                Alignment.centerRight,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: S.x3 + S.half),
+                        Text(
+                          '${b.yes} days with, ${b.no} without.'
+                          '${b.ci90 == null ? '' : ' 90% CI ${pct(b.ci90!.lo)} to ${pct(b.ci90!.hi)}'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: F.dLegend.copyWith(color: DC.ink2),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: S.x3),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: CustomPaint(
-                          size: const Size(double.infinity, S.x2),
-                          painter: ImpactBarPaint(b.impact, scale),
-                        ),
-                      ),
-                      SizedBox(
-                        width: S.x12 + S.hair,
-                        child: _fit(
-                          Text(
-                            impactText(b.impact!),
-                            style: F.nWeek.copyWith(
-                              color: impactTextColor(b.impact!),
-                            ),
-                          ),
-                          Alignment.centerRight,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: S.x3 + S.half),
-                  Text(
-                    '${b.yes} days with, ${b.no} without.'
-                    '${b.ci90 == null ? '' : ' 90% CI ${pct(b.ci90!.lo)} to ${pct(b.ci90!.hi)}'}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: F.dLegend.copyWith(color: DC.ink2),
-                  ),
-                ],
-              ),
+              ],
             ),
+      bottom: top.isEmpty ? S.x5 : S.x2 + S.hair,
+    );
+  }
+
+  /// Nothing has enough days on both sides yet: what it takes, and how far
+  /// the closest one is.
+  Widget _locked() {
+    final n = next;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: S.x4),
+        Text(
+          'A journal entry shows its effect on your recovery once you have '
+          '$kBehaviorMinDays days with it and $kBehaviorMinDays without.',
+          style: F.dBody.copyWith(
+            color: DC.ink2,
+            fontWeight: FontWeight.w400,
+            height: 1.38,
+          ),
+        ),
+        if (n != null) ...[
+          const SizedBox(height: S.x3),
+          Text(
+            '${n.title}: ${n.yes.clamp(0, kBehaviorMinDays)} of '
+            '$kBehaviorMinDays days with, ${n.no.clamp(0, kBehaviorMinDays)} '
+            'of $kBehaviorMinDays without.',
+            style: F.dLegend.copyWith(color: DC.ink),
+          ),
         ],
-      ),
-      bottom: S.x2 + S.hair,
+      ],
     );
   }
 }
@@ -1087,9 +1191,8 @@ class _BestWorst extends StatelessWidget {
     Widget row(String label, ReportDay d) {
       final at = DateTime.parse(d.day);
       return Pressable(
-        onTap: () => Navigator.of(
-          c,
-        ).push(MaterialPageRoute(builder: (_) => ReadinessDetail(day: d.day))),
+        // The day as Home shows it, with its pager on that day.
+        onTap: () => openDayOnHome(c, d.day),
         semanticLabel: '$label: recovery ${d.recovery.round()}%',
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: S.x16 + S.x10 + S.half),
@@ -1100,7 +1203,6 @@ class _BestWorst extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: S.x2),
                     Text(label, style: F.dLabel.copyWith(color: DC.ink)),
                     const SizedBox(height: S.x1 + S.half),
                     Text(
@@ -1108,12 +1210,15 @@ class _BestWorst extends StatelessWidget {
                       '${monthShortName(at.month, l)}',
                       style: F.dLegend.copyWith(color: DC.ink2),
                     ),
-                    const SizedBox(height: S.x2),
                   ],
                 ),
               ),
-              Flexible(
-                flex: 2,
+              // No flex: the chevron sits on the card's edge. The pair keeps its
+              // own width and shrinks, never overflows, at large text.
+              ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: _small + S.x16 + S.x2,
+                ),
                 child: _fit(
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1121,38 +1226,14 @@ class _BestWorst extends StatelessWidget {
                       Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          SizedBox.square(
-                            dimension: _small,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                CustomPaint(
-                                  size: const Size.square(_small),
-                                  painter: Ring(
-                                    (d.recovery / 100).clamp(0.0, 1.0),
-                                    recoveryColor(d.recovery),
-                                    DC.track,
-                                    stroke: _stroke,
-                                    solid: true,
-                                    flatStart: true,
-                                    softStart: true,
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(S.x2),
-                                  child: _fit(
-                                    _figure(
-                                      '${d.recovery.round()}',
-                                      '%',
-                                      F.n17,
-                                      F.nTiny,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                          ScoreRing(
+                            size: _small,
+                            frac: d.recovery / 100,
+                            color: recoveryColor(d.recovery),
+                            value: '${d.recovery.round()}',
+                            unit: '%',
                           ),
-                          const SizedBox(height: S.x4),
+                          const SizedBox(height: S.x2),
                           Text(
                             'Recovery',
                             style: F.dTiny.copyWith(color: DC.ink2),
@@ -1160,18 +1241,26 @@ class _BestWorst extends StatelessWidget {
                         ],
                       ),
                       SizedBox(
-                        width: S.x16 + S.x4,
+                        width: S.x16 + S.x2,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(
-                              d.strain == null
-                                  ? '--'
-                                  : d.strain!.toStringAsFixed(1),
-                              style: F.nRow.copyWith(color: C.dialStrain),
+                            // As tall as the ring, so the figure sits on its middle
+                            // and the two captions share a line.
+                            SizedBox(
+                              height: _small,
+                              child: _fit(
+                                Text(
+                                  d.strain == null
+                                      ? '--'
+                                      : d.strain!.toStringAsFixed(1),
+                                  style: F.n24.copyWith(color: C.dialStrain),
+                                ),
+                                Alignment.centerRight,
+                              ),
                             ),
-                            const SizedBox(height: S.x1),
+                            const SizedBox(height: S.x2),
                             Text(
                               'Strain',
                               style: F.dTiny.copyWith(color: DC.ink2),
@@ -1213,4 +1302,4 @@ class _BestWorst extends StatelessWidget {
   }
 }
 
-const _small = S.x16 - S.x1 - S.half;
+const _small = S.x16;

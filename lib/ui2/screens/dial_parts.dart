@@ -17,6 +17,17 @@ import 'trend_view.dart' show TrendViewScreen, shiftDay;
 const kDialMargin = S.x4 + S.half;
 const kDialPad = S.x4 + S.half;
 
+/// The page's ground: slate at the top falling to near black at the foot.
+/// Onboarding stands on it too.
+const kDialGround = BoxDecoration(
+  gradient: LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    stops: [0, .47, 1],
+    colors: [DC.bgTop, DC.bgMid, DC.bgFoot],
+  ),
+);
+
 /// 'H:MM' for a duration, or '--' when there is none.
 String clockDur(num? minutes) {
   if (minutes == null) return '--';
@@ -115,18 +126,7 @@ class _DialScaffoldState extends State<DialScaffold> {
       child: Scaffold(
         backgroundColor: DC.bgFoot,
         body: Stack(children: [
-          const Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: [0, .47, 1],
-                  colors: [DC.bgTop, DC.bgMid, DC.bgFoot],
-                ),
-              ),
-            ),
-          ),
+          const Positioned.fill(child: DecoratedBox(decoration: kDialGround)),
           ?widget.backdrop,
           if (widget.band)
             Positioned(

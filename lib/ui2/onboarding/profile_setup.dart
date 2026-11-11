@@ -20,8 +20,10 @@ import '../../l10n/date_text.dart';
 import '../../state/app_state.dart';
 import '../../state/units_controller.dart';
 import '../screens/home_screen.dart' show monthShortName, weekdayShortName;
+import '../screens/dial_parts.dart'
+    show dialCard, dialCardTitle, kDialPad;
 import '../ui2.dart';
-import 'welcome.dart' show OnboardingStep;
+import 'welcome.dart' show OnboardingPage;
 
 class ProfileSetupScreen extends StatefulWidget {
   /// Called after the profile has been written. The router uses it to let a
@@ -145,62 +147,49 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
     await widget.onSave(_fields());
   }
 
-  // Onboarding is Char in both themes.
   @override
-  Widget build(BuildContext c) =>
-      AlwaysChar(child: Builder(builder: _build));
-
-  Widget _build(BuildContext c) {
-    final p = P.of(c);
+  Widget build(BuildContext c) {
     final l = AppLocalizations.of(c);
     final sexes = _sexes(c);
-    return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(S.x4, S.x6, S.x4, S.x8),
+    return OnboardingPage(
+      step: 3,
+      title: l?.profileSetupTitle ?? 'About you',
+      body: l?.profileSetupBody ??
+          'Four numbers change how your data is scored. Leave any of them '
+              'blank and only the metrics that need it stay unavailable.',
+      below: [
+        const SizedBox(height: S.x6),
+        _Card(
+          title: l?.profileSetupSexHeader ?? 'SEX',
           children: [
-            const OnboardingStep(3),
-            const SizedBox(height: S.x5),
-            Text(l?.profileSetupTitle ?? 'About you',
-                style: F.t1.copyWith(color: p.ink)),
-            const SizedBox(height: S.x3),
-            Text(
-              l?.profileSetupBody ??
-                  'Four numbers change how your data is scored. Leave any of them '
-                      'blank and only the metrics that need it stay unavailable.',
-              style: F.body.copyWith(color: p.ink2),
-            ),
-            const SizedBox(height: S.x6),
-            Text(l?.profileSetupSexHeader ?? 'SEX',
-                style: F.over.copyWith(color: p.ink3)),
-            const SizedBox(height: S.x2),
-            Row(children: [
-              for (final (key, label) in sexes) ...[
-                Expanded(
-                  child: _Choice(
-                    label: label,
-                    on: _sex == key,
-                    onTap: () => setState(() => _sex = key),
-                  ),
-                ),
-                if (key != sexes.last.$1) const SizedBox(width: S.x2),
-              ],
-            ]),
-            // Which constants that choice actually gets. Calories average the
-            // two published sets; training load has no third set to average,
-            // so it uses the male one — said here rather than nowhere.
-            if (_sex == 'other') ...[
-              const SizedBox(height: S.x2),
-              Text(
-                l?.profileSetupOtherSexNote ??
-                    'Calories use the mean of the two published sets. Training '
-                        'load and strain have only two published constants and no '
-                        'third, so they use the male pair.',
-                style: F.cap.copyWith(color: p.ink3, height: 1.45),
+            for (final (key, label) in sexes)
+              _Choice(
+                label: label,
+                on: _sex == key,
+                onTap: () => setState(() => _sex = key),
               ),
-            ],
-            const SizedBox(height: S.x5),
+          ],
+        ),
+        // Which constants that choice actually gets. Calories average the
+        // two published sets; training load has no third set to average,
+        // so it uses the male one — said here rather than nowhere.
+        if (_sex == 'other') ...[
+          const SizedBox(height: S.x2),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: S.x1),
+            child: Text(
+              l?.profileSetupOtherSexNote ??
+                  'Calories use the mean of the two published sets. Training '
+                      'load and strain have only two published constants and no '
+                      'third, so they use the male pair.',
+              style: F.dTiny.copyWith(color: DC.ink3, height: 1.4),
+            ),
+          ),
+        ],
+        const SizedBox(height: S.x3),
+        _Card(
+          title: l?.profileSetupOptional ?? 'OPTIONAL',
+          children: [
             _Field(_age, l?.profileSetupAgeLabel ?? 'AGE',
                 l?.profileSetupAgeUnit ?? 'years',
                 l?.profileSetupAgeConsequence ??
@@ -210,58 +199,114 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
               l?.profileSetupHeightLabel ?? 'HEIGHT',
               uiText(c, _u.isImperial ? 'in' : 'cm'),
               l?.profileSetupHeightConsequence ??
-                    'Without it: stride length, and distance from steps.',
+                  'Without it: stride length, and distance from steps.',
             ),
             _Field(
               _weight,
               l?.profileSetupWeightLabel ?? 'WEIGHT',
               uiText(c, _u.isImperial ? 'lb' : 'kg'),
               l?.profileSetupWeightConsequence ??
-                    'Without it: calories and training load.',
+                  'Without it: calories and training load.',
             ),
-            // Offered to everyone, on by default for a female profile.
-            // Changeable any time in Settings; switching it off keeps what
-            // was logged.
-            // AppSwitch, not Material's SwitchListTile (which the `Switch(`
-            // ban did not match). Merged, so the row is read as one switch
-            // with its title, as the list tile was.
-            const SizedBox(height: S.x2),
-            MergeSemantics(
-              child: Row(children: [
-                Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                            l?.settingsCycleTrackingRowTitle ??
-                                'Cycle tracking',
-                            style: F.body.copyWith(color: p.ink)),
-                        Text(
-                            l?.profileSetupCycleSub ??
-                                'Log your period in Health. You can change this later.',
-                            style: F.cap.copyWith(color: p.ink3)),
-                      ]),
-                ),
-                const SizedBox(width: S.x3),
-                AppSwitch(_cycleOn, (v) => setState(() => _cycle = v)),
-              ]),
-            ),
-            const SizedBox(height: S.x5),
-            BigButton(l?.actionContinue ?? 'Continue',
-                onTap: _sex == null ? null : _continue),
-            if (_sex == null) ...[
-              const SizedBox(height: S.x2),
-              Text(l?.profileSetupPickOneToContinue ??
-                      'Pick one option above to continue.',
-                  style: F.cap.copyWith(color: p.ink3)),
-            ],
           ],
         ),
-      ),
+        const SizedBox(height: S.x3),
+        // Offered to everyone, on by default for a female profile.
+        // Changeable any time in Settings; switching it off keeps what
+        // was logged. Merged, so the row is read as one switch with its
+        // title.
+        _Card(children: [
+          MergeSemantics(
+            child: _Row(
+              title: l?.settingsCycleTrackingRowTitle ?? 'Cycle tracking',
+              sub: l?.profileSetupCycleSub ??
+                  'Log your period in Health. You can change this later.',
+              trailing: AppSwitch(_cycleOn, (v) => setState(() => _cycle = v)),
+            ),
+          ),
+        ]),
+      ],
+      actions: [
+        BigButton(l?.actionContinue ?? 'Continue',
+            onTap: _sex == null ? null : _continue),
+        if (_sex == null) ...[
+          const SizedBox(height: S.x3),
+          Text(
+              l?.profileSetupPickOneToContinue ??
+                  'Pick one option above to continue.',
+              textAlign: TextAlign.center,
+              style: F.dTiny.copyWith(color: DC.ink3)),
+        ],
+      ],
     );
   }
 }
 
+/// A dial card holding rows on hairlines: the title in tracked capitals over
+/// them.
+class _Card extends StatelessWidget {
+  final String? title;
+  final List<Widget> children;
+  const _Card({this.title, required this.children});
+
+  @override
+  Widget build(BuildContext c) => Container(
+        padding: EdgeInsets.fromLTRB(
+            kDialPad, title == null ? 0 : kDialPad, kDialPad, 0),
+        decoration: dialCard(),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (title case final t?)
+            Padding(
+              padding: const EdgeInsets.only(bottom: S.x2),
+              child: dialCardTitle(t),
+            ),
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0 || title != null)
+              const Divider(height: S.hair, thickness: S.hair, color: DC.line),
+            children[i],
+          ],
+        ]),
+      );
+}
+
+/// One row of a card: the name in capitals with its line under it, and
+/// whatever answers it flush against the right edge.
+class _Row extends StatelessWidget {
+  final String title;
+  final String? sub;
+  final Widget trailing;
+  const _Row({required this.title, this.sub, required this.trailing});
+
+  @override
+  Widget build(BuildContext c) => ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: S.x12 + S.x1 + S.half),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: S.x3),
+          child: Row(children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(title.toUpperCase(),
+                      style: F.dNav.copyWith(color: DC.ink)),
+                  if (sub case final s?) ...[
+                    const SizedBox(height: S.x1),
+                    Text(s,
+                        style: F.dTiny.copyWith(color: DC.ink3, height: 1.35)),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: S.x3),
+            trailing,
+          ]),
+        ),
+      );
+}
+
+/// One answer to "sex": the word in capitals and a round mark on the right,
+/// filled white with a check when chosen.
 class _Choice extends StatelessWidget {
   final String label;
   final bool on;
@@ -269,55 +314,64 @@ class _Choice extends StatelessWidget {
   const _Choice({required this.label, required this.on, required this.onTap});
 
   @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    return Pressable(
-      onTap: onTap,
-      semanticLabel: label,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: S.tap),
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: S.x2, vertical: S.x2),
-        decoration: BoxDecoration(
-          color: on ? p.ink : p.ink.withValues(alpha: .09),
-          borderRadius: R.rLg,
+  Widget build(BuildContext c) => Pressable(
+        onTap: onTap,
+        semanticLabel: label,
+        child: _Row(
+          title: label,
+          trailing: AnimatedContainer(
+            duration: motion(c, Motion.fast),
+            width: S.x5 + S.half,
+            height: S.x5 + S.half,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: on ? DC.pure : null,
+              border: on ? null : Border.all(color: DC.ink3, width: S.half - S.hair / 2),
+            ),
+            child: on
+                ? const Icon(LucideIcons.check, size: I.sm, color: DC.bgFoot)
+                : null,
+          ),
         ),
-        child: Text(label.toUpperCase(),
-            textAlign: TextAlign.center,
-            style: F.caps.copyWith(color: on ? p.bg : p.ink2)),
-      ),
-    );
-  }
+      );
 }
 
+/// A body measure: its name and what goes missing without it on the left;
+/// on the right the figure, typed into a small well and set flush right in
+/// the numerals, then its unit in a fixed slot so the three figures line up.
 class _Field extends StatelessWidget {
   final TextEditingController controller;
   final String label, unit, consequence;
   const _Field(this.controller, this.label, this.unit, this.consequence);
 
   @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: S.x4),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Expanded(child: Text(label, style: F.over.copyWith(color: p.ink3))),
-          Text(AppLocalizations.of(c)?.profileSetupOptional ?? 'OPTIONAL',
-              style: F.over.copyWith(color: p.ink3)),
+  Widget build(BuildContext c) => _Row(
+        title: label,
+        sub: consequence,
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: S.x16 + S.x2,
+            height: S.x10,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.symmetric(horizontal: S.x3),
+            decoration: const BoxDecoration(color: DC.field, borderRadius: R.rMd),
+            child: AppField(
+              controller: controller,
+              bare: true,
+              semanticLabel: label,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              textAlign: TextAlign.right,
+              textStyle: F.n24.copyWith(color: DC.ink),
+            ),
+          ),
+          const SizedBox(width: S.x2),
+          SizedBox(
+            width: S.x8 + S.x1,
+            child: Text(unit, style: F.dText.copyWith(color: DC.ink2)),
+          ),
         ]),
-        const SizedBox(height: S.x1),
-        AppField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          textStyle: F.head,
-          hint: unit,
-        ),
-        const SizedBox(height: S.x1),
-        Text(consequence, style: F.cap.copyWith(color: p.ink3)),
-      ]),
-    );
-  }
+      );
 }
 
 // No day-0 "unlock contract" card. There was one — locked headline, unlock

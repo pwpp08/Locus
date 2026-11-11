@@ -54,7 +54,7 @@ import 'alarm.dart' show AlarmCountdown;
 import '../activity/share.dart' show ShareSheet, shareOrigin;
 import '../activity/summary.dart';
 import '../onboarding/welcome.dart'
-    show BandStage, ImportOutcome, ImportReport, OnboardingStep;
+    show ImportOutcome, ImportReport, OnboardingStep;
 // Screens are deliberately not re-exported from the ui2 barrel (see the
 // barrel test), so their components are imported by path.
 import '../screens/screens.dart';
@@ -66,6 +66,7 @@ import '../../compute/energy_reserve.dart';
 import '../screens/home/home_energy.dart';
 import '../../compute/training_readiness.dart';
 import '../screens/training_readiness_card.dart' show TrainingReadinessView;
+import '../screens/reports.dart' show ScoreRing;
 
 /// A deterministic series — a gallery cannot depend on random data.
 final _series =
@@ -420,12 +421,9 @@ Map<String, Widget> componentCases() => {
               ],
             ),
           )),
-      // The onboarding header: the step in capitals over a segmented bar.
+      // The onboarding header: the step in capitals, the pips on the right.
       // Char, as every onboarding screen is.
       'onboarding_step': const AlwaysChar(child: OnboardingStep(2)),
-      // The band's picture on its card (draws only the card until the art
-      // file is bundled).
-      'band_stage': const AlwaysChar(child: BandStage(height: 160)),
       // The one theme override: a card inside it is Char whatever the app is.
       'always_char': AlwaysChar(
         child: Builder(
@@ -652,10 +650,31 @@ Map<String, Widget> _nutritionAndWellnessCases() {
             dayLabelOf(DateTime(2026, 10, 7 + i)): .6 + (i * 37 % 17) / 10,
       },
     ),
+    // Home's sync bar in each of its three states.
+    'home_sync_bar': const Column(children: [
+      HomeSyncBar(state: SyncBarState.catchingUp, syncedTo: '10:18 AM'),
+      SizedBox(height: S.x3),
+      HomeSyncBar(state: SyncBarState.caughtUp, syncedTo: '5:09 PM'),
+      SizedBox(height: S.x3),
+      HomeSyncBar(state: SyncBarState.behind, syncedTo: 'Mon 9:40 PM'),
+    ]),
+    // A report's ring at the size it has on a phone, and Best Day's.
+    'score_ring': Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+      ScoreRing(
+          size: S.x16 + S.x8 + S.x1,
+          frac: .74,
+          color: recoveryColor(74),
+          value: '74',
+          unit: '%'),
+      const ScoreRing(
+          size: S.x16, frac: .71, color: C.dialStrain, value: '14.9'),
+    ]),
     // One factor low, so the sentence names it.
     'training_readiness': const TrainingReadinessView(TrainingReadiness(
       score: 68,
       recoveryHours: 9.5,
+      // 52 of 100 is a ratio of 1.64: (2.0 - 1.64) / .7.
+      loadRatio: 1.64,
       factors: {
         ReadinessFactor.recoveryTime: 80,
         ReadinessFactor.sleep: 87,

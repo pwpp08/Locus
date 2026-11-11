@@ -13,6 +13,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../screens/dial_parts.dart' show kDialGround;
 import '../ui2.dart';
 
 class BootSplash extends StatefulWidget {
@@ -98,13 +99,15 @@ class _CoverState extends State<_Cover> {
       AlwaysChar(child: Builder(builder: _build));
 
   Widget _build(BuildContext c) {
-    final p = P.of(c);
     // Material, not ColoredBox: the cover sits at MaterialApp.home, above every
     // route, so its own text has no Material ancestor to inherit from and debug
     // builds painted the missing-Material underline right across the wordmark.
+    // On the dial screens' ground, which the onboarding under it stands on.
     return Material(
-      color: p.bg,
-      child: Center(
+      color: DC.bgFoot,
+      child: DecoratedBox(
+        decoration: kDialGround,
+        child: Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           LocusMark(
             size: S.x16 * 2,
@@ -123,10 +126,11 @@ class _CoverState extends State<_Cover> {
               offset: _drawn ? Offset.zero : const Offset(0, .4),
               duration: motion(c, Motion.slow),
               curve: Ease.standard,
-              child: Wordmark(color: p.ink),
+              child: const Wordmark(color: DC.pure),
             ),
           ),
         ]),
+        ),
       ),
     );
   }

@@ -996,7 +996,14 @@ class _ContributorRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: F.dLabel.copyWith(color: DC.ink)),
           ),
-          Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: TierBar(tier))),
+          // Aligned right so the bar sits against the value: a loose Flexible
+          // alone leaves its unused share at the row's end.
+          Flexible(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: FittedBox(fit: BoxFit.scaleDown, child: TierBar(tier)),
+            ),
+          ),
           const SizedBox(width: S.x3),
           Padding(
             padding: const EdgeInsets.only(top: S.half),

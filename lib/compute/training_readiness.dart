@@ -74,10 +74,15 @@ class TrainingReadiness {
   /// Recovery time still owed, hours; null when no session was read.
   final double? recoveryHours;
 
+  /// The last 7 days' load over the last 42 days' (acute ÷ chronic); null
+  /// without both.
+  final double? loadRatio;
+
   const TrainingReadiness({
     required this.score,
     required this.factors,
     this.recoveryHours,
+    this.loadRatio,
   });
 
   ReadinessLevel? get level => score == null ? null : readinessLevelOf(score!);
@@ -113,7 +118,7 @@ TrainingReadiness trainingReadiness({
 }) {
   int pct(double v) => v.clamp(0.0, 100.0).round();
   final f = <ReadinessFactor, int>{};
-  double? hours;
+  double? hours, ratio;
 
   if (sessions != null && now != null) {
     hours = recoveryHoursLeft(sessions, now);
@@ -132,7 +137,7 @@ TrainingReadiness trainingReadiness({
   if (acute != null && chronic != null && chronic > 0) {
     // Acute over chronic: up to 1.3 is productive; past it the factor falls,
     // to 0 at 2.0.
-    final r = acute / chronic;
+    final r = ratio = acute / chronic;
     f[ReadinessFactor.load] = pct(r <= 1.3 ? 100 : 100 * (2.0 - r) / .7);
   }
   if (sleep3.isNotEmpty) {
@@ -146,7 +151,8 @@ TrainingReadiness trainingReadiness({
   }
 
   if (f.length < kReadinessMinFactors) {
-    return TrainingReadiness(score: null, factors: f, recoveryHours: hours);
+    return TrainingReadiness(
+        score: null, factors: f, recoveryHours: hours, loadRatio: ratio);
   }
   final vs = f.values;
   final mean = vs.reduce((a, b) => a + b) / vs.length;
@@ -155,5 +161,6 @@ TrainingReadiness trainingReadiness({
     score: pct(.7 * mean + .3 * low),
     factors: f,
     recoveryHours: hours,
+    loadRatio: ratio,
   );
 }

@@ -11,7 +11,7 @@ import '../../../theme/theme_switcher.dart' show themedRoute;
 import '../../grammar.dart' show Pressable;
 import '../../marks.dart' show BoldChevron, StrapIcon, SyncArrowMark;
 import '../../profile/devices.dart' show MyDevices, formatDayTime;
-import '../../theme.dart' show C, F, I, Motion, P, S;
+import '../../theme.dart' show C, DC, F, I, Motion, P, R, S;
 import '../../ui2.dart' show LucideIcons;
 import '../battery_detail_screen.dart';
 import '../recovery_calendar.dart' show openRecoveryCalendar;
@@ -89,6 +89,16 @@ Widget? batteryLine(BuildContext c) {
       Text('${pct.round()}%', style: F.cap.copyWith(color: color)),
     ]),
   );
+}
+
+/// The time the band's data reaches: the clock today, a day and time before.
+String syncedToText(DateTime at, String todayId, [AppLocalizations? l]) {
+  final today = DateTime.tryParse(todayId);
+  final isToday = today != null &&
+      at.year == today.year &&
+      at.month == today.month &&
+      at.day == today.day;
+  return isToday ? formatClockOf(at) : formatDayTime(at, l);
 }
 
 Widget syncedThroughLine(BuildContext c, String? todayId,
@@ -349,4 +359,154 @@ class _HomeSyncArrowState extends State<HomeSyncArrow>
       child: arrow,
     );
   }
+}
+
+/// Minutes after its newest reading that the band's data still counts as
+/// caught up when nothing is syncing.
+const kCaughtUpMinutes = 30;
+
+enum SyncBarState { catchingUp, caughtUp, behind }
+
+SyncBarState syncBarStateOf({
+  required bool syncing,
+  required DateTime at,
+  required DateTime now,
+}) =>
+    syncing
+        ? SyncBarState.catchingUp
+        : now.difference(at).inMinutes < kCaughtUpMinutes
+            ? SyncBarState.caughtUp
+            : SyncBarState.behind;
+
+/// The black bar under Home's header: whether the band's data has caught up,
+/// and the time it is synced to. Measured off the reference: 54 tall, radius
+/// 10, a 24 cloud in ink3 8 in, the state in white caps 8 after it; on the
+/// right, SYNCED TO over the time (amber while catching up, green once caught
+/// up), right-aligned, 10 before the mark 12 in from the edge: a turning
+/// 24 ring, or a 16 check.
+class HomeSyncBar extends StatelessWidget {
+  final SyncBarState state;
+
+  /// The newest reading's time, as the user reads clocks ("5:09 PM"), or a day
+  /// and time when it is not today's.
+  final String syncedTo;
+  final VoidCallback? onTap;
+  const HomeSyncBar({
+    super.key,
+    required this.state,
+    required this.syncedTo,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext c) {
+    final (word, tone) = switch (state) {
+      SyncBarState.catchingUp => ('DATA CATCHING UP', C.amber),
+      SyncBarState.caughtUp => ('DATA CAUGHT UP', C.optimal),
+      SyncBarState.behind => ('DATA NOT UP TO DATE', DC.ink2),
+    };
+    final caps = F.dLabel.copyWith(color: DC.pure);
+    return Pressable(
+      onTap: onTap,
+      semanticLabel: '${word.toLowerCase()}, synced to $syncedTo',
+      child: Container(
+        constraints: const BoxConstraints(minHeight: S.x12 + S.x1 + S.half),
+        padding: const EdgeInsets.fromLTRB(S.x2, S.x2, S.x3, S.x2),
+        decoration: const BoxDecoration(
+          color: DC.syncBar,
+          borderRadius: BorderRadius.all(Radius.circular(R.md + S.half)),
+        ),
+        child: Row(children: [
+          const Icon(LucideIcons.cloud, size: I.lg, color: DC.ink3),
+          const SizedBox(width: S.x2),
+          Expanded(
+            child: Text(word,
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: caps),
+          ),
+          const SizedBox(width: S.x2),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('SYNCED TO', style: caps),
+              Text(syncedTo.toUpperCase(), style: caps.copyWith(color: tone)),
+            ],
+          ),
+          const SizedBox(width: S.x2 + S.half),
+          // The ring is 24 across; the check sits in 16, nearer the edge, as
+          // on the reference.
+          switch (state) {
+            SyncBarState.catchingUp =>
+              const SizedBox.square(dimension: I.lg, child: _SyncRing()),
+            SyncBarState.caughtUp =>
+              const Icon(LucideIcons.check, size: I.sm, color: C.optimal),
+            SyncBarState.behind =>
+              const Icon(LucideIcons.refreshCw, size: I.sm, color: DC.ink3),
+          },
+        ]),
+      ),
+    );
+  }
+}
+
+/// The catching-up mark: a white quarter turning on a dark ring, 24 across,
+/// 2 thick. Still where motion is off.
+class _SyncRing extends StatefulWidget {
+  const _SyncRing();
+
+  @override
+  State<_SyncRing> createState() => _SyncRingState();
+}
+
+class _SyncRingState extends State<_SyncRing>
+    with SingleTickerProviderStateMixin {
+  // A turn restarts the next, as HomeSyncArrow does; the gate stops it.
+  late final AnimationController _t =
+      AnimationController(vsync: this, duration: Motion.roll)
+        ..addStatusListener((s) {
+          if (s == AnimationStatus.completed) _t.forward(from: 0);
+        });
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (Motion.enabled(context)) {
+      if (!_t.isAnimating) _t.forward();
+    } else {
+      _t.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _t.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext c) => RotationTransition(
+        turns: _t,
+        child: const CustomPaint(painter: _SyncRingPaint()),
+      );
+}
+
+class _SyncRingPaint extends CustomPainter {
+  const _SyncRingPaint();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const w = S.half;
+    final box = (Offset.zero & size).deflate(w / 2);
+    final line = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w;
+    canvas.drawOval(box, line..color = DC.syncTrack);
+    canvas.drawArc(box, -1.5708, 1.75, false,
+        line
+          ..color = DC.pure
+          ..strokeCap = StrokeCap.round);
+  }
+
+  @override
+  bool shouldRepaint(_SyncRingPaint old) => false;
 }

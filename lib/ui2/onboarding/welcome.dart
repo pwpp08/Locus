@@ -11,6 +11,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +24,7 @@ import '../../import/journal_csv_import.dart';
 import '../../import/lab_csv_import.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
+import '../screens/dial_parts.dart' show kDialGround, kDialMargin;
 import '../ui2.dart';
 
 /// What an import actually achieved, including what it could NOT use.
@@ -563,123 +565,252 @@ class WelcomeView extends StatelessWidget {
     this.outcome,
   });
 
-  // Onboarding is Char in both themes.
   @override
-  Widget build(BuildContext c) =>
-      AlwaysChar(child: Builder(builder: _build));
-
-  Widget _build(BuildContext c) {
-    final p = P.of(c);
+  Widget build(BuildContext c) {
     final l = AppLocalizations.of(c);
     final o = outcome;
-    return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(S.x4, S.x6, S.x4, S.x8),
-          children: [
-            const OnboardingStep(1),
-            const SizedBox(height: S.x5),
-            const BandStage(height: 200),
-            const SizedBox(height: S.x5),
-            Text(l?.welcomeHeadline ?? 'Your band, decoded here',
-                style: F.t1.copyWith(color: p.ink)),
-            const SizedBox(height: S.x3),
-            Text(
-              l?.welcomeSubhead ??
-                  'Every number is computed on this phone from the raw signal.',
-              style: F.body.copyWith(color: p.ink2),
-            ),
-            const SizedBox(height: S.x6),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Pill(l?.pillLocalNoCloud ?? 'Local · no cloud', C.optimal,
-                  icon: LucideIcons.shieldCheck),
-            ),
-            const SizedBox(height: S.x8),
-            BigButton(l?.welcomeSetUpMyBand ?? 'Set up my band',
-                icon: LucideIcons.bluetooth,
-                onTap: busy ? null : onNew),
-            const SizedBox(height: S.x3),
-            // One primary path. Importing first is a real choice but a rarer
-            // one, so it is a text link rather than a second button of equal
-            // weight beside "Set up my band".
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextAction(
-                busy
-                    ? (l?.welcomeImporting ?? 'Importing…')
-                    : (l?.welcomeBringMyHistoryFirst ??
-                        'Bring my history first'),
-                busy ? null : onImport,
-                icon: LucideIcons.upload,
-              ),
-            ),
-            Text(
-              // Was: "imported days are marked as imported — they are never
-              // mixed into days this app measured itself". There is no source
-              // column on day_result or metric_series, two of the four
-              // importers write no marker at all, and imported values do feed
-              // the same rolling baselines. What IS true is the half that
-              // protects data: no import overwrites a day this band measured.
-              l?.welcomeImportFooterNote ??
-                  'A sensor export, a Locus backup or a vendor CSV. Imported days count toward your usual range, and never overwrite a day the band measured.',
-              style: F.cap.copyWith(color: p.ink3),
-            ),
-            if (busy) ...[
-              const SizedBox(height: S.x6),
-              Center(child: CircularProgressIndicator(color: p.on(C.dialStrain))),
-            ],
-            if (o != null) ...[
-              const SizedBox(height: S.x6),
-              ImportReport(o),
-            ],
-          ],
+    return OnboardingPage(
+      step: 1,
+      hero: const _DialsHero(),
+      title: l?.welcomeHeadline ?? 'Your band, decoded here',
+      titleStyle: F.display,
+      body: l?.welcomeSubhead ??
+          'Every number is computed on this phone from the raw signal.',
+      below: [
+        const SizedBox(height: S.x4),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: _LocalChip(l?.pillLocalNoCloud ?? 'Local · no cloud'),
         ),
-      ),
+        if (o != null) ...[
+          const SizedBox(height: S.x6),
+          ImportReport(o),
+        ],
+      ],
+      actions: [
+        BigButton(l?.welcomeSetUpMyBand ?? 'Set up my band',
+            icon: LucideIcons.bluetooth, onTap: busy ? null : onNew),
+        const SizedBox(height: S.x3),
+        // One primary path. Importing first is a real choice but a rarer
+        // one, so it is the soft pill under it rather than a second ink one.
+        BigButton(
+          busy
+              ? (l?.welcomeImporting ?? 'Importing…')
+              : (l?.welcomeBringMyHistoryFirst ?? 'Bring my history first'),
+          icon: LucideIcons.upload,
+          soft: true,
+          busy: busy,
+          onTap: busy ? null : onImport,
+        ),
+        const SizedBox(height: S.x3),
+        Text(
+          // Was: "imported days are marked as imported — they are never
+          // mixed into days this app measured itself". There is no source
+          // column on day_result or metric_series, two of the four
+          // importers write no marker at all, and imported values do feed
+          // the same rolling baselines. What IS true is the half that
+          // protects data: no import overwrites a day this band measured.
+          l?.welcomeImportFooterNote ??
+              'A sensor export, a Locus backup or a vendor CSV. Imported days count toward your usual range, and never overwrite a day the band measured.',
+          textAlign: TextAlign.center,
+          style: F.dTiny.copyWith(color: DC.ink3, height: 1.4),
+        ),
+      ],
     );
   }
 }
 
-/// The onboarding's picture: the Locus mark, written once in the dials'
-/// colours, over the wordmark, on a rich graded card (DESIGN.md §10.5, §14.11:
-/// the same mark the app starts on). Decorative: no semantics.
-class BandStage extends StatelessWidget {
-  final double height;
-
-  const BandStage({super.key, required this.height});
+/// "Local · no cloud": a shield in the optimal green and the words in
+/// tracked capitals, on the cards' veil.
+class _LocalChip extends StatelessWidget {
+  final String text;
+  const _LocalChip(this.text);
 
   @override
-  Widget build(BuildContext c) => Surface(
-        tone: PanelTone.rich,
-        child: ExcludeSemantics(
-          child: SizedBox(
-            height: height,
-            // At large text the wordmark grows; the pair shrinks to the stage
-            // rather than spilling out of it.
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  LocusMark(
-                    size: height * .6,
-                    animate: true,
-                    tint: LocusTint.dials,
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.fromLTRB(S.x2 + S.half, S.x2, S.x3, S.x2),
+        decoration:
+            const BoxDecoration(color: DC.weekCard, borderRadius: R.rPill),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(LucideIcons.shieldCheck, size: I.sm, color: C.optimal),
+          const SizedBox(width: S.x2),
+          Flexible(
+            child: Text(text.toUpperCase(),
+                style: F.dLabel.copyWith(color: DC.ink)),
+          ),
+        ]),
+      );
+}
+
+/// The side of the onboarding picture: 58 % of the page, never over 232.
+double onboardingHeroSize(BuildContext c) =>
+    math.min(MediaQuery.sizeOf(c).width * .58, S.x16 * 4 - S.x6);
+
+/// The welcome's picture, drawn in the app's own language: the three home
+/// dials (strain outside, recovery, sleep inside) filling once around the
+/// Locus mark as it writes itself, the wordmark under them. Decorative: the
+/// arcs are nobody's numbers, and a screen reader is told nothing.
+class _DialsHero extends StatefulWidget {
+  const _DialsHero();
+
+  @override
+  State<_DialsHero> createState() => _DialsHeroState();
+}
+
+class _DialsHeroState extends State<_DialsHero>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: Motion.write);
+
+  // Strain, recovery, sleep: how far each arc runs, and when it starts and
+  // stops within the one draw-in.
+  static const _rings = [
+    (C.dialStrain, .64, 0.0, .7),
+    (C.recGreen, .78, .15, .85),
+    (C.dialSleep, .88, .3, 1.0),
+  ];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_c.isAnimating || _c.value > 0) return;
+    if (Motion.enabled(context)) {
+      _c.forward();
+    } else {
+      _c.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final d = onboardingHeroSize(c);
+    final stroke = d * .05;
+    final step = stroke * 1.7;
+    return ExcludeSemantics(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        SizedBox.square(
+          dimension: d,
+          child: AnimatedBuilder(
+            animation: _c,
+            builder: (_, mark) => Stack(alignment: Alignment.center, children: [
+              for (var i = 0; i < _rings.length; i++)
+                SizedBox.square(
+                  dimension: d - 2 * i * step,
+                  child: CustomPaint(
+                    painter: Ring(
+                      _rings[i].$2,
+                      _rings[i].$1,
+                      DC.track,
+                      stroke: stroke,
+                      solid: true,
+                      flatStart: true,
+                      t: Ease.standard.transform(Interval(
+                              _rings[i].$3, _rings[i].$4)
+                          .transform(_c.value)),
+                    ),
                   ),
-                  const SizedBox(height: S.x5),
-                  Wordmark(color: P.of(c).ink),
-                ],
-              ),
+                ),
+              ?mark,
+            ]),
+            child: LocusMark(size: d * .3, animate: true),
+          ),
+        ),
+        const SizedBox(height: S.x6),
+        const Wordmark(color: DC.pure),
+      ]),
+    );
+  }
+}
+
+/// Every onboarding screen's frame: the dial screens' ground, the step on
+/// top, a picture taking the room that is left, then the headline, its line,
+/// anything the state adds, and the actions at the foot. Short pages keep the
+/// actions down at the thumb; long ones (large text, an import report)
+/// scroll as one.
+class OnboardingPage extends StatelessWidget {
+  /// 1-based, or null off the numbered flow.
+  final int? step;
+  final Widget? hero;
+  final String title;
+  final TextStyle? titleStyle;
+  final String? body;
+  final List<Widget> below, actions;
+
+  const OnboardingPage({
+    super.key,
+    required this.title,
+    this.step,
+    this.hero,
+    this.titleStyle,
+    this.body,
+    this.below = const [],
+    this.actions = const [],
+  });
+
+  // Char in both themes.
+  @override
+  Widget build(BuildContext c) => AlwaysChar(
+        child: Scaffold(
+          backgroundColor: DC.bgFoot,
+          body: DecoratedBox(
+            decoration: kDialGround,
+            child: SafeArea(
+              child: CustomScrollView(slivers: [
+                // The padding sits inside: a SliverPadding round a
+                // SliverFillRemaining loses its foot to the fill.
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        kDialMargin, S.x4, kDialMargin, S.x6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (step case final s?) OnboardingStep(s),
+                        if (hero case final h?)
+                          Expanded(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: S.x6),
+                              child: Center(child: h),
+                            ),
+                          )
+                        else
+                          const SizedBox(height: S.x8),
+                        Text(title,
+                            style:
+                                (titleStyle ?? F.t1).copyWith(color: DC.ink)),
+                        if (body case final b?) ...[
+                          const SizedBox(height: S.x3),
+                          Text(b, style: F.dBody.copyWith(color: DC.ink2)),
+                        ],
+                        ...below,
+                        if (hero == null) const Spacer(),
+                        if (actions.isNotEmpty) ...[
+                          const SizedBox(height: S.x8),
+                          ...actions,
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ]),
             ),
           ),
         ),
       );
 }
 
-/// Where the user is in setup: the step in tracked capitals, and a bar of one
-/// segment per step (done in the strain blue, the current one in ink, the rest
-/// faint). The words carry the meaning; the bar says nothing to a screen reader.
+/// Where the user is in setup: the step in tracked capitals on the left, and
+/// on the right one pip per step (done in the strain blue, the current one a
+/// long white bar, the rest slate). The words carry the meaning;
+/// the pips say nothing to a screen reader.
 class OnboardingStep extends StatelessWidget {
   /// 1-based: welcome, pick a band, about you.
   final int step;
@@ -689,35 +820,41 @@ class OnboardingStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext c) {
-    final p = P.of(c);
     final l = AppLocalizations.of(c);
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(
-          (l?.onboardingStepOf(step, total) ?? 'Step $step of $total')
-              .toUpperCase(),
-          style: F.caps.copyWith(color: p.ink3, letterSpacing: 1.4)),
-      const SizedBox(height: S.x3),
-      ExcludeSemantics(
-        child: Row(children: [
-          for (var i = 1; i <= total; i++) ...[
-            if (i > 1) const SizedBox(width: S.x1),
-            Expanded(
-              child: Container(
-                height: S.x1,
+    return SizedBox(
+      height: S.x6,
+      child: Row(children: [
+        Expanded(
+          child: Text(
+              (l?.onboardingStepOf(step, total) ?? 'Step $step of $total')
+                  .toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: F.dLabel.copyWith(color: DC.ink2)),
+        ),
+        ExcludeSemantics(
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            for (var i = 1; i <= total; i++) ...[
+              if (i > 1) const SizedBox(width: S.x1 + S.half),
+              AnimatedContainer(
+                duration: motion(c, Motion.slow),
+                curve: Ease.standard,
+                width: i == step ? S.x6 : S.x1 + S.half,
+                height: S.x1 + S.half,
                 decoration: BoxDecoration(
                   color: i < step
                       ? C.dialStrain
                       : i == step
-                          ? p.ink
-                          : p.ink.withValues(alpha: .12),
+                          ? DC.pure
+                          : DC.dim,
                   borderRadius: R.rPill,
                 ),
               ),
-            ),
-          ],
-        ]),
-      ),
-    ]);
+            ],
+          ]),
+        ),
+      ]),
+    );
   }
 }
 

@@ -314,6 +314,7 @@ const _notComponents = {
   'EcgWristSheet',
   // onboarding routes
   'BootSplash', 'WelcomeScreen', 'WelcomeView', 'PairingScreen', 'PairingView',
+  'OnboardingPage',
   'ProfileSetupScreen', 'ProfileSetupView',
   // profile routes
   'ProfileHome', 'ProfileHomeView', 'MoreSettings', 'MoreSettingsView',

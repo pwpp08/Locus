@@ -782,6 +782,11 @@ class DC {
   static const body = Color(0xFFC4C6C9);
   static const pure = Color(0xFFFFFFFF);
   static const scrim = Color(0xFF000000);
+
+  /// Home's sync bar, sampled off the reference: pure black, and the track
+  /// of its catching-up ring.
+  static const syncBar = Color(0xFF000000);
+  static const syncTrack = Color(0xFF333334);
   static const sheetTop = Color(0xFF293741);
   static const sheetFoot = Color(0xFF182226);
   static const chip = Color(0xFF3A4249);

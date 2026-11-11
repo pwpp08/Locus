@@ -706,11 +706,16 @@ class _CircadianDetailState extends State<CircadianDetail> {
                 // overflowed on the rows that were already here — "Regularity
                 // index / 62 / 100" is enough on its own — so it is not the
                 // SLP-08 rows that need it, it is the table.
+                // Aligned inside it: a loose Flexible shrinks to the value and
+                // leaves the rest of its share at the row's end, mid-row.
                 Flexible(
-                  child: Text(rows[i].$2,
-                      textAlign: TextAlign.right,
-                      style: F.body
-                          .copyWith(color: p.ink2, fontWeight: FontWeight.w600)),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(rows[i].$2,
+                        textAlign: TextAlign.right,
+                        style: F.body.copyWith(
+                            color: p.ink2, fontWeight: FontWeight.w600)),
+                  ),
                 ),
               ]),
             ),

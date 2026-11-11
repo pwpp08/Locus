@@ -242,6 +242,11 @@ class TrainingReadinessView extends StatelessWidget {
       final h = r.recoveryHours;
       return h == null ? '--' : recoveryTimeText(h);
     }
+    // The ratio the row is named for, not its 0–100 share of the score.
+    if (f == ReadinessFactor.load) {
+      final x = r.loadRatio;
+      return x == null ? '--' : x.toStringAsFixed(2);
+    }
     return r.factors[f]?.toString() ?? '--';
   }
 
@@ -254,7 +259,8 @@ class TrainingReadinessView extends StatelessWidget {
         'How ready today is for hard training, 0 to 100. Each row is one '
         'thing that feeds it, scored 0 to 100: last night’s sleep and the '
         'two nights before, your recovery, your HRV against its usual range, '
-        'your last week’s load against the six before it, your stress '
+        'your load ratio (the last week’s load over the last six weeks’; up '
+        'to 1.30 is productive, past it the score falls, to 0 at 2.00), your stress '
         'over the last three days, and the recovery time still owed from '
         'recent sessions. The score is their average, pulled toward the '
         'weakest, so one poor input holds the day back. A row with nothing '

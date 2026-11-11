@@ -319,6 +319,31 @@ void main() {
       expect((load['tsb'] as num).toDouble(), closeTo(ctl - atl, 1e-4));
     });
 
+    test('days before load was first measured are unknown, not rest', () {
+      // 60 days of history with no TRIMP (imported, or before the band), then
+      // 21 days of steady load. Counting the 60 as rest days held CTL near 0
+      // while ATL filled, so acute ÷ chronic read past 2: "overreaching".
+      final days = <Map<String, dynamic>>[];
+      var dt = DateTime(2024, 1, 1);
+      for (var i = 0; i < 81; i++) {
+        days.add({
+          'date': '${dt.year}-${dt.month.toString().padLeft(2, '0')}'
+              '-${dt.day.toString().padLeft(2, '0')}',
+          'rhr': 55.0,
+          'rmssd': 45.0,
+          if (i >= 60) 'trimp': 120.0,
+        });
+        dt = DateTime(dt.year, dt.month, dt.day + 1);
+      }
+      final load = ((buildCrossDayBundle(days, const {})['load'] as Map)['value']
+              as Map)
+          .cast<String, dynamic>();
+      final ctl = (load['ctl'] as num).toDouble();
+      final atl = (load['atl'] as num).toDouble();
+      // Steady load from the first measured day: the two agree.
+      expect(atl / ctl, closeTo(1.0, .05));
+    });
+
     test('an every-day-trained series is unchanged by densification', () {
       // No calendar gaps and a TRIMP on every day → the dense series IS the
       // per-row series, so this pins that the fix is a no-op for that case.

@@ -853,11 +853,26 @@ List<double> _denseDailyTrimp(List<String> dates, List<double?> trimps) {
   // which is the fabrication this whole pass exists to remove. Abstain by
   // handing back an empty series and let the load model decline.
   if (!trimps.any((t) => t != null)) return const <double>[];
+  // The series starts at the first day load was MEASURED. The days before it
+  // (imported history with a strain but no TRIMP, the days before the band
+  // was worn) are unknown, not rest: counting them as 0-load days held the
+  // 42-day chronic load near zero while the 7-day acute load filled in a
+  // week, so a new user read as overreaching (acute ÷ chronic past 2) with
+  // training readiness's load factor at 0. Gaps AFTER it stay rest days.
+  String? firstLoaded;
+  for (var i = 0; i < dates.length && i < trimps.length; i++) {
+    final date = dates[i];
+    if (trimps[i] == null || DateTime.tryParse(date) == null) continue;
+    if (firstLoaded == null || date.compareTo(firstLoaded) < 0) {
+      firstLoaded = date;
+    }
+  }
   final byDate = <String, double>{};
   String? first, last;
   for (var i = 0; i < dates.length && i < trimps.length; i++) {
     final date = dates[i];
     if (date.isEmpty || DateTime.tryParse(date) == null) continue;
+    if (firstLoaded != null && date.compareTo(firstLoaded) < 0) continue;
     byDate[date] = trimps[i] ?? 0.0;
     first ??= date;
     if (last == null || date.compareTo(last) > 0) last = date;

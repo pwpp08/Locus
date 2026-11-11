@@ -274,6 +274,20 @@ List<(String, String)> reportPeriods(ReportSpan span, String first, String today
   return out;
 }
 
+/// Every day any of [series] has a value on.
+Set<String> reportDataDays(Map<String, Map<String, double>> series) =>
+    {for (final m in series.values) ...m.keys};
+
+/// Whether the period [from]–[to] has a stored value on a day up to [today]:
+/// the periods the list offers and the pager steps between.
+bool periodHasData(Set<String> dataDays, String from, String to, String today) {
+  for (final d in reportDays(from, to)) {
+    if (d.compareTo(today) > 0) break;
+    if (dataDays.contains(d)) return true;
+  }
+  return false;
+}
+
 /// The mean recovery of the period [from]–[to], for the list's rings.
 double? meanOver(Map<String, double> m, String from, String to) {
   final v = [for (final d in reportDays(from, to)) ?m[d]];

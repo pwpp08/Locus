@@ -46,6 +46,7 @@ import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
 import '../onboarding/pairing.dart' show PairingScreen;
 import '../onboarding/welcome.dart' show OnboardingStep;
+import '../screens/dial_parts.dart' show kDialGround, kDialMargin;
 import '../ui2.dart';
 import '../profile/devices.dart' show kPairableSensors, sensorIcon;
 import '../profile/pair_sensor.dart' show PairSensorScreen;
@@ -339,16 +340,19 @@ class DevicePickerView extends StatelessWidget {
     final l = AppLocalizations.of(c);
     final busy = busyRemoteId != null;
     return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(
+      backgroundColor: DC.bgFoot,
+      body: DecoratedBox(
+        decoration: kDialGround,
+        child: SafeArea(
         child: Column(children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: S.x4),
+            padding: const EdgeInsets.symmetric(horizontal: kDialMargin),
             child: NavBar(title),
           ),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
+              padding:
+                  const EdgeInsets.fromLTRB(kDialMargin, 0, kDialMargin, S.x10),
               children: [
                 // Step 2 only inside onboarding, which is the one caller that
                 // can skip.
@@ -429,18 +433,20 @@ class DevicePickerView extends StatelessWidget {
                   const SizedBox(height: S.x5),
                   BigButton(l?.pairingSkipForNow ?? 'Skip for now',
                       color: C.dialStrain, soft: true, onTap: onSkip),
-                  const SizedBox(height: S.x2),
+                  const SizedBox(height: S.x3),
                   Text(
                     l?.pairingSkipNote ??
                         'The app opens without a band. Nothing is measured until '
                             'one is paired.',
-                    style: F.cap.copyWith(color: p.ink3),
+                    textAlign: TextAlign.center,
+                    style: F.dTiny.copyWith(color: DC.ink3, height: 1.4),
                   ),
                 ],
                 ],
               ),
             ),
           ],
+        ),
         ),
       ),
     );

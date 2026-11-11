@@ -169,6 +169,22 @@ bool cycleTrackingOf(BuildContext c) {
 
 // ═══════════════════ the screen ═══════════════════
 
+/// A day for Home to show, asked for by another screen (a report's best and
+/// worst day). Home takes it and clears it; see [openDayOnHome].
+final homeDayRequest = ValueNotifier<String?>(null);
+
+/// Back to the Home tab, showing [day] as its pager would.
+void openDayOnHome(BuildContext c, String day) {
+  homeDayRequest.value = day;
+  final app = c.read<AppState?>();
+  if (app != null) {
+    // Tab 0 is Home; the shell pops to itself and switches.
+    app.navRequest.value = 0;
+  } else {
+    Navigator.of(c).popUntil((r) => r.isFirst);
+  }
+}
+
 class HomeScreen extends StatefulWidget {
   final HomeData? data;
   final int? hour;
@@ -259,9 +275,28 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
 
   @override
   void dispose() {
+    homeDayRequest.removeListener(_dayAsked);
     _syncTapTimer?.cancel();
     _scroll.dispose();
     super.dispose();
+  }
+
+  String? _takeAsked() {
+    final d = homeDayRequest.value;
+    if (d != null) homeDayRequest.value = null;
+    return d;
+  }
+
+  /// Taken after the frame, and only while still mounted: switching tabs from
+  /// code re-keys the shell, and the Home being replaced must not eat the
+  /// request the new one opens on.
+  void _dayAsked() {
+    if (homeDayRequest.value == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final d = _takeAsked();
+      if (d != null) _goDay(d);
+    });
   }
 
   @override
@@ -282,6 +317,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       _loading = false;
       return;
     }
+    _day = _takeAsked();
+    homeDayRequest.addListener(_dayAsked);
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
@@ -755,6 +792,20 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         padding: pad.copyWith(bottom: S.navClear(c)),
         children: [
       _header(c, d.dayId),
+      // Today's sync bar, once the band has sent anything at all.
+      if (isToday)
+        if (lastDataAtOf(c) case final at?) ...[
+          const SizedBox(height: S.x2),
+          HomeSyncBar(
+            state: syncBarStateOf(
+                syncing: syncingNowOf(c), at: at, now: DateTime.now()),
+            syncedTo: syncedToText(at, todayLabel(widget.now), l),
+            onTap: switch (syncOf(c)) {
+              final sync? => () => _tapSync(sync),
+              null => null,
+            },
+          ),
+        ],
       if (rebuilt != null) ...[rebuilt, const SizedBox(height: S.x3)],
       ...?_bodyWatch(c, d, todayLabel(widget.now)),
       const SizedBox(height: S.x5),
@@ -1033,11 +1084,12 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
                             stroke: stroke,
                             solid: true,
                             flatStart: true,
-                            band: target,
+                            band: target?.band,
                             bandColor: Color.alphaBlend(
                                 p.ink.withValues(alpha: .24), p.track),
-                            tick: target?.$1,
-                            tickColor: p.ink),
+                            tick: target?.optimal,
+                            tickColor: p.ink,
+                            tickWidth: .26),
                   ),
                   Opacity(
                     opacity: (1 - e * 2.4).clamp(0.0, 1.0),

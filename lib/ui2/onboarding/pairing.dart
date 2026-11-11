@@ -19,8 +19,9 @@ import '../../ble/ble_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
 import '../../state/prefs.dart';
+import '../screens/dial_parts.dart' show dialCard, kDialPad;
 import '../ui2.dart';
-import 'welcome.dart' show BandStage;
+import 'welcome.dart' show OnboardingPage, onboardingHeroSize;
 
 /// Onboarding steps the user deliberately walked past.
 ///
@@ -186,14 +187,9 @@ class PairingView extends StatelessWidget {
     this.onSkip,
   });
 
-  // Char in both themes: connecting a band is the onboarding flow, wherever
-  // it was opened from.
   @override
-  Widget build(BuildContext c) =>
-      AlwaysChar(child: Builder(builder: _build));
-
-  Widget _build(BuildContext c) {
-    final p = P.of(c);
+  Widget build(BuildContext c) {
+    final l = AppLocalizations.of(c);
     final busy = phase == PairPhase.scanning;
     // The copy for this one lives in the BLE layer, so this screen and the
     // Devices screen cannot drift into two different accounts of one state.
@@ -201,61 +197,40 @@ class PairingView extends StatelessWidget {
         ? localizedBandStatus(
             c, bandStatusFor(connection: 'disconnected', blocker: blocker))
         : null;
-    return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(S.x4, S.x8, S.x4, S.x8),
-          children: [
-            // The band itself where the phone can reach it; the radio's own
-            // icon only when the phone is what is wrong. Charger view while
-            // it is being woken, top-down while it is searched for.
-            if (blocked != null)
-              Icon(LucideIcons.bluetoothOff, size: I.xl, color: p.on(C.dialStrain))
-            else
-              switch (phase) {
-                PairPhase.scanning => const BandStage(height: 180),
-                PairPhase.paired => const BandStage(height: 180),
-                _ => const BandStage(height: 140),
-              },
-            const SizedBox(height: S.x5),
-            Text(_title(c, phase, blocker),
-                style: F.t1.copyWith(color: p.ink)),
-            const SizedBox(height: S.x3),
-            Text(_body(c, phase, blocker), style: F.body.copyWith(color: p.ink2)),
-            if (blocked?.fix != null) ...[
-              const SizedBox(height: S.x3),
-              Text(blocked!.fix!,
-                  style: F.body.copyWith(
-                      color: p.on(C.dialStrain), fontWeight: FontWeight.w600)),
-            ],
-            if (busy) ...[
-              const SizedBox(height: S.x8),
-              Center(child: CircularProgressIndicator(color: p.on(C.dialStrain))),
-            ],
-            ..._advice(c, phase, detail),
-            const SizedBox(height: S.x8),
-            BigButton(_cta(c, phase),
-                icon: LucideIcons.radio,
-                color: C.dialStrain,
-                onTap: busy ? null : onPair),
-            if (onSkip != null && phase != PairPhase.paired) ...[
-              const SizedBox(height: S.x3),
-              // Never disabled, not even mid-scan: waiting out a scan you
-              // already know will fail is exactly the trap this exists for.
-              BigButton(AppLocalizations.of(c)?.pairingSkipForNow ?? 'Skip for now',
-                  color: C.dialStrain, soft: true, onTap: onSkip),
-              const SizedBox(height: S.x2),
-              Text(
-                AppLocalizations.of(c)?.pairingSkipNote ??
-                    'The app opens without a band. Nothing is measured until one '
-                        'is paired.',
-                style: F.cap.copyWith(color: p.ink3),
-              ),
-            ],
-          ],
-        ),
-      ),
+    return OnboardingPage(
+      hero: _ScanRings(phase),
+      title: _title(c, phase, blocker),
+      body: _body(c, phase, blocker),
+      below: [
+        if (blocked?.fix case final fix?) ...[
+          const SizedBox(height: S.x3),
+          Text(fix, style: F.dBody.copyWith(color: C.amber)),
+        ],
+        ..._advice(c, phase, detail),
+      ],
+      actions: [
+        BigButton(_cta(c, phase),
+            icon: phase == PairPhase.paired
+                ? LucideIcons.check
+                : LucideIcons.bluetooth,
+            busy: busy,
+            onTap: busy ? null : onPair),
+        if (onSkip != null && phase != PairPhase.paired) ...[
+          const SizedBox(height: S.x3),
+          // Never disabled, not even mid-scan: waiting out a scan you
+          // already know will fail is exactly the trap this exists for.
+          BigButton(l?.pairingSkipForNow ?? 'Skip for now',
+              soft: true, onTap: onSkip),
+          const SizedBox(height: S.x3),
+          Text(
+            l?.pairingSkipNote ??
+                'The app opens without a band. Nothing is measured until one '
+                    'is paired.',
+            textAlign: TextAlign.center,
+            style: F.dTiny.copyWith(color: DC.ink3, height: 1.4),
+          ),
+        ],
+      ],
     );
   }
 
@@ -370,12 +345,159 @@ class _Detail extends StatelessWidget {
   const _Detail(this.text);
 
   @override
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.all(kDialPad),
+        decoration: dialCard(),
+        child: Text(text, style: F.dTiny.copyWith(color: DC.ink3, height: 1.4)),
+      );
+}
+
+/// The pairing picture: the phone's reach drawn as four hairline rings
+/// around a disc holding the state's glyph. While the scan runs, two rings
+/// ripple out from the disc and fade at the edge, half a beat apart; reduced
+/// motion keeps them still. Paired fills the disc in the optimal green.
+/// Decorative: the title says the same thing in words.
+class _ScanRings extends StatefulWidget {
+  final PairPhase phase;
+  const _ScanRings(this.phase);
+
+  @override
+  State<_ScanRings> createState() => _ScanRingsState();
+}
+
+class _ScanRingsState extends State<_ScanRings>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: Motion.logo)
+        ..addStatusListener((s) {
+          if (s == AnimationStatus.completed && _scanning) _c.forward(from: 0);
+        });
+
+  bool get _scanning =>
+      widget.phase == PairPhase.scanning && Motion.enabled(context);
+
+  void _sync() {
+    if (_scanning) {
+      if (!_c.isAnimating) _c.forward(from: 0);
+    } else {
+      _c.stop();
+      _c.value = 0;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_ScanRings old) {
+    super.didUpdateWidget(old);
+    if (old.phase != widget.phase) _sync();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext c) {
-    final p = P.of(c);
-    return Surface(
-      elevation: 0,
-      color: p.card2,
-      child: Text(text, style: F.cap.copyWith(color: p.ink3)),
+    final d = onboardingHeroSize(c);
+    final phase = widget.phase;
+    final (IconData glyph, Color tint) = switch (phase) {
+      PairPhase.idle => (LucideIcons.bluetooth, C.dialStrain),
+      PairPhase.scanning => (LucideIcons.bluetoothSearching, C.dialStrain),
+      PairPhase.bluetoothBlocked => (LucideIcons.bluetoothOff, C.amber),
+      PairPhase.notFound => (LucideIcons.searchX, DC.ink2),
+      PairPhase.bondRefused => (LucideIcons.unlink, DC.ink2),
+      PairPhase.cancelled => (LucideIcons.bluetooth, DC.ink2),
+      PairPhase.failed => (LucideIcons.triangleAlert, DC.ink2),
+      PairPhase.paired => (LucideIcons.check, DC.bgFoot),
+    };
+    final paired = phase == PairPhase.paired;
+    return ExcludeSemantics(
+      child: SizedBox.square(
+        dimension: d,
+        child: Stack(alignment: Alignment.center, children: [
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _c,
+              builder: (_, _) => CustomPaint(
+                painter: _ScanPaint(
+                  t: _c.value,
+                  pulsing: _c.isAnimating,
+                  pulse: paired ? C.optimal : C.dialStrain,
+                  lit: paired,
+                ),
+              ),
+            ),
+          ),
+          AnimatedContainer(
+            duration: motion(c, Motion.slow),
+            width: d * _kDisc,
+            height: d * _kDisc,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: paired ? C.optimal : DC.weekCard,
+            ),
+            child: Icon(glyph, size: I.xl, color: tint),
+          ),
+        ]),
+      ),
     );
   }
+}
+
+/// The disc's share of the picture's side.
+const _kDisc = .34;
+
+class _ScanPaint extends CustomPainter {
+  final double t;
+  final bool pulsing, lit;
+  final Color pulse;
+
+  _ScanPaint(
+      {required this.t,
+      required this.pulsing,
+      required this.pulse,
+      required this.lit});
+
+  @override
+  void paint(Canvas cv, Size s) {
+    final c = s.center(Offset.zero);
+    final outer = s.shortestSide / 2 - S.hair;
+    final inner = s.shortestSide * _kDisc / 2;
+    final line = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = S.hair;
+    // Four still rings, fainter the farther out they sit.
+    for (var i = 1; i <= 4; i++) {
+      final r = inner + (outer - inner) * i / 4;
+      cv.drawCircle(
+          c,
+          r,
+          line
+            ..color = (lit ? C.optimal : DC.pure)
+                .withValues(alpha: .16 - .03 * i));
+    }
+    if (!pulsing) return;
+    // Two ripples, half a cycle apart, growing from the disc and fading out.
+    for (final phase in [t, (t + .5) % 1]) {
+      final k = Curves.easeOut.transform(phase);
+      cv.drawCircle(
+          c,
+          inner + (outer - inner) * k,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = S.half
+            ..color = pulse.withValues(alpha: .7 * (1 - k)));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ScanPaint o) =>
+      o.t != t || o.pulsing != pulsing || o.pulse != pulse || o.lit != lit;
 }
