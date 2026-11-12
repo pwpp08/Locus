@@ -9684,6 +9684,7 @@ class DerivationEngine {
       rhrScalar: inp.rhr,
       saved: inp.savedSessions,
       habits: inp.habitSessions,
+      stepSpans: inp.stepSpans,
       date: inp.date,
       dayEndSec: inp.dayEndSec,
       dataNowSec: inp.dataNowSec,
@@ -9773,6 +9774,7 @@ class DerivationEngine {
     required double? rhrScalar,
     required List<Map<String, dynamic>> saved,
     List<HabitSession> habits = const [],
+    List<List<int>> stepSpans = const [],
     required String date,
     required int dayEndSec,
     required int dataNowSec,
@@ -9906,6 +9908,7 @@ class DerivationEngine {
       for (final w in detectMovementBouts(
         tsSec: s.tsSec,
         stepCount: s.stepCount,
+        spans: stepSpans,
         excluded: [
           for (final sp in savedSpans) [sp.startSec, sp.endSec],
           for (final b in bouts) [b.startSec, b.endSec],

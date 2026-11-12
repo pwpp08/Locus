@@ -353,22 +353,30 @@ void main() {
     expect((await repo.getChart('recovery'))['points'], hasLength(1));
   });
 
-  test('recovery push waits for the same settled night Home does', () {
-    final wake = nowSec - 2 * 60 * 60;
-    final payload = {
-      'sleep': {
-        'window': {
-          'value': {'offset_ms': wake * 1000},
+  int todayAt(int h, int m) {
+    final d = DateTime.now();
+    return DateTime(d.year, d.month, d.day, h, m).millisecondsSinceEpoch ~/
+        1000;
+  }
+
+  Map<String, dynamic> windowTo(int wake) => {
+        'sleep': {
+          'window': {
+            'value': {'offset_ms': wake * 1000},
+          },
         },
-      },
-    };
+      };
+
+  test('recovery push waits for the same settled night Home does', () {
+    final wake = todayAt(7, 0);
+    final payload = windowTo(wake);
     // Drain stopped at the wake: the readiness is off a partial night.
     expect(
       recoveryNightSettled(
         dayId: todayLabel(),
         payload: payload,
         dataEdgeSec: wake,
-        nowSec: nowSec,
+        nowSec: wake + 2 * 3600,
       ),
       isFalse,
     );
@@ -377,7 +385,33 @@ void main() {
         dayId: todayLabel(),
         payload: payload,
         dataEdgeSec: wake + 61 * 60,
-        nowSec: nowSec,
+        nowSec: wake + 2 * 3600,
+      ),
+      isTrue,
+    );
+  });
+
+  test('a wake before 03:00 is a night still going, not a recovery to push',
+      () {
+    // Asleep at midnight, awake a while at 01:45, asleep again to 08:30: the
+    // first block settled at 02:17 and pushed "slept 3h 28m".
+    final wake = todayAt(1, 45);
+    expect(
+      recoveryNightSettled(
+        dayId: todayLabel(),
+        payload: windowTo(wake),
+        dataEdgeSec: wake + 32 * 60,
+        nowSec: wake + 32 * 60,
+      ),
+      isFalse,
+    );
+    // Ended by hand ("I'm awake"), the wake is a fact whatever the hour.
+    expect(
+      recoveryNightSettled(
+        dayId: todayLabel(),
+        payload: {...windowTo(wake), 'sleep_source': 'confirmed'},
+        dataEdgeSec: wake + 32 * 60,
+        nowSec: wake + 32 * 60,
       ),
       isTrue,
     );

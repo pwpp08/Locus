@@ -1468,6 +1468,25 @@ List<(double, double)>? zoneSpans(List<HrPoint> pts, List<int>? zoneLo, int z) {
   return out;
 }
 
+/// What the chart lights for zone [z]: where the drawn line is in the zone,
+/// plus every per-second run ([runs]) the line does not reach. The line is
+/// drawn from averaged buckets (about 24 s on an hour), so a short peak into
+/// zone 4 never crosses the zone's edge on it, though the zone card counts
+/// it. Such a run is still lit, as a column under the line.
+@visibleForTesting
+List<(double, double)> litSpans(List<HrPoint> pts, List<int>? zoneLo,
+    List<(int, int)> runs, int z, int v0, int v1) {
+  final drawn = zoneSpans(pts, zoneLo, z) ?? const [];
+  return [
+    ...drawn,
+    for (final (ra, rb) in runs)
+      if (rb >= v0 &&
+          ra <= v1 &&
+          !drawn.any((s) => s.$1 < rb && s.$2 > ra))
+        (ra.toDouble(), rb.toDouble()),
+  ];
+}
+
 class _ChartPaint extends CustomPainter {
   final WorkoutDetail d;
   final int? zone;
@@ -1603,11 +1622,7 @@ class _ChartPaint extends CustomPainter {
           ..lineTo(xOf(pts.last.t), plot.bottom)
           ..lineTo(xOf(pts.first.t), plot.bottom)
           ..close();
-        final spans = zoneSpans(pts, d.zoneLo, z) ??
-            [
-              for (final (ra, rb) in d.zoneRuns[z])
-                if (rb >= v0 && ra <= v1) (ra.toDouble(), rb.toDouble()),
-            ];
+        final spans = litSpans(pts, d.zoneLo, d.zoneRuns[z], z, v0, v1);
         for (final (ta, tb) in spans) {
           final x0 = xOf(ta), x1 = math.max(xOf(tb), x0 + 1.5);
           canvas.save();

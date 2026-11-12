@@ -22,12 +22,14 @@ import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../compute/whoop_scores.dart' show whoopMonitorReading;
+import '../../compute/whoop_scores.dart'
+    show kWhoopMonitorMinNights, whoopMonitorReading;
 import '../../data/day_label.dart';
 import '../../data/journal_fields.dart' show formatMinuteOfDay;
 import '../../models/metric.dart';
 import '../../state/app_state.dart';
 import '../ui2.dart';
+import 'calibration.dart' show CalibrationStrip, Milestone;
 import 'home_screen.dart';
 import 'metric_detail.dart';
 import 'trend_view.dart'
@@ -108,7 +110,11 @@ final List<_Vital> _emptyVitals = [
 
 class _MonitorData {
   final List<_Vital> vitals;
-  const _MonitorData({this.vitals = const []});
+
+  /// Nights of resting heart rate before today: the usual ranges need
+  /// [kWhoopMonitorMinNights] of them. Null when nothing was read.
+  final int? nights;
+  const _MonitorData({this.vitals = const [], this.nights});
 
   static Future<_MonitorData> load(BuildContext c) async {
     final repo = repoOf(c);
@@ -163,7 +169,12 @@ class _MonitorData {
         spo2 == null ? null : (lo: 95, hi: 100, flagged: spo2 < 95);
 
     final e = _emptyVitals;
+    var nights = 0;
+    try {
+      nights = math.max(0, seriesOf(await repo.getChart('resting_hr')).length - 1);
+    } catch (_) {}
     return _MonitorData(
+      nights: nights,
       vitals: [
         _Vital('resp_rate', _respLabel, e[0].icon,
             present: resp != null,
@@ -345,6 +356,19 @@ class _HealthMonitorScreenState extends State<HealthMonitorScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: S.x4),
                   child: Column(children: [
+                    if (_d?.nights case final n?
+                        when n < kWhoopMonitorMinNights &&
+                            !vitals.any((v) => v.range != null)) ...[
+                      CalibrationStrip(Milestone(
+                        title: 'Health monitor',
+                        about: '',
+                        icon: LucideIcons.heartPulse,
+                        need: kWhoopMonitorMinNights,
+                        have: n,
+                        done: false,
+                      )),
+                      const SizedBox(height: S.x4),
+                    ],
                     for (var i = 0; i < vitals.length; i += 2) ...[
                       if (i > 0) const SizedBox(height: S.x3),
                       _TileRow(vitals.sublist(i, math.min(i + 2, vitals.length))),

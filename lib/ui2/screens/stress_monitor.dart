@@ -20,6 +20,7 @@ import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../activity/catalogue.dart' show activityByName;
 import '../ui2.dart';
+import 'calibration.dart' show CalibrationStrip, Milestone;
 import 'home_screen.dart' show monthShortName, pad, repoOf, weekdayShortName;
 import 'trend_view.dart' show shiftDay;
 
@@ -71,6 +72,10 @@ class StressMonitorData {
   /// with fewer than three days to average.
   final ({double low, double medium, double high})? typical;
 
+  /// With no baseline yet: how many of the days before it could use, out of
+  /// [kStressBaselineDays].
+  final int usableDays;
+
   const StressMonitorData({
     required this.day,
     required this.scores,
@@ -79,6 +84,7 @@ class StressMonitorData {
     this.sessions = const [],
     this.minutes = (low: 0, medium: 0, high: 0),
     this.typical,
+    this.usableDays = 0,
   });
 
   /// The last minute that has a score: where the day "is" for the gauge.
@@ -211,7 +217,11 @@ class StressSource {
     final prior = [for (final d in fetched.skip(1)) ?d];
     final baseline = stressBaseline(prior);
     if (today == null || baseline == null) {
-      return StressMonitorData(day: day, scores: List.filled(1440, null), baseline: baseline);
+      return StressMonitorData(
+          day: day,
+          scores: List.filled(1440, null),
+          baseline: baseline,
+          usableDays: stressUsableDays(prior));
     }
     final scores = stressScores(today, baseline);
 
@@ -363,13 +373,30 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
               const StatusCard('No data', 'Nothing is stored for this day yet.',
                   fix: '', icon: LucideIcons.brain)
             else if (d.baseline == null)
-              const StatusCard(
-                'Building your baseline',
-                'Stress is read against your own last 14 days, so it needs at '
-                    'least three of them with quiet, awake heart rate and HRV. '
-                    'Wear the band through a few more days and it will appear.',
-                fix: '',
-                icon: LucideIcons.brain,
+              Surface(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('CALIBRATING',
+                          style: F.caps.copyWith(
+                              color: p.ink, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: S.x2),
+                      Text(
+                          'Stress is read against your own last 14 days, so '
+                          'it needs at least three of them with quiet, awake '
+                          'heart rate and HRV.',
+                          style: F.cap.copyWith(color: p.ink2)),
+                      const SizedBox(height: S.x4),
+                      CalibrationStrip(Milestone(
+                        title: 'Stress monitor',
+                        about: '',
+                        icon: LucideIcons.brain,
+                        need: kStressBaselineDays,
+                        have: d.usableDays,
+                        days: true,
+                        done: false,
+                      )),
+                    ]),
               )
             else if (last == null)
               const StatusCard('No heart rate on this day',

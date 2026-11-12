@@ -32,13 +32,44 @@ void main() {
     expect(b.single.sport, 'running');
   });
 
-  test('a short stroll and a gen4 band with no counter propose nothing', () {
-    final w = walk(t0, 6, 110);
+  test('a four-minute stroll proposes nothing; five minutes is a walk', () {
+    final w = walk(t0, 4, 110);
     expect(detectMovementBouts(tsSec: w.ts, stepCount: w.steps), isEmpty);
+    final five = walk(t0, 5, 110);
+    expect(detectMovementBouts(tsSec: five.ts, stepCount: five.steps),
+        hasLength(1));
+  });
+
+  test("a gen4 band with no counter reads the phone's 5-minute slices", () {
     final g4 = walk(t0, 30, 110);
+    final none = List.filled(g4.ts.length, -1);
+    expect(detectMovementBouts(tsSec: g4.ts, stepCount: none), isEmpty,
+        reason: 'no counter and no spans: no claim');
+    // 07:40-07:50 walking at 110 spm, then a still slice.
+    final spans = [
+      [t0, t0 + 300, 550],
+      [t0 + 300, t0 + 600, 550],
+      [t0 + 600, t0 + 900, 20],
+    ];
+    final b = detectMovementBouts(tsSec: g4.ts, stepCount: none, spans: spans);
+    expect(b, hasLength(1));
+    expect(b.single.startSec, t0);
+    expect(b.single.endSec, t0 + 600);
+    expect(b.single.sport, 'walking');
+    expect(b.single.steps, 1100);
+  });
+
+  test('an hour of steps spread over the hour is not an hour-long walk', () {
+    // 4,500 steps in one hourly row: 75 spm on average, but nobody can say
+    // when they were taken.
+    final g4 = walk(t0, 60, 110);
     expect(
         detectMovementBouts(
-            tsSec: g4.ts, stepCount: List.filled(g4.ts.length, -1)),
+            tsSec: g4.ts,
+            stepCount: List.filled(g4.ts.length, -1),
+            spans: [
+              [t0, t0 + 3600, 4500],
+            ]),
         isEmpty);
   });
 

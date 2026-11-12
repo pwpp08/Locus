@@ -117,6 +117,22 @@ void main() {
     expect(zoneSpans(pts, null, 1), isNull, reason: 'no edges, no claim');
   });
 
+  test('a peak the averaged line hides is still lit from its seconds', () {
+    const lo = [100, 121, 141, 162, 182];
+    // 24 s buckets: the line tops out at 158, under zone 4's 162, while the
+    // band's own seconds spent 22 s up there.
+    final pts = <HrPoint>[(t: 0, v: 150.0), (t: 24, v: 158.0), (t: 48, v: 150.0)];
+    const runs = [(20, 42)];
+    expect(zoneSpans(pts, lo, 3), isEmpty);
+    expect(litSpans(pts, lo, runs, 3, 0, 100), [(20.0, 42.0)]);
+    // Out of view: nothing.
+    expect(litSpans(pts, lo, runs, 3, 50, 100), isEmpty);
+    // Where the line does reach the zone, the line's own crossing wins.
+    final high = <HrPoint>[(t: 0, v: 160.0), (t: 24, v: 166.0), (t: 48, v: 160.0)];
+    expect(litSpans(high, lo, runs, 3, 0, 100), hasLength(1));
+    expect(litSpans(high, lo, runs, 3, 0, 100).single.$1, closeTo(8, 1e-9));
+  });
+
   setUpAll(loadAppFonts);
   setUp(() => SharedPreferences.setMockInitialValues({}));
 

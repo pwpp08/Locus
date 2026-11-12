@@ -120,10 +120,11 @@ void main() {
     expect(find.byIcon(LucideIcons.bike), findsOneWidget);
   });
 
-  testWidgets('with too little history it says it is building a baseline',
+  testWidgets('with too little history it says it is still calibrating',
       (t) async {
     await _show(t, _Repo(days: 2));
-    expect(find.text('Building your baseline'), findsOneWidget);
+    expect(find.text('CALIBRATING'), findsOneWidget);
+    expect(find.textContaining('more day'), findsOneWidget);
     expect(find.text('TOTAL DAY'), findsNothing);
     expect(find.text('--'), findsWidgets);
   });

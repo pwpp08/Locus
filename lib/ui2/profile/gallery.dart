@@ -58,6 +58,8 @@ import '../onboarding/welcome.dart'
 // Screens are deliberately not re-exported from the ui2 barrel (see the
 // barrel test), so their components are imported by path.
 import '../screens/screens.dart';
+import '../screens/calibration.dart';
+import '../onboarding/what_to_expect.dart' show NightWheel;
 import '../ui2.dart';
 import 'devices.dart';
 import 'profile.dart';
@@ -1774,6 +1776,24 @@ Map<String, Widget> _stateCases() => {
             shiftDay('2026-08-16', i - 6): v,
         },
       ),
+      'strain_recovery_calibrating': StrainRecoveryCard(
+        days: [for (var i = 6; i >= 0; i--) shiftDay('2026-08-16', -i)],
+        strain: {shiftDay('2026-08-16', 0): 9.4},
+        recovery: const {},
+        calibrating: const Calibration(nights: 3, days: 3).milestones[3],
+      ),
+      'segment_bar': const SegmentBar(count: 4, filled: 1),
+      'calibration_strip':
+          CalibrationStrip(const Calibration(nights: 8, days: 8).milestones[4]),
+      'calibration_ring': const CalibrationRing(nights: 1, total: 14),
+      'calibration_card':
+          const CalibrationCard(Calibration(nights: 1, days: 1, slept: true)),
+      'night_pips': const NightPips(nights: 1, total: 14),
+      'milestone_unlocked': MilestoneCard(
+          const Calibration(nights: 1, days: 1, slept: true).milestones[0]),
+      'milestone_locked':
+          MilestoneCard(const Calibration(nights: 1, days: 1).milestones[3]),
+      'night_wheel': const NightWheel(nights: 0),
       'stat_icons': const Row(mainAxisSize: MainAxisSize.min, children: [
         StatIcon(StatMark.zonesLow, color: C.n400),
         SizedBox(width: S.x3),

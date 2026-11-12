@@ -9,8 +9,6 @@ import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
-import 'package:openstrap_analytics/onehz.dart'
-    show readinessCompositeMinBaseline;
 import 'package:provider/provider.dart';
 
 import '../../compute/findings.dart' show isRecentFindingDate;
@@ -39,6 +37,7 @@ import '../profile/wearable_numbers.dart'
 import '../ui2.dart';
 import '../../ai/briefing.dart' show BriefingPeriod, currentBriefingPeriod;
 import 'add_activity.dart' show openAddActivity;
+import 'calibration.dart' show Calibration, CalibrationCard;
 import 'coach.dart' show CoachScreen;
 import 'day_heart.dart';
 import 'detected_activities.dart';
@@ -738,7 +737,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           }),
         if (!_loading && !_failed && widget.data == null) ...[
           const SizedBox(height: S.x3),
-          firstWeekCard(c, days: _days.length, strainScored: false),
+          CalibrationCard(Calibration.of(days: _days.length)),
         ],
         // Not over the mark: a read that failed still reaches the alarm.
         if (!_loading && (_day == null || _day == todayLabel()))
@@ -765,12 +764,17 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         now: DateTime.now());
     final showBare = bare && !quietDay;
 
-    final recoveryNightsLeft = needMoreNightsFromNote(d.readiness.note);
-    final firstWeeks = isToday &&
-        widget.data == null &&
-        d.readiness.isEmpty &&
-        (_days.length <= readinessCompositeMinBaseline ||
-            recoveryNightsLeft != null);
+    final cal = Calibration.of(
+      days: _days.length,
+      baselineNights: baselineCountsFromNote(d.readiness.note)?.have,
+      sleep: d.sleepMin.value != null,
+      strain: !d.strain.isEmpty,
+      stress: switch (_stress) { final s? => s.baseline != null, null => null },
+      stressDays: _stress?.usableDays,
+      recovery: !d.readiness.isEmpty,
+      health: _health != null,
+    );
+    final firstWeeks = isToday && widget.data == null && !cal.complete;
 
     final rebuilt = dbRebuiltCard(dbRebuiltOf(c), l);
     void openDial(HomeRingKind k) => go(
@@ -823,10 +827,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             : _bareStatusCard(c, d, l, pastDay: !isToday),
         if (firstWeeks) ...[
           const SizedBox(height: S.x3),
-          firstWeekCard(c,
-              days: _days.length,
-              strainScored: false,
-              recoveryNightsLeft: recoveryNightsLeft),
+          CalibrationCard(cal),
         ],
       ] else ...[
         if (dialsShown) ...[
@@ -841,6 +842,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             _Monitors(
               health: _health,
               stress: _stress,
+              healthCalibrating: cal.health ? null : cal.milestones[4],
               onHealth: () => go(c, const HealthMonitorScreen()),
               onStress: () => go(c, const StressMonitorScreen()),
             ),
@@ -868,10 +870,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           }),
         if (firstWeeks) ...[
           const SizedBox(height: S.x3),
-          firstWeekCard(c,
-              days: _days.length,
-              strainScored: !d.strain.isEmpty,
-              recoveryNightsLeft: recoveryNightsLeft),
+          CalibrationCard(cal),
         ],
       ],
 
@@ -1019,6 +1018,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             ],
             strain: _daily['strain'] ?? const {},
             recovery: _daily['recovery'] ?? const {},
+            calibrating: isToday && !cal.recovery ? cal.milestones[3] : null,
           ),
         },
       ),

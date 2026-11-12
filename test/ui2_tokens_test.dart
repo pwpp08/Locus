@@ -415,6 +415,10 @@ const _notComponents = {
   // page (three 100 pt rings across, cards at the page's width) that read
   // seven series and the journal. reports_test pumps them at 3.1x.
   'ReportsScreen', 'ReportScreen', 'ReportBody', 'ReportRow',
+  // The calibration milestones and the onboarding page after it: Scaffold
+  // routes. Their parts (MilestoneCard, NightPips, NightWheel) have gallery
+  // cases, and calibration_test pumps both at a real phone width.
+  'MilestonesScreen', 'WhatToExpectScreen',
   // tabs and drill-downs
   'HomeScreen', 'HealthScreen', 'WorkoutScreen', 'NutritionScreen',
   'WellnessScreen', 'CycleTab', 'MetricDetail', 'ReadinessDetail',

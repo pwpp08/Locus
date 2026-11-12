@@ -69,14 +69,20 @@ class PhonePedometer {
   /// per-window coverage table. `null` still means the read FAILED.
   static const int intervalNotCovered = -1;
 
-  Future<int?> _readSteps(DateTime from, DateTime to) async {
+  /// The steps in each of [slices], in one platform round trip; per slice a
+  /// count, [intervalNotCovered], or null for a failed read. Null overall when
+  /// the call itself failed.
+  Future<List<int?>?> _readSlices(List<(DateTime, DateTime)> slices) async {
     final reader = _stepReader;
-    if (reader != null) return reader(from, to);
+    if (reader != null) {
+      return [for (final (from, to) in slices) await reader(from, to)];
+    }
     try {
-      return await phoneStepsChannel.invokeMethod<int>('stepsInInterval', {
-        'fromMs': from.millisecondsSinceEpoch,
-        'toMs': to.millisecondsSinceEpoch,
+      final r = await phoneStepsChannel.invokeListMethod<int?>('stepsInSlices', {
+        'fromMs': [for (final (f, _) in slices) f.millisecondsSinceEpoch],
+        'toMs': [for (final (_, t) in slices) t.millisecondsSinceEpoch],
       });
+      return r == null || r.length != slices.length ? null : r;
     } catch (e) {
       debugPrint('[phone_pedometer] read: $e');
       return null; // read FAILED — the day is abandoned, not zeroed
@@ -163,11 +169,15 @@ class PhonePedometer {
     }
   }
 
-  /// Read [day]'s steps in hourly buckets and replace that day's phone rows.
+  /// Read [day]'s steps in 5-minute slices and replace that day's phone rows.
   ///
-  /// Hourly rather than one daily total so the derivation keeps a usable notion
-  /// of WHEN the steps happened, and so a partially-elapsed today still banks
-  /// what has happened so far.
+  /// Sliced rather than one daily total so the derivation keeps a usable
+  /// notion of WHEN the steps happened, and so a partially-elapsed today still
+  /// banks what has happened so far. Five minutes rather than an hour so a
+  /// five-minute walk is visible to the walk detector (`movement_bouts.dart`);
+  /// an hour's count spread over the hour cannot tell a walk from pottering.
+  /// The slices are the Android counter's own bins, and one platform call
+  /// reads the whole day.
   ///
   /// This is a SINGLE-SOURCE count — the iPhone's motion coprocessor, or the
   /// Android step-counter sensor. It is deliberately not the health store's
@@ -177,7 +187,7 @@ class PhonePedometer {
   /// Returns the day's total, or null if the read failed or was not permitted
   /// (null means "unknown", NOT zero — the caller must not persist a zero).
   ///
-  /// A null from ANY hour aborts the whole day. Our native contract is exact
+  /// A null from ANY slice aborts the whole day. Our native contract is exact
   /// about which is which:
   ///
   ///   * a count (0 included) — that interval is covered and that is the answer;
@@ -210,19 +220,16 @@ class PhonePedometer {
         dayStartLocal.month,
         dayStartLocal.day + 1,
       );
-      for (var h = 0; h < 25; h++) {
-        // RE-READ THE CLOCK EACH ITERATION. Each bucket is an async platform
-        // query, so a whole day's walk can straddle an hour boundary. Captured
-        // once up front, `now` went stale mid-loop and the current hour was
-        // capped short — under-reporting today's most recent steps until some
-        // later sync happened to re-read the day.
-        final now = DateTime.now();
+      // One read for the whole day, so `now` is read once, right before it.
+      final now = DateTime.now();
+      final slices = <(DateTime, DateTime)>[];
+      for (var i = 0; i < 25 * 12; i++) {
         final from = DateTime(dayStartLocal.year, dayStartLocal.month,
-            dayStartLocal.day, h);
+            dayStartLocal.day, i ~/ 12, i % 12 * 5);
         if (!from.isBefore(nextMidnight)) break; // spring-forward short day
-        if (from.isAfter(now)) break; // future hours of today
+        if (from.isAfter(now)) break; // future slices of today
         var to = DateTime(dayStartLocal.year, dayStartLocal.month,
-            dayStartLocal.day, h + 1);
+            dayStartLocal.day, i ~/ 12, i % 12 * 5 + 5);
         if (to.isAfter(nextMidnight)) to = nextMidnight;
         final capped = to.isAfter(now) ? now : to;
         // SKIP a zero-length bucket, never END the walk on one. On a
@@ -237,8 +244,14 @@ class PhonePedometer {
         // The "reached now" case does not need a break here: the next
         // iteration's `from` is after `now` and the guard above ends the walk.
         if (!capped.isAfter(from)) continue;
+        slices.add((from, capped));
+      }
 
-        final n = await _readSteps(from, capped);
+      final counts = await _readSlices(slices);
+      if (counts == null) return null;
+      for (var i = 0; i < slices.length; i++) {
+        final (from, capped) = slices[i];
+        final n = counts[i];
         // Read failure (see the doc above) — abandon the day rather than
         // persist a partial one over a good previous sync.
         if (n == null) return null;

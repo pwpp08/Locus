@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../ui2.dart';
+import 'calibration.dart' show CalibrationStrip, Milestone;
 import 'home_screen.dart' show recoveryColor, weekdayShortName;
 
 class StrainRecoveryCard extends StatelessWidget {
@@ -23,11 +24,15 @@ class StrainRecoveryCard extends StatelessWidget {
   /// Day → value. Strain 0–21, recovery 0–100.
   final Map<String, double> strain, recovery;
 
+  /// Recovery's milestone while it is still calibrating: its strip at the foot.
+  final Milestone? calibrating;
+
   const StrainRecoveryCard({
     super.key,
     required this.days,
     required this.strain,
     required this.recovery,
+    this.calibrating,
   });
 
   static const _inset = EdgeInsets.fromLTRB(S.x6, S.x8, S.x8 + S.x1, S.x10);
@@ -103,6 +108,10 @@ class StrainRecoveryCard extends StatelessWidget {
               ),
             ),
           ),
+        if (calibrating case final m?) ...[
+          const SizedBox(height: S.x3),
+          CalibrationStrip(m),
+        ],
       ]),
     );
   }

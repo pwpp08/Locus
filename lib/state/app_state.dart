@@ -185,6 +185,16 @@ bool recoveryNightSettled({
   final window = sleep is Map ? sleep['window'] : null;
   final value = window is Map ? window['value'] : null;
   final offsetMs = value is Map ? value['offset_ms'] : null;
+  // A wake before 03:00 is the first block of a night still going (a long
+  // awakening splits it, and the first block settles 30 min later): the
+  // 02:17 "slept 3h 28m" note for a night that ran to 08:30. Home already
+  // shows such a night as in progress.
+  if (offsetMs is num &&
+      DateTime.fromMillisecondsSinceEpoch(offsetMs.toInt()).hour <
+          kMinPinWakeHour &&
+      !userWindow(payload?['sleep_source'])) {
+    return false;
+  }
   return overnightSettled(
     sleepOffsetSec: offsetMs is num ? offsetMs ~/ 1000 : null,
     dataEdgeSec: dataEdgeSec,

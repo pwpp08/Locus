@@ -111,6 +111,21 @@ object PhoneStepCounter : SensorEventListener {
                         stopAndForget(app)
                         result.success(null)
                     }
+                    // A whole day of slices in one round trip: per slice a count,
+                    // NOT_COVERED, or null; null overall when nothing is readable.
+                    "stepsInSlices" -> {
+                        val from = call.argument<List<Number>>("fromMs")
+                        val to = call.argument<List<Number>>("toMs")
+                        if (from == null || to == null || from.size != to.size ||
+                            sensor(app) == null || !permitted(app)
+                        ) {
+                            result.success(null)
+                        } else {
+                            result.success(
+                                from.indices.map { query(app, from[it].toLong(), to[it].toLong()) },
+                            )
+                        }
+                    }
                     "stepsInInterval" -> {
                         val from = call.argument<Number>("fromMs")?.toLong()
                         val to = call.argument<Number>("toMs")?.toLong()

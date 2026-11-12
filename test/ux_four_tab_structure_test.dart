@@ -10,8 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:openstrap_edge/state/app_state.dart';
 import 'package:openstrap_edge/state/prefs.dart';
 import 'package:openstrap_edge/ui2/profile/profile.dart';
-import 'package:openstrap_edge/ui2/screens/home_screen.dart'
-    show firstWeekCard;
+import 'package:openstrap_edge/ui2/screens/calibration.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
 Widget _app(Widget child) => MaterialApp(
@@ -22,19 +21,20 @@ Widget _app(Widget child) => MaterialApp(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('the first-weeks card names the gates the pipeline uses',
-      (t) async {
-    await t.pumpWidget(_app(Builder(
-        builder: (c) => firstWeekCard(c, days: 2, strainScored: false))));
-    // Strain needs this many earlier days with a resting level; recovery
-    // this many earlier nights. The card is one past each.
-    expect(find.text('Strain: from day ${quietHrrMinDays + 1}'),
-        findsOneWidget);
-    expect(
-        find.text('Recovery: from night ${readinessCompositeMinBaseline + 1}, '
-            'once it knows your normal'),
-        findsOneWidget);
-    expect(find.text('2 days recorded so far'), findsOneWidget);
+  test('the milestones name the gates the pipeline uses', () {
+    final m = {
+      for (final x in Calibration.of(days: 2).milestones) x.title: x,
+    };
+    // Strain needs this many earlier days with a resting level, so it is
+    // one past them; recovery this many nights of baseline.
+    expect(m['Strain']!.need, quietHrrMinDays + 1);
+    expect(m['Strain']!.toUnlock,
+        'Wear the band ${quietHrrMinDays + 1} days to unlock');
+    expect(m['Recovery']!.need, readinessCompositeMinBaseline);
+    expect(m['Recovery']!.toUnlock,
+        'Log $readinessCompositeMinBaseline sleeps to unlock');
+    expect(m['Sleep']!.done, isTrue);
+    expect(m['Recovery']!.done, isFalse);
   });
 
   test('cycle tracking defaults on for a female profile, and a choice wins',

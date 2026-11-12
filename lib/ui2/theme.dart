@@ -173,6 +173,12 @@ class C {
   static const recYellow = Color(0xFFFFDE00);
   static const recRed = Color(0xFFFF0026);
 
+  /// Calibration: progress through the first nights while Locus learns your
+  /// normal (the timeline ring, the sleeps-logged pips, the milestone and
+  /// "more nights to calibrate" segments). A mark, never text or a fill, so
+  /// it is not in [all]; a word in it goes through `p.on`.
+  static const calibrate = Color(0xFFC452D6);
+
   /// A sleep-contributor bar: poor / sufficient / optimal.
   static const optimal = Color(0xFF00F19F);
   static const poor = Color(0xFFFFA733);

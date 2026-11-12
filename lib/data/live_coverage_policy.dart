@@ -215,10 +215,10 @@ List<CoverageSpan> _vetoAgainstConfirmedStill(List<CoverageSpan> rows) {
   if (stillWindows.isEmpty) return rows;
   // ponytail: sums overlap against every still window rather than merging
   // them first, so two OVERLAPPING zero-phone rows over the same band span
-  // would double-void it. Phone rows are hourly and non-overlapping by
+  // would double-void it. Phone rows are 5-minute slices, non-overlapping by
   // construction (`replacePhoneCoverageForDay` is delete-then-insert per
   // day), so this cannot happen today; merge stillWindows first if that ever
-  // changes (e.g. sub-hour phone buckets).
+  // changes.
   final out = <CoverageSpan>[];
   for (final r in rows) {
     if (!r.fromBand || r.steps <= 0 || r.endTs <= r.startTs) {

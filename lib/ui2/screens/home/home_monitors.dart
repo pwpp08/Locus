@@ -5,6 +5,8 @@ import '../../grammar.dart' show Surface;
 import '../../marks.dart' show BoldChevron;
 import '../../theme.dart' show C, F, I, P, R, S;
 import '../../ui2.dart' show LucideIcons;
+import '../../../compute/stress_monitor.dart' show kStressBaselineDays;
+import '../calibration.dart' show Milestone, SegmentBar;
 import '../health_monitor.dart' show HealthGlance;
 import '../stress_monitor.dart' show StressMonitorData;
 
@@ -13,12 +15,16 @@ class HomeMonitors extends StatelessWidget {
   final StressMonitorData? stress;
   final VoidCallback onHealth, onStress;
 
+  /// The health monitor's milestone while it is still calibrating.
+  final Milestone? healthCalibrating;
+
   const HomeMonitors({
     super.key,
     required this.health,
     required this.stress,
     required this.onHealth,
     required this.onStress,
+    this.healthCalibrating,
   });
 
   @override
@@ -26,7 +32,8 @@ class HomeMonitors extends StatelessWidget {
     final p = P.of(c);
 
     Widget card(String title, String semantic, VoidCallback onTap, Widget tile,
-            String word, Color wordColor, String sub) =>
+            String word, Color wordColor, String sub,
+            {(int, int)? segments}) =>
         Expanded(
           child: Surface(
             onTap: onTap,
@@ -66,6 +73,10 @@ class HomeMonitors extends StatelessWidget {
                   ]),
                 ),
               ]),
+              if (segments case (final n, final k)) ...[
+                const SizedBox(height: S.x3),
+                SegmentBar(count: n, filled: k),
+              ],
             ]),
           ),
         );
@@ -84,7 +95,10 @@ class HomeMonitors extends StatelessWidget {
     final h = health;
     final allIn = h != null && h.inside == h.total;
     final hColour = h == null ? p.ink3 : (allIn ? C.stressMedium : C.stressHigh);
+    // Still learning the usual ranges: no verdict, how far along it is.
+    final hCal = h == null ? healthCalibrating : null;
     final d = stress;
+    final sCal = d != null && d.baseline == null;
     final last = d?.last;
     final score = last == null ? null : d!.scores[last];
     final level = score == null ? null : stressLevel(score);
@@ -107,12 +121,28 @@ class HomeMonitors extends StatelessWidget {
                 ? 'Health monitor. No data'
                 : 'Health monitor. ${h.inside} of ${h.total} metrics within range',
             onHealth,
-            square(hColour,
-                Icon(h == null ? LucideIcons.minus : (allIn ? LucideIcons.check : LucideIcons.triangleAlert),
-                    size: I.md, color: hColour)),
-            h == null ? 'NO DATA' : (allIn ? 'WITHIN RANGE' : 'OUT OF RANGE'),
+            square(
+                hColour,
+                Icon(
+                    hCal != null
+                        ? LucideIcons.hourglass
+                        : h == null
+                            ? LucideIcons.minus
+                            : (allIn ? LucideIcons.check : LucideIcons.triangleAlert),
+                    size: I.md,
+                    color: hColour)),
+            hCal != null
+                ? 'CALIBRATING'
+                : h == null
+                    ? 'NO DATA'
+                    : (allIn ? 'WITHIN RANGE' : 'OUT OF RANGE'),
             hColour,
-            h == null ? 'Needs a night' : '${h.inside}/${h.total} Metrics',
+            hCal != null
+                ? '${hCal.left} more ${hCal.left == 1 ? 'night' : 'nights'}'
+                : h == null
+                    ? 'Needs a night'
+                    : '${h.inside}/${h.total} Metrics',
+            segments: hCal == null ? null : (hCal.need, hCal.filled),
           ),
           const SizedBox(width: S.x3),
           card(
@@ -127,15 +157,24 @@ class HomeMonitors extends StatelessWidget {
                     style: F.n17.copyWith(
                         color: sColour, fontWeight: FontWeight.w700))),
             level == null
-                ? (d != null && d.baseline == null ? 'BUILDING' : 'NO READING')
+                ? (sCal ? 'CALIBRATING' : 'NO READING')
                 : level.name.toUpperCase(),
             sColour,
-            last == null
-                ? (d != null && d.baseline == null ? 'Your baseline' : '')
-                : at(last),
+            last == null ? (sCal ? _daysLeft(d.usableDays) : '') : at(last),
+            segments: sCal
+                ? (
+                    kStressBaselineDays,
+                    d.usableDays.clamp(0, kStressBaselineDays - 1),
+                  )
+                : null,
           ),
         ]),
       ),
     );
+  }
+
+  static String _daysLeft(int have) {
+    final n = kStressBaselineDays - have.clamp(0, kStressBaselineDays - 1);
+    return '$n more ${n == 1 ? 'day' : 'days'}';
   }
 }

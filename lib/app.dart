@@ -24,6 +24,7 @@ import 'ui2/onboarding/profile_setup.dart';
 import 'ui2/pairing/device_picker.dart';
 import 'ui2/onboarding/splash.dart';
 import 'ui2/onboarding/welcome.dart';
+import 'ui2/onboarding/what_to_expect.dart' show WhatToExpectScreen;
 import 'ui2/profile/alarm.dart';
 import 'ui2/profile/profile.dart';
 import 'ui2/screens/action_sheet.dart';
@@ -499,7 +500,13 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
       // Reaching the shell IS the end of onboarding. Latched here rather than
       // at the pairing screen because an install that upgraded into this build
       // never saw one.
+      final first = !_onboarded;
       _markOnboarded();
+      // The end of a real onboarding: what the next two weeks hold, once.
+      if (first && mounted) {
+        Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => const WhatToExpectScreen()));
+      }
       _consume();
       // After an install this is the new build's first act: the downloaded APK
       // is no longer needed. Then look for a newer one.

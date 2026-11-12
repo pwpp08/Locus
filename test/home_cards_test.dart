@@ -1,4 +1,4 @@
-// Home's first-weeks card can be swiped away until tomorrow, and the Add
+// Home's calibration card can be swiped away until tomorrow, and the Add
 // activity sheet will not save until an activity has been chosen.
 
 import 'package:flutter/material.dart';
@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/data/day_label.dart';
 import 'package:openstrap_edge/state/prefs.dart';
 import 'package:openstrap_edge/ui2/screens/add_activity.dart';
+import 'package:openstrap_edge/ui2/screens/calibration.dart';
 import 'package:openstrap_edge/ui2/screens/home_screen.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,32 +16,32 @@ import 'support/fonts.dart';
 void main() {
   setUpAll(loadAppFonts);
 
-  testWidgets('swiping the first-weeks card away keeps it away for the day',
+  testWidgets('swiping the calibration card away keeps it away for the day',
       (t) async {
     SharedPreferences.setMockInitialValues({});
     await Prefs.ensureLoaded();
+    const title = 'CALIBRATION TIMELINE';
     Widget app() => MaterialApp(
           theme: buildTheme(Brightness.dark),
           home: Scaffold(
-            body: Builder(
-                builder: (c) => firstWeekCard(c, days: 3, strainScored: false)),
+            body: CalibrationCard(Calibration.of(days: 3)),
           ),
         );
     await t.pumpWidget(app());
-    expect(find.text('Your first weeks'), findsOneWidget);
-    await t.drag(find.text('Your first weeks'), const Offset(500, 0));
+    expect(find.text(title), findsOneWidget);
+    await t.drag(find.text(title), const Offset(500, 0));
     await t.pumpAndSettle();
-    expect(find.text('Your first weeks'), findsNothing);
+    expect(find.text(title), findsNothing);
     expect(Prefs.getString(Prefs.firstWeeksDismissedOn, ''), todayLabel());
     // Back on the screen later the same day, it is still gone.
     await t.pumpWidget(const SizedBox());
     await t.pumpWidget(app());
-    expect(find.text('Your first weeks'), findsNothing);
+    expect(find.text(title), findsNothing);
     // Another day, it is back.
     Prefs.setString(Prefs.firstWeeksDismissedOn, '2000-01-01');
     await t.pumpWidget(const SizedBox());
     await t.pumpWidget(app());
-    expect(find.text('Your first weeks'), findsOneWidget);
+    expect(find.text(title), findsOneWidget);
   });
 
   testWidgets('the add-activity sheet names an activity before it saves',

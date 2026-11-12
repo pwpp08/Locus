@@ -7,10 +7,13 @@
 // counter, though: a sustained cadence of 60–135 steps a minute is walking,
 // above that is running. This reads that counter minute by minute.
 //
-// Gen4 has no counter (`stepCount` is -1 every second). No cadence means no
-// claim: the pass returns nothing rather than guessing a walk from the 1 Hz
-// gravity vector, which arm work out-accelerates (see derivation_engine's
-// notes on stirring vs walking ENMO).
+// Gen4 has no counter (`stepCount` is -1 every second). Its day is read from
+// the resolved step spans instead (`live_coverage`: the phone's 5-minute
+// slices and the band's live runs), but only short ones: an hour's count
+// spread evenly over the hour would invent an hour-long walk. No cadence
+// means no claim: the pass never guesses a walk from the 1 Hz gravity
+// vector, which arm work out-accelerates (see derivation_engine's notes on
+// stirring vs walking ENMO).
 //
 // WHAT IT LEARNS. [ActivityHabits] is built from the sessions the user kept.
 // For each sport it holds when in the week they do it and, for sports with a
@@ -25,12 +28,14 @@
 
 import 'dart:math' as math;
 
+import 'step_cadence.dart' show cadenceSpmForMinutes;
+
 /// Cadence (steps a minute) that counts as walking, and where running starts.
 const int kWalkMinSpm = 60;
 const int kRunMinSpm = 140;
 
 /// A bout must hold up this long (minutes)…
-const int kMovementMinMinutes = 10;
+const int kMovementMinMinutes = 5;
 
 /// …and may pause this long (minutes) without ending: a crossing, a door.
 const int kMovementMaxGapMinutes = 2;
@@ -82,14 +87,44 @@ Map<int, int> stepsPerMinute(List<int> tsSec, List<int> stepCount) {
   };
 }
 
+/// The longest step span ([stepsPerMinuteFromSpans]) whose count can be
+/// placed minute by minute: the phone's 5-minute slices pass, its old hourly
+/// rows do not.
+// ponytail: a band live run longer than this is skipped too (a missed walk,
+// never an invented one); carry the source through if that ever matters.
+const int kMovementMaxSpanSec = 10 * 60;
+
+/// Per-minute steps from resolved step spans `[startSec, endSec, steps]`,
+/// each spread evenly over its own length. Spans longer than
+/// [kMovementMaxSpanSec] are left out, and so is every minute none covers.
+Map<int, int> stepsPerMinuteFromSpans(List<List<int>> spans) {
+  final short = [
+    for (final s in spans)
+      if (s.length >= 3 && s[1] > s[0] && s[1] - s[0] <= kMovementMaxSpanSec) s,
+  ];
+  final keys = {
+    for (final s in short)
+      for (var k = s[0] ~/ 60; k * 60 < s[1]; k++) k,
+  }.toList()
+    ..sort();
+  final v = cadenceSpmForMinutes(keys, short);
+  return {
+    for (var i = 0; i < keys.length; i++)
+      if (v[i] case final n?) keys[i]: n.round(),
+  };
+}
+
 /// Walks and runs in one day of 1 Hz samples, outside [excluded] spans
 /// (`[startSec, endSec]`, already-logged sessions and HR-detected bouts).
+/// Without the band's own counter, the day's step [spans] are read instead.
 List<MovementBout> detectMovementBouts({
   required List<int> tsSec,
   required List<int> stepCount,
+  List<List<int>> spans = const [],
   List<List<int>> excluded = const [],
 }) {
-  final perMin = stepsPerMinute(tsSec, stepCount);
+  var perMin = stepsPerMinute(tsSec, stepCount);
+  if (perMin.isEmpty) perMin = stepsPerMinuteFromSpans(spans);
   if (perMin.isEmpty) return const [];
   final mins = perMin.keys.toList()..sort();
   bool blocked(int m) =>

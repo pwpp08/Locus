@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:openstrap_analytics/onehz.dart'
-    show quietHrrMinDays, readinessCompositeMinBaseline;
 
 import '../../../data/day_label.dart' show todayLabel;
 import '../../../data/db.dart' show DbRebuild;
 import '../../../l10n/app_localizations.dart';
 import '../../../state/prefs.dart';
-import '../../grammar.dart' show StatusCard, Surface;
-import '../../theme.dart' show C, F, I, P, S;
+import '../../grammar.dart' show StatusCard;
 import '../../ui2.dart' show LucideIcons;
 import 'home_data.dart' show thousands;
 
@@ -34,52 +31,6 @@ StatusCard workoutHoldCard([AppLocalizations? l]) => StatusCard(
           'Today is paused while a workout runs. The band keeps recording; finish the workout from the bar below and today fills in.',
       icon: LucideIcons.timer,
     );
-
-Widget firstWeekCard(BuildContext c,
-    {required int days, required bool strainScored, int? recoveryNightsLeft}) {
-  final p = P.of(c);
-  final l = AppLocalizations.of(c);
-  final strainDay = quietHrrMinDays + 1;
-  final recoveryNight = readinessCompositeMinBaseline + 1;
-  Widget step(bool done, String text) => Semantics(
-        label: done ? (l?.homeFirstWeekDone(text) ?? 'Done: $text') : text,
-        excludeSemantics: true,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: S.x2),
-          child: Row(children: [
-            Icon(done ? LucideIcons.circleCheck : LucideIcons.circle,
-                size: I.md, color: done ? p.on(C.optimal) : p.ink3),
-            const SizedBox(width: S.x3),
-            Expanded(
-                child: Text(text, style: F.body.copyWith(color: p.ink))),
-          ]),
-        ),
-      );
-  return HomeSwipeAway(
-    child: Surface(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(l?.homeFirstWeekTitle ?? 'Your first weeks',
-            style: F.head.copyWith(color: p.ink)),
-        const SizedBox(height: S.x2),
-        step(days > 0, l?.homeFirstWeekWear ?? 'Wear the band tonight'),
-        step(days > 0,
-            l?.homeFirstWeekSleep ?? 'Sleep: the morning after your first night'),
-        step(strainScored,
-            l?.homeFirstWeekStrain(strainDay) ?? 'Strain: from day $strainDay'),
-        step(
-            false,
-            recoveryNightsLeft != null
-                ? (l?.homeRecoveryStartsIn(recoveryNightsLeft) ??
-                    'Recovery starts in $recoveryNightsLeft nights')
-                : (l?.homeFirstWeekRecovery(recoveryNight) ??
-                    'Recovery: from night $recoveryNight, once it knows your normal')),
-        const SizedBox(height: S.x1),
-        Text(l?.homeFirstWeekSoFar(days) ?? '$days days recorded so far',
-            style: F.cap.copyWith(color: p.ink3)),
-      ]),
-    ),
-  );
-}
 
 class HomeSwipeAway extends StatefulWidget {
   final Widget child;

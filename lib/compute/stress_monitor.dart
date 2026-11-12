@@ -161,6 +161,37 @@ double _robustSigma(List<double> xs, double centre) =>
 /// Fraction of seconds moving at or under which a minute counts as quiet.
 const double stressQuietMotion = .05;
 
+/// Usable days a baseline needs ([stressBaseline]).
+const int kStressBaselineDays = 3;
+
+/// One day's quiet, awake minutes: heart rate and ln HRV, side by side.
+(List<double>, List<double>) _quietMinutes(StressDayInput d) {
+  final hrs = <double>[], lns = <double>[];
+  final awakeHr = [
+    for (var i = 0; i < StressDayInput.minutes; i++)
+      if (!d.asleep[i] && d.hr[i] != null) d.hr[i]!,
+  ];
+  if (awakeHr.isEmpty) return (hrs, lns);
+  final med = _median(awakeHr);
+  for (var i = 0; i < StressDayInput.minutes; i++) {
+    if (d.asleep[i]) continue;
+    final h = d.hr[i], v = d.hrv[i];
+    if (h == null || v == null || v <= 0) continue;
+    final m = d.motion?[i];
+    final quiet = d.motion != null ? (m != null && m <= stressQuietMotion) : h <= med;
+    if (!quiet) continue;
+    hrs.add(h);
+    lns.add(math.log(v));
+  }
+  return (hrs, lns);
+}
+
+/// How many of [days] a baseline can use: half an hour of quiet, awake
+/// minutes each. What the calibration strip counts toward
+/// [kStressBaselineDays].
+int stressUsableDays(List<StressDayInput> days) =>
+    days.where((d) => _quietMinutes(d).$1.length >= 30).length;
+
 /// The baseline from the days BEFORE the one shown. Null with fewer than three
 /// usable days or 200 quiet minutes: a baseline from a weekend is not one.
 StressBaseline? stressBaseline(List<StressDayInput> days) {
@@ -168,30 +199,15 @@ StressBaseline? stressBaseline(List<StressDayInput> days) {
   var used = 0;
   var motionDays = 0;
   for (final d in days) {
-    final awakeHr = [
-      for (var i = 0; i < StressDayInput.minutes; i++)
-        if (!d.asleep[i] && d.hr[i] != null) d.hr[i]!,
-    ];
-    if (awakeHr.isEmpty) continue;
-    final med = _median(awakeHr);
-    var got = 0;
-    for (var i = 0; i < StressDayInput.minutes; i++) {
-      if (d.asleep[i]) continue;
-      final h = d.hr[i], v = d.hrv[i];
-      if (h == null || v == null || v <= 0) continue;
-      final m = d.motion?[i];
-      final quiet = d.motion != null ? (m != null && m <= stressQuietMotion) : h <= med;
-      if (!quiet) continue;
-      hrs.add(h);
-      lns.add(math.log(v));
-      got++;
-    }
-    if (got >= 30) {
+    final (h, l) = _quietMinutes(d);
+    hrs.addAll(h);
+    lns.addAll(l);
+    if (h.length >= 30) {
       used++;
       if (d.motion != null) motionDays++;
     }
   }
-  if (used < 3 || hrs.length < 200) return null;
+  if (used < kStressBaselineDays || hrs.length < 200) return null;
   final hr = _median(hrs), ln = _median(lns);
   return StressBaseline(
     hr: hr,
