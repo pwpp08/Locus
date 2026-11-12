@@ -202,6 +202,7 @@ class C {
   ];
   static const coachSkyStops = [0.0, 0.18, 0.36, 0.58, 1.0];
 
+
   /// The sleep recommendation's panel: a pale mint ground on the white sheet,
   /// inked in [char]. A ground, not an accent, so it is not in [all].
   static const mint = Color(0xFFDFF8EF);
@@ -996,6 +997,50 @@ class PH {
       height: 1,
       fontWeight: FontWeight.w700,
       fontFeatures: [FontFeature.tabularFigures()]);
+}
+
+/// ── DEVICE SETTINGS ── measured off its reference screenshot, scaled to
+/// 390 across. Always char: slate under the header fading to near-black
+/// behind the band, small tracked capitals, and a neutral grey banner.
+class DS {
+  static const page = [
+    Color(0xFF2E373E), Color(0xFF23282E), Color(0xFF14171C), Color(0xFF0D1114),
+  ];
+  static const pageStops = [0.0, .25, .45, 1.0];
+  static const foot = Color(0xFF0D1114);
+
+  /// The lime of CONNECTED TO.
+  static const connected = Color(0xFF4CC015);
+
+  /// SYNCED TO, an unlit tab, the pencil, the model under the battery.
+  static const syncLabel = Color(0xFFDEDFE3);
+  static const tabOff = Color(0xFF909497);
+  static const pencil = Color(0xFF93979A);
+  static const model = Color(0xFF5F6265);
+
+  /// The battery bar's empty track.
+  static const track = Color(0xFF2D3236);
+
+  /// The banner at the foot: its card, the disc behind its glyph, its line.
+  static const card = Color(0xFF28292B);
+  static const disc = Color(0xFF3C3D41);
+  static const sub = Color(0xFF939496);
+
+  /// CONNECTED TO / SYNCED TO and the banner's second line.
+  static const kicker = TextStyle(
+      fontFamily: F.family,
+      fontSize: 9.5,
+      height: 1.3,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 1.4);
+
+  /// STATUS / ADVANCED.
+  static const tab = TextStyle(
+      fontFamily: F.family,
+      fontSize: 9.5,
+      height: 1.3,
+      fontWeight: FontWeight.w700,
+      letterSpacing: .35);
 }
 
 /// ── HEALTH MONITOR ── measured off its reference (1180 px across = 393 dp,

@@ -153,13 +153,17 @@ void main() {
             connected: true,
             name: "Vince's band",
             battery: 36,
+            heartRate: 62,
             model: 'WHOOP 4.0',
             serial: '4C2619854',
             onRename: () {}));
     expect(find.text('CONNECTED TO'), findsOneWidget);
+    // The live heart rate where the reference has its broadcast switch.
+    expect(find.text('HEART RATE NOW'), findsOneWidget);
+    expect(find.text('62'), findsOneWidget);
     expect(find.text("VINCE'S BAND"), findsOneWidget);
     expect(find.text('36'), findsOneWidget);
-    expect(find.bySemanticsLabel('Rename the band'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('^Rename the band')), findsOneWidget);
     await t.tap(find.text('ADVANCED'));
     await t.pumpAndSettle();
     expect(find.text('4C2619854'), findsOneWidget);
@@ -167,5 +171,13 @@ void main() {
     for (final row in ['PAIR ANOTHER BAND', 'UNPAIR BAND', 'DOUBLE-TAP']) {
       expect(find.text(row), findsOneWidget, reason: row);
     }
+  });
+
+  testWidgets('no fresh heart rate: no number, and the reason', (t) async {
+    await pump(t, const DeviceSettingsView(connected: false));
+    expect(find.text('HEART RATE NOW'), findsOneWidget);
+    expect(find.text('--'), findsNWidgets(3),
+        reason: 'sync time, battery and heart rate');
+    expect(find.text('CONNECT THE BAND TO SEE IT'), findsOneWidget);
   });
 }
