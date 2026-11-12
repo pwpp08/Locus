@@ -27,36 +27,85 @@ void main() {
   });
 
   test('a fast cadence is a run; the counter wrapping is not a reset', () {
-    final w = walk(t0, 15, 160, from: 65000);
+    final w = walk(t0, 20, 160, from: 65000);
     final b = detectMovementBouts(tsSec: w.ts, stepCount: w.steps);
     expect(b.single.sport, 'running');
   });
 
-  test('a four-minute stroll proposes nothing; five minutes is a walk', () {
-    final w = walk(t0, 4, 110);
+  test('fourteen minutes proposes nothing; sixteen is a walk', () {
+    final w = walk(t0, 14, 110);
     expect(detectMovementBouts(tsSec: w.ts, stepCount: w.steps), isEmpty);
-    final five = walk(t0, 5, 110);
-    expect(detectMovementBouts(tsSec: five.ts, stepCount: five.steps),
+    final long = walk(t0, 16, 110);
+    expect(detectMovementBouts(tsSec: long.ts, stepCount: long.steps),
         hasLength(1));
   });
 
+  test("the band's counter puts the edges on the second", () {
+    // Still until 07:40:17, walking to 08:00:41, still after.
+    final ts = <int>[], steps = <int>[];
+    var c = 500.0;
+    for (var t = t0 - 120; t < t0 + 1500; t++) {
+      ts.add(t);
+      final walking = t >= t0 + 17 && t < t0 + 1241;
+      if (walking) c += 110 / 60;
+      steps.add(c.floor());
+    }
+    final b = detectMovementBouts(tsSec: ts, stepCount: steps).single;
+    expect(b.startSec, closeTo(t0 + 17, 1));
+    expect(b.endSec, closeTo(t0 + 1241, 1));
+  });
+
   test("a gen4 band with no counter reads the phone's 5-minute slices", () {
-    final g4 = walk(t0, 30, 110);
+    final g4 = walk(t0 - 600, 45, 110);
     final none = List.filled(g4.ts.length, -1);
     expect(detectMovementBouts(tsSec: g4.ts, stepCount: none), isEmpty,
         reason: 'no counter and no spans: no claim');
-    // 07:40-07:50 walking at 110 spm, then a still slice.
+    // 07:40-08:00 walking at 110 spm, then a still slice.
     final spans = [
-      [t0, t0 + 300, 550],
-      [t0 + 300, t0 + 600, 550],
-      [t0 + 600, t0 + 900, 20],
+      for (var k = 0; k < 4; k++) [t0 + k * 300, t0 + (k + 1) * 300, 550],
+      [t0 + 1200, t0 + 1500, 20],
     ];
-    final b = detectMovementBouts(tsSec: g4.ts, stepCount: none, spans: spans);
-    expect(b, hasLength(1));
-    expect(b.single.startSec, t0);
-    expect(b.single.endSec, t0 + 600);
-    expect(b.single.sport, 'walking');
-    expect(b.single.steps, 1100);
+    final coarse =
+        detectMovementBouts(tsSec: g4.ts, stepCount: none, spans: spans);
+    expect(coarse.single.startSec, t0, reason: 'no movement: slice edges');
+    expect(coarse.single.endSec, t0 + 1200);
+    expect(coarse.single.sport, 'walking');
+    expect(coarse.single.steps, 2200);
+
+    // The wrist swings from 07:42:10 to 07:59:30: that is the walk.
+    double swing(int i) {
+      final t = g4.ts[i];
+      return t >= t0 + 130 && t < t0 + 1170 ? (i.isEven ? .3 : -.3) : 0;
+    }
+
+    final ax = [for (var i = 0; i < g4.ts.length; i++) swing(i)];
+    final flat = List<double>.filled(g4.ts.length, 0);
+    final b = detectMovementBouts(
+            tsSec: g4.ts,
+            stepCount: none,
+            spans: spans,
+            ax: ax,
+            ay: flat,
+            az: flat)
+        .single;
+    expect(b.startSec, closeTo(t0 + 130, 3));
+    expect(b.endSec, closeTo(t0 + 1170, 3));
+    // Under 15 minutes once its edges are known: no walk.
+    final short = [
+      for (var i = 0; i < g4.ts.length; i++)
+        g4.ts[i] >= t0 + 260 && g4.ts[i] < t0 + 1100
+            ? (i.isEven ? .3 : -.3)
+            : 0.0,
+    ];
+    expect(
+        detectMovementBouts(
+            tsSec: g4.ts,
+            stepCount: none,
+            spans: spans,
+            ax: short,
+            ay: flat,
+            az: flat),
+        isEmpty);
   });
 
   test('an hour of steps spread over the hour is not an hour-long walk', () {

@@ -76,7 +76,9 @@ class LucideIcons {
   static const IconData circleOff = base.LucideIcons.circleOff300;
   static const IconData circlePlus = base.LucideIcons.circlePlus300;
   static const IconData circleSlash = base.LucideIcons.circleSlash300;
+  static const IconData circleUserRound = base.LucideIcons.circleUserRound300;
   static const IconData clipboardList = base.LucideIcons.clipboardList300;
+  static const IconData clipboardPenLine = base.LucideIcons.clipboardPenLine300;
   static const IconData clock = base.LucideIcons.clock300;
   static const IconData clock3 = base.LucideIcons.clock3300;
   static const IconData cloud = base.LucideIcons.cloud300;
@@ -125,6 +127,7 @@ class LucideIcons {
   static const IconData house = base.LucideIcons.house300;
   static const IconData image = base.LucideIcons.image300;
   static const IconData imagePlus = base.LucideIcons.imagePlus300;
+  static const IconData inboxDown = base.LucideIcons.import300;
   static const IconData info = base.LucideIcons.info300;
   static const IconData laugh = base.LucideIcons.laugh300;
   static const IconData layers = base.LucideIcons.layers300;

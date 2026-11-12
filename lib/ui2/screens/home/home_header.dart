@@ -382,7 +382,7 @@ SyncBarState syncBarStateOf({
 
 /// How long "Caught up" stays once a catch-up has landed, before the bar
 /// folds away.
-final kCaughtUpShown = Motion.linger * 2;
+const kCaughtUpShown = Motion.linger;
 
 /// The sync bar as Home shows it, 8 under the header: while the band's data
 /// is catching up, and while it is not up to date (both worth a tap). "Caught
@@ -447,11 +447,10 @@ class _HomeSyncBannerState extends State<HomeSyncBanner> {
 }
 
 /// The black bar under Home's header: whether the band's data has caught up,
-/// and the time it is synced to. Measured off the reference: 54 tall, radius
-/// 10, a 24 cloud in ink3 8 in, the state in white caps 8 after it; on the
-/// right, SYNCED TO over the time (amber while catching up, green once caught
-/// up), right-aligned, 10 before the mark 12 in from the edge: a turning
-/// 24 ring, or a 16 check.
+/// and the time it is synced to. One compact line, 40 tall, radius 10: a 20
+/// cloud in ink3, the state in white caps; on the right SYNCED TO and the
+/// time (amber while catching up, green once caught up), then the mark: a
+/// turning 20 ring, or a 16 check.
 class HomeSyncBar extends StatelessWidget {
   final SyncBarState state;
 
@@ -478,34 +477,37 @@ class HomeSyncBar extends StatelessWidget {
       onTap: onTap,
       semanticLabel: '${word.toLowerCase()}, synced to $syncedTo',
       child: Container(
-        constraints: const BoxConstraints(minHeight: S.x12 + S.x1 + S.half),
-        padding: const EdgeInsets.fromLTRB(S.x2, S.x2, S.x3, S.x2),
+        constraints: const BoxConstraints(minHeight: S.x10),
+        padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x2),
         decoration: const BoxDecoration(
           color: DC.syncBar,
           borderRadius: BorderRadius.all(Radius.circular(R.md + S.half)),
         ),
         child: Row(children: [
-          const Icon(LucideIcons.cloud, size: I.lg, color: DC.ink3),
+          const Icon(LucideIcons.cloud, size: I.md, color: DC.ink3),
           const SizedBox(width: S.x2),
           Expanded(
             child: Text(word,
                 maxLines: 1, overflow: TextOverflow.ellipsis, style: caps),
           ),
           const SizedBox(width: S.x2),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text('SYNCED TO', style: caps),
-              Text(syncedTo.toUpperCase(), style: caps.copyWith(color: tone)),
-            ],
+          // Wraps under itself at large text rather than pushing off the bar.
+          Flexible(
+            child: Text.rich(
+              TextSpan(children: [
+                const TextSpan(text: 'SYNCED TO '),
+                TextSpan(
+                    text: syncedTo.toUpperCase(),
+                    style: TextStyle(color: tone)),
+              ]),
+              textAlign: TextAlign.end,
+              style: caps,
+            ),
           ),
-          const SizedBox(width: S.x2 + S.half),
-          // The ring is 24 across; the check sits in 16, nearer the edge, as
-          // on the reference.
+          const SizedBox(width: S.x2),
           switch (state) {
             SyncBarState.catchingUp =>
-              const SizedBox.square(dimension: I.lg, child: _SyncRing()),
+              const SizedBox.square(dimension: I.md, child: _SyncRing()),
             SyncBarState.caughtUp =>
               const Icon(LucideIcons.check, size: I.sm, color: C.optimal),
             SyncBarState.behind =>

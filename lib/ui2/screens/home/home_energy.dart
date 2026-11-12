@@ -30,6 +30,8 @@ class EnergyReserveCard extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     final tone = _tone(data.level);
+    // Today only: the card is drawn on today's Home and nowhere else.
+    final projected = projectEnergy(data, midnight + 86400);
     Widget tile(String label, String value, Color colour) => Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(
@@ -117,12 +119,21 @@ class EnergyReserveCard extends StatelessWidget {
               painter: _ChartPainter(
                 data,
                 midnight,
+                projected: projected,
                 axis: p.ink3,
                 grid: p.ink.withValues(alpha: .1),
                 dotRing: p.bg,
               ),
             ),
           ),
+          if (projected != null) ...[
+            const SizedBox(height: S.x2),
+            Text(
+              'Dotted: about ${projected.last.$2.round()}% by midnight if the '
+              'rest of the day goes like today so far, without workouts',
+              style: F.over.copyWith(color: p.ink3),
+            ),
+          ],
           const SizedBox(height: S.x4),
           Row(
             children: [
@@ -175,9 +186,11 @@ class _ChartPainter extends CustomPainter {
   final EnergyReserve d;
   final int midnight;
   final Color axis, grid, dotRing;
+  final List<(int, double)>? projected;
   const _ChartPainter(
     this.d,
     this.midnight, {
+    this.projected,
     required this.axis,
     required this.grid,
     required this.dotRing,
@@ -266,11 +279,29 @@ class _ChartPainter extends CustomPainter {
         Paint()..color = C.strainDown,
       );
     }
+    // The projection, dotted as on the strain chart: round dots one stroke
+    // wide, two strokes apart, the first a gap clear of the line's end.
+    final pr = projected;
+    if (pr != null && pr.length > 1) {
+      final path = Path()..moveTo(x(pr.first.$1), y(pr.first.$2));
+      for (final (t, v) in pr.skip(1)) {
+        path.lineTo(x(t), y(v));
+      }
+      const gap = S.half * 2;
+      final dot = Paint()..color = _tone(pr.last.$2);
+      for (final m in path.computeMetrics()) {
+        for (var a = gap; a <= m.length; a += gap) {
+          final at = m.getTangentForOffset(a);
+          if (at != null) canvas.drawCircle(at.position, S.half / 2, dot);
+        }
+      }
+    }
     final end = Offset(x(pts.last.$1), y(pts.last.$2));
     canvas.drawCircle(end, S.x1 + S.half, Paint()..color = dotRing);
     canvas.drawCircle(end, S.x1, Paint()..color = tone);
   }
 
   @override
-  bool shouldRepaint(_ChartPainter o) => o.d != d || o.midnight != midnight;
+  bool shouldRepaint(_ChartPainter o) =>
+      o.d != d || o.midnight != midnight || o.projected != projected;
 }

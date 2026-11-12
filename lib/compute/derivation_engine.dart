@@ -9909,6 +9909,9 @@ class DerivationEngine {
         tsSec: s.tsSec,
         stepCount: s.stepCount,
         spans: stepSpans,
+        ax: s.ax,
+        ay: s.ay,
+        az: s.az,
         excluded: [
           for (final sp in savedSpans) [sp.startSec, sp.endSec],
           for (final b in bouts) [b.startSec, b.endSec],

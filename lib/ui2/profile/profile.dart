@@ -20,12 +20,12 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
 import '../../state/prefs.dart';
-import '../../state/units_controller.dart';
 import '../ui2.dart';
 import '../screens/reports.dart' show ReportsScreen;
-import '../screens/home_screen.dart' show deviceBatteryOf;
+import '../screens/heart_rate_settings.dart' show HeartRateSettingsScreen;
 import '../../updater/update_service.dart';
 import 'data_highlights.dart' show DataHighlightsScreen;
+import 'device_settings.dart' show DeviceSettings;
 import 'settings.dart';
 
 // ══════════════════ shared list furniture ══════════════════
@@ -174,49 +174,50 @@ class SetRow extends StatelessWidget {
   }
 }
 
-/// A setting with a few named choices: the glyph and name as on a [SetRow],
-/// and the choices under them as a [RangeSegments] across the card, so every
-/// option is in sight and the chosen one is lit.
-class SetChoice extends StatelessWidget {
+/// A setting with a few named choices, as one row: the glyph and name, the
+/// chosen option on the right with a chevron, and the choices in a dropdown
+/// menu ([showChoiceMenu]) when the row is tapped.
+class SetDropdown extends StatefulWidget {
   final IconData icon;
   final String title, sub;
   final List<String> options;
   final int index;
   final ValueChanged<int>? onChanged;
 
-  const SetChoice(this.icon, this.title, this.options, this.index,
+  const SetDropdown(this.icon, this.title, this.options, this.index,
       {super.key, this.sub = '', this.onChanged});
+
+  @override
+  State<SetDropdown> createState() => _SetDropdownState();
+}
+
+class _SetDropdownState extends State<SetDropdown> {
+  final _anchor = GlobalKey();
+
+  Future<void> _open() async {
+    final at = _anchor.currentContext;
+    if (at == null) return;
+    final i = await showChoiceMenu(at, widget.options, widget.index);
+    if (i != null && i != widget.index) widget.onChanged?.call(i);
+  }
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    const indent = I.lg + S.x1 + S.x5 - S.x1;
-    return Padding(
-      padding: const EdgeInsets.only(top: S.x4, bottom: S.x3),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Row(children: [
-          SizedBox(
-            width: I.lg + S.x1,
-            child: Center(child: Icon(icon, size: I.lg, color: p.ink2)),
-          ),
-          const SizedBox(width: S.x5 - S.x1),
-          Expanded(child: Text(title.toUpperCase(), style: setRowTitle(p))),
-        ]),
-        if (sub.isNotEmpty) ...[
-          const SizedBox(height: S.half),
-          Padding(
-            padding: const EdgeInsets.only(left: indent),
-            child: Text(sub,
-                style: F.over.copyWith(color: p.ink3, height: 1.35)),
-          ),
-        ],
-        const SizedBox(height: S.x3),
-        RangeSegments(
-          [for (final o in options) o.toUpperCase()],
-          index,
-          (i) => onChanged?.call(i),
-          width: null,
-        ),
+    final w = widget;
+    final chosen = w.index >= 0 && w.index < w.options.length
+        ? w.options[w.index]
+        : '';
+    return SetRow(
+      w.icon,
+      C.dialStrain,
+      w.title,
+      sub: w.sub,
+      onTap: w.onChanged == null ? null : _open,
+      trailing: Row(key: _anchor, mainAxisSize: MainAxisSize.min, children: [
+        Text(chosen, style: F.cap.copyWith(color: p.ink2)),
+        const SizedBox(width: S.x1),
+        Icon(LucideIcons.chevronDown, size: I.sm, color: p.ink3),
       ]),
     );
   }
@@ -585,15 +586,11 @@ String formatBytes(int b) {
 
 // ══════════════════ 1 · PROFILE HOME ══════════════════
 
-/// What the More tab shows before you open anything: your name and weight.
+/// What the More tab shows before you open anything: your name.
 class ProfileStats {
   final String? name;
 
-  /// The saved weight, already in the reader's units ("61.5 kg"); null until
-  /// one is set.
-  final String? weight;
-
-  const ProfileStats({this.name, this.weight});
+  const ProfileStats({this.name});
 }
 
 class ProfileHome extends StatefulWidget {
@@ -606,18 +603,12 @@ class ProfileHome extends StatefulWidget {
 }
 
 class _ProfileHomeState extends State<ProfileHome> {
-  /// Re-read after every page this one pushes: an edited name or a new
-  /// weight shows the moment the page closes.
+  /// Re-read after every page this one pushes: an edited name shows the
+  /// moment the page closes.
   late Future<ProfileStats> _stats = _load();
 
-  Future<ProfileStats> _load() async {
-    final app = context.read<AppState>();
-    final wKg = (app.user?['weight_kg'] as num?)?.toDouble();
-    return ProfileStats(
-      name: app.user?['name'] as String?,
-      weight: wKg == null ? null : context.read<UnitsController>().weight(wKg),
-    );
-  }
+  Future<ProfileStats> _load() async =>
+      ProfileStats(name: context.read<AppState>().user?['name'] as String?);
 
   Future<void> _open(BuildContext c, Widget w) async {
     await goto(c, w);
@@ -638,19 +629,27 @@ class _ProfileHomeState extends State<ProfileHome> {
       onProfile: () => _open(c, const MyProfileSettings()),
       onReports: () => _open(c, const ReportsScreen()),
       onDevice: () => _open(c, const DeviceSettings()),
-      onHealth: () => _open(c, const HealthSettings()),
+      onZones: () => _open(c, const HeartRateSettingsScreen()),
+      onNotifications: () => _open(c, const NotificationSettings()),
+      onData: () => _open(c, const YourDataSettings()),
       onSettings: () => _open(c, const MoreSettings()),
     ),
   );
 }
 
 class ProfileHomeView extends StatelessWidget {
-  /// Null while the counts are still being read — the numbers are absent, not
-  /// zero, and a zero rendered during a load is a wrong number on screen.
+  /// Null while the name is still being read.
   final ProfileStats? stats;
 
-  /// The five doors: you, your reports, the band, health, and the app.
-  final VoidCallback? onProfile, onReports, onDevice, onHealth, onSettings;
+  /// The doors: you, your reports, the band, your heart rate zones, what may
+  /// interrupt you, your data, and the app.
+  final VoidCallback? onProfile,
+      onReports,
+      onDevice,
+      onZones,
+      onNotifications,
+      onData,
+      onSettings;
 
   /// The More tab: a tab title instead of a back bar.
   final bool tab;
@@ -662,7 +661,9 @@ class ProfileHomeView extends StatelessWidget {
     this.onProfile,
     this.onReports,
     this.onDevice,
-    this.onHealth,
+    this.onZones,
+    this.onNotifications,
+    this.onData,
     this.onSettings,
   });
 
@@ -671,37 +672,36 @@ class ProfileHomeView extends StatelessWidget {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
     final s = stats;
+    // Outline glyphs; a gear badge marks the doors that are settings OF
+    // something (the band, your heart, the app).
+    final doors = <Widget>[
+      MoreRow(LucideIcons.circleUserRound, 'My profile', onTap: onProfile),
+      MoreRow(LucideIcons.clipboardPenLine, 'Reports', onTap: onReports),
+      MoreRow(LucideIcons.watch, 'Device settings',
+          badge: LucideIcons.settings, onTap: onDevice),
+      MoreRow(LucideIcons.heartPulse, 'Heart rate zones',
+          badge: LucideIcons.settings, onTap: onZones),
+      MoreRow(LucideIcons.bell, 'Notifications', onTap: onNotifications),
+      MoreRow(LucideIcons.inboxDown, 'Your data', onTap: onData),
+      AnimatedBuilder(
+        animation: UpdateService.instance,
+        builder: (c, _) => MoreRow(LucideIcons.smartphone, 'Settings',
+            badge: LucideIcons.settings,
+            value: UpdateService.instance.hasUpdate ? 'Update ready' : '',
+            onTap: onSettings),
+      ),
+    ];
     final list = ListView(
       padding: EdgeInsets.fromLTRB(S.x4, 0, S.x4, tab ? S.navClear(c) : S.x10),
       children: [
         const SizedBox(height: S.x4),
         ProfilePhotoHeader(name: s?.name),
         const SizedBox(height: S.x8),
-        // Five doors, each to a page of its own: who you are, what the weeks
-        // added up to, the band, your health settings, and the app. Every
-        // setting is behind exactly one of them.
-        MoreRow(LucideIcons.userRound, 'My profile',
-            value: s?.weight ?? '', onTap: onProfile),
-        const SizedBox(height: S.x3),
-        MoreRow(LucideIcons.calendarRange, 'Reports', onTap: onReports),
-        const SizedBox(height: S.x3),
-        // The band's battery rides its row: this is where "is my band all
-        // right?" is asked from every tab.
-        Builder(builder: (c) {
-          final battery = deviceBatteryOf(c);
-          return MoreRow(LucideIcons.watch, 'Device settings',
-              value: battery == null ? '' : '${battery.$1.round()}%',
-              onTap: onDevice);
-        }),
-        const SizedBox(height: S.x3),
-        MoreRow(LucideIcons.heartPulse, 'Health settings', onTap: onHealth),
-        const SizedBox(height: S.x3),
-        AnimatedBuilder(
-          animation: UpdateService.instance,
-          builder: (c, _) => MoreRow(LucideIcons.settings, 'Settings',
-              value: UpdateService.instance.hasUpdate ? 'Update ready' : '',
-              onTap: onSettings),
-        ),
+        // Every setting is behind exactly one of these doors.
+        for (var i = 0; i < doors.length; i++) ...[
+          if (i > 0) const SizedBox(height: S.x3),
+          doors[i],
+        ],
       ],
     );
     // The tab is hosted by the shell's scaffold; the pushed screen brings its

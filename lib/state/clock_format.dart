@@ -101,8 +101,9 @@ bool _systemUse24h() {
 
 /// Hour + minute → "07:05" or "7:05 AM" (the locale's AM/PM), per
 /// [use24HourClock].
-String formatClock(int hour, int minute) {
-  final mm = minute.toString().padLeft(2, '0');
+String formatClock(int hour, int minute, [int? second]) {
+  final mm = minute.toString().padLeft(2, '0') +
+      (second == null ? '' : ':${second.toString().padLeft(2, '0')}');
   if (use24HourClock) return '${hour.toString().padLeft(2, '0')}:$mm';
   final h = hour % 12 == 0 ? 12 : hour % 12;
   final l = _localizations;

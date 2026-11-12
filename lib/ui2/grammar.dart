@@ -3875,6 +3875,112 @@ class AppField extends StatelessWidget {
   }
 }
 
+/// The dropdown menu every chooser opens: the [options] in a card under
+/// [anchor], the [selected] one ticked. Returns the index picked, or null when
+/// it is dismissed.
+Future<int?> showChoiceMenu(
+    BuildContext anchor, List<String> options, int selected) {
+  final p = P.of(anchor);
+  final box = anchor.findRenderObject()! as RenderBox;
+  final overlay =
+      Overlay.of(anchor).context.findRenderObject()! as RenderBox;
+  final at = box.localToGlobal(Offset.zero, ancestor: overlay);
+  final r = at & box.size;
+  return showMenu<int>(
+    context: anchor,
+    color: p.card2,
+    elevation: S.x3,
+    constraints: BoxConstraints(minWidth: math.max(r.width, S.x16 * 2.5)),
+    position: RelativeRect.fromRect(
+        Rect.fromLTWH(r.left, r.bottom + S.x1, r.width, 0),
+        Offset.zero & overlay.size),
+    shape: RoundedRectangleBorder(
+      borderRadius: R.rLg,
+      side: BorderSide(color: p.ink.withValues(alpha: .1)),
+    ),
+    items: [
+      for (var i = 0; i < options.length; i++)
+        PopupMenuItem<int>(
+          value: i,
+          height: S.tap,
+          child: Row(children: [
+            Expanded(
+              child: Text(options[i],
+                  style: F.body.copyWith(
+                      color: p.ink,
+                      fontWeight:
+                          i == selected ? FontWeight.w700 : FontWeight.w500)),
+            ),
+            if (i == selected) ...[
+              const SizedBox(width: S.x3),
+              Icon(LucideIcons.check, size: I.sm, color: p.ink),
+            ],
+          ]),
+        ),
+    ],
+  );
+}
+
+/// A labelled field that opens [showChoiceMenu]: the chosen option and a
+/// chevron in a 44 tall field, the [label] over it as on [OsTextField].
+class AppDropdown extends StatelessWidget {
+  final String label;
+  final List<String> options;
+
+  /// The chosen option; -1 shows [hint] instead.
+  final int index;
+  final String hint;
+  final ValueChanged<int>? onChanged;
+
+  const AppDropdown(
+      {super.key,
+      required this.label,
+      required this.options,
+      required this.index,
+      this.hint = 'Choose',
+      this.onChanged});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final chosen = index >= 0 && index < options.length;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (label.isNotEmpty) ...[
+        Text(label, style: F.cap.copyWith(color: p.ink2)),
+        const SizedBox(height: S.x2),
+      ],
+      Builder(
+        builder: (field) => Pressable(
+          semanticLabel: chosen ? '$label, ${options[index]}' : label,
+          onTap: onChanged == null
+              ? null
+              : () async {
+                  final i = await showChoiceMenu(field, options, index);
+                  if (i != null && i != index) onChanged!(i);
+                },
+          child: Container(
+            constraints: const BoxConstraints(minHeight: S.tap),
+            padding: const EdgeInsets.symmetric(horizontal: S.x3),
+            decoration: BoxDecoration(color: p.card2, borderRadius: R.rLg),
+            child: Row(children: [
+              Expanded(
+                child: Text(chosen ? options[index] : hint,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: F.body.copyWith(
+                        color: chosen ? p.ink : p.ink3,
+                        fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(width: S.x2),
+              Icon(LucideIcons.chevronDown, size: I.sm, color: p.ink2),
+            ]),
+          ),
+        ),
+      ),
+    ]);
+  }
+}
+
 /// The bottom sheet: card surface, [R.xxl] top corners, a grab handle, a
 /// title, the content, then [actions] stacked full width. Open it with
 /// [AppSheet.show], which gates the slide on reduced motion. Replaces direct

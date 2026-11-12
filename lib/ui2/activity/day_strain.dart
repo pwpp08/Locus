@@ -408,7 +408,8 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
           _todaysActivities(p, l),
           const SizedBox(height: S.x8),
           _weeklyTrends(p, l, today),
-          const SizedBox(height: S.x8),
+          // The curve card follows the week's cards at their own spacing.
+          const SizedBox(height: S.x3),
           ..._throughTheDay(p, l, d),
           Section(l?.dayStrainInputsSection ?? 'What this is made of',
               _inputs(p, l, d)),

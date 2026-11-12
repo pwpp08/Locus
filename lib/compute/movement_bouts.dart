@@ -34,8 +34,8 @@ import 'step_cadence.dart' show cadenceSpmForMinutes;
 const int kWalkMinSpm = 60;
 const int kRunMinSpm = 140;
 
-/// A bout must hold up this long (minutes)…
-const int kMovementMinMinutes = 5;
+/// A bout must hold up this long (minutes), measured on its refined edges…
+const int kMovementMinMinutes = 15;
 
 /// …and may pause this long (minutes) without ending: a crossing, a door.
 const int kMovementMaxGapMinutes = 2;
@@ -117,15 +117,165 @@ Map<int, int> stepsPerMinuteFromSpans(List<List<int>> spans) {
 /// Walks and runs in one day of 1 Hz samples, outside [excluded] spans
 /// (`[startSec, endSec]`, already-logged sessions and HR-detected bouts).
 /// Without the band's own counter, the day's step [spans] are read instead.
+///
+/// The steps find the bout; its edges are then put on the second
+/// ([refineBoutEdges]): from the band's counter where it has one, else from
+/// the band's own wrist movement ([ax], [ay], [az], 1 Hz beside [tsSec])
+/// inside the first and last slice. A bout must last [kMovementMinMinutes]
+/// on those edges.
 List<MovementBout> detectMovementBouts({
   required List<int> tsSec,
   required List<int> stepCount,
   List<List<int>> spans = const [],
   List<List<int>> excluded = const [],
+  List<double> ax = const [],
+  List<double> ay = const [],
+  List<double> az = const [],
 }) {
-  var perMin = stepsPerMinute(tsSec, stepCount);
-  if (perMin.isEmpty) perMin = stepsPerMinuteFromSpans(spans);
+  final counter = stepsPerMinute(tsSec, stepCount);
+  final perMin =
+      counter.isNotEmpty ? counter : stepsPerMinuteFromSpans(spans);
   if (perMin.isEmpty) return const [];
+  return [
+    for (final b in _coarseBouts(perMin, excluded))
+      if (refineBoutEdges(b,
+              tsSec: tsSec,
+              stepCount: counter.isNotEmpty ? stepCount : const [],
+              ax: ax,
+              ay: ay,
+              az: az,
+              excluded: excluded)
+          case final r when r.endSec - r.startSec >= kMovementMinMinutes * 60)
+        r,
+  ];
+}
+
+/// Seconds either side of a coarse edge searched for the real one: a slice.
+const int _edgeSearchSec = 5 * 60;
+
+/// The window movement must hold through to count as walking (seconds), and
+/// the share of its seconds that must be moving.
+const int _edgeHoldSec = 60;
+const double _edgeHoldShare = .8;
+
+/// [b] with its start and end put on the second, or [b] unchanged when the
+/// samples cannot say.
+///
+/// With the band's counter ([stepCount] non-empty): the first second the
+/// counter moves in the first minute, the last in the last minute.
+///
+/// Without it, the band's 1 Hz gravity vector: each second's movement is
+/// how far the vector turned since the last, smoothed over 15 s. Inside the
+/// bout (the steps proved it) that sets the walking level; the start is the
+/// first second within a slice of the coarse start from which movement holds
+/// above 40 % of it for a minute, the end the last such second before the
+/// coarse end. Movement never decides THAT it was a walk, only where the walk
+/// the steps found begins and ends.
+MovementBout refineBoutEdges(
+  MovementBout b, {
+  required List<int> tsSec,
+  List<int> stepCount = const [],
+  List<double> ax = const [],
+  List<double> ay = const [],
+  List<double> az = const [],
+  List<List<int>> excluded = const [],
+}) {
+  bool free(int t) =>
+      !excluded.any((s) => s.length >= 2 && t >= s[0] && t < s[1]);
+  MovementBout at(int start, int end) => MovementBout(
+      startSec: free(start) ? start : b.startSec,
+      endSec: free(end - 1) ? end : b.endSec,
+      steps: b.steps,
+      sport: b.sport);
+
+  if (stepCount.isNotEmpty) {
+    int? first, last;
+    for (var i = 1; i < tsSec.length && i < stepCount.length; i++) {
+      final t = tsSec[i];
+      if (t < b.startSec || t >= b.endSec) continue;
+      final c0 = stepCount[i - 1], c1 = stepCount[i];
+      if (c0 < 0 || c1 < 0 || tsSec[i - 1] != t - 1) continue;
+      var d = c1 - c0;
+      if (d < 0) d += 65536;
+      if (d <= 0 || d >= 50) continue;
+      first ??= t;
+      last = t;
+    }
+    return first == null ? b : at(first, last! + 1);
+  }
+
+  final n = math.min(tsSec.length,
+      math.min(ax.length, math.min(ay.length, az.length)));
+  if (n < 2) return b;
+  final lo = b.startSec - _edgeSearchSec - _edgeHoldSec;
+  final hi = b.endSec + _edgeSearchSec + _edgeHoldSec;
+  // Raw movement per second, keyed by epoch second.
+  final raw = <int, double>{};
+  for (var i = 1; i < n; i++) {
+    final t = tsSec[i];
+    if (t < lo || t > hi || tsSec[i - 1] != t - 1) continue;
+    final dx = ax[i] - ax[i - 1], dy = ay[i] - ay[i - 1], dz = az[i] - az[i - 1];
+    final v = math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (v.isFinite) raw[t] = v;
+  }
+  // Smoothed over 15 s, centred.
+  final smooth = <int, double>{};
+  for (final t in raw.keys) {
+    var sum = 0.0, k = 0;
+    for (var u = t - 7; u <= t + 7; u++) {
+      final v = raw[u];
+      if (v != null) {
+        sum += v;
+        k++;
+      }
+    }
+    if (k >= 8) smooth[t] = sum / k;
+  }
+  final inside = [
+    for (final e in smooth.entries)
+      if (e.key >= b.startSec + _edgeSearchSec &&
+          e.key < b.endSec - _edgeSearchSec)
+        e.value,
+  ]..sort();
+  if (inside.length < 120) return b;
+  final walking = inside[inside.length ~/ 2];
+  if (walking <= 0) return b;
+  final line = walking * .4;
+  bool holds(int from) {
+    var moving = 0;
+    for (var u = from; u < from + _edgeHoldSec; u++) {
+      if ((smooth[u] ?? 0) >= line) moving++;
+    }
+    return moving >= _edgeHoldSec * _edgeHoldShare;
+  }
+
+  int? start, end;
+  for (var t = b.startSec - _edgeSearchSec;
+      t <= b.startSec + _edgeSearchSec;
+      t++) {
+    if ((smooth[t] ?? 0) >= line && holds(t)) {
+      start = t;
+      break;
+    }
+  }
+  for (var t = b.endSec + _edgeSearchSec;
+      t >= b.endSec - _edgeSearchSec;
+      t--) {
+    if ((smooth[t - 1] ?? 0) >= line && holds(t - _edgeHoldSec)) {
+      end = t;
+      break;
+    }
+  }
+  if (start == null || end == null || end <= start) return b;
+  return at(start, end);
+}
+
+/// Minute-resolution bouts off per-minute steps, before their edges are
+/// refined. Kept a slice short of [kMovementMinMinutes]: a walk that starts
+/// late in one slice and ends early in another is longer than its full
+/// slices, and the real length is only known once the edges are.
+List<MovementBout> _coarseBouts(
+    Map<int, int> perMin, List<List<int>> excluded) {
   final mins = perMin.keys.toList()..sort();
   bool blocked(int m) =>
       excluded.any((s) => s.length >= 2 && m * 60 < s[1] && (m + 1) * 60 > s[0]);
@@ -136,7 +286,7 @@ List<MovementBout> detectMovementBouts({
   void close() {
     if (start != null && lastActive != null) {
       final n = lastActive! - start! + 1;
-      if (n >= kMovementMinMinutes) {
+      if (n >= kMovementMinMinutes - _edgeSearchSec ~/ 60) {
         final spm = steps / n;
         out.add(MovementBout(
           startSec: start! * 60,

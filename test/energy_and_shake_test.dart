@@ -59,6 +59,26 @@ void main() {
       expect(rest.activities, isEmpty);
     });
 
+    test('the projection carries on at the day\'s pace outside workouts', () {
+      final rest = run(day(58));
+      final mixed = run([
+        ...day(58, mins: 120),
+        for (var i = 120; i < 165; i++) (wake + i * 60, 150.0),
+      ]);
+      expect(rest.restRate, isNotNull);
+      // A workout does not set the evening's pace.
+      expect(mixed.restRate, closeTo(rest.restRate!, 1e-9));
+      final to = midnight + 86400;
+      final pr = projectEnergy(rest, to)!;
+      expect(pr.first, rest.points.last);
+      expect(pr.last.$1, to);
+      expect(pr.last.$2,
+          closeTo(rest.level + rest.restRate! * (to - pr.first.$1) / 60, 1e-6));
+      expect(pr.every((e) => e.$2 >= kEnergyFloor), isTrue);
+      // Under an hour of ordinary minutes: nothing to go on.
+      expect(run(day(58).take(20).toList()).restRate, isNull);
+    });
+
     test('awake: a calm minute charges, a stressed one drains', () {
       expect(energyRatePerMin(asleep: false, stress: .2), greaterThan(0));
       expect(energyRatePerMin(asleep: false, stress: 1.5), lessThan(0));

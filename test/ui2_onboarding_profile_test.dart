@@ -18,6 +18,7 @@ import 'package:openstrap_edge/ui2/onboarding/welcome.dart';
 import 'package:openstrap_edge/ui2/profile/alarm.dart';
 import 'package:openstrap_edge/ui2/profile/devices.dart';
 import 'package:openstrap_edge/ui2/profile/profile.dart';
+import 'package:openstrap_edge/ui2/profile/device_settings.dart';
 import 'package:openstrap_edge/ui2/profile/settings.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
@@ -84,13 +85,23 @@ Map<String, Widget> _cases() => {
           initial: const {'sex': 'f', 'age': 34, 'weight_kg': 61.5},
           onSave: (_) async {}),
       'profile_home': const ProfileHomeView(
-        stats: ProfileStats(name: 'Sahil', weight: '61.5 kg'),
+        stats: ProfileStats(name: 'Sahil'),
       ),
       'profile_home_loading': const ProfileHomeView(),
       'my_devices': MyDevicesView(sources: [_band, _phone]),
       'my_devices_empty': const MyDevicesView(),
       'device_detail': DeviceDetailView(_band, onFind: () {}, onForget: () {}),
-      'more_settings': const MoreSettingsView(units: 'Metric', storage: '1.4 GB'),
+      'more_settings': const MoreSettingsView(units: 'Metric'),
+      'your_data': const YourDataView(storage: '1.4 GB'),
+      'device_settings': DeviceSettingsView(
+          connected: true,
+          name: "Vince's band",
+          syncedTo: DateTime(2026, 5, 30, 15, 41),
+          battery: 36,
+          model: 'WHOOP 4.0',
+          onRename: () {}),
+      'device_settings_advanced': const DeviceSettingsView(
+          serial: '4C2619854', firmware: '41.17.6.0', initialTab: 1),
       // The alarm's three confirmation states are the point of the screen: it
       // must not draw a confident tick over an alarm the band never
       // acknowledged.

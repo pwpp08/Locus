@@ -64,6 +64,11 @@ class EnergyReserve {
   final List<(int, double)> points;
   final List<EnergyEvent> activities;
 
+  /// Today's net change per minute while awake, out of naps and out of
+  /// effort: the pace of an ordinary minute today. Null with under
+  /// [kEnergyProjectMinMin] such minutes to go on.
+  final double? restRate;
+
   const EnergyReserve({
     required this.level,
     required this.wokeLevel,
@@ -72,7 +77,33 @@ class EnergyReserve {
     required this.drained,
     required this.points,
     required this.activities,
+    this.restRate,
   });
+}
+
+/// Ordinary awake minutes needed before the rest of the day is projected.
+const int kEnergyProjectMinMin = 60;
+
+/// Where the reserve goes from its last reading to [toTs] if the rest of the
+/// day runs at [EnergyReserve.restRate]: (epoch seconds, level) every five
+/// minutes from the last reading. No workout and no sleep is assumed: it says
+/// where an ordinary rest of the day leaves you. Null without a rate, or when
+/// the last reading is already at [toTs].
+///
+/// ponytail: one flat rate from today's own minutes; upgrade to earlier days'
+/// evenings (as `projectStrain` does) once their runs are kept.
+List<(int, double)>? projectEnergy(EnergyReserve e, int toTs) {
+  final rate = e.restRate;
+  if (rate == null || e.points.isEmpty) return null;
+  final (from, start) = e.points.last;
+  if (from >= toTs) return null;
+  double at(int t) => (start + rate * (t - from) / 60)
+      .clamp(kEnergyFloor, kEnergyCeiling)
+      .toDouble();
+  return [
+    for (var t = from; t < toTs; t += 300) (t, at(t)),
+    (toTs, at(toTs)),
+  ];
 }
 
 /// Points lost per minute at heart-rate reserve [hrr] while awake, when the
@@ -198,6 +229,7 @@ EnergyReserve? energyReserve({
   final activities = <EnergyEvent>[];
   int? effortStart;
   var effortLoss = 0.0, effortSec = 0;
+  var restDelta = 0.0, restSec = 0;
   void closeEffort() {
     if (effortStart != null && effortSec >= kEnergyActivityMinMin * 60) {
       activities.add(EnergyEvent(effortStart!, -effortLoss.round()));
@@ -232,6 +264,11 @@ EnergyReserve? energyReserve({
       effortSec += dt;
     } else {
       closeEffort();
+      if (!asleep) {
+        // The rate, not the clamped step: a floor or ceiling hit is no pace.
+        restDelta += rate * mins;
+        restSec += dt;
+      }
     }
     if (t - points.last.$1 >= 300) points.add((t, level));
   }
@@ -245,5 +282,8 @@ EnergyReserve? energyReserve({
     drained: drained.round(),
     points: points,
     activities: activities,
+    restRate: restSec >= kEnergyProjectMinMin * 60
+        ? restDelta / (restSec / 60)
+        : null,
   );
 }

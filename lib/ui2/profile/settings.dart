@@ -32,19 +32,12 @@ import '../../state/units_controller.dart';
 import '../../telemetry/health_uploader.dart';
 import '../ui2.dart';
 import '../screens/coach.dart';
-import '../screens/heart_rate_settings.dart';
-import '../screens/home_screen.dart' show deviceBatteryOf;
-import '../screens/sleep_planner.dart' show plannerKeepsConsistent;
-import '../screens/watch_compare_screen.dart' show WatchCompareScreen;
 import '../screens/weight_trend_screen.dart' show WeightTrendScreen;
 import '../../updater/update_service.dart';
 import 'account_screen.dart' show AccountScreen;
-import 'band_notifications.dart' show BandNotifications;
 import 'data.dart' show DataScreen;
-import 'devices.dart' show MyDevices;
 import 'storage_screen.dart' show StorageScreen;
 import 'gallery.dart';
-import 'gestures.dart';
 import 'profile.dart';
 import 'report_issue.dart';
 import 'whoop_import_screen.dart';
@@ -80,15 +73,11 @@ class _MoreSettingsState extends State<MoreSettings> {
 
   String _version = '';
   int _taps = 0;
-  int? _bytes;
 
   @override
   void initState() {
     super.initState();
     _readVersion();
-    context.read<AppState>().dataFileBytes().then((b) {
-      if (mounted) setState(() => _bytes = b);
-    }).catchError((Object _) {});
     // The developer wearable toggles list the paired devices; best-effort.
     if (_dev) {
       WearableDisplay.instance.loadDevices().catchError((Object _) {});
@@ -134,7 +123,6 @@ class _MoreSettingsState extends State<MoreSettings> {
       onGallery: () => goto(c, const GalleryScreen()),
       units: units.system.label,
       clockFormat: clock.format,
-      storage: _bytes == null ? '' : formatBytes(_bytes!),
       telemetry: app.telemetryConsent,
       // Shown when the build has the feature OR when this install already
       // consented under an older build. A consent that cannot be withdrawn is
@@ -142,15 +130,11 @@ class _MoreSettingsState extends State<MoreSettings> {
       // the pref — and the daily whole-database upload it authorises — did not.
       showHealthShare: kHealthDataContributionEnabled || app.healthShareConsent,
       healthShare: app.healthShareConsent,
-      healthStore: app.healthStoreName,
-      healthSync: app.healthSyncEnabled,
-      healthState: app.healthState,
       showUpdateChecks: app.updateChecksAvailable,
       updateChecks: app.updateChecksEnabled,
       updateAvailable: app.updateAvailable,
       updateMandatory: app.updateMandatory,
       onUpdates: () => UpdateService.instance.check(c, manual: true),
-      onNotifications: () => goto(c, const NotificationSettings()),
       onAutomation: () => goto(c, const AutomationSettings()),
       onUnits: (i) => units.setSystem(UnitSystem.values[i]),
       // the wind-down body bakes the time in when it's armed, re-arm it now
@@ -163,7 +147,6 @@ class _MoreSettingsState extends State<MoreSettings> {
       },
       onToggleTelemetry: () => app.setTelemetryConsent(!app.telemetryConsent),
       onToggleHealthShare: () => _toggleHealthShare(c, app),
-      onToggleHealthSync: () => _toggleHealthSync(app),
       onToggleUpdateChecks: () =>
           app.setUpdateChecksEnabled(!app.updateChecksEnabled),
       onReset: () => _confirmReset(c, app),
@@ -354,19 +337,9 @@ class MoreSettingsView extends StatelessWidget {
   final ClockFormat clockFormat;
   final bool telemetry;
 
-  /// How much room the data takes ("1.4 GB"); empty until it is read.
-  final String storage;
-
   /// The health-contribution row appears only where it means something: a
   /// build that has the feature, or an install that already said yes to it.
   final bool showHealthShare, healthShare;
-
-  /// The platform health EXPORT. `healthStore` names it — "Apple Health" or
-  /// "Health Connect" — because "your health app" is not something a user can
-  /// go and grant a permission in.
-  final bool healthSync;
-  final HealthLinkState healthState;
-  final String healthStore;
 
   /// The legacy release-server check appears only on a build that can check.
   final bool showUpdateChecks, updateChecks;
@@ -389,11 +362,9 @@ class MoreSettingsView extends StatelessWidget {
   /// Look for a newer build now; null hides the app-update rows.
   final VoidCallback? onUpdates;
 
-  final VoidCallback? onNotifications,
-      onAutomation,
+  final VoidCallback? onAutomation,
       onToggleTelemetry,
       onToggleHealthShare,
-      onToggleHealthSync,
       onToggleUpdateChecks,
       onReset;
 
@@ -405,10 +376,6 @@ class MoreSettingsView extends StatelessWidget {
     super.key,
     this.units = 'Metric',
     this.clockFormat = ClockFormat.system,
-    this.storage = '',
-    this.healthSync = false,
-    this.healthState = HealthLinkState.unknown,
-    this.healthStore = 'Apple Health',
     this.telemetry = false,
     this.showHealthShare = false,
     this.healthShare = false,
@@ -422,13 +389,11 @@ class MoreSettingsView extends StatelessWidget {
     this.onToggleDev,
     this.onGallery,
     this.onUpdates,
-    this.onNotifications,
     this.onAutomation,
     this.onUnits,
     this.onClockFormat,
     this.onToggleTelemetry,
     this.onToggleHealthShare,
-    this.onToggleHealthSync,
     this.onToggleUpdateChecks,
     this.onReset,
   });
@@ -438,21 +403,22 @@ class MoreSettingsView extends StatelessWidget {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
     return settingsPage(c, l?.settingsNavTitle ?? 'Settings', [
-      // The app itself. You, the band and your health each have a page of
-      // their own on the More tab; nothing here repeats them.
+      // The app itself. You, the band, your zones, notifications and your
+      // data each have a page of their own on the More tab; nothing here
+      // repeats them.
       //
       // Every group is named for the question it answers, in the order
-      // people come looking: how the app reads, what may interrupt, updates,
-      // what it talks to, the coach's model, your data, privacy, then help.
-      // The one destructive action sits alone at the end.
+      // people come looking: how the app reads, updates, what it talks to,
+      // the coach's model, privacy, then help. The one destructive action
+      // sits alone at the end.
       settingsGroup(c, 'Display', [
-        SetChoice(
+        SetDropdown(
             LucideIcons.ruler,
             l?.settingsUnitsRowTitle ?? 'Units',
             const ['Metric', 'Imperial'],
             units == 'Imperial' ? 1 : 0,
             onChanged: onUnits),
-        SetChoice(
+        SetDropdown(
             LucideIcons.clock,
             l?.settingsClockFormatRowTitle ?? 'Time format',
             [
@@ -462,14 +428,6 @@ class MoreSettingsView extends StatelessWidget {
             ],
             clockFormat.index,
             onChanged: onClockFormat),
-      ]),
-      settingsGroup(c, 'Notifications', [
-        SetRow(LucideIcons.bell, C.dialStrain,
-            l?.settingsManageNotificationsRowTitle ?? 'Manage notifications',
-            sub: l?.settingsManageNotificationsRowSub ??
-                'What may interrupt you, quiet hours, and off '
-                    'switches for all of them',
-            onTap: onNotifications),
       ]),
       if (onUpdates != null || showUpdateChecks)
         settingsGroup(c, 'Updates', [
@@ -517,16 +475,6 @@ class MoreSettingsView extends StatelessWidget {
                 onTap: onToggleUpdateChecks),
         ]),
       settingsGroup(c, 'Connected apps', [
-        SetRow(LucideIcons.heartPulse, C.dialStrain,
-            l?.settingsWriteToHealthStoreRowTitle(healthStore) ??
-                'Write to $healthStore',
-            sub: healthSyncSub(c, healthSync, healthState, healthStore),
-            switchValue: healthSync,
-            onTap: onToggleHealthSync),
-        SetRow(LucideIcons.upload, C.dialStrain, 'Import WHOOP data',
-            sub: 'Your recovery, sleep, strain and workouts from a '
-                'WHOOP export',
-            onTap: () => goto(c, const WhoopImportScreen())),
         SetRow(LucideIcons.workflow, C.dialStrain,
             l?.settingsTaskerShortcutsRowTitle ?? 'Tasker and Shortcuts',
             // The row states the asymmetry rather than leaving it to the
@@ -541,17 +489,6 @@ class MoreSettingsView extends StatelessWidget {
             'Model and key',
             sub: 'The AI coach’s model, its API key and how it answers',
             onTap: () => goto(c, const CoachSetup())),
-      ]),
-      settingsGroup(c, l?.profileYourDataGroup ?? 'Your data', [
-        SetRow(LucideIcons.hardDriveDownload, C.dialStrain,
-            l?.profileExportRow ?? 'Export and backup',
-            onTap: () => goto(c, const DataScreen())),
-        SetRow(LucideIcons.cloud, C.dialStrain, 'Cloud account',
-            onTap: () => goto(c, const AccountScreen())),
-        SetRow(LucideIcons.database, C.dialStrain,
-            l?.profileStorage ?? 'Storage',
-            value: storage,
-            onTap: () => goto(c, const StorageScreen())),
       ]),
       settingsGroup(c, l?.settingsGroupPrivacy ?? 'Privacy', [
         SetRow(LucideIcons.bug, C.dialStrain,
@@ -665,90 +602,87 @@ class MyProfileSettings extends StatelessWidget {
   }
 }
 
-/// Everything about the band: the devices, what makes it buzz, what its
-/// double-tap does, and the watch it can be compared with.
-class DeviceSettings extends StatelessWidget {
-  const DeviceSettings({super.key});
+/// Everything that is your data: what comes in (a WHOOP export), what goes
+/// out (the health store, export and backup, the cloud copy) and how much
+/// room it takes.
+class YourDataSettings extends StatefulWidget {
+  const YourDataSettings({super.key});
+
+  @override
+  State<YourDataSettings> createState() => _YourDataSettingsState();
+}
+
+class _YourDataSettingsState extends State<YourDataSettings> {
+  int? _bytes;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<AppState>().dataFileBytes().then((b) {
+      if (mounted) setState(() => _bytes = b);
+    }).catchError((Object _) {});
+  }
 
   @override
   Widget build(BuildContext c) {
     final app = c.watch<AppState>();
-    final l = AppLocalizations.of(c);
-    final battery = deviceBatteryOf(c);
-    final android = defaultTargetPlatform == TargetPlatform.android;
-    return settingsPage(c, 'Device settings', [
-      settingsGroup(c, l?.settingsGroupTheBand ?? 'Band', [
-        SetRow(LucideIcons.watch, C.dialStrain,
-            l?.profileMyDevices ?? 'My devices',
-            sub: 'Your band, its battery and the sensors paired with it',
-            value: battery == null ? '' : '${battery.$1.round()}%',
-            onTap: () => goto(c, const MyDevices())),
-        // Reading which app notified is an Android capability; elsewhere the
-        // row is not drawn.
-        if (android)
-          SetRow(LucideIcons.vibrate, C.dialStrain, 'Band buzzes',
-              sub: 'Which phone notifications the band buzzes for',
-              onTap: () => goto(c, const BandNotifications())),
-        // The picker died with the old ui tree and the engine kept running
-        // against a mapping nothing could set.
-        SetRow(LucideIcons.hand, C.dialStrain,
-            l?.settingsDoubleTapRowTitle ?? 'Double-tap',
-            sub: l?.settingsDoubleTapRowSub ??
-                'What a double-tap on the band does',
-            onTap: () => goto(c, const BandGestures())),
-        // Off by default — an existing user did not ask their band to start
-        // buzzing mid-workout. The target zone only appears once it is on.
-        SetRow(LucideIcons.heartPulse, C.dialStrain,
-            l?.settingsZoneAlertRowTitle ?? 'HR zone alert',
-            sub: l?.settingsZoneAlertRowSub ??
-                'Buzz when your heart rate crosses into or out of '
-                    'the target zone during a live workout',
-            switchValue: app.zoneAlertEnabled,
-            onTap: () => app.setZoneAlertEnabled(!app.zoneAlertEnabled)),
-        if (app.zoneAlertEnabled)
-          SetChoice(
-              LucideIcons.target,
-              l?.settingsZoneAlertTargetRowTitle ?? 'Target zone',
-              const ['1', '2', '3', '4', '5'],
-              (app.zoneAlertTargetZone - 1).clamp(0, 4),
-              onChanged: (i) => app.setZoneAlertTargetZone(i + 1)),
-      ]),
-      settingsGroup(c, 'Other devices', [
-        SetRow(LucideIcons.gitCompareArrows, C.dialStrain, 'Compare with watch',
-            sub: 'Your band’s numbers next to another watch’s',
-            onTap: () => goto(c, const WatchCompareScreen())),
-      ]),
-    ]);
+    return YourDataView(
+      storage: _bytes == null ? '' : formatBytes(_bytes!),
+      healthStore: app.healthStoreName,
+      healthSync: app.healthSyncEnabled,
+      healthState: app.healthState,
+      onToggleHealthSync: () => _toggleHealthSync(app),
+    );
   }
 }
 
-/// Everything health: your heart rate zones and what the sleep planner
-/// plans for.
-class HealthSettings extends StatefulWidget {
-  const HealthSettings({super.key});
+class YourDataView extends StatelessWidget {
+  /// How much room the data takes ("1.4 GB"); empty until it is read.
+  final String storage;
 
-  @override
-  State<HealthSettings> createState() => _HealthSettingsState();
-}
+  /// The platform health EXPORT. `healthStore` names it — "Apple Health" or
+  /// "Health Connect" — because "your health app" is not something a user can
+  /// go and grant a permission in.
+  final bool healthSync;
+  final HealthLinkState healthState;
+  final String healthStore;
+  final VoidCallback? onToggleHealthSync;
 
-class _HealthSettingsState extends State<HealthSettings> {
+  const YourDataView({
+    super.key,
+    this.storage = '',
+    this.healthSync = false,
+    this.healthState = HealthLinkState.unknown,
+    this.healthStore = 'Health Connect',
+    this.onToggleHealthSync,
+  });
+
   @override
   Widget build(BuildContext c) {
-    final consistent = plannerKeepsConsistent;
-    return settingsPage(c, 'Health settings', [
-      settingsGroup(c, 'Heart', [
-        SetRow(LucideIcons.heart, C.dialStrain, 'Heart rate zones',
-            sub: 'Your zones, resting and maximum heart rate',
-            onTap: () => goto(c, const HeartRateSettingsScreen())),
+    final l = AppLocalizations.of(c);
+    return settingsPage(c, l?.profileYourDataGroup ?? 'Your data', [
+      settingsGroup(c, 'In and out', [
+        SetRow(LucideIcons.upload, C.dialStrain, 'Import WHOOP data',
+            sub: 'Your recovery, sleep, strain and workouts from a '
+                'WHOOP export',
+            onTap: () => goto(c, const WhoopImportScreen())),
+        SetRow(LucideIcons.heartPulse, C.dialStrain,
+            l?.settingsWriteToHealthStoreRowTitle(healthStore) ??
+                'Write to $healthStore',
+            sub: healthSyncSub(c, healthSync, healthState, healthStore),
+            switchValue: healthSync,
+            onTap: onToggleHealthSync),
       ]),
-      settingsGroup(c, 'Sleep', [
-        SetChoice(LucideIcons.moon, 'Sleep goal',
-            const ['Sleep need', 'Consistent'], consistent ? 1 : 0,
-            onChanged: (i) {
-          Prefs.setString(
-              Prefs.sleepPlannerGoal, i == 1 ? 'consistent' : 'optimize');
-          setState(() {});
-        }),
+      settingsGroup(c, 'Copies and room', [
+        SetRow(LucideIcons.hardDriveDownload, C.dialStrain,
+            l?.profileExportRow ?? 'Export and backup',
+            onTap: () => goto(c, const DataScreen())),
+        SetRow(LucideIcons.cloud, C.dialStrain, 'Cloud account',
+            onTap: () => goto(c, const AccountScreen())),
+        SetRow(LucideIcons.database, C.dialStrain,
+            l?.profileStorage ?? 'Storage',
+            value: storage,
+            onTap: () => goto(c, const StorageScreen())),
       ]),
     ]);
   }
@@ -834,12 +768,17 @@ class _NotificationSettingsState extends State<NotificationSettings> {
   @override
   Widget build(BuildContext c) {
     final p = _prefs;
+    final app = c.watch<AppState>();
     return NotificationSettingsView(
       prefs: p ?? const NotificationPrefs(),
       loaded: p != null,
       granted: _granted,
       onChanged: _apply,
       onRequestPermission: _requestPermission,
+      zoneAlert: app.zoneAlertEnabled,
+      zoneAlertTarget: app.zoneAlertTargetZone,
+      onZoneAlert: () => app.setZoneAlertEnabled(!app.zoneAlertEnabled),
+      onZoneAlertTarget: app.setZoneAlertTargetZone,
     );
   }
 }
@@ -851,6 +790,14 @@ class NotificationSettingsView extends StatelessWidget {
   final Future<void> Function(NotificationPrefs next)? onChanged;
   final VoidCallback? onRequestPermission;
 
+  /// The band's buzz when a live workout crosses into or out of the target
+  /// zone (1–5). Off by default: an existing user did not ask their band to
+  /// start buzzing mid-workout.
+  final bool zoneAlert;
+  final int zoneAlertTarget;
+  final VoidCallback? onZoneAlert;
+  final ValueChanged<int>? onZoneAlertTarget;
+
   const NotificationSettingsView({
     super.key,
     this.prefs = const NotificationPrefs(),
@@ -858,6 +805,10 @@ class NotificationSettingsView extends StatelessWidget {
     this.granted = true,
     this.onChanged,
     this.onRequestPermission,
+    this.zoneAlert = false,
+    this.zoneAlertTarget = 3,
+    this.onZoneAlert,
+    this.onZoneAlertTarget,
   });
 
   @override
@@ -985,6 +936,23 @@ class NotificationSettingsView extends StatelessWidget {
                         sub: l?.activityPushHint ?? 'Push alerts only. Suggestions remain in Detected activities.',
                         switchValue: prefs.napDetectEnabled,
                         onTap: () => set(prefs.copyWith(napDetectEnabled: !prefs.napDetectEnabled))),
+                    SetRow(LucideIcons.heartPulse, C.dialStrain,
+                        l?.settingsZoneAlertRowTitle ?? 'HR zone alert',
+                        sub: l?.settingsZoneAlertRowSub ??
+                            'Buzz when your heart rate crosses into or out of '
+                                'the target zone during a live workout',
+                        switchValue: zoneAlert,
+                        onTap: onZoneAlert),
+                    // The target only while the alert is on.
+                    if (zoneAlert)
+                      SetDropdown(
+                          LucideIcons.target,
+                          l?.settingsZoneAlertTargetRowTitle ?? 'Target zone',
+                          const ['Zone 1', 'Zone 2', 'Zone 3', 'Zone 4', 'Zone 5'],
+                          (zoneAlertTarget - 1).clamp(0, 4),
+                          onChanged: onZoneAlertTarget == null
+                              ? null
+                              : (i) => onZoneAlertTarget!(i + 1)),
                     // Off by default, and it is the switch that lets the nudge
                     // be scheduled at all — see
                     // NotificationService.schedulableIds. It had none, so it

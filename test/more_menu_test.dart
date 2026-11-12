@@ -1,9 +1,12 @@
-// The More tab is five doors: My profile, Reports, Device settings, Health
-// settings and Settings. Every setting is behind exactly one of them; two
-// doors to one thing is how people end up unsure which is the real one.
+// The More tab is seven doors: My profile, Reports, Device settings, Heart
+// rate zones, Notifications, Your data and Settings. Every setting is behind
+// exactly one of them; two doors to one thing is how people end up unsure
+// which is the real one.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:openstrap_edge/notify/notification_prefs.dart';
+import 'package:openstrap_edge/ui2/profile/device_settings.dart';
 import 'package:openstrap_edge/ui2/profile/profile.dart';
 import 'package:openstrap_edge/ui2/profile/settings.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
@@ -24,7 +27,7 @@ void main() {
     await t.pumpAndSettle();
   }
 
-  testWidgets('the More tab is five doors, each opening its own page',
+  testWidgets('the More tab is seven doors, each opening its own page',
       (t) async {
     final taps = <String>[];
     await pump(
@@ -34,7 +37,9 @@ void main() {
         onProfile: () => taps.add('profile'),
         onReports: () => taps.add('reports'),
         onDevice: () => taps.add('device'),
-        onHealth: () => taps.add('health'),
+        onZones: () => taps.add('zones'),
+        onNotifications: () => taps.add('notifications'),
+        onData: () => taps.add('data'),
         onSettings: () => taps.add('settings'),
       ),
     );
@@ -42,7 +47,9 @@ void main() {
       'MY PROFILE',
       'REPORTS',
       'DEVICE SETTINGS',
-      'HEALTH SETTINGS',
+      'HEART RATE ZONES',
+      'NOTIFICATIONS',
+      'YOUR DATA',
       'SETTINGS',
     ];
     for (final row in rows) {
@@ -50,8 +57,16 @@ void main() {
       await t.tap(find.text(row));
       await t.pump();
     }
-    expect(taps, ['profile', 'reports', 'device', 'health', 'settings']);
-    // Nothing else: every setting is behind one of the five.
+    expect(taps, [
+      'profile',
+      'reports',
+      'device',
+      'zones',
+      'notifications',
+      'data',
+      'settings'
+    ]);
+    // Nothing else: every setting is behind one of the seven.
     expect(find.byType(MoreRow), findsNWidgets(rows.length));
   });
 
@@ -60,32 +75,97 @@ void main() {
         t, MoreSettingsView(version: '0.11.4', devMode: false, onUpdates: () {}));
     for (final gone in [
       'APPEARANCE',
-      'CYCLE TRACKING',
       'STEPS',
-      'STEP COUNTER',
       'ALARM',
-      'JOURNAL',
-      'LOCUS AGE',
       'HEART RATE ZONES',
       'DOUBLE-TAP',
-      'COMPARE WITH WATCH',
-    ]) {
-      expect(find.text(gone), findsNothing, reason: '$gone is not an app setting');
-    }
-    for (final kept in [
-      'UNITS',
-      'TIME FORMAT',
       'MANAGE NOTIFICATIONS',
-      'APP UPDATES',
-      'CHECK AUTOMATICALLY',
       'IMPORT WHOOP DATA',
-      'TASKER AND SHORTCUTS',
-      'MODEL AND KEY',
       'EXPORT AND BACKUP',
       'CLOUD ACCOUNT',
       'STORAGE',
     ]) {
+      expect(find.text(gone), findsNothing, reason: '$gone is not in Settings');
+    }
+    for (final kept in [
+      'UNITS',
+      'TIME FORMAT',
+      'APP UPDATES',
+      'TASKER AND SHORTCUTS',
+      'MODEL AND KEY',
+    ]) {
       expect(find.text(kept), findsWidgets, reason: '$kept is in Settings');
+    }
+    // A choice is a dropdown now, not a row of segments.
+    expect(find.byType(RangeSegments), findsNothing);
+    expect(find.byType(SetDropdown), findsNWidgets(2));
+  });
+
+  testWidgets('a dropdown row opens its menu and reports the pick', (t) async {
+    int? picked;
+    await pump(
+      t,
+      Builder(
+        builder: (c) => settingsGroup(c, '', [
+          SetDropdown(LucideIcons.ruler, 'Units', const ['Metric', 'Imperial'],
+              0, onChanged: (i) => picked = i),
+        ]),
+      ),
+    );
+    await t.tap(find.text('UNITS'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Imperial').last);
+    await t.pumpAndSettle();
+    expect(picked, 1);
+  });
+
+  testWidgets('Your data holds what comes in and what goes out', (t) async {
+    await pump(t, const YourDataView(storage: '1.4 GB'));
+    for (final row in [
+      'IMPORT WHOOP DATA',
+      'WRITE TO HEALTH CONNECT',
+      'EXPORT AND BACKUP',
+      'CLOUD ACCOUNT',
+      'STORAGE',
+    ]) {
+      expect(find.text(row), findsOneWidget, reason: row);
+    }
+  });
+
+  testWidgets('the HR zone alert lives in Notifications, its zone under it',
+      (t) async {
+    await pump(t, const NotificationSettingsView(prefs: NotificationPrefs()));
+    await t.ensureVisible(find.text('HR ZONE ALERT'));
+    expect(find.text('TARGET ZONE'), findsNothing, reason: 'only while on');
+    await pump(
+        t,
+        const NotificationSettingsView(
+            prefs: NotificationPrefs(), zoneAlert: true, zoneAlertTarget: 4));
+    await t.ensureVisible(find.text('TARGET ZONE'));
+    expect(find.text('Zone 4'), findsOneWidget);
+  });
+
+  testWidgets('device settings: status, then what can be done to the band',
+      (t) async {
+    await pump(
+        t,
+        DeviceSettingsView(
+            connected: true,
+            name: "Vince's band",
+            battery: 36,
+            model: 'WHOOP 4.0',
+            serial: '4C2619854',
+            onRename: () {}));
+    expect(find.text('CONNECTED TO'), findsOneWidget);
+    expect(find.text("VINCE'S BAND"), findsOneWidget);
+    expect(find.text('36'), findsOneWidget);
+    expect(find.bySemanticsLabel('Rename the band'), findsOneWidget);
+    await t.tap(find.text('ADVANCED'));
+    await t.pumpAndSettle();
+    expect(find.text('4C2619854'), findsOneWidget);
+    expect(find.text('FIRMWARE'), findsNothing, reason: 'never reported');
+    for (final row in ['PAIR ANOTHER BAND', 'UNPAIR BAND', 'DOUBLE-TAP']) {
+      expect(find.text(row), findsOneWidget, reason: row);
     }
   });
 }

@@ -1843,7 +1843,7 @@ class _DeviceDetailState extends State<DeviceDetail> {
       forecast: _forecast,
       onFind: app?.buzzBand,
       onRename: (app != null && app.isConnected)
-          ? () => _renameBand(c, app, s.name)
+          ? () => renameBand(c, app, s.name)
           : null,
       // A sensor is forgotten through its own path: `unpair()` tears down the
       // primary band's link, its restore identity and its trim cursor, none of
@@ -1865,7 +1865,7 @@ class _DeviceDetailState extends State<DeviceDetail> {
           ? () => _confirmForgetSensor(c, s)
           : app == null
               ? null
-              : () => _confirmForget(c, app, s.name),
+              : () => confirmForgetBand(c, app, s.name),
     );
   }
 }
@@ -2102,7 +2102,7 @@ Future<void> _confirmForgetSensor(BuildContext c, HealthSource s) async {
 /// characters, the charset `cleanDeviceLabel` accepts on the way back, and at
 /// least one letter or digit. Anything the strap would reject or mangle is
 /// rejected in the sheet, where the user can still fix it.
-Future<void> _renameBand(BuildContext c, AppState app, String current) async {
+Future<void> renameBand(BuildContext c, AppState app, String current) async {
   // Captured before the dialog: `c` is not safe to touch after the await.
   final messenger = ScaffoldMessenger.maybeOf(c);
   final l = AppLocalizations.of(c);
@@ -2165,7 +2165,7 @@ Future<void> _renameBand(BuildContext c, AppState app, String current) async {
 /// settings.dart, including the pop: `unpair()` changes the gate underneath
 /// this pushed screen, so without it the user is left reading a device page
 /// for a device that is gone.
-Future<void> _confirmForget(BuildContext c, AppState app, String name) async {
+Future<void> confirmForgetBand(BuildContext c, AppState app, String name) async {
   final l = AppLocalizations.of(c);
   final ok = await showDialog<bool>(
     context: c,

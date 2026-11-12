@@ -378,6 +378,11 @@ Map<String, Widget> componentCases() => {
       ]),
       // The sheet and the dialog, drawn in place rather than opened: the
       // sweep measures what they hold, at every text scale.
+      'app_dropdown': AppDropdown(
+          label: 'Where the model runs',
+          options: const ['Google Gemini', 'Ollama', 'LM Studio'],
+          index: 0,
+          onChanged: (_) {}),
       'app_sheet': AppSheet(
         title: 'Log a nap',
         actions: [
@@ -695,7 +700,7 @@ Map<String, Widget> _nutritionAndWellnessCases() {
     'energy_reserve': EnergyReserveCard(
       midnight: 1786665600,
       data: EnergyReserve(
-        level: 33,
+        level: 48,
         wokeLevel: 79,
         wokeTs: 1786665600 + 6 * 3600,
         charged: 38,
@@ -704,9 +709,10 @@ Map<String, Widget> _nutritionAndWellnessCases() {
           (1786665600, 41),
           (1786665600 + 6 * 3600, 79),
           (1786665600 + 12 * 3600, 60),
-          (1786665600 + 22 * 3600, 33),
+          (1786665600 + 17 * 3600, 48),
         ],
         activities: [EnergyEvent(1786665600 + 12 * 3600, -20)],
+        restRate: -.045,
       ),
     ),
     // `.preview`, because the gallery has no band and no Provider. The numbers
@@ -2053,8 +2059,8 @@ Map<String, Widget> _listCases() => {
               sub: 'Nothing is sent until you say so',
               switchValue: true,
               onTap: () {}),
-          SetChoice(LucideIcons.sunMoon, 'Appearance',
-              const ['System', 'Light', 'Dark'], 2, onChanged: (_) {}),
+          SetDropdown(LucideIcons.clock, 'Time format',
+              const ['System', '24-hour', '12-hour'], 0, onChanged: (_) {}),
           const SetRow(LucideIcons.clock, C.n500, 'Last backup',
               value: '2026-08-16 04:12', chevron: false),
           SetRow(LucideIcons.trash2, C.dialStrain, 'Delete everything on this device',

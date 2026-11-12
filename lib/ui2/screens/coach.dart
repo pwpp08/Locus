@@ -1071,6 +1071,33 @@ class _MenuRow extends StatelessWidget {
 
 // ═══════════════════════ setup ═══════════════════════
 
+/// Words in a model id that mark it as not a general chat model, or not a
+/// settled one: media, speech, embeddings, search, previews and experiments.
+const _notStandard = [
+  'embed', 'tts', 'audio', 'image', 'imagen', 'veo', 'live', 'aqa',
+  'learnlm', 'transcribe', 'realtime', 'search', 'moderation', 'whisper',
+  'dall-e', 'babbage', 'davinci', 'computer-use', 'robotics', 'exp',
+  'preview', 'thinking', 'native', 'lyria', 'gemma', 'nano', 'instruct',
+];
+
+/// The ids worth offering without a search: general chat models under their
+/// plain names. Pinned builds (`-001`, `-0613`, `-2024-08-06`) are dropped
+/// when the plain name is listed too. All of [ids] when the filter would
+/// leave none, so an unusual endpoint never shows an empty list.
+List<String> standardModels(List<String> ids) {
+  String bare(String id) => id.toLowerCase().replaceFirst('models/', '');
+  final pin = RegExp(r'-(\d{3,4}|\d{4}-\d{2}-\d{2})$');
+  final plain = {for (final id in ids) bare(id)};
+  final kept = [
+    for (final id in ids)
+      if (!_notStandard.any(bare(id).contains) &&
+          !(pin.hasMatch(bare(id)) &&
+              plain.contains(bare(id).replaceFirst(pin, ''))))
+        id,
+  ];
+  return kept.isEmpty ? ids : kept;
+}
+
 /// A provider preset. Local ones come first and carry no key, because a model
 /// running on the user's own machine is the only configuration where the health
 /// data never leaves their control.
@@ -1108,7 +1135,6 @@ class _CoachSetupState extends State<CoachSetup> {
   late final TextEditingController _timeout;
   late CoachApi _api;
   String _model = '';
-  late final TextEditingController _foodModel;
   List<String> _models = const [];
   bool _loading = false;
   String? _msg;
@@ -1140,7 +1166,6 @@ class _CoachSetupState extends State<CoachSetup> {
     _timeout = TextEditingController(text: cfg.timeoutSeconds.toString());
     _api = cfg.api;
     _model = cfg.model;
-    _foodModel = TextEditingController(text: cfg.foodModel);
     _keyOrigin = coachEndpointOrigin(cfg.baseUrl);
     // The base URL decides which preset is lit and whether a key is needed, and
     // the search box filters the list — both are read during build, so both
@@ -1158,7 +1183,6 @@ class _CoachSetupState extends State<CoachSetup> {
     // checking the trimmed text itself; _pendingKeyDelete only needs to say
     // whether the endpoint changed, not track the field's history.
     _search.addListener(redraw);
-    _foodModel.addListener(redraw);
   }
 
   /// Clears a carried-over key rather than letting Save silently send it to a
@@ -1183,7 +1207,6 @@ class _CoachSetupState extends State<CoachSetup> {
     _base.dispose();
     _key.dispose();
     _search.dispose();
-    _foodModel.dispose();
     _timeout.dispose();
     super.dispose();
   }
@@ -1200,9 +1223,8 @@ class _CoachSetupState extends State<CoachSetup> {
       if (ids.isEmpty && _base.text.contains('googleapis.com')) {
         ids = const [
           'gemini-2.5-flash',
-          'gemini-1.5-flash',
-          'gemini-1.5-pro',
-          'gemini-2.0-flash',
+          'gemini-2.5-pro',
+          'gemini-2.5-flash-lite',
         ];
       }
       if (!mounted) return;
@@ -1251,7 +1273,10 @@ class _CoachSetupState extends State<CoachSetup> {
           pendingKeyDelete: _pendingKeyDelete,
         ),
         model: chosen,
-        foodModel: _foodModel.text,
+        // The separate food-photo model is gone from this screen; clearing it
+        // here means food logging uses the coach's model, rather than one the
+        // user can no longer see or change.
+        foodModel: '',
         api: _api,
         timeoutSeconds: timeoutSeconds,
       );
@@ -1271,12 +1296,20 @@ class _CoachSetupState extends State<CoachSetup> {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
     final q = _search.text.trim().toLowerCase();
+    // Without a search, the standard models only; a search reaches them all.
     final shown = q.isEmpty
-        ? _models
+        ? [
+            if (_model.isNotEmpty && !standardModels(_models).contains(_model))
+              _model,
+            ...standardModels(_models),
+          ]
         : [
             for (final m in _models)
               if (m.toLowerCase().contains(q)) m,
           ];
+    final presets = _presets(c);
+    final presetAt =
+        presets.indexWhere((x) => x.baseUrl == _base.text.trim());
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
@@ -1291,79 +1324,32 @@ class _CoachSetupState extends State<CoachSetup> {
               child: ListView(
                 padding: pad,
                 children: [
-                  Section(
-                    l?.coachWhereModelRuns ?? 'Where the model runs',
-                    Column(
-                      children: [
-                        for (final preset in _presets(c))
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: S.x2),
-                            child: Surface(
-                              elevation: 0,
-                              color: _base.text.trim() == preset.baseUrl
-                                  ? p.wash(
-                                      preset.local ? C.optimal : kCoachAccent,
-                                    )
-                                  : p.card2,
-                              onTap: () => setState(() {
-                                // BEFORE assigning _base.text: that assignment
-                                // fires _onBaseChanged synchronously, which
-                                // may set _msg to explain a cleared key —
-                                // clearing _msg after it runs would silently
-                                // discard that explanation.
-                                _msg = null;
-                                _base.text = preset.baseUrl;
-                                _api = CoachApi.defaultFor(preset.baseUrl);
-                                if (preset.baseUrl.contains('googleapis.com')) {
-                                  _models = const [
-                                    'gemini-2.5-flash',
-                                    'gemini-1.5-flash',
-                                    'gemini-1.5-pro',
-                                    'gemini-2.0-flash',
-                                  ];
-                                  _model = 'gemini-2.5-flash';
-                                } else {
-                                  _models = const [];
-                                  _model = '';
-                                }
-                              }),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    preset.local
-                                        ? LucideIcons.house
-                                        : LucideIcons.cloud,
-                                    size: I.sm,
-                                    color: p.on(
-                                      preset.local ? C.optimal : kCoachAccent,
-                                    ),
-                                  ),
-                                  const SizedBox(width: S.x3),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          preset.label,
-                                          style: F.body.copyWith(
-                                            color: p.ink,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        Text(
-                                          preset.sub,
-                                          style: F.cap.copyWith(color: p.ink3),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+                  AppDropdown(
+                    label: l?.coachWhereModelRuns ?? 'Where the model runs',
+                    options: [for (final x in presets) x.label],
+                    index: presetAt,
+                    hint: 'Custom endpoint',
+                    onChanged: (i) => setState(() {
+                      final preset = presets[i];
+                      // BEFORE assigning _base.text: that assignment fires
+                      // _onBaseChanged synchronously, which may set _msg to
+                      // explain a cleared key — clearing _msg after it runs
+                      // would silently discard that explanation.
+                      _msg = null;
+                      _base.text = preset.baseUrl;
+                      _api = CoachApi.defaultFor(preset.baseUrl);
+                      if (preset.baseUrl.contains('googleapis.com')) {
+                        _models = const [
+                          'gemini-2.5-flash',
+                          'gemini-2.5-pro',
+                          'gemini-2.5-flash-lite',
+                        ];
+                        _model = 'gemini-2.5-flash';
+                      } else {
+                        _models = const [];
+                        _model = '';
+                      }
+                    }),
                   ),
                   const SizedBox(height: S.x2),
                   OsTextField(
@@ -1438,6 +1424,16 @@ class _CoachSetupState extends State<CoachSetup> {
                     hint: l?.coachModelHint ?? 'search, or type an id',
                   ),
                   const SizedBox(height: S.x1),
+                  if (q.isEmpty && shown.length < _models.length)
+                    Padding(
+                      padding: const EdgeInsets.only(top: S.x1),
+                      child: Text(
+                        'Previews, pinned builds and image, audio and '
+                        'embedding models are hidden. Search to see all '
+                        '${_models.length}.',
+                        style: F.cap.copyWith(color: p.ink3, height: 1.5),
+                      ),
+                    ),
                   Builder(
                     builder: (_) => Padding(
                       padding: const EdgeInsets.only(top: S.x2),
@@ -1478,53 +1474,6 @@ class _CoachSetupState extends State<CoachSetup> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: S.x5),
-                  OsTextField(
-                    controller: _foodModel,
-                    label: 'Model for food photos',
-                    hint: 'Empty uses the coach model above',
-                  ),
-                  const SizedBox(height: S.x2),
-                  Text(
-                    'Logging food from a photo or a sentence can use a different '
-                    'model from the coach. It must be able to read pictures.',
-                    style: F.cap.copyWith(color: p.ink3, height: 1.5),
-                  ),
-                  if (_models.isNotEmpty) ...[
-                    const SizedBox(height: S.x2),
-                    Wrap(
-                      spacing: S.x2,
-                      runSpacing: S.x2,
-                      children: [
-                        for (final m in _models
-                            .where((m) => m
-                                .toLowerCase()
-                                .contains(_foodModel.text.trim().toLowerCase()))
-                            .take(6))
-                          Pressable(
-                            semanticLabel: m,
-                            onTap: () => setState(() => _foodModel.text = m),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: S.x3, vertical: S.x2),
-                              decoration: BoxDecoration(
-                                color: m == _foodModel.text.trim()
-                                    ? p.fill(kCoachAccent)
-                                    : p.card2,
-                                borderRadius: R.rPill,
-                              ),
-                              child: Text(
-                                m,
-                                style: F.cap.copyWith(
-                                    color: m == _foodModel.text.trim()
-                                        ? p.inkOn(p.fill(kCoachAccent))
-                                        : p.ink2),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
                   if (_isLocal) ...[
                     const SizedBox(height: S.x4),
                     OsTextField(

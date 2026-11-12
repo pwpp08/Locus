@@ -671,9 +671,13 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
   Widget _header(BuildContext c, P p, Activity a, int start, int end) {
     final s = DateTime.fromMillisecondsSinceEpoch(start * 1000);
     final e = DateTime.fromMillisecondsSinceEpoch(end * 1000);
+    // Seconds only when the bounds have them: a detected walk's edges are
+    // put on the second, a typed-in session's are whole minutes.
+    final secs = start % 60 != 0 || end % 60 != 0;
+    String clock(DateTime d) =>
+        formatClock(d.hour, d.minute, secs ? d.second : null);
     final when =
-        '${_mo[s.month - 1]} ${s.day}, ${s.year} '
-        '${formatClock(s.hour, s.minute)} to ${formatClock(e.hour, e.minute)}';
+        '${_mo[s.month - 1]} ${s.day}, ${s.year} ${clock(s)} to ${clock(e)}';
     final menuKey = GlobalKey();
     return Padding(
       padding: const EdgeInsets.fromLTRB(S.x2, S.x2, S.x3, S.x2),
@@ -1630,13 +1634,6 @@ class _ChartPaint extends CustomPainter {
           canvas.drawPath(under, shade);
           canvas.drawPath(line, edge);
           canvas.restore();
-          canvas.drawLine(
-            Offset(x1, plot.top),
-            Offset(x1, plot.bottom),
-            Paint()
-              ..color = ground
-              ..strokeWidth = 1.5,
-          );
         }
       }
       });

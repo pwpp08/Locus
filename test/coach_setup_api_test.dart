@@ -57,9 +57,10 @@ Future<void> _preset(WidgetTester tester, String name) async {
   );
   scrollable.position.jumpTo(0);
   await tester.pumpAndSettle();
-  await tester.ensureVisible(find.text(name));
+  // The providers are a dropdown: open it, then pick from the menu.
+  await tester.tap(find.byType(AppDropdown));
   await tester.pumpAndSettle();
-  await tester.tap(find.text(name));
+  await tester.tap(find.text(name).last);
   await tester.pumpAndSettle();
 }
 

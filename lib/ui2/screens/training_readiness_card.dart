@@ -148,9 +148,9 @@ class _TrainingReadinessCardState extends State<TrainingReadinessCard> {
       );
 }
 
-/// A factor row, as measured on the reference: 64.6 from one hairline to the
-/// next.
-const double _rowH = S.x16 - S.half / 5;
+/// A factor row: 44 from one hairline to the next. The reference's 64.6 made
+/// the seven rows the tallest thing on the strain screen.
+const double _rowH = S.tap;
 
 /// The card itself, for a readiness already worked out.
 class TrainingReadinessView extends StatelessWidget {
@@ -191,7 +191,6 @@ class TrainingReadinessView extends StatelessWidget {
             ),
           ),
         ]),
-        const SizedBox(height: S.x2),
         Row(
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
@@ -206,10 +205,10 @@ class TrainingReadinessView extends StatelessWidget {
           const SizedBox(height: S.x1 + S.half),
           Text(_levelWord(level), style: labelStyle.copyWith(color: p.ink2)),
         ],
-        const SizedBox(height: S.x3 + S.half),
+        const SizedBox(height: S.x2),
         Text(sentence,
             style: F.body.copyWith(color: p.ink2, fontWeight: FontWeight.w400)),
-        const SizedBox(height: S.x4),
+        const SizedBox(height: S.x2),
         for (var i = 0; i < rows.length; i++) ...[
           if (i > 0)
             Container(height: S.hair, color: p.ink.withValues(alpha: .08)),
@@ -229,7 +228,8 @@ class TrainingReadinessView extends StatelessWidget {
               ),
               const SizedBox(width: S.x2),
               Text(_valueOf(rows[i].$1),
-                  style: F.n17.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+                  style: F.num(F.body)
+                      .copyWith(color: p.ink, fontWeight: FontWeight.w700)),
             ]),
           ),
         ],

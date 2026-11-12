@@ -178,6 +178,8 @@ final _rules = <_Rule>[
       // The app-icon picker shows the launcher icons the user can choose
       // between.
       'lib/ui2/profile/settings.dart',
+      // Device settings shows the band itself, as the reference page does.
+      'lib/ui2/profile/device_settings.dart',
     },
   ),
 ];
@@ -318,7 +320,8 @@ const _notComponents = {
   'ProfileSetupScreen', 'ProfileSetupView',
   // profile routes
   'ProfileHome', 'ProfileHomeView', 'MoreSettings', 'MoreSettingsView',
-  'MyProfileSettings', 'DeviceSettings', 'HealthSettings',
+  'MyProfileSettings', 'DeviceSettings', 'DeviceSettingsView',
+  'YourDataSettings', 'YourDataView',
   'NotificationSettings', 'NotificationSettingsView', 'EditProfile',
   'EditProfileView', 'DataScreen', 'AlarmScreen', 'AlarmScreenView',
   'HeartRateSettingsScreen',
