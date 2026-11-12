@@ -27,7 +27,6 @@ import '../../state/prefs.dart';
 import '../profile/alarm.dart' show AlarmArmState, AlarmScreen;
 import '../ui2.dart';
 import 'alarm_mode_sheet.dart';
-import 'dial_parts.dart' show dialCard, kDialMargin, kDialPad;
 import 'home_screen.dart' show alarmArmOfContext, clock, go, repoOf;
 
 /// Tonight's sleep need, its parts, and the time in bed that covers it.
@@ -93,6 +92,10 @@ class SleepPlan {
   /// go to bed. Until a few nights give one, the optimal one.
   int? get usualBedMin => habitBedMin ?? optimalBedMin;
 
+  /// The wake time that keeps you consistent: the time you really wake, until
+  /// a few nights give one the usual wake time the coach learned.
+  int? get consistentWakeMin => habitWakeMin ?? usualWakeMin;
+
   static int? _min(Object? v) => v is num ? v.round() : null;
 
   static Map<String, dynamic>? _value(Object? env) {
@@ -136,13 +139,24 @@ List<AlarmItem>? alarmItemsOf(BuildContext c) {
   }
 }
 
+/// The morning the planner plans for: tomorrow from midday on, today before.
+DateTime wakeDayOf(DateTime now) => now.hour >= 12
+    ? DateTime(now.year, now.month, now.day + 1)
+    : DateTime(now.year, now.month, now.day);
+
+/// Whether an alarm on [items] that would ring on the next wake day is
+/// skipped for it.
+bool wakeDaySkipped(Iterable<AlarmItem> items, DateTime now) {
+  final key = AlarmItem.dayKey(wakeDayOf(now));
+  return items.any((a) => a.enabled && a.skipDay == key);
+}
+
 /// The wake time of the next wake day on [items]: tomorrow's from midday on,
 /// today's before it. The earliest of the alarms that cover that day; null
-/// when none does (an unscheduled day).
+/// when none does (an unscheduled day, or one whose alarm is skipped).
 int? scheduledWakeMin(Iterable<AlarmItem> items, DateTime now) {
-  final day = now.hour >= 12
-      ? DateTime(now.year, now.month, now.day + 1)
-      : DateTime(now.year, now.month, now.day);
+  final day = wakeDayOf(now);
+  final key = AlarmItem.dayKey(day);
   int? best;
   for (final a in items) {
     if (!a.enabled) continue;
@@ -154,7 +168,7 @@ int? scheduledWakeMin(Iterable<AlarmItem> items, DateTime now) {
                 next.month == day.month &&
                 next.day == day.day;
           }()
-        : a.days.contains(day.weekday);
+        : a.days.contains(day.weekday) && a.skipDay != key;
     if (!covers) continue;
     final m = a.hour * 60 + a.minute;
     if (best == null || m < best) best = m;
@@ -162,29 +176,58 @@ int? scheduledWakeMin(Iterable<AlarmItem> items, DateTime now) {
   return best;
 }
 
+/// The band's armed alarm, as a minute of day, when it rings on the next wake
+/// day. One armed for a later morning (the one after a skipped day) is not
+/// this night's.
+int? armedWakeMin((DateTime?, AlarmArmState)? alarm, DateTime now) {
+  final at = alarm?.$1;
+  if (at == null) return null;
+  final day = wakeDayOf(now);
+  if (at.year != day.year || at.month != day.month || at.day != day.day) {
+    return null;
+  }
+  return at.hour * 60 + at.minute;
+}
+
 /// The first alarm of the next wake day: the earliest on My Schedule, else
-/// the one the band has armed. Null with no alarm at all.
+/// the one the band has armed for it. Null with no alarm that morning.
 int? firstAlarmWakeMin((DateTime?, AlarmArmState)? alarm,
     {Iterable<AlarmItem>? items, DateTime? now}) {
+  final at = now ?? DateTime.now();
   if (items != null) {
-    final scheduled = scheduledWakeMin(items, now ?? DateTime.now());
+    final scheduled = scheduledWakeMin(items, at);
     if (scheduled != null) return scheduled;
+    // A skipped morning: the band may still hold that alarm for a moment.
+    if (wakeDaySkipped(items, at)) return null;
   }
-  final at = alarm?.$1;
-  return at == null ? null : at.hour * 60 + at.minute;
+  return armedWakeMin(alarm, at);
+}
+
+/// The wake time typed in the planner for the next wake day, or null.
+int? typedWakeMin(DateTime now) {
+  final min = Prefs.getInt(Prefs.sleepPlannerWakeMin, -1);
+  if (min < 0) return null;
+  final day = Prefs.getString(Prefs.sleepPlannerWakeDay, '');
+  return day == AlarmItem.dayKey(wakeDayOf(now)) ? min : null;
+}
+
+/// Keeps [min] as the next wake day's wake time; null forgets it.
+void setTypedWakeMin(int? min, DateTime now) {
+  Prefs.setInt(Prefs.sleepPlannerWakeMin, min ?? -1);
+  Prefs.setString(
+      Prefs.sleepPlannerWakeDay, min == null ? '' : AlarmItem.dayKey(wakeDayOf(now)));
 }
 
 /// The wake time the planner plans to. An alarm wins: the first one set is
-/// the wake time, on the planner and on Home alike (a wake time typed here
-/// used to override the alarm, so the two screens planned different nights).
-/// With no alarm, the one typed here, else your usual wake time.
+/// the wake time, on the planner and on Home alike. With no alarm that
+/// morning (none set, or skipped), one typed here for it, else the wake time
+/// that keeps you consistent: your usual one.
 int? plannedWakeMin(SleepPlan plan, (DateTime?, AlarmArmState)? alarm,
     {Iterable<AlarmItem>? items, DateTime? now}) {
-  final first = firstAlarmWakeMin(alarm, items: items, now: now);
-  if (first != null) return first;
-  final set = Prefs.getInt(Prefs.sleepPlannerWakeMin, -1);
-  if (set >= 0) return set;
-  return plan.usualWakeMin;
+  final at = now ?? DateTime.now();
+  return firstAlarmWakeMin(alarm, items: items, now: at) ??
+      typedWakeMin(at) ??
+      plan.consistentWakeMin;
 }
 
 /// Whether the planner's goal is to keep the usual schedule rather than to
@@ -271,14 +314,19 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
     );
     if (t == null || !mounted) return;
     final min = t.hour * 60 + t.minute;
-    Prefs.setInt(Prefs.sleepPlannerWakeMin, min);
+    setTypedWakeMin(min, DateTime.now());
     setState(() {});
     final alarm = await AppSheet.open<bool>(
       context,
       bare: true,
       builder: (_) => _AskAlarm(wake: min),
     );
-    if (alarm == true && mounted) await _setAlarm(min);
+    // With an alarm, the alarm is the wake time: skipping it later must not
+    // leave this one standing in its place.
+    if (alarm == true && mounted) {
+      setTypedWakeMin(null, DateTime.now());
+      await _setAlarm(min);
+    }
   }
 
   /// Arms the planner's alarm for [wake], asking its mode first.
@@ -339,7 +387,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
     final alarm = alarmArmOfContext(c);
     final items = _mgr?.alarms ?? const <AlarmItem>[];
     final now = DateTime.now();
-    final wake = plannedWakeMin(plan, alarm, items: items);
+    final wake = plannedWakeMin(plan, alarm, items: items, now: now);
     final consistent = plannerKeepsConsistent;
     final usualWake = plan.usualWakeMin;
     final usualBed = plan.usualBedMin;
@@ -357,9 +405,11 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
     }
     final inBed = bed == null || wake == null ? null : (wake - bed) % 1440;
     final planAlarm = _alarm;
+    // This night's alarm only: the band's next one may be for a later morning.
     final armedAt = planAlarm != null
         ? planAlarm.hour * 60 + planAlarm.minute
-        : (alarm?.$1 == null ? null : alarm!.$1!.hour * 60 + alarm.$1!.minute);
+        : firstAlarmWakeMin(alarm, items: items, now: now);
+    final skipped = armedAt == null && wakeDaySkipped(items, now);
     final scheduleOn = items.any((a) => a.enabled && a.id != kPlannerAlarmId);
 
     // How much of the need the night in bed covers, at your usual efficiency.
@@ -660,7 +710,11 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                 ]),
                 const SizedBox(height: S.x3),
                 Row(children: [
-                  dockButton('ALARM SET TO', armedAt == null ? 'OFF' : clock(armedAt),
+                  dockButton(
+                      'ALARM SET TO',
+                      armedAt != null
+                          ? clock(armedAt)
+                          : (skipped ? 'SKIPPED' : 'OFF'),
                       () => planAlarm != null && wake != null
                           ? _setAlarm(wake)
                           : _toggleAlarm(true, wake)),
@@ -944,21 +998,17 @@ class _PlannerBarState extends State<_PlannerBar>
                     semanticLabel:
                         'Time in bed ${widget.inBedLabel}. How it is made',
                     child: Container(
-                      padding: const EdgeInsets.fromLTRB(
-                          S.x5, S.x2, S.x4, S.x2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: S.x5, vertical: S.x2),
                       decoration: BoxDecoration(
                         color:
                             Color.alphaBlend(C.char.withValues(alpha: .95), p.bg),
                         borderRadius: R.rPill,
                         border: Border.all(color: p.ink, width: S.half),
                       ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Text(widget.inBedLabel,
-                            style: F.n24.copyWith(
-                                color: p.ink, fontWeight: FontWeight.w800)),
-                        const SizedBox(width: S.x2),
-                        Icon(LucideIcons.info, size: I.sm, color: p.ink3),
-                      ]),
+                      child: Text(widget.inBedLabel,
+                          style: F.n24.copyWith(
+                              color: p.ink, fontWeight: FontWeight.w800)),
                     ),
                   ),
                 ),
@@ -1107,90 +1157,88 @@ class _BarPaint extends CustomPainter {
 }
 
 /// YOUR SLEEP RECOMMENDATION: what the time in bed is made of, opened from
-/// the time in bed itself. A dial sheet: the need, its parts under it, the
-/// time awake, and the time in bed they add up to.
+/// the time in bed itself. A dialog: a line on how it is worked out, then a
+/// mint-tinted panel with the need, its parts, the time awake and the time in
+/// bed they add up to.
 Future<void> showSleepRecommendation(BuildContext c, SleepPlan plan) =>
-    AppSheet.open<void>(
-      c,
-      bare: true,
-      scroll: true,
-      builder: (_) => _RecommendationSheet(plan),
+    showDialog<void>(
+      context: c,
+      builder: (_) => _RecommendationDialog(plan),
     );
 
-class _RecommendationSheet extends StatelessWidget {
+class _RecommendationDialog extends StatelessWidget {
   final SleepPlan plan;
-  const _RecommendationSheet(this.plan);
+  const _RecommendationDialog(this.plan);
 
   @override
   Widget build(BuildContext c) {
-    Widget row(String label, String value,
-            {bool minor = false, bool last = false}) =>
-        Container(
-          constraints: BoxConstraints(minHeight: minor ? S.x10 : S.x12),
-          padding: EdgeInsets.only(left: minor ? S.x4 : 0),
-          decoration: BoxDecoration(
-            border: last
-                ? null
-                : const Border(
-                    bottom: BorderSide(color: DC.line, width: S.hair)),
-          ),
+    final p = P.of(c);
+    final caps = F.caps.copyWith(color: p.ink);
+    final sub = F.caps.copyWith(color: p.ink3);
+    final val = F.body.copyWith(color: p.ink, fontWeight: FontWeight.w700);
+    final subNum = F.body.copyWith(color: p.ink2, fontWeight: FontWeight.w600);
+
+    Widget row(String label, String value, {bool minor = false}) => Padding(
+          padding: EdgeInsets.only(
+              left: minor ? S.x2 : 0, top: S.x2, bottom: S.x2),
           child: Row(children: [
-            Expanded(
-              child: Text(label,
-                  style: F.dLabel.copyWith(color: minor ? DC.ink3 : DC.ink2)),
-            ),
-            Text(value,
-                style: F.dText.copyWith(
-                    color: minor ? DC.ink2 : DC.ink,
-                    fontWeight: FontWeight.w600)),
+            Expanded(child: Text(label, style: minor ? sub : caps)),
+            Text(value, style: minor ? subNum : val),
           ]),
         );
 
-    return Container(
-      decoration: const BoxDecoration(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(R.xxl)),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [DC.sheetTop, DC.sheetFoot],
-        ),
-      ),
-      padding: EdgeInsets.fromLTRB(kDialMargin, S.x4 + S.half + S.hair,
-          kDialMargin, S.x6 + MediaQuery.paddingOf(c).bottom),
+    return Dialog(
+      backgroundColor: p.card,
+      surfaceTintColor: const Color(0x00000000),
+      insetPadding: const EdgeInsets.symmetric(horizontal: S.x4),
+      shape: const RoundedRectangleBorder(borderRadius: R.rXl),
       child: SingleChildScrollView(
+        padding: const EdgeInsets.all(S.x6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Container(
-                width: S.x16 + S.x2,
-                height: S.x1 + S.hair,
-                decoration:
-                    const BoxDecoration(color: DC.grab, borderRadius: R.rPill),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: S.x3),
+                  child: Semantics(
+                    header: true,
+                    child: Text('YOUR SLEEP RECOMMENDATION', style: caps),
+                  ),
+                ),
               ),
+              Pressable(
+                onTap: () => Navigator.of(c).pop(),
+                semanticLabel: 'Close',
+                child: SizedBox(
+                  width: S.tap,
+                  height: S.tap,
+                  child: Icon(LucideIcons.x, size: I.lg, color: p.ink),
+                ),
+              ),
+            ]),
+            const SizedBox(height: S.x4),
+            Text(
+              'Locus uses your own nights — how long you sleep when nothing '
+              'cuts it short, and how efficiently you sleep — to set a time in '
+              'bed that covers tonight’s sleep need, including what today’s '
+              'strain, recent sleep debt and naps add or take away.',
+              style: F.body.copyWith(color: p.ink2, height: 1.4),
             ),
-            const SizedBox(height: S.x6),
-            Semantics(
-              header: true,
-              child: Text('YOUR SLEEP RECOMMENDATION',
-                  textAlign: TextAlign.center,
-                  style: F.dLabel.copyWith(color: DC.ink2)),
-            ),
-            const SizedBox(height: S.x2),
-            Text(hMm(plan.inBedMin),
-                textAlign: TextAlign.center,
-                style: F.n34.copyWith(color: DC.ink)),
-            const SizedBox(height: S.x1),
-            Text('TIME IN BED',
-                textAlign: TextAlign.center,
-                style: F.dTiny.copyWith(color: DC.ink3)),
-            const SizedBox(height: S.x6),
+            const SizedBox(height: S.x5),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: kDialPad),
-              decoration: dialCard(),
-              child: Column(children: [
+              padding: const EdgeInsets.fromLTRB(S.x4, S.x3, S.x4, S.x4),
+              decoration: BoxDecoration(
+                // The old mint panel, as a tint on the dark card.
+                color: Color.alphaBlend(C.optimal.withValues(alpha: .1), p.card),
+                borderRadius: R.rSm,
+              ),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                 row('SLEEP NEED', hMm(plan.needMin)),
+                _Dashes(p.ink3),
                 row('BASELINE', hMm(plan.baselineMin), minor: true),
                 row('RECENT STRAIN', hMm(plan.strainMin, sign: true),
                     minor: true),
@@ -1199,21 +1247,60 @@ class _RecommendationSheet extends StatelessWidget {
                 row('RECENT NAPS',
                     plan.napMin == null ? '--' : '−${hMm(plan.napMin)}',
                     minor: true),
-                row('AVERAGE AWAKE TIME', hMm(plan.awakeMin, sign: true),
-                    last: true),
+                _Dashes(p.ink3),
+                row('SLEEP GOAL', hMm(plan.needMin)),
+                row('AVERAGE AWAKE TIME', hMm(plan.awakeMin, sign: true)),
+                const SizedBox(height: S.x2),
+                Container(height: S.half, color: p.ink),
+                const SizedBox(height: S.x4),
+                Row(children: [
+                  Expanded(
+                      child: Text('RECOMMENDED\nTIME IN BED', style: caps)),
+                  Text(hMm(plan.inBedMin),
+                      style: F.n34.copyWith(
+                          color: p.ink, fontWeight: FontWeight.w700)),
+                ]),
               ]),
-            ),
-            const SizedBox(height: S.x4),
-            Text(
-              'Your sleep need is your baseline, the sleep you get on nights '
-              'nothing cuts short, plus what today’s strain and recent sleep '
-              'debt add, less your naps. Time in bed adds the time you usually '
-              'lie awake.',
-              style: F.dText.copyWith(color: DC.body, height: 1.45),
             ),
           ],
         ),
       ),
     );
   }
+}
+
+/// A dashed rule across the panel.
+class _Dashes extends StatelessWidget {
+  final Color color;
+  const _Dashes(this.color);
+
+  @override
+  Widget build(BuildContext c) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: S.x1),
+        child: SizedBox(
+          height: S.half,
+          width: double.infinity,
+          child: CustomPaint(painter: _DashPainter(color)),
+        ),
+      );
+}
+
+class _DashPainter extends CustomPainter {
+  final Color color;
+  const _DashPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = size.height;
+    const dash = S.x2, gap = S.x1;
+    for (var x = 0.0; x < size.width; x += dash + gap) {
+      canvas.drawLine(Offset(x, size.height / 2),
+          Offset((x + dash).clamp(0, size.width), size.height / 2), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashPainter old) => old.color != color;
 }

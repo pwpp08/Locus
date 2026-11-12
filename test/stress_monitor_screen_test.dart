@@ -139,4 +139,20 @@ void main() {
     expect(find.text('TOTAL DAY'), findsOneWidget);
     expect(dayLabelOf(DateTime(2026, 5, 21)), '2026-05-21');
   });
+
+  test('the 30-day axis squeezes the stress levels no day reaches', () {
+    // A calm month: nothing above 1.4, so 1-2 is full and 2-3 squeezed.
+    final calm = StressAxis.of([0.4, 1.4, 0.9]);
+    expect(calm.weights, [1.0, 1.0, StressAxis.squeezed]);
+    expect(calm.share, closeTo((2 + StressAxis.squeezed) / 3, 1e-9));
+    // The axis still runs 0 to 3, and a used level keeps its full share.
+    expect(calm.fraction(0), 0);
+    expect(calm.fraction(3), closeTo(1, 1e-9));
+    expect(calm.fraction(1), closeTo(1 / (2 + StressAxis.squeezed), 1e-9));
+    // A stressful day uses every level: an even axis, full height.
+    final hard = StressAxis.of([2.6]);
+    expect(hard.weights, [1.0, 1.0, 1.0]);
+    expect(hard.share, 1);
+    expect(hard.fraction(1.5), closeTo(.5, 1e-9));
+  });
 }

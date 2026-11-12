@@ -929,6 +929,7 @@ class _StressTrendCardState extends State<StressTrendCard> {
         final shown = at == null ? avg : values[at];
         final last = _days.length - 1;
         final today = DateTime.parse(widget.today);
+        final squeeze = StressAxis.of([...counted, ...values.nonNulls]);
         return Surface(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
@@ -979,7 +980,9 @@ class _StressTrendCardState extends State<StressTrendCard> {
               // blend between stops made a calm day and a medium one two
               // shades of the same teal.
               colorOf: (_, v) => _levelColor(stressLevel(v)),
-              height: S.x16 * 3 + S.x10,
+              fraction: squeeze.fraction,
+              height: ScrubColumns.chrome +
+                  (S.x16 * 3 + S.x10 - ScrubColumns.chrome) * squeeze.share,
               label: 'Average stress, last 30 days',
               describe: (i) {
                 final d = DateTime.parse(_days[i]);
@@ -1015,5 +1018,36 @@ class _StressTrendCardState extends State<StressTrendCard> {
         style: F.body.copyWith(color: p.ink2, height: 1.4),
       ),
     );
+  }
+}
+
+/// The 30-day chart's stress axis, 0–3, with the levels no day reaches
+/// squeezed: each whole level (0–1, 1–2, 2–3) the data never gets into
+/// takes [squeezed] of a full one, so a calm month is a short chart.
+class StressAxis {
+  /// Per level, its share of a full level's height.
+  final List<double> weights;
+  const StressAxis(this.weights);
+
+  static const double squeezed = .3;
+
+  /// The axis for [values]: a level counts as used once a value is above its
+  /// floor. The bottom level is always full.
+  factory StressAxis.of(Iterable<double> values) {
+    final top = values.fold<double>(0, math.max);
+    return StressAxis(
+        [for (var k = 0; k < 3; k++) k == 0 || top > k ? 1.0 : squeezed]);
+  }
+
+  /// The plot's height as a share of an even 0–3 axis.
+  double get share => weights.fold<double>(0, (a, b) => a + b) / 3;
+
+  /// Where [v] sits up the plot, 0 to 1.
+  double fraction(double v) {
+    var up = 0.0;
+    for (var k = 0; k < weights.length; k++) {
+      up += (v - k).clamp(0.0, 1.0) * weights[k];
+    }
+    return up / (share * 3);
   }
 }

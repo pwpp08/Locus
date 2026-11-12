@@ -68,8 +68,8 @@ void main() {
         () async {
       SharedPreferences.setMockInitialValues({});
       await Prefs.ensureLoaded();
-      Prefs.setInt(Prefs.sleepPlannerWakeMin, 8 * 60);
-      addTearDown(() => Prefs.setInt(Prefs.sleepPlannerWakeMin, -1));
+      setTypedWakeMin(8 * 60, now);
+      addTearDown(() => setTypedWakeMin(null, now));
       const plan = SleepPlan(usualWakeMin: 7 * 60 + 5, inBedMin: 510);
       const later = AlarmItem(id: 'b', hour: 6, minute: 45, days: {1, 2, 3, 4, 5});
       // Two alarms tomorrow: the earlier one wins.
@@ -82,6 +82,33 @@ void main() {
       expect(plannedWakeMin(plan, armed, items: const [], now: now), 5 * 60 + 50);
       // No alarm at all: the typed one stands.
       expect(plannedWakeMin(plan, null, items: const [], now: now), 8 * 60);
+      // ...for that morning only. The next night it is your usual one again.
+      expect(
+          plannedWakeMin(plan, null,
+              items: const [], now: now.add(const Duration(days: 1))),
+          7 * 60 + 5);
+    });
+
+    test('a skipped morning plans to your consistent times, not the alarm',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      await Prefs.ensureLoaded();
+      const plan = SleepPlan(
+          usualWakeMin: 7 * 60 + 5, habitWakeMin: 6 * 60 + 40, inBedMin: 510);
+      // Tuesday's ring skipped; the band already holds Wednesday's.
+      final skipped = weekdays.copyWith(skipDay: '2026-08-18');
+      final armed = (DateTime(2026, 8, 19, 6, 17), AlarmArmState.confirmed);
+      expect(scheduledWakeMin([skipped], now), isNull);
+      expect(wakeDaySkipped([skipped], now), isTrue);
+      expect(firstAlarmWakeMin(armed, items: [skipped], now: now), isNull);
+      expect(plannedWakeMin(plan, armed, items: [skipped], now: now),
+          6 * 60 + 40);
+      // A band alarm for a later morning is not this night's either.
+      expect(armedWakeMin(armed, now), isNull);
+      // Wednesday night it rings again.
+      final wed = DateTime(2026, 8, 18, 20);
+      expect(plannedWakeMin(plan, armed, items: [skipped], now: wed),
+          6 * 60 + 17);
     });
 
     test('a disabled alarm does not count', () {

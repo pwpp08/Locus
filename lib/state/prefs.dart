@@ -111,9 +111,11 @@ class Prefs {
   /// 'nap|(epoch ms)'. Empty when none is running.
   static const String restPending = 'rest.pending';
 
-  /// The Sleep Planner's wake time, minute of day. Unset (-1): the armed
-  /// alarm, else the usual wake time the sleep coach learned.
+  /// A wake time typed in the Sleep Planner without an alarm, minute of day,
+  /// and the morning (`YYYY-MM-DD`) it is for. It counts for that one morning
+  /// only; unset (-1) or another morning: the alarm, else your usual times.
   static const String sleepPlannerWakeMin = 'sleep_planner.wake_min';
+  static const String sleepPlannerWakeDay = 'sleep_planner.wake_day';
 
   /// What the planner plans for: 'optimize' (the bedtime that covers the sleep
   /// need) or 'consistent' (the usual bedtime).

@@ -319,6 +319,11 @@ class ScrubColumns extends StatelessWidget {
   final List<double> ticks;
   final String Function(double) tickText;
 
+  /// Where a value sits up the plot, 0 (bottom) to 1 (top), when the axis is
+  /// not even: stress squeezes the levels no day reaches. Null: linear from
+  /// [lo] to [hi].
+  final double Function(double v)? fraction;
+
   /// The subtle dashed average behind the bars, or null for none.
   final double? avg;
 
@@ -337,7 +342,13 @@ class ScrubColumns extends StatelessWidget {
   final int? highlight;
 
   final ValueChanged<int?> onScrub;
+
+  /// The whole chart: the plot plus the room above it and the x labels under
+  /// it ([chrome]).
   final double height;
+
+  /// The height a chart spends outside its plot.
+  static const double chrome = _top + _band;
 
   /// What the chart is called, and what each bar reads as, for a screen reader.
   final String label;
@@ -362,6 +373,7 @@ class ScrubColumns extends StatelessWidget {
     this.stacks,
     this.segmentColors,
     this.valueLabels = const [],
+    this.fraction,
     this.avg,
     this.marks = const [],
     this.labelColor,
@@ -402,6 +414,7 @@ class ScrubColumns extends StatelessWidget {
           hi: hi,
           ticks: ticks,
           tickText: tickText,
+          fraction: fraction,
           avg: avg,
           marks: marks,
           labelColor: labelColor,
@@ -426,6 +439,7 @@ class _ColumnsPainter extends CustomPainter {
   final double lo, hi;
   final List<double> ticks;
   final String Function(double) tickText;
+  final double Function(double v)? fraction;
   final double? avg;
   final List<ColumnMark> marks;
   final Color? labelColor;
@@ -446,6 +460,7 @@ class _ColumnsPainter extends CustomPainter {
     required this.hi,
     required this.ticks,
     required this.tickText,
+    required this.fraction,
     required this.avg,
     required this.marks,
     required this.labelColor,
@@ -470,7 +485,9 @@ class _ColumnsPainter extends CustomPainter {
     final span = hi - lo;
     if (n == 0 || span <= 0) return;
     final r = plotRect(size, inset);
-    double yOf(double v) => r.bottom - (v - lo) / span * r.height;
+    final f = fraction;
+    double yOf(double v) =>
+        r.bottom - (f != null ? f(v) : (v - lo) / span) * r.height;
     final slot = r.width / n;
     // A week's bars are wide, a month's narrow, and both sit centred in
     // their slot.

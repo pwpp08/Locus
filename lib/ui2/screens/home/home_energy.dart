@@ -113,7 +113,7 @@ class EnergyReserveCard extends StatelessWidget {
           const SizedBox(height: S.x4),
           ExcludeSemantics(
             child: CustomPaint(
-              size: const Size(double.infinity, S.x16 * 2.2),
+              size: const Size(double.infinity, S.x16 * 1.6),
               painter: _ChartPainter(
                 data,
                 midnight,

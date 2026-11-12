@@ -531,7 +531,6 @@ class WindowChart extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    final tint = kind == WindowKind.workout ? C.dialStrain : C.dialSleep;
     return LayoutBuilder(
       builder: (c, box) {
         final w = box.maxWidth;
@@ -549,7 +548,6 @@ class WindowChart extends StatelessWidget {
                   span: span,
                   start: start,
                   end: end,
-                  tint: tint,
                   line: C.dialStrain,
                   ink: p.ink,
                   ink3: p.ink3,
@@ -922,17 +920,18 @@ class _WindowPreviewState extends State<WindowPreview> {
     final timeRangeStr =
         '${formatClock(dtStart.hour, dtStart.minute)} - ${formatClock(dtEnd.hour, dtEnd.minute)}';
 
-    Widget tool(IconData icon, String label, VoidCallback onTap) => Pressable(
-      onTap: onTap,
-      semanticLabel: label,
-      child: SizedBox(
-        width: S.tap,
-        height: S.tap,
-        child: Center(
-          child: Icon(icon, size: I.md, color: p.ink2),
-        ),
-      ),
-    );
+    // Zoom out and in, side by side in one chip (the RESET chip's ground):
+    // a bare glyph each, a hairline between.
+    Widget zoomStep(IconData icon, String label, VoidCallback onTap) =>
+        Pressable(
+          onTap: onTap,
+          semanticLabel: label,
+          child: SizedBox(
+            width: S.x10,
+            height: S.x8,
+            child: Icon(icon, size: I.sm, color: p.ink),
+          ),
+        );
 
     // An inner block on the sheet's card: ink 8 % over it, radius 12, no
     // outline (DESIGN.md §10.5).
@@ -945,36 +944,51 @@ class _WindowPreviewState extends State<WindowPreview> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Flexible(
-                child: Text(
-                  'HEART RATE WINDOW',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: F.caps.copyWith(
-                    color: p.ink,
-                    fontWeight: FontWeight.w700,
+          SizedBox(
+            height: S.tap,
+            child: Row(
+              children: [
+                // The chart system's head: caps title, the unit beside it.
+                Text('HEART RATE', style: F.caps.copyWith(color: p.ink)),
+                const SizedBox(width: S.x2),
+                Text('bpm', style: F.num(F.cap).copyWith(color: p.ink3)),
+                const Spacer(),
+                if (isInteractive)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: p.ink.withValues(alpha: .12),
+                      borderRadius: R.rPill,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        zoomStep(
+                            LucideIcons.minus, 'Zoom out', () => _zoom(1.5)),
+                        Container(
+                          width: S.hair,
+                          height: S.x4,
+                          color: p.ink.withValues(alpha: .2),
+                        ),
+                        zoomStep(
+                            LucideIcons.plus, 'Zoom in', () => _zoom(0.67)),
+                      ],
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: S.x2),
-              Pill(
-                durStr,
-                widget.kind == WindowKind.workout ? C.dialStrain : C.dialSleep,
-              ),
-              const Spacer(),
-              if (isInteractive) ...[
-                tool(LucideIcons.plus, 'Zoom in', () => _zoom(0.67)),
-                tool(LucideIcons.minus, 'Zoom out', () => _zoom(1.5)),
+                if (widget.onExpand != null)
+                  Pressable(
+                    onTap: widget.onExpand,
+                    semanticLabel: 'Open full window editor',
+                    child: SizedBox(
+                      width: S.tap,
+                      height: S.tap,
+                      child: Icon(LucideIcons.maximize2,
+                          size: I.sm, color: p.ink2),
+                    ),
+                  )
+                else
+                  const SizedBox(width: S.x3),
               ],
-              if (widget.onExpand != null)
-                tool(
-                  LucideIcons.maximize2,
-                  'Open full window editor',
-                  widget.onExpand!,
-                ),
-            ],
+            ),
           ),
           const SizedBox(height: S.x1),
           Padding(
@@ -1018,7 +1032,7 @@ class _WindowPreviewState extends State<WindowPreview> {
               textBaseline: TextBaseline.alphabetic,
               children: [
                 Text(
-                  timeRangeStr,
+                  '$timeRangeStr · $durStr',
                   style: F.num(
                     F.cap,
                   ).copyWith(color: p.ink, fontWeight: FontWeight.w700),
@@ -1156,7 +1170,7 @@ class _WindowChartPainter extends CustomPainter {
   final List<HrPoint> hr;
   final List<MovePoint> movement;
   final int from, span, start, end;
-  final Color tint, line, ink, ink3, grid, ground;
+  final Color line, ink, ink3, grid, ground;
 
   _WindowChartPainter({
     required this.hr,
@@ -1165,7 +1179,6 @@ class _WindowChartPainter extends CustomPainter {
     required this.span,
     required this.start,
     required this.end,
-    required this.tint,
     required this.line,
     required this.ink,
     required this.ink3,
@@ -1188,16 +1201,17 @@ class _WindowChartPainter extends CustomPainter {
     final lo = scale.lo, hi = scale.hi;
     double yOf(double v) => plot.bottom - (v - lo) / (hi - lo) * plot.height;
 
-    // The window, behind everything: a soft fill and a lit band at the top.
+    // The window, behind everything: a soft column, the chart system's
+    // touch column (ink, radius 4), from just above the plot to its foot.
     final x0 = xOf(start).clamp(0.0, w), x1 = xOf(end).clamp(0.0, w);
+    final floor = lane > 0 ? plot.bottom + S.x1 + lane : plot.bottom;
     if (x1 > x0) {
-      canvas.drawRect(
-        Rect.fromLTRB(x0, plot.top, x1, plot.bottom),
-        Paint()..color = tint.withValues(alpha: .16),
-      );
-      canvas.drawRect(
-        Rect.fromLTRB(x0, plot.top, x1, plot.top + S.half),
-        Paint()..color = tint,
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTRB(x0, plot.top - S.x2, x1, floor),
+          const Radius.circular(R.sm / 1.5),
+        ),
+        Paint()..color = ink.withValues(alpha: .06),
       );
     }
 
@@ -1211,32 +1225,53 @@ class _WindowChartPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(w, y), gp);
     }
 
-    // The heart rate, broken where the band was off.
-    final path = Path();
+    // The heart rate, broken where the band was off: the workout chart's
+    // trace, a 2 px line over a fill that fades to the plot's foot. Outside
+    // the window both are dimmed, so the axis reads through them.
+    final path = Path(), fill = Path();
     HrPoint? prev;
+    double? runX;
+    void closeRun(double x) {
+      if (runX == null) return;
+      fill
+        ..lineTo(x, plot.bottom)
+        ..lineTo(runX, plot.bottom)
+        ..close();
+    }
+
     for (final p in shown) {
       final o = Offset(xOf(p.t), yOf(p.v));
       if (prev == null || p.t - prev.t > 300) {
+        if (prev != null) closeRun(xOf(prev.t));
         path.moveTo(o.dx, o.dy);
+        fill.moveTo(o.dx, o.dy);
+        runX = o.dx;
       } else {
         path.lineTo(o.dx, o.dy);
+        fill.lineTo(o.dx, o.dy);
       }
       prev = p;
     }
-    paintWindowed(
-      canvas,
-      plot.inflate(S.x1),
-      x0,
-      x1,
-      () => canvas.drawPath(
+    if (prev != null) closeRun(xOf(prev.t));
+    paintWindowed(canvas, plot.inflate(S.x1), x0, x1, () {
+      canvas.drawPath(
+        fill,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [line.withValues(alpha: .42), line.withValues(alpha: .02)],
+          ).createShader(plot),
+      );
+      canvas.drawPath(
         path,
         Paint()
           ..color = line
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.6
+          ..strokeWidth = 2
           ..strokeJoin = StrokeJoin.round,
-      ),
-    );
+      );
+    });
 
     // The movement lane, on the same clock as the line above it.
     final laneRect = Rect.fromLTRB(
@@ -1265,38 +1300,30 @@ class _WindowChartPainter extends CustomPainter {
         ),
       );
     }
-    final floor = lane > 0 ? laneRect.bottom : plot.bottom;
 
-    // The two lines: ink, from just above the plot to its foot, each with a
-    // grip at mid-height and a dot at its foot, both knocked out of the
+    // The two lines: the workout chart's session edges (dashed ink 80 %,
+    // 1.5 px, 4 on / 4 off, a dot of radius 4 at the foot), with a slim grip
+    // at mid-height to say they move. Grip and dot are knocked out of the
     // ground the way a chart's markers are.
+    final edge = Paint()
+      ..color = ink.withValues(alpha: .8)
+      ..strokeWidth = 1.5;
     for (final t in [start, end]) {
       final x = xOf(t);
       if (x < -S.x2 || x > w + S.x2) continue;
-      canvas.drawLine(
-        Offset(x, plot.top - S.x2),
-        Offset(x, floor),
-        Paint()
-          ..color = ink
-          ..strokeWidth = S.half,
-      );
+      for (var y = plot.top - S.x2; y < floor; y += S.x2) {
+        canvas.drawLine(
+            Offset(x, y), Offset(x, math.min(y + S.x1, floor)), edge);
+      }
       final midY = (plot.top + plot.bottom) / 2;
       final grip = RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset(x, midY),
-          width: S.x2 - S.half,
-          height: S.x5,
-        ),
-        const Radius.circular(R.sm / 2),
+        Rect.fromCenter(center: Offset(x, midY), width: S.x1, height: S.x4),
+        const Radius.circular(S.x1 / 2),
       );
       canvas.drawRRect(grip.inflate(S.half), Paint()..color = ground);
       canvas.drawRRect(grip, Paint()..color = ink);
-      canvas.drawCircle(
-        Offset(x, floor),
-        S.x1 + S.half + S.half,
-        Paint()..color = ground,
-      );
-      canvas.drawCircle(Offset(x, floor), S.x1 + S.half, Paint()..color = ink);
+      canvas.drawCircle(Offset(x, floor), S.x1 + S.half, Paint()..color = ground);
+      canvas.drawCircle(Offset(x, floor), S.x1, Paint()..color = ink);
     }
 
     // Clock times along the foot, at a step that leaves room for each.

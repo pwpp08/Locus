@@ -64,7 +64,13 @@ import 'plus_menu.dart';
 import 'readiness_detail.dart';
 import 'recovery_calendar.dart' show openRecoveryCalendar;
 import 'sleep_detail.dart';
-import 'sleep_planner.dart' show alarmItemsOf, firstAlarmWakeMin, plannedBedMin;
+import 'sleep_planner.dart'
+    show
+        alarmItemsOf,
+        armedWakeMin,
+        firstAlarmWakeMin,
+        plannedBedMin,
+        plannedWakeMin;
 import 'start_activity.dart';
 import 'strain_recovery_card.dart';
 import 'strength_trainer.dart';
@@ -951,13 +957,18 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           // The wake time is the first alarm when one is set (the same rule
           // the Sleep Planner plans by), else the recommended one.
           final items = alarmItemsOf(c);
-          final first = firstAlarmWakeMin(alarm, items: items);
-          final wake = first ?? d.plan.usualWakeMin;
+          final now = DateTime.now();
+          final first = firstAlarmWakeMin(alarm, items: items, now: now);
+          final wake = plannedWakeMin(d.plan, alarm, items: items, now: now);
+          // The band's alarm only when it is this night's: after a skipped
+          // morning it already holds the next one.
+          final tonight =
+              first != null && armedWakeMin(alarm, now) != null ? alarm : null;
           return _TonightsSleep(
             bedtimeMin: plannedBedMin(d.plan, wake) ?? d.bedtime.value?.round(),
-            wakeMin: alarm?.$1 == null ? wake : null,
+            wakeMin: tonight == null ? wake : null,
             wakeIsAlarm: first != null,
-            alarm: alarm,
+            alarm: tonight,
           );
         }),
       ],
