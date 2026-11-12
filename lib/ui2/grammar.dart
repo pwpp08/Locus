@@ -1163,44 +1163,62 @@ class _TrendCardState extends State<TrendCard> {
               ],
             )
           else
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Flexible(
-                  child: Text(
-                    w.value,
-                    style: F.n34.copyWith(color: p.ink),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: S.x1),
-                // `unit` used to be Expanded purely to shove the delta
-                // rightwards. That made it a flex PEER of the value, so the two
-                // split the row 50/50 and a long reading ellipsised at half
-                // width with empty space beside it. A Spacer does the shoving
-                // and the unit goes back to its own size.
-                Text(displayUnit,
-                    style: F.head.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
-                const Spacer(),
-                if (band == null) ...[
-                  if (j != null) ...[
-                    DeltaTriangle(up: w.up, color: dir, size: S.x3),
-                    const SizedBox(width: S.x1),
-                  ],
-                  Flexible(
-                    child: Text(
-                      w.delta,
-                      style: F.cap.copyWith(
-                        color: dir,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      textAlign: TextAlign.end,
+            // The reading and its unit take whatever the change leaves. A
+            // `Spacer` beside two `Flexible`s is a third flex peer: it split the
+            // free width three ways, so `7h 42m` read `7h …` with the row mostly
+            // empty. The change is capped instead, at 40 % of the row.
+            LayoutBuilder(
+              builder: (c, box) => Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            w.value,
+                            style: F.n34.copyWith(color: p.ink),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: S.x1),
+                        Text(displayUnit,
+                            style: F.head.copyWith(
+                                color: p.ink, fontWeight: FontWeight.w600)),
+                      ],
                     ),
                   ),
+                  if (band == null)
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: box.maxWidth * .4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          if (j != null) ...[
+                            DeltaTriangle(up: w.up, color: dir, size: S.x3),
+                            const SizedBox(width: S.x1),
+                          ],
+                          Flexible(
+                            child: Text(
+                              w.delta,
+                              style: F.cap.copyWith(
+                                color: dir,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              textAlign: TextAlign.end,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
-              ],
+              ),
             ),
           if (band != null) ...[
             const SizedBox(height: S.x1),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -483,16 +484,30 @@ class HomeSyncBar extends StatelessWidget {
           color: DC.syncBar,
           borderRadius: BorderRadius.all(Radius.circular(R.md + S.half)),
         ),
-        child: Row(children: [
+        child: LayoutBuilder(builder: (c, box) {
+          // The state word keeps the width it needs, up to 60 % of the bar:
+          // `Expanded` beside a `Flexible` split the free width in half, so
+          // the longest state read "DATA NOT UP TO DA…" while the time wrapped.
+          final measure = TextPainter(
+            text: TextSpan(text: word, style: caps),
+            textDirection: Directionality.of(c),
+            textScaler: MediaQuery.textScalerOf(c),
+            maxLines: 1,
+          )..layout();
+          final wordW = measure.width.ceilToDouble();
+          measure.dispose();
+          return Row(children: [
           const Icon(LucideIcons.cloud, size: I.md, color: DC.ink3),
           const SizedBox(width: S.x2),
-          Expanded(
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: math.min(wordW, box.maxWidth * .6)),
             child: Text(word,
                 maxLines: 1, overflow: TextOverflow.ellipsis, style: caps),
           ),
           const SizedBox(width: S.x2),
-          // Wraps under itself at large text rather than pushing off the bar.
-          Flexible(
+          // Takes the rest and wraps under itself, at large text or with a long
+          // day and time, rather than pushing off the bar.
+          Expanded(
             child: Text.rich(
               TextSpan(children: [
                 const TextSpan(text: 'SYNCED TO '),
@@ -513,7 +528,8 @@ class HomeSyncBar extends StatelessWidget {
             SyncBarState.behind =>
               const Icon(LucideIcons.refreshCw, size: I.sm, color: DC.ink3),
           },
-        ]),
+        ]);
+        }),
       ),
     );
   }

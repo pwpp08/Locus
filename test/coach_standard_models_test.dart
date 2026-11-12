@@ -38,4 +38,18 @@ void main() {
   test('never an empty list', () {
     expect(standardModels(['text-embedding-3-small']), ['text-embedding-3-small']);
   });
+
+  test('small chat models are standard: nano is a tier, not a media type', () {
+    expect(
+        standardModels(
+            ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-5-nano', 'whisper-1']),
+        ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-5-nano']);
+  });
+
+  test('-instruct is the chat build on a local server, a legacy one hosted', () {
+    const ids = ['llama3.2:3b', 'qwen2.5:7b-instruct', 'nomic-embed-text'];
+    expect(standardModels(ids, local: true),
+        ['llama3.2:3b', 'qwen2.5:7b-instruct']);
+    expect(standardModels(['gpt-4o', 'gpt-3.5-turbo-instruct']), ['gpt-4o']);
+  });
 }

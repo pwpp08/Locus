@@ -1601,7 +1601,7 @@ Map<String, Widget> _stateCases() => {
           cell: {'class': 'ours', 'value': 52, 'method': 'hr_1min',
               'device_value': 54},
           device: 'Garmin watch'),
-      'wearable_unlocks': const WearableUnlocks('ultrahuman'),
+      'wearable_unlocks': const WearableUnlocks('ultrahuman', always: true),
       // Home's card off the active wearable: a row of each class.
       'wearable_cells_card': const WearableCellsCard(
           device: 'Garmin watch',
@@ -2131,12 +2131,12 @@ Map<String, Widget> _listCases() => {
         SizedBox(height: S.x3),
         TierRow(SourceTier.beatToBeat),
       ]),
-      'legend': const Surface(
+      'legend': Surface(
+        // The hypnogram's own lanes, read off it, so a key and its chart
+        // cannot disagree (REM and Light were once the same blue here).
         child: Legend([
-          ('Deep', C.dialSleep),
-          ('REM', C.dialStrain),
-          ('Light', C.dialStrain),
-          ('Awake', C.strainDown),
+          for (final st in SleepStage.values)
+            (st.label(), Hypnogram.pigment[st]!),
         ]),
       ),
       'mono_table': const MonoTable('What went into this number', [
@@ -2149,18 +2149,23 @@ Map<String, Widget> _listCases() => {
       'no_data': const Surface(
           child: NoData(message: 'No nights recorded this week')),
       'moment_row': Builder(
-        builder: (c) => Surface(
-          child: Column(children: [
-            // The longest realistic line, and the muted one: a fact about the
-            // band rather than about the person takes no domain colour.
-            for (final m in dayMoments(timeline: _tlJoin).take(2)) MomentRow(m),
-            MomentRow(Moment(
+        builder: (c) {
+          final rows = [
+            ...dayMoments(timeline: _tlJoin).take(2),
+            Moment(
                 at: _tlAt(20, 2),
                 title: 'Band off your wrist',
                 detail: '8:02 PM – 8:58 PM · 56m',
-                icon: LucideIcons.watch)),
-          ]),
-        ),
+                icon: LucideIcons.watch),
+          ];
+          final w = momentTimeWidth(c, rows);
+          return Surface(
+            // The longest realistic line, and the muted one: a fact about the
+            // band rather than about the person takes no domain colour.
+            child: Column(
+                children: [for (final m in rows) MomentRow(m, timeWidth: w)]),
+          );
+        },
       ),
       'sweep_finding_row': Surface(
         child: Column(

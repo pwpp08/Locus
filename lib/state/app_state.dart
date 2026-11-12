@@ -4181,7 +4181,15 @@ class AppState extends ChangeNotifier {
       // Live stream ended → bank this bout's step window into `live_coverage`
       // and reset the counter. (No cadence calibration is involved: it was
       // removed with the 1 Hz step estimator at v55/v56.)
-      unawaited(_finalizeLivePedometer());
+      // A failure here (the database locked or closed under it) must not
+      // escape as an uncaught async error: the checkpoint is only cleared once
+      // the steps are banked, so the next session's recovery folds in what the
+      // last once-a-minute checkpoint held.
+      unawaited(
+        _finalizeLivePedometer().catchError(
+          (Object e) => _log('[steps] banking the walk failed, will recover: $e'),
+        ),
+      );
       // A new connection is a new live-HR session: without this the trace
       // buffer spliced readings from before the drop (or from a previously
       // paired band) onto the next session's chart as one continuous line.

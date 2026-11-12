@@ -1243,10 +1243,15 @@ List<Widget> timelineBody(BuildContext c, TimelineData d,
           l?.dayTimelineWhatHappenedSection ?? 'What happened',
           Surface(
             pad: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x2),
-            child: Column(
-              children: [
-                for (final m in d.moments) MomentRow(m),
-              ],
+            child: Builder(
+              builder: (c) {
+                final w = momentTimeWidth(c, d.moments);
+                return Column(
+                  children: [
+                    for (final m in d.moments) MomentRow(m, timeWidth: w),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -1305,12 +1310,33 @@ List<Widget> timelineBody(BuildContext c, TimelineData d,
   ];
 }
 
+/// The width the time column needs for [moments]: the widest clock among them
+/// as it prints at the reader's text size, plus a little air before the icon.
+double momentTimeWidth(BuildContext c, Iterable<Moment> moments) {
+  var w = 0.0;
+  for (final m in moments) {
+    final tp = TextPainter(
+      text: TextSpan(text: clockOfTs(m.at), style: F.n17),
+      textDirection: Directionality.of(c),
+      textScaler: MediaQuery.textScalerOf(c),
+      maxLines: 1,
+    )..layout();
+    w = math.max(w, tp.width);
+    tp.dispose();
+  }
+  return w.ceilToDouble() + S.x1;
+}
+
 /// One line of the day. The time is the left column and everything aligns to
 /// it, because the ONE thing this page is ordered by should be the one thing
 /// you can scan.
 class MomentRow extends StatelessWidget {
-  const MomentRow(this.m, {super.key});
+  const MomentRow(this.m, {super.key, this.timeWidth});
   final Moment m;
+
+  /// The time column's width, from [momentTimeWidth] over the whole list so
+  /// every row's icon lines up. Null sizes the column to this row alone.
+  final double? timeWidth;
 
   @override
   Widget build(BuildContext c) {
@@ -1323,12 +1349,15 @@ class MomentRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Scaled with the text, not fixed: the column exists so the times
-            // line up, and a hard 62 px is a clipped clock at 3.1x on exactly
-            // the phones whose owners chose 3.1x.
+            // Measured, not a fixed 58: `11:00 PM` is wider than that at the
+            // numeral size, so a 12-hour clock wrapped to two lines for some
+            // times and not others. The column exists so the times line up.
             SizedBox(
-              width: MediaQuery.textScalerOf(c).scale(58),
-              child: Text(clockOfTs(m.at), style: F.n17.copyWith(color: p.ink3)),
+              width: timeWidth ?? momentTimeWidth(c, [m]),
+              child: Text(clockOfTs(m.at),
+                  maxLines: 1,
+                  softWrap: false,
+                  style: F.n17.copyWith(color: p.ink3)),
             ),
             Padding(
               padding: const EdgeInsets.only(top: S.half),

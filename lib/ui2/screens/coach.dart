@@ -1077,20 +1077,30 @@ const _notStandard = [
   'embed', 'tts', 'audio', 'image', 'imagen', 'veo', 'live', 'aqa',
   'learnlm', 'transcribe', 'realtime', 'search', 'moderation', 'whisper',
   'dall-e', 'babbage', 'davinci', 'computer-use', 'robotics', 'exp',
-  'preview', 'thinking', 'native', 'lyria', 'gemma', 'nano', 'instruct',
+  'preview', 'thinking', 'native', 'lyria', 'gemma',
 ];
+
+/// Words that mark a hosted model as a legacy completions model (OpenAI's
+/// `gpt-3.5-turbo-instruct`), but are the NORMAL chat build on a local server
+/// (`qwen2.5:7b-instruct`, `llama3.1:8b-instruct-q4_K_M`).
+const _notStandardHosted = ['instruct'];
 
 /// The ids worth offering without a search: general chat models under their
 /// plain names. Pinned builds (`-001`, `-0613`, `-2024-08-06`) are dropped
 /// when the plain name is listed too. All of [ids] when the filter would
-/// leave none, so an unusual endpoint never shows an empty list.
-List<String> standardModels(List<String> ids) {
+/// leave none, so an unusual endpoint never shows an empty list. [local] is a
+/// server on this machine or network, where `-instruct` is how chat models
+/// are named.
+List<String> standardModels(List<String> ids, {bool local = false}) {
   String bare(String id) => id.toLowerCase().replaceFirst('models/', '');
+  bool notStandard(String id) =>
+      _notStandard.any(bare(id).contains) ||
+      (!local && _notStandardHosted.any(bare(id).contains));
   final pin = RegExp(r'-(\d{3,4}|\d{4}-\d{2}-\d{2})$');
   final plain = {for (final id in ids) bare(id)};
   final kept = [
     for (final id in ids)
-      if (!_notStandard.any(bare(id).contains) &&
+      if (!notStandard(id) &&
           !(pin.hasMatch(bare(id)) &&
               plain.contains(bare(id).replaceFirst(pin, ''))))
         id,
@@ -1297,11 +1307,11 @@ class _CoachSetupState extends State<CoachSetup> {
     final l = AppLocalizations.of(c);
     final q = _search.text.trim().toLowerCase();
     // Without a search, the standard models only; a search reaches them all.
+    final standard = standardModels(_models, local: _isLocal);
     final shown = q.isEmpty
         ? [
-            if (_model.isNotEmpty && !standardModels(_models).contains(_model))
-              _model,
-            ...standardModels(_models),
+            if (_model.isNotEmpty && !standard.contains(_model)) _model,
+            ...standard,
           ]
         : [
             for (final m in _models)

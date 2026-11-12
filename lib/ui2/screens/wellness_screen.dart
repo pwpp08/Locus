@@ -888,7 +888,7 @@ class MedRow extends StatelessWidget {
   final VoidCallback? onTap;
 
   /// Everything that is not "I took it": skip, reschedule, remove. Null hides
-  /// the control. There is no long-press or swipe here on purpose ? `Pressable`
+  /// the control. There is no long-press or swipe here on purpose: `Pressable`
   /// is the app's only gesture, so a second action needs a second target.
   final VoidCallback? onMore;
 
@@ -924,7 +924,7 @@ class MedRow extends StatelessWidget {
                     style: F.body.copyWith(color: taken ? p.ink3 : p.ink),
                   ),
                   Text(
-                    '${slot.def.doseLabel} ? ${slot.timeLabel} ? '
+                    '${slot.def.doseLabel} · ${slot.timeLabel} · '
                     '${_stateLabel(l, slot.state)}',
                     style: F.over.copyWith(color: p.ink3),
                   ),
