@@ -9,6 +9,7 @@ import 'notify/notification_service.dart';
 import 'coach/coach_config.dart';
 import 'state/app_state.dart';
 import 'state/prefs.dart';
+import 'community/community_service.dart';
 import 'state/clock_format.dart';
 import 'state/locale_controller.dart';
 import 'state/units_controller.dart';
@@ -137,6 +138,10 @@ Future<void> main() async {
   // Cache SharedPreferences so UI screens can synchronously RESTORE saved
   // selections (tab, range toggles) in initState with no async flash.
   await _safeInit('Prefs', Prefs.ensureLoaded);
+  // The community's client, only for someone who has signed in to it before
+  // (nobody else's launch touches the network for it). Not awaited: a slow
+  // network must not hold up the first frame.
+  unawaited(CommunityService.instance.resumeIfUsed());
 
   // Resolve appearance (persisted choice + OS brightness) BEFORE the first frame
   // so login/signup already paint in the right mode (Ember on Paper / Char).

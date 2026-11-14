@@ -1,5 +1,5 @@
-// The More tab is seven doors: My profile, Reports, Device settings, Heart
-// rate zones, Notifications, Your data and Settings. Every setting is behind
+// The More tab is eight doors: My profile, Reports, Community, Device
+// settings, Heart rate zones, Notifications, Your data and Settings. Every setting is behind
 // exactly one of them; two doors to one thing is how people end up unsure
 // which is the real one.
 
@@ -27,7 +27,7 @@ void main() {
     await t.pumpAndSettle();
   }
 
-  testWidgets('the More tab is seven doors, each opening its own page',
+  testWidgets('the More tab is eight doors, each opening its own page',
       (t) async {
     final taps = <String>[];
     await pump(
@@ -36,6 +36,7 @@ void main() {
         tab: true,
         onProfile: () => taps.add('profile'),
         onReports: () => taps.add('reports'),
+        onCommunity: () => taps.add('community'),
         onDevice: () => taps.add('device'),
         onZones: () => taps.add('zones'),
         onNotifications: () => taps.add('notifications'),
@@ -46,6 +47,7 @@ void main() {
     const rows = [
       'MY PROFILE',
       'REPORTS',
+      'COMMUNITY',
       'DEVICE SETTINGS',
       'HEART RATE ZONES',
       'NOTIFICATIONS',
@@ -60,13 +62,14 @@ void main() {
     expect(taps, [
       'profile',
       'reports',
+      'community',
       'device',
       'zones',
       'notifications',
       'data',
       'settings'
     ]);
-    // Nothing else: every setting is behind one of the seven.
+    // Nothing else: every setting is behind one of the eight.
     expect(find.byType(MoreRow), findsNWidgets(rows.length));
   });
 
@@ -82,7 +85,7 @@ void main() {
       'MANAGE NOTIFICATIONS',
       'IMPORT WHOOP DATA',
       'EXPORT AND BACKUP',
-      'CLOUD ACCOUNT',
+      'LOCUS ACCOUNT',
       'STORAGE',
     ]) {
       expect(find.text(gone), findsNothing, reason: '$gone is not in Settings');
@@ -125,7 +128,7 @@ void main() {
       'IMPORT WHOOP DATA',
       'WRITE TO HEALTH CONNECT',
       'EXPORT AND BACKUP',
-      'CLOUD ACCOUNT',
+      'LOCUS ACCOUNT',
       'STORAGE',
     ]) {
       expect(find.text(row), findsOneWidget, reason: row);

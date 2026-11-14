@@ -84,8 +84,9 @@ void main() {
         builder: (c, d) => Center(child: Text(d.label)),
       ),
     ));
-    expect(ShellDomain.values, hasLength(4));
-    for (final d in ShellDomain.values) {
+    // Community is a fifth domain, off the bar until it is added.
+    expect(ShellDomain.values, hasLength(5));
+    for (final d in kDefaultTabs) {
       expect(find.text(d.label), findsWidgets, reason: '${d.label} tab missing');
     }
   });

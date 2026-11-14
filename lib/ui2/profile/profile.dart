@@ -19,7 +19,9 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
+import '../../community/community_service.dart';
 import '../../state/prefs.dart';
+import '../community/community.dart' show CommunityScreen;
 import '../ui2.dart';
 import '../screens/reports.dart' show ReportsScreen;
 import '../screens/heart_rate_settings.dart' show HeartRateSettingsScreen;
@@ -628,6 +630,7 @@ class _ProfileHomeState extends State<ProfileHome> {
       stats: snap.data,
       onProfile: () => _open(c, const MyProfileSettings()),
       onReports: () => _open(c, const ReportsScreen()),
+      onCommunity: () => _open(c, const CommunityScreen()),
       onDevice: () => _open(c, const DeviceSettings()),
       onZones: () => _open(c, const HeartRateSettingsScreen()),
       onNotifications: () => _open(c, const NotificationSettings()),
@@ -645,6 +648,7 @@ class ProfileHomeView extends StatelessWidget {
   /// interrupt you, your data, and the app.
   final VoidCallback? onProfile,
       onReports,
+      onCommunity,
       onDevice,
       onZones,
       onNotifications,
@@ -660,6 +664,7 @@ class ProfileHomeView extends StatelessWidget {
     this.stats,
     this.onProfile,
     this.onReports,
+    this.onCommunity,
     this.onDevice,
     this.onZones,
     this.onNotifications,
@@ -677,6 +682,16 @@ class ProfileHomeView extends StatelessWidget {
     final doors = <Widget>[
       MoreRow(LucideIcons.circleUserRound, 'My profile', onTap: onProfile),
       MoreRow(LucideIcons.clipboardPenLine, 'Reports', onTap: onReports),
+      // Its unread count, when there is one: the in-app badge.
+      ListenableBuilder(
+        listenable: CommunityService.instance,
+        builder: (c, _) {
+          final n = CommunityService.instance.unread;
+          return MoreRow(LucideIcons.users, 'Community',
+              value: n == 0 ? '' : '${n > 99 ? '99+' : n} new',
+              onTap: onCommunity);
+        },
+      ),
       MoreRow(LucideIcons.watch, 'Device settings',
           badge: LucideIcons.settings, onTap: onDevice),
       MoreRow(LucideIcons.heartPulse, 'Heart rate zones',

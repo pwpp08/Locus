@@ -28,6 +28,7 @@ import 'ui2/onboarding/what_to_expect.dart' show WhatToExpectScreen;
 import 'ui2/profile/alarm.dart';
 import 'ui2/profile/profile.dart';
 import 'ui2/profile/settings.dart' show AiButtonSettings;
+import 'ui2/community/community.dart' show CommunityScreen;
 import 'ui2/screens/action_sheet.dart';
 import 'ui2/screens/ai_briefing.dart';
 import 'ui2/screens/calm_breathing.dart';
@@ -613,6 +614,7 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
         ShellDomain.strength => const StrengthTrainerScreen(tabMode: true),
         ShellDomain.health => const HealthTab(),
         ShellDomain.more => const ProfileHome(tab: true),
+        ShellDomain.community => const CommunityScreen(tab: true),
       },
     );
   }

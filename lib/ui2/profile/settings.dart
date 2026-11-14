@@ -35,7 +35,7 @@ import '../ui2.dart';
 import '../screens/coach.dart';
 import '../screens/weight_trend_screen.dart' show WeightTrendScreen;
 import '../../updater/update_service.dart';
-import 'account_screen.dart' show AccountScreen;
+import '../community/community.dart' show CommunityScreen;
 import 'data.dart' show DataScreen;
 import 'storage_screen.dart' show StorageScreen;
 import 'gallery.dart';
@@ -721,8 +721,11 @@ class YourDataView extends StatelessWidget {
         SetRow(LucideIcons.hardDriveDownload, C.dialStrain,
             l?.profileExportRow ?? 'Export and backup',
             onTap: () => goto(c, const DataScreen())),
-        SetRow(LucideIcons.cloud, C.dialStrain, 'Cloud account',
-            onTap: () => goto(c, const AccountScreen())),
+        // The Locus account: optional, and only for the community. It
+        // replaced the old self-hosted backup sign-in here.
+        SetRow(LucideIcons.circleUserRound, C.dialStrain, 'Locus account',
+            sub: 'Optional: teams, leaderboards and chat',
+            onTap: () => goto(c, const CommunityScreen())),
         SetRow(LucideIcons.database, C.dialStrain,
             l?.profileStorage ?? 'Storage',
             value: storage,

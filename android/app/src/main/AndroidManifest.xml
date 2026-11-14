@@ -176,6 +176,13 @@
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>
+            <!-- Community sign-in: Google hands the session back here. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="wtf.openstrap.openstrap_edge" android:host="login-callback" />
+            </intent-filter>
         </activity>
 
         <!-- Health Connect rationale for Android 14+ (VIEW_PERMISSION_USAGE). -->

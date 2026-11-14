@@ -167,7 +167,7 @@ void main() {
   // activity: a lift can have a photograph as much as a run can. What a lift
   // does NOT get is a map, and the absence is silent — there is no missing-map
   // card for a session that never had one to miss.
-  testWidgets('the share sheet offers a photo and a share, and nothing else',
+  testWidgets('the share sheet offers a photo, a share and a team post, and nothing else',
       (tester) async {
     _tallPhone(tester);
     for (final a in [
@@ -179,7 +179,8 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('ADD A PHOTO'), findsOneWidget, reason: a.name);
       // By type, not by text — 'Share' is also the screen's own title.
-      expect(find.byType(BigButton), findsOneWidget, reason: a.name);
+      expect(find.byType(BigButton), findsNWidgets(2), reason: a.name);
+      expect(find.text('SHARE TO TEAM'), findsOneWidget, reason: a.name);
       // The two questions this screen used to ask and no longer does.
       expect(find.text('CHOOSE A STYLE'), findsNothing, reason: a.name);
       expect(find.text('INCLUDE'), findsNothing, reason: a.name);

@@ -29,6 +29,7 @@ import '../../l10n/app_localizations.dart';
 import '../../l10n/display_text.dart';
 import '../../state/units_controller.dart';
 import '../grammar.dart';
+import '../community/community.dart' show shareToTeam;
 import '../profile/profile.dart' show SetRow;
 import '../theme.dart';
 import 'poster.dart';
@@ -126,6 +127,22 @@ class _ShareSheetState extends State<ShareSheet> {
                 l?.activityShareOpenFailed ?? 'Could not open the share sheet.')));
       }
       debugPrint('share failed: $e');
+    } finally {
+      _sharing = false;
+    }
+  }
+
+  Future<void> _shareToTeam() async {
+    if (_sharing) return;
+    _sharing = true;
+    try {
+      final boundary =
+          _card.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return;
+      final image = await boundary.toImage(pixelRatio: 2);
+      final png = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (png == null || !mounted) return;
+      await shareToTeam(context, png.buffer.asUint8List());
     } finally {
       _sharing = false;
     }
@@ -367,6 +384,14 @@ class _ShareSheetState extends State<ShareSheet> {
                     icon: LucideIcons.share2,
                     color: r.activity.color,
                     onTap: _share,
+                  ),
+                  const SizedBox(height: S.x3),
+                  // The same card, to a team's feed in Community.
+                  BigButton(
+                    'Share to team',
+                    icon: LucideIcons.users,
+                    soft: true,
+                    onTap: _shareToTeam,
                   ),
                   if (r.private) ...[
                     const SizedBox(height: S.x4),

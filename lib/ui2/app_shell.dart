@@ -25,6 +25,7 @@
 // Strain are the deep dives behind their dials on Home.
 
 import 'package:flutter/material.dart';
+import '../community/community_service.dart';
 import '../state/ai_button_prefs.dart';
 import 'lucide.dart';
 import 'marks.dart';
@@ -40,7 +41,11 @@ enum ShellDomain {
   today('Home', LucideIcons.house, C.dialStrain),
   strength('Strength', LucideIcons.dumbbell, C.dialStrain),
   health('Health', LucideIcons.heartPulse, C.dialStrain),
-  more('More', LucideIcons.menu, C.stressLow);
+  more('More', LucideIcons.menu, C.stressLow),
+
+  /// Teams, leaderboards, chat and the feed. Off the bar until the person
+  /// adds it under Customise tabs; always behind a door in More.
+  community('Community', LucideIcons.users, C.dialStrain);
 
   const ShellDomain(this.label, this.icon, this.accent);
 
@@ -56,6 +61,7 @@ enum ShellDomain {
           ShellDomain.strength => 'Strength',
           ShellDomain.health => 'Health',
           ShellDomain.more => l?.tabMore,
+          ShellDomain.community => 'Community',
         } ??
         label;
   }
@@ -525,7 +531,19 @@ class _Tab extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(domain.icon, size: I.lg, color: tabColor),
+                    if (domain == ShellDomain.community)
+                      // The in-app badge: a dot while anything is unread.
+                      ListenableBuilder(
+                        listenable: CommunityService.instance,
+                        builder: (c, _) => Badge(
+                          isLabelVisible: CommunityService.instance.unread > 0,
+                          smallSize: S.x2,
+                          backgroundColor: C.dialStrain,
+                          child: Icon(domain.icon, size: I.lg, color: tabColor),
+                        ),
+                      )
+                    else
+                      Icon(domain.icon, size: I.lg, color: tabColor),
                     const SizedBox(height: S.half),
                     MediaQuery.withClampedTextScaling(
                       maxScaleFactor: 1.3,
