@@ -1781,9 +1781,10 @@ class BleEngine {
     bool listening = false,
     bool? liveReady,
     bool armDrains = true,
+    String remoteId = 'AA:BB:CC:DD:EE:FF',
   }) {
     final session = _Session(
-      BluetoothDevice(remoteId: const DeviceIdentifier('AA:BB:CC:DD:EE:FF')),
+      BluetoothDevice(remoteId: DeviceIdentifier(remoteId)),
     );
     session.connected = true;
     session.sawConnected = true;
@@ -2280,6 +2281,10 @@ class BleEngine {
   final ChunkFailureLedger _chunkFailures = ChunkFailureLedger();
   EmptySyncTracker _emptySync = EmptySyncTracker();
   StuckStrapDetector _stuckStrap = StuckStrapDetector();
+
+  /// The band the fault flags (strapNeedsReboot, syncClockLost) were raised
+  /// on; a connect to any other band clears them.
+  String? _faultFlagsBand;
   // Detector 1b: sustained frame corruption (CRC8/CRC32 failures) — an
   // independent failure axis from marginal-radio, which only ever sees
   // timeouts. Per-connection like empty-sync/stuck-strap: a new link starts
@@ -2790,6 +2795,7 @@ class BleEngine {
         strapNeedsReboot: state.strapNeedsReboot,
         syncClockLost: state.syncClockLost,
         bondRefusals: state.bondRefusals,
+        bandFirmware: state.firmware,
       );
 
   /// Read the adapter state without hanging: `unknown` is the pre-init value and
@@ -3083,6 +3089,15 @@ class BleEngine {
       // a healthy disconnect. Empty-sync + stuck are per-connection.
       _emptySync = EmptySyncTracker();
       _stuckStrap = StuckStrapDetector();
+      // Band-specific fault flags belong to the band that raised them: left
+      // set, band A's would name band B's 50.43 firmware lock (bandStatusFor)
+      // until band B banked records. A same-band reconnect keeps them.
+      final bandId = session.device.remoteId.str;
+      if (bandId != _faultFlagsBand) {
+        state.strapNeedsReboot = false;
+        state.syncClockLost = false;
+        _faultFlagsBand = bandId;
+      }
       _frameCorruption = FrameCorruptionDetector();
       _crcFailuresThisSession = 0;
       _burstMismatchStreak = 0;
@@ -6087,6 +6102,7 @@ class BleEngine {
         if (h.batteryPct != null) state.batteryPct = h.batteryPct!.toDouble();
         state.charging = h.charging;
         state.wristOn = h.wristOn;
+        state.firmware = h.firmwareVersion;
         onState(state);
         unawaited(LocalDb.noteBandFirmware(h.firmwareVersion));
         _log('[HELLO gen5] serial=${h.serial} fw=${h.firmwareVersion} '
@@ -6099,6 +6115,11 @@ class BleEngine {
         // battery figure as if they were read, which is the same imputation
         // the quarantine above exists to stop. The revision and the body
         // length are the two things true at any layout.
+        //
+        // Firmware is CLEARED, not kept: a version from an earlier HELLO must
+        // not survive to drive the 50.43 lock status for this one. The rev-3
+        // reader below stays diagnostics-only.
+        state.firmware = null;
         _log('[HELLO gen5] revision ${h.helloRevision} is not the revision-1 '
             'layout these offsets read (body ${h.rawHex.length ~/ 2}B) — '
             'serial, battery, charge and wrist state are NOT published or '
@@ -9154,6 +9175,11 @@ class BleEngine {
     // awaits below are pending, and nothing that resumes after them may touch
     // it. Only this dying session object and its radio are awaited on.
     _session = null;
+    // The firmware version is what THIS link's HELLO said, so it dies with the
+    // link. A connect to a different band (a gen4 after a gen5) must not read
+    // the previous band's 50.43 and name a firmware lock for it. The same band
+    // reconnecting gets it back from its next revision-1 HELLO.
+    state.firmware = null;
     // The strap-RTC↔wall correlation belongs to the session that measured it —
     // drop it so it can't leak into the next connection's alarm arming before a
     // fresh GET_CLOCK. (Connection setup also re-nulls it; this covers the gap
