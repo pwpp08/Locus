@@ -292,6 +292,10 @@ class AlarmScreenView extends StatefulWidget {
   @override
   State<AlarmScreenView> createState() => _AlarmScreenViewState();
 
+  /// The skip line's date for [a] at [now]; null once nothing is ahead.
+  static String? skippedLabel(AlarmItem a, DateTime now) =>
+      _AlarmScreenViewState.skippedLabel(a, now);
+
   @visibleForTesting
   static String stateLabel(AlarmArmState s) => switch (s) {
         AlarmArmState.confirmed => 'Confirmed',
@@ -353,7 +357,12 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
   /// label, what it waits for and whether it is on, grouped as the settings
   /// rows are. Save is the sheet's one primary action; deleting is a quiet
   /// coral action under it, never a trash can beside the title.
-  Future<void> _editAlarm(BuildContext context, AlarmItem alarm) async {
+  ///
+  /// [isNew] is an alarm that does not exist yet: it is stored when Save is
+  /// pressed and not before, so closing the sheet leaves nothing behind and
+  /// the band is never armed for a draft.
+  Future<void> _editAlarm(BuildContext context, AlarmItem alarm,
+      {bool isNew = false}) async {
     final mgr = widget.alarmManager;
     if (mgr == null) return;
 
@@ -362,7 +371,11 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
     final labelCtrl = TextEditingController(text: alarm.label);
     var smartMin = alarm.smartWindowMinutes;
     var mode = alarm.mode;
-    var on = alarm.enabled;
+    var on = isNew || alarm.enabled;
+    // Whether the switch was set by hand in this sheet. Left alone, saving a
+    // changed time or changed days turns the alarm on: nobody moves an alarm
+    // to keep it off.
+    var switched = false;
     const early = [0, 15, 30, 45];
 
     await AppSheet.open<void>(
@@ -527,7 +540,11 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                         'Alarm on',
                         chevron: false,
                         trailing: AppSwitch(
-                            on, (v) => setS(() => on = v),
+                            on,
+                            (v) => setS(() {
+                                  on = v;
+                                  switched = true;
+                                }),
                             semanticLabel: 'Alarm on'),
                       ),
                       SetRow(
@@ -563,7 +580,11 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                   icon: LucideIcons.check,
                   onTap: () async {
                     Navigator.pop(ctx);
-                    await mgr.updateAlarm(alarm.copyWith(
+                    final moved = picked.hour != alarm.hour ||
+                        picked.minute != alarm.minute ||
+                        days.length != alarm.days.length ||
+                        !days.containsAll(alarm.days);
+                    final saved = alarm.copyWith(
                       hour: picked.hour,
                       minute: picked.minute,
                       label: labelCtrl.text.trim().isNotEmpty
@@ -572,19 +593,26 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                       days: days,
                       smartWindowMinutes: smartMin,
                       mode: mode,
-                      enabled: on,
-                    ));
+                      enabled: on || (!switched && moved),
+                      // A skip was for the schedule as it stood.
+                      clearSkip: moved,
+                    );
+                    if (isNew) {
+                      await mgr.addAlarm(saved);
+                    } else {
+                      await mgr.updateAlarm(saved);
+                    }
                   },
                 ),
                 Center(
                   child: TextAction(
-                    'Delete alarm',
+                    isNew ? 'Cancel' : 'Delete alarm',
                     () async {
                       Navigator.pop(ctx);
-                      await mgr.deleteAlarm(alarm.id);
+                      if (!isNew) await mgr.deleteAlarm(alarm.id);
                     },
-                    icon: LucideIcons.trash2,
-                    tone: ButtonTone.danger,
+                    icon: isNew ? null : LucideIcons.trash2,
+                    tone: isNew ? ButtonTone.standard : ButtonTone.danger,
                   ),
                 ),
               ],
@@ -626,13 +654,18 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
     );
   }
 
-  /// "Thu 7 Nov" for a skip that is still ahead, else null.
-  String? _skippedLabel(AlarmItem a) {
+  /// "Thu 7 Nov" for a skip that is still ahead, else null. Ahead means the
+  /// skipped ring's own time: at 07:01 on the morning a 07:00 alarm skipped,
+  /// there is nothing left to skip and the line goes.
+  String? _skippedLabel(AlarmItem a) =>
+      skippedLabel(a, widget.now ?? clock.now());
+
+  static String? skippedLabel(AlarmItem a, DateTime now) {
     final key = a.skipDay;
     if (key == null) return null;
     final d = DateTime.tryParse(key);
-    final now = widget.now ?? clock.now();
-    if (d == null || d.isBefore(DateTime(now.year, now.month, now.day))) {
+    if (d == null ||
+        !DateTime(d.year, d.month, d.day, a.hour, a.minute).isAfter(now)) {
       return null;
     }
     const wd = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -678,18 +711,18 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
   Future<void> _createNewAlarm(BuildContext context) async {
     final mgr = widget.alarmManager;
     if (mgr == null) return;
-    final newAlarm = AlarmItem(
-      id: 'alarm_${DateTime.now().millisecondsSinceEpoch}',
-      hour: 7,
-      minute: 0,
-      label: 'Wake up',
-      enabled: true,
-      days: {1, 2, 3, 4, 5},
+    // Ring once by default, and on once it is saved.
+    await _editAlarm(
+      context,
+      AlarmItem(
+        id: 'alarm_${DateTime.now().millisecondsSinceEpoch}',
+        hour: 7,
+        minute: 0,
+        label: 'Wake up',
+        enabled: true,
+      ),
+      isNew: true,
     );
-    await mgr.addAlarm(newAlarm);
-    if (context.mounted) {
-      await _editAlarm(context, newAlarm);
-    }
   }
 
   /// The weekdays an enabled repeating alarm covers.

@@ -111,6 +111,19 @@ class Prefs {
   /// 'nap|(epoch ms)'. Empty when none is running.
   static const String restPending = 'rest.pending';
 
+  /// The running hand-started sleep or nap: whether it is a sleep, and the
+  /// epoch second it started. Null when none is running.
+  static ({bool sleep, int sinceSec})? get restRecording =>
+      parseRestPending(getString(restPending, ''));
+
+  /// [restPending]'s text as its parts; null for anything else.
+  static ({bool sleep, int sinceSec})? parseRestPending(String raw) {
+    final parts = raw.split('|');
+    final ms = parts.length == 2 ? int.tryParse(parts[1]) : null;
+    if (ms == null || (parts[0] != 'sleep' && parts[0] != 'nap')) return null;
+    return (sleep: parts[0] == 'sleep', sinceSec: ms ~/ 1000);
+  }
+
   /// A wake time typed in the Sleep Planner without an alarm, minute of day,
   /// and the morning (`YYYY-MM-DD`) it is for. It counts for that one morning
   /// only; unset (-1) or another morning: the alarm, else your usual times.

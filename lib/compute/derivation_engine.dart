@@ -41,6 +41,8 @@ import 'movement.dart' show movementBuckets;
 import 'package:openstrap_analytics/onehz.dart' as ana;
 import '../data/live_coverage_policy.dart' show CoverageSpan;
 import '../data/step_calibration.dart';
+import '../state/prefs.dart' show Prefs;
+import 'accepted_naps.dart' show napsOutsideRecording;
 
 import '../ble/adapters/signals.dart';
 import '../data/coverage_resolver.dart';
@@ -5801,9 +5803,16 @@ class DerivationEngine {
         await LocalDb.setSessionHrr(w.$1, w.$2);
       }
       final activityStore = ActivityStore(await LocalDb.instance);
+      // A sleep or nap the person started by hand is still running: stillness
+      // inside it is that recording, not a nap to propose. Its own window is
+      // saved when they end it.
+      final recording = Prefs.restRecording;
+      final napCandidates = recording == null
+          ? blocks.napSuggestions
+          : napsOutsideRecording(blocks.napSuggestions, recording.sinceSec);
       final newSuggestions = [
         ...await activityStore.reconcile(ActivityKind.workout, blocks.suggestionsToPersist),
-        ...await activityStore.reconcile(ActivityKind.nap, blocks.napSuggestions),
+        ...await activityStore.reconcile(ActivityKind.nap, napCandidates),
       ];
       for (final suggestion in newSuggestions) {
         // The rows are already banked; a failed prompt must not mark the day partial.

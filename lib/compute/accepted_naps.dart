@@ -64,3 +64,16 @@ void composeAcceptedNaps(Map<String, dynamic> bundle, List<NapEdit> edits) {
         : null,
   };
 }
+
+/// [candidates] without the ones that reach into a sleep or nap the person
+/// started by hand at [sinceSec] and has not ended: stillness inside a running
+/// recording is that recording, never a nap to propose. One ending before it
+/// started is kept.
+List<Map<String, dynamic>> napsOutsideRecording(
+  List<Map<String, dynamic>> candidates,
+  int sinceSec,
+) =>
+    [
+      for (final c in candidates)
+        if (((c['end_ts'] ?? c['end']) as num).toInt() <= sinceSec) c,
+    ];

@@ -2464,6 +2464,23 @@ class AppState extends ChangeNotifier {
     final onset = (night['onset_ts'] as num?)?.toInt();
     final wake = (night['wake_ts'] as num?)?.toInt();
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    // A sleep started by hand and ended from Home instead of from its own
+    // screen: its start is the person's own word for when they went to bed.
+    // Saving the stager's onset over it (as below) threw that away, and the
+    // night then read a sleep latency of 0:00, measured from the moment the
+    // stager says sleep began.
+    final started = Prefs.restRecording;
+    if (started != null && started.sleep && started.sinceSec < now) {
+      await setSleepOverride(
+        day,
+        DateTime.fromMillisecondsSinceEpoch(started.sinceSec * 1000),
+        DateTime.fromMillisecondsSinceEpoch(now * 1000),
+        wait: false,
+      );
+      Prefs.setString(Prefs.restPending, '');
+      unawaited(syncNow());
+      return true;
+    }
     if (onset == null || onset >= now) return false;
     final edge = await LocalDb.lastDecodedRecTs();
     final end = wake != null &&
@@ -4658,6 +4675,7 @@ class AppState extends ChangeNotifier {
           } catch (_) {}
         }
         final now = alarmRearmFrom(DateTime.now(), firedEpoch);
+        await alarmManager.expireSpent(now);
         final plan = alarmManager.computeNextArmedPlan(now);
         if (plan == null) {
           if (_savedAlarm != null || device.alarmEpoch != null) {

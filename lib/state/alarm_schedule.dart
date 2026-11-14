@@ -213,7 +213,21 @@ Future<AlarmArmResult> armNextScheduledOccurrence({
   required int? currentArmedEpoch,
   DateTime? now,
 }) async {
-  final next = nextAlarmOccurrence(schedule, now ?? DateTime.now());
+  return armOccurrence(
+    engine: engine,
+    next: nextAlarmOccurrence(schedule, now ?? DateTime.now()),
+    currentArmedEpoch: currentArmedEpoch,
+  );
+}
+
+/// Arms [engine] for [next], or gives up the band's arm when [next] is null
+/// and it still holds one. A [next] the band is already armed for is left
+/// alone. See [AlarmArmResult].
+Future<AlarmArmResult> armOccurrence({
+  required BleEngine engine,
+  required DateTime? next,
+  required int? currentArmedEpoch,
+}) async {
   if (next == null) {
     // Nothing enabled. Toggling every weekday off individually (rather than
     // an explicit cancel-all) must not leave the strap holding its last arm

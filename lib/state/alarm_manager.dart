@@ -1,6 +1,7 @@
 // alarm_manager.dart — handles multiple alarms, occurrence scheduling, and system clock sync.
 
 import 'dart:async';
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,8 +22,37 @@ class NextArmedPlan {
 }
 
 class AlarmManager extends ChangeNotifier {
-  static const String _kAlarmsList = 'alarms_list_v2';
-  static const String _kSyncSystem = 'alarm_sync_system';
+  /// Where the alarms are kept (SharedPreferences), and whether the phone's
+  /// own next alarm joins them. Public: the headless sync reads both, with no
+  /// AlarmManager to ask.
+  static const String kAlarmsList = 'alarms_list_v2';
+  static const String kSyncSystem = 'alarm_sync_system';
+  static const String _kAlarmsList = kAlarmsList;
+  static const String _kSyncSystem = kSyncSystem;
+
+  /// The earliest next ring among the stored alarms [json] after [now], with
+  /// [systemAlarm] (the phone's own, when it is synced) counted in. Null when
+  /// nothing is due. The same answer [computeNextArmedPlan] gives, for a
+  /// caller with no manager: a skipped morning and a spent ring-once alarm
+  /// are both left out here too.
+  static DateTime? nextFromStored(
+    String json,
+    DateTime now, {
+    DateTime? systemAlarm,
+  }) {
+    DateTime? best;
+    for (final a in AlarmItem.decodeList(json)) {
+      final occ = a.nextOccurrence(now);
+      if (occ != null && (best == null || occ.isBefore(best))) best = occ;
+    }
+    if (systemAlarm != null &&
+        systemAlarm.isAfter(now) &&
+        (best == null || systemAlarm.isBefore(best))) {
+      best = systemAlarm;
+    }
+    return best;
+  }
+
   static const String _kShakeToStop = 'alarm_shake_to_stop';
   static const String _kShakeLast = 'alarm_shake_last';
 
@@ -107,6 +137,23 @@ class AlarmManager extends ChangeNotifier {
 
     _loaded = true;
     notifyListeners();
+    await expireSpent(clock.now());
+  }
+
+  /// Switches off every ring-once alarm whose instant has passed: it rang (or
+  /// its moment went by with the band out of reach), so its card should read
+  /// off rather than promise the same time tomorrow.
+  Future<void> expireSpent(DateTime now) async {
+    var changed = false;
+    for (var i = 0; i < _alarms.length; i++) {
+      if (_alarms[i].spentAt(now)) {
+        _alarms[i] = _alarms[i].copyWith(enabled: false, clearOnce: true);
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    await _persist();
+    notifyListeners();
   }
 
   static List<AlarmItem> _migrateFromLegacy(List<AlarmScheduleEntry> legacy) {
@@ -182,7 +229,7 @@ class AlarmManager extends ChangeNotifier {
   }
 
   Future<void> addAlarm(AlarmItem item) async {
-    _alarms.add(item);
+    _alarms.add(item.stampedAt(clock.now()));
     await _persist();
     notifyListeners();
   }
@@ -190,7 +237,7 @@ class AlarmManager extends ChangeNotifier {
   Future<void> updateAlarm(AlarmItem updated) async {
     final idx = _alarms.indexWhere((a) => a.id == updated.id);
     if (idx != -1) {
-      _alarms[idx] = updated;
+      _alarms[idx] = updated.stampedAt(clock.now());
       await _persist();
       notifyListeners();
     }
@@ -199,7 +246,8 @@ class AlarmManager extends ChangeNotifier {
   Future<void> toggleAlarm(String id, bool enabled) async {
     final idx = _alarms.indexWhere((a) => a.id == id);
     if (idx != -1) {
-      _alarms[idx] = _alarms[idx].copyWith(enabled: enabled);
+      _alarms[idx] =
+          _alarms[idx].copyWith(enabled: enabled).stampedAt(clock.now());
       await _persist();
       notifyListeners();
     }
@@ -245,7 +293,7 @@ class AlarmManager extends ChangeNotifier {
       final a = _alarms[i];
       if (a.enabled && a.isOneShot) {
         if (a.hour == firedDt.hour && (a.minute - firedDt.minute).abs() <= 2) {
-          _alarms[i] = a.copyWith(enabled: false);
+          _alarms[i] = a.copyWith(enabled: false, clearOnce: true);
           changed = true;
         }
       }

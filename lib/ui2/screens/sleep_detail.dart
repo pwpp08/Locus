@@ -1245,12 +1245,12 @@ class _NightCardState extends State<_NightCard> {
           swatch: const LinearGradient(
               colors: [DC.stageAwake, DC.stageAwake]),
           label: 'Sleep latency',
-          // Only on a window the user set themselves: an auto window's onset is
-          // the stager's guess, so nothing can be measured back from it.
+          // Only on a window whose START the user set themselves ('manual').
+          // An auto window's onset is the stager's guess, and a 'confirmed'
+          // one keeps that same onset (I'm awake, or accepting a proposal), so
+          // measuring back from either always reads 0:00.
           trailing: Text(
-              clockDur(const {'manual', 'confirmed'}.contains(n['sleep_source'])
-                  ? d.solMin
-                  : null),
+              clockDur(n['sleep_source'] == 'manual' ? d.solMin : null),
               style: F.nRow.copyWith(color: DC.ink)),
         ),
         const SizedBox(height: S.x6 + S.hair),

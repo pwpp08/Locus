@@ -38,6 +38,8 @@ import '../ecg/ecg_recovery.dart';
 import '../ecg/ecg_transport.dart';
 import '../notify/notification_center.dart';
 import '../notify/notification_event.dart';
+import '../platform/system_alarm.dart';
+import '../state/alarm_manager.dart' show AlarmManager;
 import '../state/alarm_schedule.dart';
 import 'band_ownership.dart';
 import 'high_freq_wake_window.dart';
@@ -256,6 +258,33 @@ Future<void> rearmHeadlessAlarm(BleEngine engine) async {
         AlarmScheduleEntry.fromRow(r),
     ]);
     final prefs = await SharedPreferences.getInstance();
+    // The alarms are the AlarmManager's list. The weekly table above is what
+    // came before it and the alarm screen no longer writes it, so arming from
+    // it (as this did) put back whatever it last held on every headless sync:
+    // a ring-once alarm set for tonight was overwritten by the old weekday
+    // time or cancelled outright, and a skipped morning rang.
+    final stored = prefs.getString(AlarmManager.kAlarmsList);
+    if (stored != null && stored.isNotEmpty) {
+      DateTime? system;
+      if (prefs.getBool(AlarmManager.kSyncSystem) ?? false) {
+        try {
+          system = (await SystemAlarmBridge.getNextSystemAlarm())?.triggerTime;
+        } catch (_) {
+          // No platform channel in this isolate: the list alone.
+        }
+      }
+      final next = AlarmManager.nextFromStored(stored, DateTime.now(),
+          systemAlarm: system);
+      await headlessArmAndConfirm(
+        () => armOccurrence(
+          engine: engine,
+          next: next,
+          currentArmedEpoch: prefs.getInt('alarm_epoch'),
+        ),
+        LocalDb.alarmSetConfirmedSince,
+      );
+      return;
+    }
     await headlessArmAndConfirm(
       () => armNextScheduledOccurrence(
         engine: engine,

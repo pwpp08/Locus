@@ -29,6 +29,15 @@ class AlarmItem {
   /// is skipped. A date in the past is simply never matched again.
   final String? skipDay;
 
+  /// A ring-once alarm's one instant, epoch milliseconds, stamped when it is
+  /// saved or switched on. Once that instant has passed the alarm is spent:
+  /// it has no next occurrence, so nothing re-arms it for the same time
+  /// tomorrow (a ring the phone was not connected to hear, a headless sync
+  /// the morning after). Null on a repeating alarm, and on one saved before
+  /// this field existed, which keeps the old "next time this clock time
+  /// comes round" reading.
+  final int? onceAt;
+
   const AlarmItem({
     required this.id,
     required this.hour,
@@ -39,6 +48,7 @@ class AlarmItem {
     this.smartWindowMinutes = 0,
     this.mode = AlarmMode.exact,
     this.skipDay,
+    this.onceAt,
   });
 
   /// `YYYY-MM-DD` for [d], the form [skipDay] is kept in.
@@ -92,6 +102,11 @@ class AlarmItem {
 
     if (days.isEmpty) {
       // Ring once
+      final at = onceAt;
+      if (at != null) {
+        final t = DateTime.fromMillisecondsSinceEpoch(at);
+        return t.isAfter(from) ? t : null;
+      }
       final candidate = DateTime(from.year, from.month, from.day, hour, minute);
       if (candidate.isAfter(from)) {
         return candidate;
@@ -128,6 +143,8 @@ class AlarmItem {
     AlarmMode? mode,
     String? skipDay,
     bool clearSkip = false,
+    int? onceAt,
+    bool clearOnce = false,
   }) =>
       AlarmItem(
         id: id ?? this.id,
@@ -139,7 +156,34 @@ class AlarmItem {
         smartWindowMinutes: smartWindowMinutes ?? this.smartWindowMinutes,
         mode: mode ?? this.mode,
         skipDay: clearSkip ? null : (skipDay ?? this.skipDay),
+        onceAt: clearOnce ? null : (onceAt ?? this.onceAt),
       );
+
+  /// This alarm as it should be stored at [now]: an enabled ring-once alarm
+  /// stamped with the next time its clock time comes round, anything else
+  /// with no stamp. A stamp still ahead for the same clock time is kept.
+  AlarmItem stampedAt(DateTime now) {
+    if (!enabled || days.isNotEmpty) {
+      return onceAt == null ? this : copyWith(clearOnce: true);
+    }
+    final kept =
+        onceAt == null ? null : DateTime.fromMillisecondsSinceEpoch(onceAt!);
+    if (kept != null &&
+        kept.isAfter(now) &&
+        kept.hour == hour &&
+        kept.minute == minute) {
+      return this;
+    }
+    final next = copyWith(clearOnce: true).nextOccurrence(now)!;
+    return copyWith(onceAt: next.millisecondsSinceEpoch);
+  }
+
+  /// A ring-once alarm whose instant has passed by [now].
+  bool spentAt(DateTime now) =>
+      enabled &&
+      days.isEmpty &&
+      onceAt != null &&
+      !DateTime.fromMillisecondsSinceEpoch(onceAt!).isAfter(now);
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -151,6 +195,7 @@ class AlarmItem {
         'smartWindowMinutes': smartWindowMinutes,
         'mode': mode.name,
         if (skipDay != null) 'skipDay': skipDay,
+        if (onceAt != null) 'onceAt': onceAt,
       };
 
   factory AlarmItem.fromJson(Map<String, dynamic> json) => AlarmItem(
@@ -163,6 +208,7 @@ class AlarmItem {
         smartWindowMinutes: (json['smartWindowMinutes'] as num?)?.toInt() ?? 0,
         mode: AlarmMode.fromName(json['mode']),
         skipDay: json['skipDay'] as String?,
+        onceAt: (json['onceAt'] as num?)?.toInt(),
       );
 
   static List<AlarmItem> decodeList(String jsonStr) {
