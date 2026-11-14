@@ -48,7 +48,7 @@ Future<void> _pump(
   await t.pumpWidget(
     MediaQuery(
       data: MediaQueryData(textScaler: TextScaler.linear(scale)),
-      child: MaterialApp(theme: buildTheme(Brightness.light), home: view),
+      child: MaterialApp(theme: buildTheme(), home: view),
     ),
   );
   await t.pumpAndSettle();
@@ -163,7 +163,7 @@ void main() {
       t.view.devicePixelRatio = 3;
       addTearDown(t.view.reset);
       await t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: PairSensorScreen(entry: kColmi),
       ));
       // `_load()`'s own real DB read (fired from `initState`, unawaited)

@@ -32,7 +32,6 @@ Future<void> _pump(
   DeviceAction chosen = DeviceAction.none,
   ValueChanged<DeviceAction>? onPick,
   double scale = 1,
-  Brightness brightness = Brightness.light,
 }) async {
   t.view.physicalSize = Size(390 * 3, 2400 * 3 * scale);
   t.view.devicePixelRatio = 3;
@@ -41,7 +40,7 @@ Future<void> _pump(
     MediaQuery(
       data: MediaQueryData(textScaler: TextScaler.linear(scale)),
       child: MaterialApp(
-        theme: buildTheme(brightness),
+        theme: buildTheme(),
         home: BandGesturesView(
           chosen: chosen,
           supported: supported,
@@ -130,15 +129,12 @@ void main() {
       expect(picked, DeviceAction.ringPhone);
     });
 
-    testWidgets('nothing overflows at 3.1x, in either theme', (t) async {
-      for (final b in Brightness.values) {
-        await _pump(t,
-            supported: _supported({DeviceAction.ringPhone, DeviceAction.torch}),
-            chosen: DeviceAction.logWater,
-            scale: 3.1,
-            brightness: b);
-        expect(layoutFaults, isEmpty, reason: '$b');
-      }
+    testWidgets('nothing overflows at 3.1x', (t) async {
+      await _pump(t,
+          supported: _supported({DeviceAction.ringPhone, DeviceAction.torch}),
+          chosen: DeviceAction.logWater,
+          scale: 3.1);
+      expect(layoutFaults, isEmpty);
     });
   });
 

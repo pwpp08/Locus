@@ -115,7 +115,7 @@ Future<void> _pump(WidgetTester t, AppState app, {bool still = false}) async {
   await t.pumpWidget(MediaQuery(
     data: MediaQueryData(size: const Size(393, 852), disableAnimations: still),
     child: MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: ChangeNotifierProvider<AppState>.value(
           value: app, child: const HealthMonitorScreen()),
     ),

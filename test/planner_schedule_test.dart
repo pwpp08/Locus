@@ -121,7 +121,7 @@ void main() {
     tall(t);
     AlarmMode? picked;
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: Builder(
         builder: (c) => Scaffold(
           body: TextButton(
@@ -148,7 +148,7 @@ void main() {
     String id(int d) => dayLabelOf(DateTime(2026, 8, d));
     String? picked;
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: Builder(
         builder: (c) => Scaffold(
           body: TextButton(
@@ -194,7 +194,7 @@ void main() {
           mode: AlarmMode.sleepGoal),
     ]);
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: ChangeNotifierProvider<AppState>.value(
           value: app, child: const AlarmScreen()),
     ));
@@ -212,7 +212,7 @@ void main() {
       AlarmItem(id: 'a', hour: 6, minute: 17, days: {1, 2, 3, 4, 5, 6, 7}),
     ]);
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: ChangeNotifierProvider<AppState>.value(
           value: app, child: const AlarmScreen()),
     ));
@@ -228,7 +228,7 @@ void main() {
     final app = AppState.forTesting();
     addTearDown(app.dispose);
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: ChangeNotifierProvider<AppState>.value(
           value: app, child: const SleepPlannerScreen()),
     ));

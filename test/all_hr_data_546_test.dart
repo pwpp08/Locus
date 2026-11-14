@@ -95,7 +95,7 @@ void main() {
       movement: List.filled(1440, null),
     );
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: Builder(
           builder: (c) => Scaffold(
               body: ListView(

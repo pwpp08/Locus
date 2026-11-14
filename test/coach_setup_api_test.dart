@@ -17,7 +17,7 @@ Future<void> _mount(WidgetTester tester, CoachConfig config) async {
     ChangeNotifierProvider<CoachConfig>.value(
       value: config,
       child: MaterialApp(
-        theme: buildTheme(Brightness.dark),
+        theme: buildTheme(),
         home: CoachSetup(key: UniqueKey()),
       ),
     ),

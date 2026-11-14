@@ -6,9 +6,9 @@
 //     a name. `test/ui2_component_sweep_test.dart` sweeps the same map, so
 //     the screen on the phone and the sweep cannot describe two different
 //     design systems.
-//   · [GalleryScreen] — that map on a real device, at a real text scale, in
-//     both themes. Every layout bug this project has shipped lived in one of
-//     those two dimensions, and neither is visible on a laptop at 1.0×.
+//   · [GalleryScreen] — that map on a real device, at a real text scale.
+//     Most layout bugs this project has shipped only show at a large text
+//     scale, which a laptop at 1.0× never shows.
 //
 // The fixtures are deliberately the LONGEST realistic value for every slot,
 // never the tidiest. Three shipped bugs — cards overflowing at 2.0×, a status
@@ -434,16 +434,7 @@ Map<String, Widget> componentCases() => {
           )),
       // The onboarding header: the step in capitals, the pips on the right.
       // Char, as every onboarding screen is.
-      'onboarding_step': const AlwaysChar(child: OnboardingStep(2)),
-      // The one theme override: a card inside it is Char whatever the app is.
-      'always_char': AlwaysChar(
-        child: Builder(
-          builder: (c) => Surface(
-            child: Text('Char in both themes',
-                style: F.body.copyWith(color: P.of(c).ink)),
-          ),
-        ),
-      ),
+      'onboarding_step': const OnboardingStep(2),
       'sub_tabs': SubTabs(
           const ['Today', 'Sleep', 'Recovery', 'Strain'], 1, (_) {},
           color: C.dialStrain),
@@ -544,7 +535,8 @@ const _galleryPlans = [
       date: '2026-11-14',
       sport: 'Cycling',
       durationMin: 45,
-      zoneMin: [5, 30, 10, 0, 0]),
+      zoneMin: [5, 30, 10, 0, 0],
+      strainWhy: 'a few nights of resting heart rate'),
 ];
 
 Map<String, Widget> _coachWorkoutCases() => {
@@ -804,8 +796,7 @@ Map<String, Widget> _nutritionAndWellnessCases() {
     ]),
     // The journal is always char; its rows are veils of white, so they are
     // shown on the page's own foot colour.
-    'journal_rows': AlwaysChar(
-        child: ColoredBox(
+    'journal_rows': ColoredBox(
             color: JC.foot,
             child: Padding(
                 padding: const EdgeInsets.all(S.x4),
@@ -854,9 +845,8 @@ Map<String, Widget> _nutritionAndWellnessCases() {
                   ]),
                   const SizedBox(height: S.x4),
                   const JournalPillButton(label: 'DONE', onTap: null),
-                ])))),
-    'behavior_pick_rows': AlwaysChar(
-        child: ColoredBox(
+                ]))),
+    'behavior_pick_rows': ColoredBox(
             color: JC.foot,
             child: Padding(
                 padding: const EdgeInsets.all(S.x4),
@@ -877,7 +867,7 @@ Map<String, Widget> _nutritionAndWellnessCases() {
                       question: 'Traveled on a plane?',
                       selected: false,
                       onTap: () {}),
-                ])))),    'text_field': OsTextField(
+                ]))),    'text_field': OsTextField(
         controller: TextEditingController(text: 'Slept badly, big lunch.'),
         label: 'Anything else',
         lines: 3),
@@ -3022,12 +3012,11 @@ class _FlowScreen extends StatelessWidget {
   }
 }
 
-/// The whole design system on one scroll, at a scale and a theme you choose.
+/// The whole design system on one scroll, at a text scale you choose.
 ///
-/// The two controls are the point. 2.0× and 3.1× are what iOS hands an app
-/// whose owner turned on Larger Accessibility Sizes, and the dark palette is
-/// solved separately from the light one — both are places a component can be
-/// wrong while looking perfect on the machine it was written on.
+/// The scale control is the point. 2.0× and 3.1× are what iOS hands an app
+/// whose owner turned on Larger Accessibility Sizes — where a component can
+/// be wrong while looking perfect on the machine it was written on.
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
 
@@ -3039,7 +3028,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
   static const _scales = [1.0, 1.4, 2.0, 3.1];
 
   int _scale = 0;
-  int _theme = 0;
 
   /// Flows first. The component scroll is what the sweeps cover; the flow is
   /// what a person opens the gallery to walk.
@@ -3050,17 +3038,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
     final p = P.of(c);
     final cases = galleryCases();
     final flows = _mode == 0;
-    // Named, NOT `Brightness.values[_theme - 1]`. Flutter declares the enum
-    // as `{ dark, light }` — dark first — so indexing it against a
-    // ['System', 'Light', 'Dark'] tab list handed 'Light' the dark theme and
-    // 'Dark' the light one. Both tabs worked, both showed the wrong palette,
-    // and the whole point of this screen is that dark is solved separately
-    // from light: every review done through it was reviewing the other one.
-    final brightness = switch (_theme) {
-      1 => Brightness.light,
-      2 => Brightness.dark,
-      _ => Theme.of(c).brightness,
-    };
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
@@ -3085,19 +3062,13 @@ class _GalleryScreenState extends State<GalleryScreen> {
               SubTabs(const ['1.0×', '1.4×', '2.0×', '3.1×'], _scale,
                   (i) => setState(() => _scale = i),
                   color: C.dialStrain),
-              const SizedBox(height: S.x2),
-              SubTabs(const ['System', 'Light', 'Dark'], _theme,
-                  (i) => setState(() => _theme = i),
-                  color: C.dialStrain),
             ]),
           ),
-          // The controls stay at the app's own scale and theme; only what is
-          // under test is overridden, or a 3.1× stepper would push itself off
-          // the screen it exists to control.
+          // The controls stay at the app's own scale; only what is under test
+          // is overridden, or a 3.1× stepper would push itself off the screen
+          // it exists to control.
           Expanded(
-            child: Theme(
-              data: buildTheme(brightness),
-              child: Builder(builder: (c) {
+            child: Builder(builder: (c) {
                 final gp = P.of(c);
                 return MediaQuery(
                   data: MediaQuery.of(c)
@@ -3129,7 +3100,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   ),
                 );
               }),
-            ),
           ),
         ]),
       ),

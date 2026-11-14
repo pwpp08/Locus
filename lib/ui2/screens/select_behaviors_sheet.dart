@@ -27,8 +27,7 @@ Future<List<String>?> openSelectBehaviors(
   scroll: true,
   bare: true,
   scrim: JC.scrim,
-  builder: (_) => AlwaysChar(
-    child: SelectBehaviorsSheet(
+  builder: (_) => SelectBehaviorsSheet(
       // A sheet's own MediaQuery has the status bar taken off; its top is
       // measured from the screen's.
       top: MediaQuery.paddingOf(c).top + JC.sheetTop,
@@ -36,7 +35,6 @@ Future<List<String>?> openSelectBehaviors(
       custom: custom,
       onWriteOwn: onWriteOwn,
     ),
-  ),
 );
 
 class SelectBehaviorsSheet extends StatefulWidget {

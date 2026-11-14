@@ -26,7 +26,7 @@ void main() {
   testWidgets('written once, it lands and says so', (t) async {
     var drawn = false;
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: LocusMark(animate: true, onDrawn: () => drawn = true),
     ));
     expect(drawn, isFalse);

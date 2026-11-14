@@ -97,7 +97,7 @@ Future<void> _until(WidgetTester t, Finder f, {int n = 60}) async {
 }
 
 Widget _app(AppState app, {LocaleController? locale}) => MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: MultiProvider(
         providers: [
           ChangeNotifierProvider<AppState>.value(value: app),

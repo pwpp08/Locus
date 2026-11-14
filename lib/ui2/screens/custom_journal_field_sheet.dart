@@ -24,13 +24,11 @@ Future<JournalFieldSpec?> showCustomJournalFieldSheet(
   required Set<String> existingKeys,
 }) {
   return AppSheet.open<JournalFieldSpec>(context,
-    builder: (ctx) => AlwaysChar(
-      child: Padding(
+    builder: (ctx) => Padding(
         // The sheet holds a text field; without this it sits under the keyboard.
         padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
         child: _CustomFieldSheet(existingKeys: existingKeys),
       ),
-    ),
     scroll: true,
     bare: true,
     scrim: JC.scrim,

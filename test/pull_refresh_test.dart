@@ -14,7 +14,7 @@ void main() {
 
   Future<void> pump(WidgetTester t, Future<void> Function() onRefresh) =>
       t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.dark),
+        theme: buildTheme(),
         home: Scaffold(
           body: CustomScrollView(physics: kPullPhysics, slivers: [
             LocusPullRefresh(onRefresh: onRefresh),
@@ -118,7 +118,7 @@ void main() {
 
   testWidgets('the fill is more written the further along it is', (t) async {
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: const Scaffold(
         body: Column(children: [
           WordmarkFill(fill: 0, base: Color(0xFF666666), ink: Color(0xFFFFFFFF)),

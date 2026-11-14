@@ -44,9 +44,7 @@ Future<EditTimeResult?> openEditTimeInBed(
       scroll: true,
       bare: true,
       scrim: DC.scrim,
-      builder: (_) => AlwaysChar(
-        child: EditTimeInBedSheet(day: day, start: start, end: end),
-      ),
+      builder: (_) => EditTimeInBedSheet(day: day, start: start, end: end),
     );
 
 class EditTimeInBedSheet extends StatefulWidget {

@@ -29,7 +29,7 @@ void main() {
   tearDown(BleEngine.resetBandClaimForTest);
 
   Widget host(AppState app, Widget child) => MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: ChangeNotifierProvider<AppState>.value(
           value: app,
           child: Scaffold(body: child),

@@ -87,7 +87,7 @@ Future<void> _pump(WidgetTester t, BeatsData d, {double scale = 1}) async {
   await t.pumpWidget(MediaQuery(
     data: MediaQueryData(textScaler: TextScaler.linear(scale)),
     child: MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: Beats(data: d),
     ),
   ));
@@ -292,7 +292,7 @@ void main() {
         .map((w) => w.painter)
         .whereType<LineChart>()
         .single;
-    const p = P(false);
+    const p = P();
     expect(line.color, p.ink2);
     expect(line.fill, isFalse);
   });

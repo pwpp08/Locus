@@ -40,7 +40,7 @@ Future<void> _pump(WidgetTester t, DayStepsData d, {double scale = 1}) async {
     MediaQuery(
       data: MediaQueryData(textScaler: TextScaler.linear(scale)),
       child: MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: DayStepsDetail(data: d),
       ),
     ),

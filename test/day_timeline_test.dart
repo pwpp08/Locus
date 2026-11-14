@@ -315,7 +315,7 @@ void _graphTests() {
 
   group('the card it draws', () {
     Widget frame(TimelineData d, {double scale = 1}) => MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           home: Builder(
             builder: (c) => MediaQuery(
               data: MediaQuery.of(c)

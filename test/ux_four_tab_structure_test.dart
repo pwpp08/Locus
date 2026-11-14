@@ -14,7 +14,7 @@ import 'package:openstrap_edge/ui2/screens/calibration.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
 Widget _app(Widget child) => MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: Scaffold(body: child),
     );
 

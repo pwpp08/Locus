@@ -25,8 +25,7 @@ class _HealthTabState extends State<HealthTab> {
   @override
   Widget build(BuildContext c) {
     final mq = MediaQuery.of(c);
-    return AlwaysChar(
-      child: Stack(
+    return Stack(
         children: [
           // Each page starts under the switch, and paints up behind it.
           MediaQuery(
@@ -58,7 +57,6 @@ class _HealthTabState extends State<HealthTab> {
             ),
           ),
         ],
-      ),
-    );
+      );
   }
 }

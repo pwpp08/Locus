@@ -21,7 +21,7 @@ Future<void> _pump(WidgetTester t, Widget w, {double scale = 1}) async {
   addTearDown(t.view.reset);
   await t.pumpWidget(MediaQuery(
     data: MediaQueryData(textScaler: TextScaler.linear(scale)),
-    child: MaterialApp(theme: buildTheme(Brightness.light), home: w),
+    child: MaterialApp(theme: buildTheme(), home: w),
   ));
   await t.pumpAndSettle();
 }

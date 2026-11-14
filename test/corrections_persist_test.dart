@@ -120,7 +120,7 @@ void main() {
   group('proposal card says what the correction means', () {
     Future<void> pump(WidgetTester t, ActivityKind kind, Locale locale) =>
         t.pumpWidget(MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           locale: locale,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,

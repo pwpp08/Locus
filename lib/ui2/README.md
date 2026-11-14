@@ -44,7 +44,7 @@ There is one palette, `P`, and one set of tokens, `C F S R I Motion`.
 | `Image.asset(` | `Art.*.image()` |
 
 Two more tests back it: `ui2_contrast_test.dart` sweeps every accent × every
-surface × both themes at a 4.5:1 floor — **including what the painters draw**,
+surface at a 4.5:1 floor — **including what the painters draw**,
 because a mark's colour is information — and `ui2_component_sweep_test.dart`
 pumps every gallery case at 1.0/1.4/2.0/3.0/3.1× text scale (iOS reaches 3.1×,
 Android about 2.6×) with **any `RenderFlex` overflow failing the build**, and
@@ -77,8 +77,8 @@ final p = P.of(context);   // first line of every build()
   `Ease.standard` / `Ease.emphasized`. Never start a `repeat()`.
 - Images: `Art.x.image()` draws nothing, never a broken-image icon, until the
   file exists. No screen writes an asset path.
-- `AlwaysChar` is the one place a subtree is forced dark. No screen writes its
-  own `Theme(...)`.
+- One theme: the app is dark only. No screen writes its own `Theme(...)` and
+  nothing branches on `Brightness`.
 
 What the values ARE (hexes, sizes, radii, tracking, durations) is in
 `DESIGN.md` §2–§8.
@@ -405,11 +405,11 @@ Five rules:
    The swatch is the mark's *solved* colour, so the key and the plot can never
    disagree. Zones need no legend: `ZoneRows` names every row.
 
-   The two painters that own a palette take `P` for exactly that reason: raw
-   `C.sky` measures 1.67:1 on a white card, so the Light lane was invisible in
-   light mode. Everything else takes its colour from the caller — pass
-   `p.on(accent)`, never the pigment. The hypnogram lanes run light to dark
-   (awake palest, deep darkest) in both themes, each at its own contrast step.
+   The two painters that own a palette take `P` for exactly that reason: a
+   lane's colour is information, so it is solved like a label. Everything else
+   takes its colour from the caller — pass `p.on(accent)`, never the pigment.
+   The hypnogram lanes run light to dark (awake palest, deep darkest), each at
+   its own contrast step.
 5. **Empty is `empty:`, not an empty axis.** `empty: const NoData(message: '…')` keeps
    the title and the unit and drops the axis entirely. A whole metric with no
    value is still a `StatusCard` — `NoData` is the smaller case where the

@@ -337,7 +337,7 @@ Future<void> _openRecovery(
   await t.pumpWidget(MediaQuery(
     data: MediaQueryData(textScaler: TextScaler.linear(scale)),
     child: MaterialApp(
-      theme: buildTheme(dark ? Brightness.dark : Brightness.light),
+      theme: buildTheme(),
       home: ChangeNotifierProvider<AppState>.value(
         value: app,
         child: Builder(

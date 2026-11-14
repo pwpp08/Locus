@@ -25,7 +25,7 @@ void main() {
 
   Future<void> shell(WidgetTester t, {void Function(BuildContext)? onAi}) =>
       t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.dark),
+        theme: buildTheme(),
         home: AppShell(
           builder: (_, d) => Center(child: Text('screen ${d.label}')),
           onAi: onAi,
@@ -75,7 +75,7 @@ void main() {
     await t.pumpWidget(ChangeNotifierProvider<CoachConfig>(
       create: (_) => CoachConfig(),
       child: MaterialApp(
-        theme: buildTheme(Brightness.dark),
+        theme: buildTheme(),
         home: const Scaffold(body: CoachScreen(sheet: true)),
       ),
     ));
@@ -88,7 +88,7 @@ void main() {
       (t) async {
     String? got;
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: Builder(
         builder: (c) => Scaffold(
           body: Align(

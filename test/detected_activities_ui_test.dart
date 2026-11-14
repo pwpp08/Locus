@@ -10,7 +10,6 @@ import 'package:openstrap_edge/ui2/screens/detected_activities.dart';
 import 'package:openstrap_edge/ui2/screens/home/home_my_day.dart';
 import 'package:openstrap_edge/ui2/screens/window_editor.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
-import 'package:openstrap_edge/theme/theme_controller.dart';
 
 ActivitySuggestion proposal(
   String id,
@@ -94,13 +93,9 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider<AppState>.value(value: app),
-          ChangeNotifierProvider<ThemeController>(
-            create: (_) =>
-                ThemeController.seed(AppThemeChoice.light, Brightness.light),
-          ),
         ],
         child: MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           home: home ?? const DetectedActivitiesScreen(),
         ),
       ),
@@ -159,7 +154,7 @@ void main() {
     ) async {
       ActivitySuggestion? tapped;
       await t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.dark),
+        theme: buildTheme(),
         home: Scaffold(
           body: HomeMyDay(
             day: '2026-08-19',

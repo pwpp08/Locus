@@ -6,21 +6,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/ui2/activity/day_strain.dart';
 import 'package:openstrap_edge/ui2/activity/summary.dart';
 import 'package:openstrap_edge/ui2/screens/screens.dart';
-import 'package:openstrap_edge/theme/theme_controller.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
-import 'package:provider/provider.dart';
 
 Widget _app(Widget home, {double scale = 1, Brightness b = Brightness.light}) =>
     MediaQuery(
       data: MediaQueryData(textScaler: TextScaler.linear(scale)),
-      child: MaterialApp(theme: buildTheme(b), home: home),
+      child: MaterialApp(theme: buildTheme(), home: home),
     );
 
-/// [_app] plus the theme controller a pushed route reads, so a link can be
-/// tapped rather than its target pumped on its own.
-Widget _nav(Widget home) => ChangeNotifierProvider<ThemeController>.value(
-    value: ThemeController.seed(AppThemeChoice.light, Brightness.light),
-    child: _app(home));
+/// [_app] for a test that taps a link rather than pumping its target alone.
+Widget _nav(Widget home) => _app(home);
 
 void main() {
   Future<void> tapLink(WidgetTester t, String text) async {

@@ -13,7 +13,6 @@ import 'package:openstrap_edge/data/day_label.dart';
 import 'package:openstrap_edge/data/db.dart';
 import 'package:openstrap_edge/data/local_repository.dart';
 import 'package:openstrap_edge/state/app_state.dart';
-import 'package:openstrap_edge/theme/theme_controller.dart';
 import 'package:openstrap_edge/ui2/profile/wearable_numbers.dart';
 import 'package:openstrap_edge/ui2/screens/screens.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
@@ -91,12 +90,9 @@ Future<void> _pumpHome(WidgetTester t, {bool handed = false}) async {
   await _settle(t, MultiProvider(
     providers: [
       ChangeNotifierProvider<AppState>.value(value: app),
-      ChangeNotifierProvider<ThemeController>.value(
-          value:
-              ThemeController.seed(AppThemeChoice.light, Brightness.light)),
     ],
     child: MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: Scaffold(
           body: handed
               ? const HomeScreen(hour: 9, data: HomeData())
@@ -185,7 +181,7 @@ void main() {
     await _settle(
         t,
         MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: const Scaffold(
             body: SingleChildScrollView(
                 child: WearableCells(kHomeWearableRows)))));

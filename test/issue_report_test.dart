@@ -171,7 +171,7 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: const ReportIssueScreen()));
     await tester.pumpAndSettle();
     const slice = 'INCLUDE THE LAST 2 WEEKS OF HEALTH DATA';

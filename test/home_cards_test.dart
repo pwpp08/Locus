@@ -22,7 +22,7 @@ void main() {
     await Prefs.ensureLoaded();
     const title = 'CALIBRATION TIMELINE';
     Widget app() => MaterialApp(
-          theme: buildTheme(Brightness.dark),
+          theme: buildTheme(),
           home: Scaffold(
             body: CalibrationCard(Calibration.of(days: 3)),
           ),
@@ -50,7 +50,7 @@ void main() {
     t.view.devicePixelRatio = 3;
     addTearDown(t.view.reset);
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: Scaffold(
         body: Builder(
             builder: (c) => TextButton(

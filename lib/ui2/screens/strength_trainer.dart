@@ -720,7 +720,7 @@ class _Pill extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: filled ? p.ink : p.card,
-          borderRadius: R.rPill,
+          borderRadius: R.rMd,
         ),
         child: Text(label,
             style: F.body.copyWith(

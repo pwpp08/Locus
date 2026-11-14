@@ -681,8 +681,7 @@ class SessionStats extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    // Solved against the page, not raw pigment: the poster paints its rings on
-    // one dark card it controls, and this one lands on both themes.
+    // Solved against the page, not raw pigment.
     final accent = p.on(r.activity.color);
     final rows = <Widget>[];
     for (final s in sessionStats(r, unitsOf(c))) {

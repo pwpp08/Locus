@@ -16,7 +16,7 @@ import 'package:openstrap_edge/ui2/ui2.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: child,
     );
 
@@ -120,35 +120,6 @@ void main() {
                 '${screen.runtimeType}.');
       }
     }
-  });
-
-  // The theme tabs shipped INVERTED: `Brightness.values[i - 1]` against a
-  // ['System', 'Light', 'Dark'] list, and Flutter declares the enum dark-first,
-  // so 'Light' rendered dark and 'Dark' rendered light. Both tabs worked and
-  // both lied, which is the worst version of this bug — the screen exists
-  // because dark is solved separately from light, so every review done through
-  // it was reviewing the palette the reviewer had not selected.
-  testWidgets('the theme tabs are not inverted', (tester) async {
-    _tallPhone(tester);
-    await tester.pumpWidget(_wrap(const GalleryScreen()));
-    await tester.pump();
-
-    Brightness shownAfterTapping(String tab) {
-      final scope = tester.widget<Theme>(find
-          .descendant(of: find.byType(GalleryScreen), matching: find.byType(Theme))
-          .first);
-      return scope.data.brightness;
-    }
-
-    await tester.tap(find.text('LIGHT'));
-    await tester.pump();
-    expect(shownAfterTapping('Light'), Brightness.light,
-        reason: 'the Light tab is rendering the dark palette.');
-
-    await tester.tap(find.text('DARK'));
-    await tester.pump();
-    expect(shownAfterTapping('Dark'), Brightness.dark,
-        reason: 'the Dark tab is rendering the light palette.');
   });
 
   // A GPS activity's fixture must carry real coordinates, or the card has no

@@ -753,7 +753,7 @@ class _CoachScreenState extends State<CoachScreen> {
 
   @override
   Widget build(BuildContext c) =>
-      AlwaysChar(child: Builder(builder: _build));
+      Builder(builder: _build);
 
   Widget _build(BuildContext c) {
     final p = P.of(c);

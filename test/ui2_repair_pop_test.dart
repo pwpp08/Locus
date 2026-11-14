@@ -22,7 +22,7 @@ void main() {
       value: app,
       child: MaterialApp(
         navigatorKey: nav,
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: const Scaffold(body: Text('shell')),
       ),
     ));

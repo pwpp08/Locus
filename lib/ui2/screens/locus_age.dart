@@ -493,8 +493,7 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
       ],
     );
 
-    return AlwaysChar(
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: AC.page,
         body: TouchWatcher(
           onDown: (e) => _down(e, width, top),
@@ -503,8 +502,7 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
           onCancel: (e) => _up(e, width, top),
           child: body,
         ),
-      ),
-    );
+      );
   }
 
   /// A circle over the blob, wherever it is posed, that wins every touch

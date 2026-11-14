@@ -12,7 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'support/fonts.dart';
 
 Widget _app(Widget home) =>
-    MaterialApp(theme: buildTheme(Brightness.dark), home: home);
+    MaterialApp(theme: buildTheme(), home: home);
 
 void main() {
   setUpAll(loadAppFonts);

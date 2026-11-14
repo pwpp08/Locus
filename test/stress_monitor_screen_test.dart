@@ -69,7 +69,7 @@ Future<void> _show(WidgetTester t, LocalRepository repo) async {
   t.view.devicePixelRatio = 3;
   addTearDown(t.view.reset);
   await t.pumpWidget(MaterialApp(
-    theme: buildTheme(Brightness.dark),
+    theme: buildTheme(),
     home: StressMonitorScreen(source: StressSource(repo), today: today),
   ));
   for (var i = 0; i < 8; i++) {

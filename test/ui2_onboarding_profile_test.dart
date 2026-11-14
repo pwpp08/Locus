@@ -153,7 +153,7 @@ Widget _frame(Widget child, Brightness b, double scale) => MediaQuery(
         value: LocaleController.seed(null),
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
-          theme: buildTheme(b),
+          theme: buildTheme(),
           home: RepaintBoundary(key: _shot, child: child),
         ),
       ),

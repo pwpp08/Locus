@@ -10,7 +10,7 @@ void main() {
     t.view.devicePixelRatio = 2;
     addTearDown(t.view.reset);
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: const LocusAgeScreen(page: true, today: '2026-11-10'),
     ));
     for (var i = 0; i < 5; i++) {

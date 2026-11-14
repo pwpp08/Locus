@@ -16,7 +16,7 @@ import 'state/units_controller.dart';
 import 'sync/headless_boot.dart';
 import 'sync/ios_bg_task.dart';
 import 'sync/ios_shortcut_sync.dart';
-import 'theme/theme_controller.dart';
+import 'ui2/theme.dart' show applySystemChrome;
 import 'widget/widget_service.dart';
 import 'telemetry/firebase_bridge.dart';
 import 'package:workmanager/workmanager.dart';
@@ -143,19 +143,9 @@ Future<void> main() async {
   // network must not hold up the first frame.
   unawaited(CommunityService.instance.resumeIfUsed());
 
-  // Resolve appearance (persisted choice + OS brightness) BEFORE the first frame
-  // so login/signup already paint in the right mode (Ember on Paper / Char).
-  // Fall back to a system-brightness controller if persistence fails.
-  ThemeController theme;
-  try {
-    theme = await ThemeController.bootstrap().timeout(_kStartupInitTimeout);
-  } catch (e, st) {
-    debugPrint('[main] ThemeController.bootstrap failed, using default: $e\n$st');
-    theme = ThemeController.seed(
-      AppThemeChoice.system,
-      WidgetsBinding.instance.platformDispatcher.platformBrightness,
-    );
-  }
+  // One theme, dark: the system bars and the home-screen widget match it.
+  applySystemChrome();
+  unawaited(WidgetService.setThemeDark(true));
 
   // Local display-units preference (metric/imperial). Best-effort; defaults to metric.
   UnitsController units;
@@ -203,7 +193,6 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AppState(), lazy: false),
-        ChangeNotifierProvider<ThemeController>.value(value: theme),
         ChangeNotifierProvider<UnitsController>.value(value: units),
         ChangeNotifierProvider<ClockFormatController>.value(value: clockFormat),
         ChangeNotifierProvider<LocaleController>.value(value: locale),

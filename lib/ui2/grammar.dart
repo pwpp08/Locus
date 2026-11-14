@@ -669,17 +669,14 @@ enum PanelTone {
   rich,
 }
 
-/// A card's ground. Dark: graded from a touch lighter at the top left to a
-/// touch darker at the bottom right, with no outline. Light: the plain card.
+/// A card's ground: graded from a touch lighter at the top left to a touch
+/// darker at the bottom right, with no outline.
 BoxDecoration panelDecoration(BuildContext c,
     {PanelTone tone = PanelTone.subtle,
     BorderRadius radius = R.rXl,
     Color? color}) {
   final p = P.of(c);
   final base = color ?? p.card;
-  if (!p.dark) {
-    return BoxDecoration(color: base, borderRadius: radius, boxShadow: p.el(1));
-  }
   final rich = tone == PanelTone.rich;
   return BoxDecoration(
     borderRadius: radius,
@@ -710,7 +707,7 @@ class Surface extends StatelessWidget {
   final int elevation;
   final String? semanticLabel;
 
-  /// How strongly the ground is graded in dark mode. Ignored with a [color].
+  /// How strongly the ground is graded. Ignored with a [color].
   final PanelTone tone;
 
   const Surface({
@@ -2750,7 +2747,8 @@ class BigButton extends StatelessWidget {
             ? const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x2)
             : const EdgeInsets.symmetric(horizontal: S.x5, vertical: S.x3),
         alignment: compact ? null : Alignment.center,
-        decoration: BoxDecoration(color: ground, borderRadius: R.rPill),
+        decoration: BoxDecoration(
+            color: ground, borderRadius: compact ? R.rMd : R.rPill),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -3616,7 +3614,7 @@ class Glass extends StatelessWidget {
         // A white hairline catches light on char; on cream it would vanish,
         // so the page's own hairline draws the edge there.
         border: Border.all(
-            color: p.dark ? C.white.withValues(alpha: .08) : p.line),
+            color: C.white.withValues(alpha: .08)),
       ),
       child: child,
     );

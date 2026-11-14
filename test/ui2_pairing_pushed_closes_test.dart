@@ -34,7 +34,7 @@ void main() {
       ChangeNotifierProvider<AppState>.value(
         value: app,
         child: MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           home: Builder(
             builder: (c) => Scaffold(
               body: TextButton(

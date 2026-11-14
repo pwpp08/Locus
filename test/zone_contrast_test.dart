@@ -48,7 +48,7 @@ void main() {
   // Same 4.5:1 floor the ui2 contrast test uses for every mark.
   group('ZoneRows.cols (the ramp the app draws) is legible', () {
     for (final dark in [true, false]) {
-      final p = P(dark);
+      final p = const P();
       for (var z = 0; z < 5; z++) {
         test('zone ${z + 1}, ${dark ? 'dark' : 'light'}: 4.5:1 on every surface',
             () {
@@ -69,7 +69,7 @@ void main() {
 
     test('neighbouring zones are different colours, not just lighter', () {
       for (final dark in [true, false]) {
-        final c = ZoneRows.cols(P(dark));
+        final c = ZoneRows.cols(const P());
         for (var z = 1; z < 5; z++) {
           expect(c[z], isNot(c[z - 1]),
               reason: 'zone ${z + 1} is zone $z in ${dark ? 'dark' : 'light'}');

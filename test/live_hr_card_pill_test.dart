@@ -27,7 +27,7 @@ void main() {
     await t.pumpWidget(ChangeNotifierProvider<AppState>.value(
       value: app,
       child: MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: const Scaffold(body: LiveHrCard()),
       ),
     ));

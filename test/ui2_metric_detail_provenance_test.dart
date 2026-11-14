@@ -21,7 +21,7 @@ Future<SemanticsHandle> _pump(
   addTearDown(t.view.reset);
   final handle = t.ensureSemantics();
   await t.pumpWidget(MaterialApp(
-    theme: buildTheme(Brightness.light),
+    theme: buildTheme(),
     home: Scaffold(body: MetricDetail(key, data: d)),
   ));
   await t.pumpAndSettle();
@@ -153,7 +153,7 @@ void main() {
     t.view.devicePixelRatio = 3;
     addTearDown(t.view.reset);
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: Scaffold(body: MetricDetail('resting_hr', data: d)),
     ));
     await t.pumpAndSettle();

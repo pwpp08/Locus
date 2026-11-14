@@ -32,7 +32,7 @@ Future<void> _pump(
     MediaQuery(
       data: MediaQueryData(disableAnimations: reducedMotion),
       child: MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: home,
@@ -522,7 +522,7 @@ void main() {
           ChangeNotifierProvider<CoachConfig>.value(
             value: cfg,
             child: MaterialApp(
-              theme: buildTheme(Brightness.light),
+              theme: buildTheme(),
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
               navigatorObservers: [_RouteLog(pushed)],

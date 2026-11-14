@@ -43,7 +43,7 @@ Future<void> _pump(WidgetTester t, NapDetailData d) async {
   t.view.devicePixelRatio = 2.0;
   addTearDown(t.view.reset);
   await t.pumpWidget(MaterialApp(
-    theme: buildTheme(Brightness.dark),
+    theme: buildTheme(),
     home: NapDetailScreen(
       nap: {'start': d.start, 'end': d.end, 'duration_min': d.asleepMin},
       data: d,

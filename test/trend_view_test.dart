@@ -146,7 +146,7 @@ void main() {
     addTearDown(t.view.reset);
     final h = t.ensureSemantics();
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: TrendViewScreen(
         initial: 'strain',
         today: _today,
@@ -231,7 +231,7 @@ void main() {
     t.view.devicePixelRatio = 3;
     addTearDown(t.view.reset);
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: TrendViewScreen(
         initial: 'hrv',
         today: _today,
@@ -269,7 +269,7 @@ void main() {
       minutes[i] = 60.0 + (i % 40);
     }
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: TrendViewScreen(
         initial: 'avg_hr',
         today: _today,
@@ -299,7 +299,7 @@ void main() {
 
   testWidgets('a metric with no day view offers only W, M and 6M', (t) async {
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: TrendViewScreen(
           initial: 'recovery', today: _today, loader: _Loader(const {})),
     ));
@@ -314,7 +314,7 @@ void main() {
     t.view.devicePixelRatio = 3;
     addTearDown(t.view.reset);
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: TrendViewScreen(initial: id, today: _today, loader: loader),
     ));
     await t.pump();
@@ -428,7 +428,7 @@ void main() {
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: TrendViewScreen(
           initial: 'vo2max', today: _today, loader: _Loader(const {})),
     ));

@@ -58,7 +58,7 @@ void main() {
 
   group('DayNav', () {
     Widget frame(Widget child) => MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           home: Scaffold(body: child),
         );
 

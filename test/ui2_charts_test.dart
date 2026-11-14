@@ -49,7 +49,7 @@ Widget _host(Widget child, {double scale = 1, Brightness b = Brightness.light}) 
     MediaQuery(
       data: MediaQueryData(textScaler: TextScaler.linear(scale)),
       child: MaterialApp(
-        theme: buildTheme(b),
+        theme: buildTheme(),
         home: Scaffold(body: Padding(padding: const EdgeInsets.all(S.x4), child: child)),
       ),
     );
@@ -147,7 +147,7 @@ void main() {
       for (final p in <CustomPainter>[
         LineChart(const [], Colors.red),
         Bars(const [], Colors.red),
-        Hypnogram(const [], const P(false)),
+        Hypnogram(const [], const P()),
         Actogram(const [], Colors.red),
         HeatMap(const [], Colors.red, Colors.grey),
         NightStack(const [], const [Colors.red]),
@@ -523,7 +523,7 @@ void main() {
 
     test('one rect per drawable column, not one per epoch', () {
       final rec = _Rec();
-      Hypnogram(List.filled(28800, SleepStage.light), const P(false))
+      Hypnogram(List.filled(28800, SleepStage.light), const P())
           .paint(rec, const Size(350, 80));
       expect(rec.rrects.length, lessThanOrEqualTo(175));
     });
@@ -627,7 +627,7 @@ void main() {
 
   group('legends are derived from the palette, never retyped', () {
     test('every sleep stage has a key', () {
-      const p = P(false);
+      const p = P();
       expect(Hypnogram.legend(p).map((e) => e.$2),
           SleepStage.values.map((s) => Hypnogram.cols(p)[s]));
       expect(Hypnogram.legend(p).map((e) => e.$1),
@@ -750,9 +750,9 @@ void main() {
       await tester.pumpWidget(_host(ChartFrame(
         title: 'Last night',
         unit: 'stages',
-        legend: Hypnogram.legend(const P(false)),
+        legend: Hypnogram.legend(const P()),
         child: CustomPaint(
-            painter: Hypnogram(const [SleepStage.deep], const P(false))),
+            painter: Hypnogram(const [SleepStage.deep], const P())),
       )));
       for (final s in SleepStage.values) {
         // Legend names are drawn uppercased.
@@ -848,7 +848,7 @@ void main() {
             unit: 'ms',
             yAxis: AxisSpec(min: 0, max: 480, format: axisHm),
             xLabels: const ['22:30', '02:00', '05:30', '07:10'],
-            legend: Hypnogram.legend(P(b == Brightness.dark)),
+            legend: Hypnogram.legend(const P()),
             footnote: 'Relative to your own 14-night baseline.',
             child: CustomPaint(painter: LineChart(const [40.0, 90.0], C.stressLow)),
           ),

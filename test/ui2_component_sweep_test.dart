@@ -23,7 +23,7 @@ Widget _frame(Widget child, Brightness b, double scale) => MediaQuery(
       data: MediaQueryData(textScaler: TextScaler.linear(scale)),
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: buildTheme(b),
+        theme: buildTheme(),
         home: Builder(
           builder: (c) => Scaffold(
             backgroundColor: P.of(c).bg,
@@ -79,7 +79,7 @@ void main() {
   testWidgets('the shell has three destinations and cannot grow a fourth',
       (tester) async {
     await tester.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: AppShell(
         builder: (c, d) => Center(child: Text(d.label)),
       ),
@@ -93,7 +93,7 @@ void main() {
 
   testWidgets('every tap target in the shell clears 44 pt', (tester) async {
     await tester.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: AppShell(
         builder: (c, d) => const SizedBox.shrink(),
         onAction: (_) {},

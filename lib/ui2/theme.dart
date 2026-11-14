@@ -9,7 +9,7 @@
 //      `P.fill`, against the worst surface they can legally land on. The old
 //      caption token measured 2.20–2.71:1 across 223 call sites; a token that
 //      *can* be misused eventually is. `test/ui2_contrast_test.dart` proves
-//      the floor holds in both themes for every accent.
+//      the floor holds for every accent.
 //   2. MOTION IS GATED ONCE. `motion()` and `animate()` are the only way to
 //      get a non-zero duration, and they return `Duration.zero` when the
 //      platform asks for reduced motion. No call site can opt out, and the
@@ -21,9 +21,9 @@
 //      which do not consult a theme at all. Dialogs still use Flutter's own
 //      fade-and-scale — small, centred, and the least nauseogenic of the
 //      three — so they are deliberately left alone.
-//   3. BOTH THEMES ARE DESIGNED. Every colour is defined for light and dark in
-//      the same expression. There is no token that exists only inside a
-//      dark-mode branch.
+//   3. ONE THEME. Locus is dark only. There is no light palette, no
+//      brightness switch and no per-subtree theme override: every colour here
+//      is the one that is painted.
 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -48,14 +48,12 @@ class C {
   static const slate = Color(0xFF3A444B);
 
   /// The two ends of the monochrome system. `char` is the dark ink on every
-  /// light fill and the chrome on cream; `cream` is the light canvas and the
-  /// ScallopBadge disc in BOTH themes.
+  /// light fill; `cream` is the ScallopBadge disc and the inverse chrome.
   static const char = Color(0xFF0F1014);
   static const cream = Color(0xFFF2F1EC);
 
   // ── the data palette ── domain hues for charts, aurora, hero glow.
-  // Every one clears 4.5:1 as text on the dark card2 and as a fill under
-  // dark ink; in light they pass through [P.on] like any accent.
+  // Every one clears 4.5:1 as text on card2 and as a fill under dark ink.
   /// The Total sleep hero's aurora (the one aurora left in the app) and the
   /// hypnogram's light-sleep step. Nothing else is lavender.
   static const lavender = Color(0xFFA99BFF);
@@ -227,41 +225,41 @@ class C {
 
 /// ── SURFACES + LEGIBLE INK ────────────────────────────────────────────────
 ///
-/// Brightness-resolved. `P.of(context)` in every build method.
+/// `P.of(context)` in every build method. One palette: the app is dark only,
+/// so this is a plain set of tokens; `of` stays so call sites read the same.
 class P {
-  final bool dark;
-  const P(this.dark);
+  const P();
 
-  static P of(BuildContext c) => P(Theme.of(c).brightness == Brightness.dark);
+  static P of(BuildContext c) => const P();
 
-  // ── surfaces ── Slate in dark: a blue-grey page with lifted grey cards,
-  // the way a wearable's companion app reads at night. "Cream" in light.
-  Color get bg => dark ? const Color(0xFF1A1F23) : C.cream;
-  Color get card => dark ? const Color(0xFF2B3136) : C.white;
-  Color get card2 => dark ? const Color(0xFF353B41) : const Color(0xFFE9E8E2);
-  Color get line => dark ? const Color(0xFF3D444A) : const Color(0xFFDCDBD4);
-  Color get track => dark ? const Color(0xFF3A4046) : const Color(0xFFE2E1DA);
+  // ── surfaces ── Slate: a blue-grey page with lifted grey cards, the way a
+  // wearable's companion app reads at night.
+  Color get bg => const Color(0xFF101518);
+  Color get card => const Color(0xFF2B3136);
+  Color get card2 => const Color(0xFF353B41);
+  Color get line => const Color(0xFF3D444A);
+  Color get track => const Color(0xFF3A4046);
 
-  /// The top of the page gradient, above [bg]. Only the dark theme has one.
-  Color get bgTop => dark ? const Color(0xFF283239) : C.cream;
+  /// The top of the page gradient, above [bg].
+  Color get bgTop => const Color(0xFF283339);
 
-  Color get ink => dark ? const Color(0xFFFFFFFF) : C.char;
-  Color get ink2 => dark ? const Color(0xFFC6CBD0) : const Color(0xFF474B53);
+  Color get ink => const Color(0xFFFFFFFF);
+  Color get ink2 => const Color(0xFFC6CBD0);
 
-  /// The muted caption ink. Hand-solved to clear 4.5:1 on [card2], the darkest
-  /// (light theme) / lightest (dark theme) surface it can sit on — so it is
-  /// legible on every surface, not just the one it was eyeballed against.
-  Color get ink3 => dark ? const Color(0xFFAAB0B6) : const Color(0xFF5F646D);
+  /// The muted caption ink. Hand-solved to clear 4.5:1 on [card2], the
+  /// lightest surface it can sit on — so it is legible on every surface, not
+  /// just the one it was eyeballed against.
+  Color get ink3 => const Color(0xFFAAB0B6);
 
   /// The frosted-glass tint: the card at 72%, under a 24 px blur. Its solid
   /// fallback (high contrast, `Perf.lowGlass`) is this blended over [bg].
   Color get glass => card.withValues(alpha: .72);
 
-  /// Black chrome on cream, cream chrome on char — the round icon buttons,
-  /// the active SubTabs pill, snackbars. Monochrome on purpose: volt is
-  /// spent on action, not on "selected".
-  Color get inverse => dark ? const Color(0xFFF4F4F1) : C.char;
-  Color get onInverse => dark ? C.char : const Color(0xFFF4F4F1);
+  /// Cream chrome on char — the round icon buttons, the active SubTabs pill,
+  /// snackbars. Monochrome on purpose: volt is spent on action, not on
+  /// "selected".
+  Color get inverse => const Color(0xFFF4F4F1);
+  Color get onInverse => C.char;
 
   /// The ink that goes on top of a [fill] — whichever of dark ink or white
   /// clears 4.5:1 on it, dark preferred. Volt, coral and every data hue take
@@ -270,7 +268,7 @@ class P {
       contrast(C.char, fill) >= _aa ? C.char : C.white;
 
 
-  /// [accent] rendered as TEXT on one of this brightness' surfaces, nudged
+  /// [accent] rendered as TEXT on one of the surfaces, nudged
   /// toward the page ink until it clears [_aa] against the worst legal
   /// surface ([card2]). `C.volt` on cream measures 1.3:1 raw; `on(C.volt)`
   /// clears 4.5:1 and still reads as a green.
@@ -282,9 +280,8 @@ class P {
   /// solver only ever nudges toward the page ink, so clearing the second
   /// surface cannot un-clear the first.
   Color on(Color accent) {
-    final toward = dark ? ink : C.n900;
-    final flat = _solve(accent, toward, card2, dark);
-    return _solve(flat, toward, Color.alphaBlend(wash(accent), card2), dark);
+    final flat = _solve(accent, ink, card2);
+    return _solve(flat, ink, Color.alphaBlend(wash(accent), card2));
   }
 
   /// [accent] rendered as a FILLED surface under [inkOn]. Buttons, chips,
@@ -296,7 +293,7 @@ class P {
   /// until WHITE clears [_aa], and [inkOn] then picks white.
   Color fill(Color accent) => contrast(C.char, accent) >= _aa
       ? accent
-      : _solve(accent, const Color(0xFF000000), C.white, false);
+      : _solve(accent, const Color(0xFF000000), C.white);
 
   /// A tinted wash of [accent] — the InsightCard / Pill / active-tab
   /// background. Never carries text of its own colour; pair it with [on].
@@ -305,18 +302,18 @@ class P {
   /// solved against, and a caller asking for 1.6 was pushing muted ink to
   /// 2.99:1 on its own card. A wash darker than a wash is a fill.
   Color wash(Color accent, {double strength = 1}) =>
-      accent.withValues(alpha: (dark ? .18 : .11) * strength.clamp(0.0, 1.0));
+      accent.withValues(alpha: .18 * strength.clamp(0.0, 1.0));
 
   /// The brightest point of an AuroraTile's gradient of [hue], already
   /// blended over the card: the surface the tile's text has to clear 4.5:1
   /// on. Solved, not chosen — the hue's alpha is the most the page [ink] can
   /// take, capped where a colour field stops being a wash and becomes a fill.
   Color aurora(Color hue) {
-    final key = Object.hash(hue.toARGB32(), dark, 'aurora');
+    final key = Object.hash(hue.toARGB32(), 'aurora');
     final hit = _cache[key];
     if (hit != null) return hit;
     Color at(double a) => Color.alphaBlend(hue.withValues(alpha: a), card);
-    var lo = 0.0, hi = dark ? .55 : .45;
+    var lo = 0.0, hi = .55;
     if (contrast(ink, at(hi)) < _aa) {
       for (var i = 0; i < 24; i++) {
         final mid = (lo + hi) / 2;
@@ -331,18 +328,9 @@ class P {
     return _cache[key] = at(hi);
   }
 
-  /// Elevation. Dark has no shadow and no outline: depth is the tonal grading in DESIGN.md §2.2.
-  /// Light gets one soft shadow: 0 / 8 / 24, ink at 6%, deepening per level.
-  List<BoxShadow> el(int level) {
-    if (level <= 0 || dark) return const [];
-    return [
-      BoxShadow(
-        color: C.char.withValues(alpha: .06 * level.clamp(1, 3)),
-        blurRadius: 24.0 * level,
-        offset: Offset(0, 8.0 * level),
-      ),
-    ];
-  }
+  /// Elevation. No shadow and no outline: depth is the tonal grading in
+  /// DESIGN.md §2.2. Kept as a method so a card states its level.
+  List<BoxShadow> el(int level) => const [];
 
   // ── the solver ──────────────────────────────────────────────────────────
   // WCAG 2.1 AA for body text. Non-text UI is allowed 3:1, but a caption that
@@ -354,9 +342,9 @@ class P {
 
   /// Binary-search the lerp from [c] toward [toward] for the first colour that
   /// clears [_aa] against [against]. 24 steps is well past 8-bit resolution.
-  static Color _solve(Color c, Color toward, Color against, bool dark) {
+  static Color _solve(Color c, Color toward, Color against) {
     final key = Object.hash(c.toARGB32(), toward.toARGB32(),
-        against.toARGB32(), dark);
+        against.toARGB32());
     final hit = _cache[key];
     if (hit != null) return hit;
     var out = c;
@@ -372,7 +360,7 @@ class P {
       }
       out = Color.lerp(c, toward, hi)!;
     }
-    // Bounded: one entry per (accent, brightness) pair actually used, and the
+    // Bounded: one entry per accent actually used, and the
     // accent set is a compile-time constant.
     _cache[key] = out;
     return out;
@@ -483,7 +471,7 @@ class F {
       fontSize: 12,
       height: 16 / 12,
       fontWeight: FontWeight.w700,
-      letterSpacing: .35);
+      letterSpacing: 1.2); // 10% of 12, the guide's headline tracking
 
   /// The LOCUS wordmark, in Super Bubble: the one place the app's words are
   /// not Figtree. Only the word LOCUS is ever set in it, so no fallback.
@@ -553,21 +541,21 @@ class F {
       fontSize: 13,
       height: 1.2,
       fontWeight: FontWeight.w700,
-      letterSpacing: 1.1);
+      letterSpacing: 1.3);
   static const dLabel = TextStyle(
       fontFamily: _f,
       fontFamilyFallback: _fb,
       fontSize: 11,
       height: 1.2,
       fontWeight: FontWeight.w700,
-      letterSpacing: 1.05);
+      letterSpacing: 1.1);
   static const dHero = TextStyle(
       fontFamily: _f,
       fontFamilyFallback: _fb,
       fontSize: 14,
       height: 1.2,
       fontWeight: FontWeight.w700,
-      letterSpacing: 1.6);
+      letterSpacing: 1.4);
   static const dTitle = TextStyle(
       fontFamily: _f,
       fontFamilyFallback: _fb,
@@ -700,8 +688,8 @@ class F {
 /// ── THE DIAL DETAIL SCREENS ── (Sleep, Recovery, Behavior Insights)
 ///
 /// Measured off the reference recordings (590 px across = 393 dp, so 1.5 px to
-/// the dp). These screens are always char ([AlwaysChar]), so the page ground and
-/// its cards are fixed colours rather than the theme's. A card is a veil of
+/// the dp). The page ground and its cards are fixed colours, not
+/// [P]'s. A card is a veil of
 /// white over the page, which is why it darkens toward the foot of the screen.
 /// Locus Age: the blob's tones by how the age compares, and the page's type.
 class AC {
@@ -1075,9 +1063,8 @@ class HM {
   /// An unlit zone segment: a veil over the page.
   static const segment = Color(0x17FFFFFF);
 
-  /// A card's veil and the faint light along its top edge.
+  /// A card's veil.
   static const card = Color(0x1AFFFFFF);
-  static const cardTop = Color(0x0AFFFFFF);
   static const label = Color(0xFFC6C8CC);
   static const icon = Color(0xFF9EA2A5);
 
@@ -1506,15 +1493,25 @@ class _Gated extends PageTransitionsBuilder {
 /// sites.
 ///
 /// `primary` is the colour Material spends on TEXT (dialog actions, the
-/// selected day in a picker's header), so it is volt only where volt is
-/// legible as text: in dark. In light it is the char ink, and volt appears
-/// only as a fill under dark ink.
-ThemeData buildTheme(Brightness b) {
-  final p = P(b == Brightness.dark);
-  final primary = p.dark ? C.volt : C.char;
+/// selected day in a picker's header): volt, which is legible as text on the
+/// dark surfaces.
+/// The system bars, set once at launch: light glyphs over the dark app, and
+/// the Android nav bar in the page colour so it is one surface with it.
+void applySystemChrome() =>
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: const Color(0x00000000),
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+      systemNavigationBarColor: const P().bg,
+      systemNavigationBarIconBrightness: Brightness.light,
+    ));
+
+ThemeData buildTheme() {
+  const p = P();
+  const primary = C.volt;
   final scheme = ColorScheme.fromSeed(
     seedColor: C.volt,
-    brightness: b,
+    brightness: Brightness.dark,
     surface: p.card,
   ).copyWith(
     primary: primary,
@@ -1537,7 +1534,7 @@ ThemeData buildTheme(Brightness b) {
   );
   const sheetTop = BorderRadius.vertical(top: Radius.circular(R.xxl));
   return ThemeData(
-    brightness: b,
+    brightness: Brightness.dark,
     scaffoldBackgroundColor: p.bg,
     colorScheme: scheme,
     fontFamily: F.family,
@@ -1605,24 +1602,4 @@ ThemeData buildTheme(Brightness b) {
         e.key: _Gated(e.value),
     }),
   );
-}
-
-/// Char in both themes: the two surfaces allowed to stay dark when the app is
-/// light — onboarding and the live workout (DESIGN.md §2).
-///
-/// The ONE theme override in lib/ui2. `P.of` reads the ambient [Theme], so a
-/// subtree that must be Char needs one, and keeping it here means no screen
-/// writes its own `Theme(...)`. The dark theme is built once and shared.
-class AlwaysChar extends StatelessWidget {
-  final Widget child;
-  const AlwaysChar({super.key, required this.child});
-
-  static final _char = buildTheme(Brightness.dark);
-
-  @override
-  Widget build(BuildContext c) => AnnotatedRegion<SystemUiOverlayStyle>(
-        // Light status-bar glyphs over the char page, whatever the app is.
-        value: SystemUiOverlayStyle.light,
-        child: Theme(data: _char, child: child),
-      );
 }

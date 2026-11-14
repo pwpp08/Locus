@@ -22,7 +22,7 @@ Future<void> _pump(WidgetTester t, DevicePickerView view,
   t.view.devicePixelRatio = 3;
   addTearDown(t.view.reset);
   await t.pumpWidget(
-    MaterialApp(theme: buildTheme(Brightness.light), home: view),
+    MaterialApp(theme: buildTheme(), home: view),
   );
   // `settle: false` for any state carrying a CircularProgressIndicator — an
   // indeterminate spinner animates forever, so `pumpAndSettle` never

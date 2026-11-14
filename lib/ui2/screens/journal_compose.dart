@@ -501,8 +501,7 @@ class _JournalComposeState extends State<JournalCompose> {
     final l = AppLocalizations.of(c);
     final top = MediaQuery.paddingOf(c).top;
     final at = _days.indexOf(_date);
-    return AlwaysChar(
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: JC.foot,
         body: DecoratedBox(
           decoration: const BoxDecoration(
@@ -638,8 +637,7 @@ class _JournalComposeState extends State<JournalCompose> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }
 

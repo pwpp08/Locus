@@ -1003,7 +1003,7 @@ class _PlannerBarState extends State<_PlannerBar>
                       decoration: BoxDecoration(
                         color:
                             Color.alphaBlend(C.char.withValues(alpha: .95), p.bg),
-                        borderRadius: R.rPill,
+                        borderRadius: R.rMd,
                         border: Border.all(color: p.ink, width: S.half),
                       ),
                       child: Text(widget.inBedLabel,

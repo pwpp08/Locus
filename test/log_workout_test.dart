@@ -26,7 +26,7 @@ Future<void> _pump(WidgetTester t, Widget w) async {
   t.view.devicePixelRatio = 3;
   addTearDown(t.view.reset);
   await t.pumpWidget(MaterialApp(
-    theme: buildTheme(Brightness.light),
+    theme: buildTheme(),
     home: w,
   ));
   await t.pumpAndSettle();

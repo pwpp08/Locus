@@ -18,7 +18,7 @@ void main() {
     TimeOfDay? answer;
     var closed = false;
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: Builder(
         builder: (c) => Scaffold(
           body: TextButton(

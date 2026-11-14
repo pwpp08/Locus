@@ -151,7 +151,7 @@ void main() {
     t.view.devicePixelRatio = 2;
     addTearDown(t.view.reset);
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: WorkoutDetailScreen(session: const {}, data: _detail()),
     ));
     await t.pumpAndSettle();
@@ -176,7 +176,7 @@ void main() {
     t.view.devicePixelRatio = 2;
     addTearDown(t.view.reset);
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: WorkoutDetailScreen(session: const {}, data: _detail()),
     ));
     await t.pumpAndSettle();
@@ -221,7 +221,7 @@ void main() {
         from: d.from,
         to: d.to);
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: WorkoutDetailScreen(session: const {}, data: bare),
     ));
     await t.pumpAndSettle();
@@ -252,7 +252,7 @@ void main() {
       to: base.to,
     );
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: WorkoutDetailScreen(session: const {}, data: d),
     ));
     await t.pumpAndSettle();
@@ -271,7 +271,7 @@ void main() {
     int at(int h, int m) =>
         DateTime(2026, 10, 26, h, m).millisecondsSinceEpoch ~/ 1000;
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: DayHeartScreen(
         day: '2026-10-26',
         sessions: [

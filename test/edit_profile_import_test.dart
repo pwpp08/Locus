@@ -15,7 +15,7 @@ import 'package:openstrap_edge/ui2/ui2.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Widget _frame(Widget child) => MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: child,
     );
 

@@ -5,8 +5,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/compute/sleep_stress.dart';
-import 'package:openstrap_edge/theme/theme_controller.dart';
-import 'package:provider/provider.dart';
 import 'package:openstrap_edge/ui2/profile/devices.dart' show DeviceFilter;
 import 'package:openstrap_edge/ui2/screens/screens.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
@@ -37,15 +35,11 @@ Future<void> _pump(WidgetTester t, SleepData d, {double scale = 1}) async {
   t.view.physicalSize = Size(390 * 3, 5200 * 3 * scale);
   t.view.devicePixelRatio = 3;
   addTearDown(t.view.reset);
-  await t.pumpWidget(ChangeNotifierProvider<ThemeController>(
-    // The routes this screen opens (the window editor) read the theme.
-    create: (_) => ThemeController.seed(AppThemeChoice.light, Brightness.light),
-    child: MediaQuery(
-      data: MediaQueryData(textScaler: TextScaler.linear(scale)),
-      child: MaterialApp(
-        theme: buildTheme(Brightness.light),
-        home: SleepDetail(data: d),
-      ),
+  await t.pumpWidget(MediaQuery(
+    data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+    child: MaterialApp(
+      theme: buildTheme(),
+      home: SleepDetail(data: d),
     ),
   ));
   await t.pumpAndSettle();

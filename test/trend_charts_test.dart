@@ -54,7 +54,7 @@ void main() {
     t.view.devicePixelRatio = 3;
     addTearDown(t.view.reset);
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: TrendViewScreen(key: UniqueKey(), initial: id, today: _today, loader: loader),
     ));
     for (var i = 0; i < 4; i++) {
@@ -273,7 +273,7 @@ void main() {
     t.view.devicePixelRatio = 2;
     addTearDown(t.view.reset);
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: TrendViewScreen(
           key: UniqueKey(),
           initial: 'hrv',

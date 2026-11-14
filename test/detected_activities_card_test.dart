@@ -4,7 +4,7 @@ import 'package:openstrap_edge/ui2/screens/detected_activities.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
 Future<void> _pump(WidgetTester t, int count) => t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: Scaffold(body: DetectedActivitiesCard(pendingCount: count)),
     ));
 

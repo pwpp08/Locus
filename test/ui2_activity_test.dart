@@ -112,7 +112,7 @@ Widget _frame(Widget child, Brightness b, double scale) => MediaQuery(
       data: MediaQueryData(textScaler: TextScaler.linear(scale)),
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: buildTheme(b),
+        theme: buildTheme(),
         home: child,
       ),
     );

@@ -38,10 +38,10 @@ void main() {
           (t) async {
         final (hue, widget) = e.value;
         await t.pumpWidget(MaterialApp(
-          theme: buildTheme(b),
+          theme: buildTheme(),
           home: Scaffold(body: SingleChildScrollView(child: widget)),
         ));
-        final p = P(b == Brightness.dark);
+        final p = const P();
         final peak = p.aurora(hue);
         final texts = t.widgetList<Text>(find.descendant(
             of: find.byType(AuroraTile), matching: find.byType(Text)));

@@ -122,8 +122,7 @@ class _DialScaffoldState extends State<DialScaffold> {
 
   @override
   Widget build(BuildContext c) {
-    return AlwaysChar(
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: DC.bgFoot,
         body: Stack(children: [
           const Positioned.fill(child: DecoratedBox(decoration: kDialGround)),
@@ -198,8 +197,7 @@ class _DialScaffoldState extends State<DialScaffold> {
             ]),
           ),
         ]),
-      ),
-    );
+      );
   }
 }
 

@@ -352,7 +352,7 @@ class MilestonesScreen extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     final glow = Color.alphaBlend(
-        C.calibrate.withValues(alpha: p.dark ? .22 : .12), p.bg);
+        C.calibrate.withValues(alpha: .22), p.bg);
     return Scaffold(
       backgroundColor: p.bg,
       body: DecoratedBox(

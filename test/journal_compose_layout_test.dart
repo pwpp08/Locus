@@ -101,7 +101,7 @@ Future<_Repo> _pump(WidgetTester t, List<String> selection,
     key: _shot,
     child: MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: ChangeNotifierProvider<AppState>.value(
         value: app,
         child: const JournalCompose(),

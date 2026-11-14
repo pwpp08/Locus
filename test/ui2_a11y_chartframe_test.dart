@@ -10,7 +10,7 @@ import 'package:openstrap_edge/ui2/ui2.dart';
 
 void main() {
   Widget frame(Widget child) => MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: Scaffold(
           body: ChartFrame(
             title: 'Resting heart rate',

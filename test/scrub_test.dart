@@ -33,7 +33,7 @@ void main() {
       (t) async {
     final seen = <int?>[];
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: Scaffold(
         body: SizedBox(
           width: 320,
@@ -70,7 +70,7 @@ void main() {
   testWidgets('a vertical swipe gives the chart up to the list', (t) async {
     final seen = <int?>[];
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: Scaffold(
         body: SizedBox(
           width: 320,

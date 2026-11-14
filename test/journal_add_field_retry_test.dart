@@ -45,7 +45,7 @@ void main() {
     final repo = _Repo();
     app.repo = repo;
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: ChangeNotifierProvider<AppState>.value(
         value: app,
         child: const Scaffold(body: JournalCompose(date: '2026-09-01')),

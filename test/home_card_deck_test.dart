@@ -42,13 +42,13 @@ const _cards = [
 final _key = GlobalKey();
 
 Widget _app({List<DailyCard> cards = _cards, String? day}) => MaterialApp(
-  theme: buildTheme(Brightness.dark),
+  theme: buildTheme(),
   home: Scaffold(
-    backgroundColor: P(true).bg,
+    backgroundColor: const P().bg,
     body: RepaintBoundary(
       key: _key,
       child: ColoredBox(
-        color: P(true).bg,
+        color: const P().bg,
         child: ListView(
           padding: const EdgeInsets.all(S.x4),
           children: [

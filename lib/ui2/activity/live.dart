@@ -585,10 +585,7 @@ class LiveShellState extends State<LiveShell> {
   Widget build(BuildContext c) {
     final l = AppLocalizations.of(c);
     final a = widget.a;
-    // Char in both themes: a workout is watched from arm's length, often
-    // outdoors, and this is the one full-bleed dark screen light mode allows.
-    // Everything below reads its palette inside the override.
-    return AlwaysChar(child: Builder(builder: (c) => _shell(c, P.of(c), l, a)));
+    return Builder(builder: (c) => _shell(c, P.of(c), l, a));
   }
 
   Widget _shell(BuildContext c, P p, AppLocalizations? l, Activity a) {

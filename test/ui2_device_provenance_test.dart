@@ -212,7 +212,7 @@ void main() {
   // Test 12: fewer than two options renders nothing at all.
   testWidgets('DeviceFilter with one option renders SizedBox.shrink', (t) async {
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: Scaffold(
         body: DeviceFilter(
           options: const [
@@ -235,7 +235,7 @@ void main() {
   testWidgets('DeviceFilter with a non-selectable option: pill present, '
       'onTap null, reason renders', (t) async {
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: Scaffold(
         body: DeviceFilter(
           options: const [

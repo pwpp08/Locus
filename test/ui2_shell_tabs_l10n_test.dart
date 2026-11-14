@@ -8,7 +8,7 @@ import 'package:openstrap_edge/ui2/ui2.dart';
 
 Future<void> _pump(WidgetTester tester, Locale locale) =>
     tester.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,

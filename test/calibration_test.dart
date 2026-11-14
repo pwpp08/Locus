@@ -55,7 +55,7 @@ void main() {
       (t) async {
     phone(t);
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: MilestonesScreen(Calibration.of(days: 1)),
     ));
     await t.pump();
@@ -76,7 +76,7 @@ void main() {
     phone(t);
     var finished = false;
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: WhatToExpectScreen(onFinish: () => finished = true),
     ));
     await t.pump();

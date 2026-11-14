@@ -73,7 +73,7 @@ double _viewport(double screen) => screen - 2 * S.x4;
 Widget _harness(Widget child, {double scale = 1.0}) => MediaQuery(
       data: MediaQueryData(textScaler: TextScaler.linear(scale)),
       child: MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: Scaffold(
           body: Center(
             child: Padding(
@@ -230,7 +230,7 @@ void main() {
       await t.pumpWidget(MediaQuery(
         data: const MediaQueryData(),
         child: MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           home: Scaffold(
             body: Center(
               child: SizedBox(

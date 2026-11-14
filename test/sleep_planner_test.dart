@@ -90,7 +90,7 @@ void main() {
   testWidgets('the recommendation sheet shows the breakdown', (t) async {
     final plan = SleepPlan.of(_insights());
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: Builder(
         builder: (c) => Scaffold(
           body: Center(

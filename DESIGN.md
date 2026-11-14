@@ -10,11 +10,11 @@ All numbers are logical pixels (dp/pt). `S.x4` means the spacing token, with its
 
 ## 1. Character
 
-- **A night instrument.** The default is the dark theme: a blue-grey slate page that gets slightly darker downward, cards a step lighter, white type. The light theme ("Cream") exists and is fully tokenised, but the redesign was tuned in dark.
+- **A night instrument, dark only.** One theme: a blue-grey slate page that gets slightly darker downward, cards a step lighter, white type. There is no light theme and no theme setting; the phone's light or dark mode changes nothing.
 - **Colour only where there is data.** Chrome is monochrome (ink on slate). Colour appears in dials, chart marks, and status words and squares, and each hue has a fixed meaning (§2.4).
 - **Numbers are the heroes.** Standalone figures use the D-DIN bold numeral face, set large and tight. Words are Figtree. Card titles are small, bold, tracked capitals.
 - **Quiet, square-ish corners.** Corners run 14 for a card, 12 for an inner block, 8 for a button or square, and 6 for a chip. Only controls that are meant to look like pills are pills.
-- **No outlines on cards.** In dark mode a card is a diagonal tonal gradient with no border and no shadow. In light mode it is white with one soft shadow.
+- **No outlines on cards.** A card is a diagonal tonal gradient with no border and no shadow.
 - **Everything readable by touch.** Every chart can be scrubbed with a finger, and the readout above it follows. Lifting the finger always returns the chart to its default state, so nothing stays selected.
 - **Honest absence.** A missing number is `--` in a slot that has to hold one (dial, row, chart readout). A missing metric as a whole is a `StatusCard` that says what is missing, why, and what fixes it. Nothing is invented to fill a gap (§15).
 - **Copy the layout, not the brand.** Reference screens from other wearables are copied for proportions and behaviour only. No other brand's name, wordmark or copy ever appears. The wordmark is **LOCUS**.
@@ -25,34 +25,34 @@ All numbers are logical pixels (dp/pt). `S.x4` means the spacing token, with its
 
 ### 2.1 Surfaces and ink (`P.of(context)`)
 
-| Token | Dark | Light | Used for |
-|---|---|---|---|
-| `p.bgTop` | `#283239` | `#F2F1EC` | top of the page gradient; the folded-dials bar |
-| `p.bg` | `#1A1F23` | `#F2F1EC` (cream) | page; knock-out rings round chart markers; label pills under figures |
-| `p.card` | `#2B3136` | `#FFFFFF` | card base, sheets, dialogs, the selected range segment |
-| `p.card2` | `#353B41` | `#E9E8E2` | recessed: fields, soft buttons, icon chips, the alarm button, the selected picker row |
-| `p.line` | `#3D444A` | `#DCDBD4` | hairlines, chart gridlines, sheet grab handle |
-| `p.track` | `#3A4046` | `#E2E1DA` | empty ring track, switch-off track, disabled step chevron |
-| `p.ink` | `#FFFFFF` | `#0F1014` | primary text, numbers, active marks |
-| `p.ink2` | `#C6CBD0` | `#474B53` | secondary text, icons in rows, legend words |
-| `p.ink3` | `#AAB0B6` | `#5F646D` | captions, axis ticks, chevrons, times, units, inactive x labels |
-| `p.inverse` / `p.onInverse` | `#F4F4F1` / char | char / `#F4F4F1` | snackbar, active `SubTabs` pill, inverse button |
-| `p.glass` | card @ 72 % | card @ 72 % | under the 24 px blur of `Glass` |
+| Token | Value | Used for |
+|---|---|---|
+| `p.bgTop` | `#283339` | top of the page gradient; the folded-dials bar |
+| `p.bg` | `#101518` | page; knock-out rings round chart markers; label pills under figures |
+| `p.card` | `#2B3136` | card base, sheets, dialogs, the selected range segment |
+| `p.card2` | `#353B41` | recessed: fields, soft buttons, icon chips, the alarm button, the selected picker row |
+| `p.line` | `#3D444A` | hairlines, chart gridlines, sheet grab handle |
+| `p.track` | `#3A4046` | empty ring track, switch-off track, disabled step chevron |
+| `p.ink` | `#FFFFFF` | primary text, numbers, active marks |
+| `p.ink2` | `#C6CBD0` | secondary text, icons in rows, legend words |
+| `p.ink3` | `#AAB0B6` | captions, axis ticks, chevrons, times, units, inactive x labels |
+| `p.inverse` / `p.onInverse` | `#F4F4F1` / char | snackbar, active `SubTabs` pill, inverse button |
+| `p.glass` | card @ 72 % | under the 24 px blur of `Glass` |
+
+`P` is a const value with no brightness: `P.of(context)` and `const P()` are the same palette.
 
 `ink3` is hand-solved to clear 4.5:1 on `card2`, the worst surface it can land on, so it is legible on every surface.
 
-**Page gradient.** Under every tab: `LinearGradient(topCenter → center, [bgTop, bg])`. The slate is lighter at the top and settles into `bg` by the middle of the screen. Only dark mode has a gradient (in light, `bgTop == bg`). Pushed screens use plain `p.bg`.
+**Page gradient.** Under every tab: `LinearGradient(topCenter → center, [bgTop, bg])`. The slate is lighter at the top and settles into `bg` by the middle of the screen. Pushed screens use plain `p.bg`.
 
 ### 2.2 Card ground (`panelDecoration`, `Surface`)
 
-Dark cards are graded diagonally (top-left → bottom-right) and have **no border and no shadow**:
+Cards are graded diagonally (top-left → bottom-right) and have **no border and no shadow**:
 
 | Tone | From | To | Where |
 |---|---|---|---|
 | `PanelTone.subtle` (default) | ink 3.5 % over `card` | char 16 % over `card` | every ordinary `Surface` |
 | `PanelTone.rich` | ink 5 % over `bg` | char 40 % over `bg` | the figure panels under a dial: strain stats, sleep and recovery contributors |
-
-Light cards are flat `card` plus `p.el(1)`: one shadow, 0/8/24, char at 6 %.
 
 A `Surface(color: …)` or `elevation: 0` is drawn **flat** (no grading). This is used for `StatusCard` and for recessed `card2` panels.
 
@@ -233,7 +233,7 @@ Touch targets are never smaller than 44 even when the drawing is: the pager is d
 | `R.lg` | 12 | inner rows and cards: activity rows, day buttons, week cards, zone cards, Trend View metric pill and picker rows, the selected range segment and `SubTabs` item, selection chips, the `ActionCard` action, snackbar |
 | `R.xl` | 14 | every `Surface` card, dialogs, Strain & Recovery card, key-stat cards, picker card, the range segment and `SubTabs` track, dashed `StatusCard` outline |
 | `R.xxl` | 18 | sheet top corners, date and time pickers' dialog shells |
-| `R.pill` | 999 | tab bar, tab pill, `BigButton` (the compact one too), RESET chip, START pill and the live transport, switches, grab handles, onboarding step bar, progress tracks and pips |
+| `R.pill` | 999 | tab bar, tab pill, the full-width `BigButton`, START pill and the live transport, switches, grab handles, onboarding step bar, progress tracks and pips |
 
 A pill is for a **bar, a track or a full-width primary button** — never for a chip, a selection tile or a small button: those are `R.sm` (chip), `R.md` (button) or `R.lg` (row). The range segment is `RangeSegments`, not a hand-rolled row of pills.
 
@@ -255,10 +255,10 @@ Circles: dials, rings, the monitor stress square's contents, `IconChip` (32), an
 
 ## 6. Depth, gradients and effects
 
-- **Elevation:** dark mode has none; depth is the tonal grading in §2.2. Light mode uses `el(1)` = 0/8/24 at 6 % char, and deeper levels multiply it.
+- **Elevation:** none; depth is the tonal grading in §2.2. `p.el()` returns no shadows.
 - **The only real shadows** are the plus-menu panel (char 50 %, blur 32, y 8) and the strain-target knob glow (ink 18 %, blur 16, spread 4).
 - **The tab bar** is an opaque char/slate rounded rectangle (`R.xxl`) with no shadow and no glow. Its only ornament is the rim: a `S.hair` gradient outline lit at the top-left corner and gone by a fifth of the way round — white 30 %, then 9 % at 18 %, 4 % at 45 %, and 4 % to the end — as if one light sat above and to the left. The selected tab carries a pool of light on its foot: a `S.x12 * 2` circle, radial white 26 % → 0 % in five stops, centred on the tab's bottom edge and clipped by the bar. The gradient reaches zero at the circle's own edge, so it has no outline to see.
-- **Glass:** a 24 px backdrop blur under `p.glass`, plus a white 8 % hairline (or `p.line` in light). It is budgeted to two on screen at once: the tab bar and the minimised-workout banner. It is never used in a list item. Under high contrast or `Perf.lowGlass` it is drawn solid.
+- **Glass:** a 24 px backdrop blur under `p.glass`, plus a white 8 % hairline. It is budgeted to two on screen at once: the tab bar and the minimised-workout banner. It is never used in a list item. Under high contrast or `Perf.lowGlass` it is drawn solid.
 
 **Gradient inventory** (do not add new ones without a reason this list does not already cover):
 
@@ -438,7 +438,7 @@ The workout screen uses its own header: `BoldChevron` 20, the activity icon at I
 - **The card components share one voice.** `SignalCard`, `TrendCard`, `ProgressCard`, `DeepDiveCard`, `GoalTrajectory` and `MetricRow` start with a bare icon (I.md ink3, never a chip) and an uppercased `F.caps` title, then the figure in a bold numeral (`F.n24`; `F.n34` for a trend card) with its unit on the baseline. Directions are `DeltaTriangle`s (10 in rows, 12 in cards), `optimal` when good and `poor` when not; "steady" is a short ink3 dash. A `TrendCard`'s sparkline is strain blue (sleep blue for sleep), like every line metric. `InsightCard` and `ActionCard` use a bare icon in the hue and a bold `F.body` headline; their actions are uppercased `F.caps` (with a chevron when they go somewhere), the `ActionCard` action on an ink 9 % block, radius 12. `InlineMetrics` labels are `F.over` w800 tracking 1.4 ink3 over `F.n24` ink figures. Progress bars are 8 tall pills, the hue on ink 12 %. `Consistency` dots are strain blue on ink 9 %.
 - **`ChartFrame`** (the frame of the older painters) speaks the scrub charts' language: title uppercased in `F.caps`, the unit in `F.num(F.cap)` ink3, solid 1 px `p.line` gridlines, tick and x labels in `F.num(F.over)` w600 ink3, legend keys as 10 px squares (radius 6) with uppercased `F.over` w700 ink2 names, a usual-range band at ink 7 %.
 - **`DayNav`** (metric screens) is drawn like Home's pager: a 32 tall track of ink 5 % over `bg`, radius 10, bold chevrons, the day uppercased in `F.over` w800 tracking 1.
-- **Onboarding** (`OnboardingPage`, welcome.dart) is Char in both themes and stands on the dial screens' ground (`kDialGround`), with the dial margin, 16 above and 20 below. **One idea per page.** From the top: the progress (`OnboardingStep`), three equal segments across the page, 4 tall and 6 apart, white up to the current step and `DC.dim` after it, told to a screen reader as "Step 1 of 3"; then a picture centred in the room left over, 24 above and below; the headline in `F.t1` `DC.ink` (height 1.2), 12, the line in `F.dBody` ink2 (height 1.45), both **centred** under a picture and left-aligned on a page without one; what the state adds; then, at least 32 lower and pinned to the foot while the page is short, the actions: **one** ink `BigButton`, and 8 under it any second way on as an `OnboardingLink` (the words alone in `F.dNav` w700 ink2, tracked 1.2, caps, a full 44 tall, no ground). No footnotes under the actions. A page taller than the screen scrolls as one. The pictures are half the page wide, never over 200, and decorative (no semantics): **Welcome**, the Locus mark writing itself at 96 and the wordmark 24 under it, nothing else, then under the line a centred 16 optimal shield and `LOCAL · NO CLOUD` in `F.dLabel` ink2 (no chip ground); actions *Set up my band* and the link *Bring my history first*. **Pairing** (step 2), four hairline rings (white at 13 % fading to 4 % outward) round a disc 34 % of the side (`DC.weekCard`) holding the state's 32 glyph: bluetooth in strain blue (idle; searching while it scans), bluetooth-off in amber (the phone blocks it), search-x, unlink, alert or bluetooth in ink2 for the failures, a check on an optimal-green disc with green rings once paired. While it scans, two 2-wide strain-blue ripples grow out of the disc and fade, half a `Motion.logo` apart; reduced motion keeps them still. *Skip for now* is the link. **About you** (step 3) has no picture: `SEX` in `F.dLabel` ink2, 12, the `RangeSegments` switcher; 24; `OPTIONAL`, then one dial card of age, height and weight, rows 64 tall on hairlines, the name in `F.dNav` and the figure typed into a 72 × 40 `DC.field` well, `F.n24` flush right, then its unit in a 36 slot, so the three figures line up. The splash and the band picker (step 2, its skip the same link) stand on the same ground, with the same margin.
+- **Onboarding** (`OnboardingPage`, welcome.dart) stands on the dial screens' ground (`kDialGround`), with the dial margin, 16 above and 20 below. **One idea per page.** From the top: the progress (`OnboardingStep`), three equal segments across the page, 4 tall and 6 apart, white up to the current step and `DC.dim` after it, told to a screen reader as "Step 1 of 3"; then a picture centred in the room left over, 24 above and below; the headline in `F.t1` `DC.ink` (height 1.2), 12, the line in `F.dBody` ink2 (height 1.45), both **centred** under a picture and left-aligned on a page without one; what the state adds; then, at least 32 lower and pinned to the foot while the page is short, the actions: **one** ink `BigButton`, and 8 under it any second way on as an `OnboardingLink` (the words alone in `F.dNav` w700 ink2, tracked 1.2, caps, a full 44 tall, no ground). No footnotes under the actions. A page taller than the screen scrolls as one. The pictures are half the page wide, never over 200, and decorative (no semantics): **Welcome**, the Locus mark writing itself at 96 and the wordmark 24 under it, nothing else, then under the line a centred 16 optimal shield and `LOCAL · NO CLOUD` in `F.dLabel` ink2 (no chip ground); actions *Set up my band* and the link *Bring my history first*. **Pairing** (step 2), four hairline rings (white at 13 % fading to 4 % outward) round a disc 34 % of the side (`DC.weekCard`) holding the state's 32 glyph: bluetooth in strain blue (idle; searching while it scans), bluetooth-off in amber (the phone blocks it), search-x, unlink, alert or bluetooth in ink2 for the failures, a check on an optimal-green disc with green rings once paired. While it scans, two 2-wide strain-blue ripples grow out of the disc and fade, half a `Motion.logo` apart; reduced motion keeps them still. *Skip for now* is the link. **About you** (step 3) has no picture: `SEX` in `F.dLabel` ink2, 12, the `RangeSegments` switcher; 24; `OPTIONAL`, then one dial card of age, height and weight, rows 64 tall on hairlines, the name in `F.dNav` and the figure typed into a 72 × 40 `DC.field` well, `F.n24` flush right, then its unit in a 36 slot, so the three figures line up. The splash and the band picker (step 2, its skip the same link) stand on the same ground, with the same margin.
 
 ### 10.6 Buttons and controls
 
@@ -448,7 +448,7 @@ The workout screen uses its own header: `BoldChevron` 20, the activity icon at I
 | Home day buttons (ADD / START ACTIVITY) | height 52, ink 9 %, radius 12, icon I.md + 8 + `F.caps` tracking .6, `FittedBox` |
 | Alarm button | `card2`, radius 8, 16 vertical padding, pencil I.md + 12 + `F.caps` |
 | `PlusButton` | 44 square (`S.x10 + S.x1`), radius 8, ink fill with a `plus` at I.md in `bg` colour. Open state: ink 12 % with an `x` at I.lg in ink. |
-| RESET chip | height 32, horizontal padding 12, ink 12 %, pill, `zoomOut` I.sm + 4 + `RESET` in `F.over` w800 |
+| RESET chip | height 32, horizontal padding 12, ink 12 %, `R.md` (8), `zoomOut` I.sm + 4 + `RESET` in `F.over` w800 |
 | START pill (Start Activity) | `dialStrain`, pill, fills a 64 bar, `F.body` w800 tracking 1.6 white (50 % alpha while starting) |
 | `TextAction` | the "CUSTOMIZE" voice: label uppercased in `F.caps` ink, optional trailing icon I.md 8 after it |
 | `RoundIconButton` | a bare glyph at I.lg in a 48 target, no disc (like the reference close and back marks). `inverse` keeps a `p.inverse` disc and `glass` a frosted one, for a control over imagery. Label required |
@@ -1170,7 +1170,7 @@ Two dial screens (§14.1a: `DialScaffold`, `dialCard`, page margin 18).
   - Tab labels are clamped at 1.3×.
   - Past 1.3× (`bigText`), `Numeral` wraps its unit under the number.
 - **Reduced motion:** every animation lands on its finished state. Loops (sync arrow, pulse) stand still. Page transitions are cut. Clocks still count.
-- **Contrast:** `ink3` and every `p.on(hue)` clear 4.5:1 on their worst surface. `ui2_contrast_test` sweeps every accent against every surface in both themes.
+- **Contrast:** `ink3` and every `p.on(hue)` clear 4.5:1 on their worst surface. `ui2_contrast_test` sweeps every accent against every surface.
 
 ---
 
@@ -1210,7 +1210,7 @@ No file is exempt (`_pendingOverhaul` is empty). Every new public widget needs a
 - The share posters (`activity/poster.dart`) keep their own art direction (sport-tinted gradients over a map or photo): they are exported images, not app chrome.
 - The hypnogram keeps its lavender lane ramp, and the drawn `Art` SVGs keep their baked-in hues.
 - Some screens write their own 24-hour `H:mm` clock (`_ActivityCard` on the strain page) instead of following the user's 12/24 h choice through `formatClockOf`.
-- Light theme: every token is defined and contrast-tested, but the reference matching was done in dark. Check new work in both themes.
+- One theme. Do not add a light palette, a `Brightness` branch or a theme setting.
 
 ---
 
@@ -1236,7 +1236,7 @@ No file is exempt (`_pendingOverhaul` is empty). Every new public widget needs a
 
 ### 14.10 The coach (`screens/coach.dart`)
 
-Every AI chat is this one screen, in the dark palette whatever the theme (`AlwaysChar`).
+Every AI chat is this one screen.
 
 - **Ground:** `CoachGround`: `C.coachNight`, near-black with a navy top (`C.coachNightStops`), and `C.coachGlow` as a soft radial glow lit in the top-left corner that fades out by about the middle of the screen. The same ground for the sheet and the page.
 - **Header:** `CoachTag`, the orb (24) and the model's name in a translucent pill (white 10 %); a **History** glyph on the right that opens the past chats (and New chat, and the briefing disclosure). The page adds a back chevron on the left and centres the tag; the sheet has the grab bar above.
@@ -1261,7 +1261,7 @@ The first two weeks, while Locus learns your normal. Each metric unlocks on its 
 - **`SegmentBar`:** one segment per night or day, `S.x1` tall, pill ends, `S.x1` apart, each at most `S.x6` wide.
 - **`CalibrationStrip`:** the foot of a card still calibrating: "Wear the band to sleep for N more nights to calibrate" (or "…for N more days…") in `F.cap` ink over its `SegmentBar`, on a `p.bg` panel, `R.md`, padding `S.x3`. Under the Strain & Recovery tile while recovery calibrates, at the top of the Health Monitor while it has fewer than 14 nights, and on the Stress Monitor (in a `Surface` under `CALIBRATING` and one sentence) instead of the old "Building your baseline" card.
 - **Calibration timeline card (Home):** `Surface`, padding `S.x4`. `CALIBRATION TIMELINE` in `F.caps` w800 with the chevron at the right; under it the sentence in `F.cap` ink2 and, to its right, the `CalibrationRing`: 48 across, a 4 pt ink 12 % track with the nights arc in `C.calibrate` from twelve o'clock, round cap, `1` in `F.n17` and `/14` in `F.num(F.over)` ink3. Tap: the milestones. Swipe: gone until tomorrow.
-- **Milestones screen:** `p.bg` with a `C.calibrate` 22 % (light 12 %) wash at the top fading out by 40 %. Close × at the left, `YOUR FIRST TWO WEEKS` centred in `F.caps` tracking 1.3. `Unlock key milestones` in `F.t2`, a sentence in `F.body` ink2, then `SLEEPS LOGGED n/14` in `F.num(F.over)` ink3 tracking 1.0 with a hairline to the edge, then `NightPips`: 32 pt circles, 12 apart, seven to a row, the nights logged ringed 2 pt in `C.calibrate` over an 18 % fill. `Your key milestones` in `F.head` w700, then one `MilestoneCard` each, 12 apart: unlocked is a `Surface` (56 pt icon tile on `card2`, title `F.body` w700, sentence `F.cap` ink2, `VIEW DETAILS →` in `F.caps` through `p.on(C.calibrate)`); locked is an ink 14 % outline at `R.xl` with the tile at ink 5 %, "Log 14 sleeps to unlock" / "Wear the band 4 days to unlock" and the `SegmentBar`, and an info glyph top right that opens a sheet. "How calibration works" (`TextAction`) closes the list.
+- **Milestones screen:** `p.bg` with a `C.calibrate` 22 % wash at the top fading out by 40 %. Close × at the left, `YOUR FIRST TWO WEEKS` centred in `F.caps` tracking 1.3. `Unlock key milestones` in `F.t2`, a sentence in `F.body` ink2, then `SLEEPS LOGGED n/14` in `F.num(F.over)` ink3 tracking 1.0 with a hairline to the edge, then `NightPips`: 32 pt circles, 12 apart, seven to a row, the nights logged ringed 2 pt in `C.calibrate` over an 18 % fill. `Your key milestones` in `F.head` w700, then one `MilestoneCard` each, 12 apart: unlocked is a `Surface` (56 pt icon tile on `card2`, title `F.body` w700, sentence `F.cap` ink2, `VIEW DETAILS →` in `F.caps` through `p.on(C.calibrate)`); locked is an ink 14 % outline at `R.xl` with the tile at ink 5 %, "Log 14 sleeps to unlock" / "Wear the band 4 days to unlock" and the `SegmentBar`, and an info glyph top right that opens a sheet. "How calibration works" (`TextAction`) closes the list.
 - **What to expect (`WhatToExpectScreen`):** shown once, the first time the shell opens after onboarding, and from the milestones. Always char. `NightWheel`: fourteen ring segments (14 % of the wheel thick, ink 10 %), numbered 24 pt pips on `p.bg` at each night's end, the nights logged and tonight lit in a `C.calibrate` sweep standing 15 % proud, and each metric's glyph on the night it unlocks; the Locus mark and `NEW FEATURES / UNLOCK NIGHT / BY NIGHT` (`F.over` tracking 1.3) in the middle. `What to expect next` in `F.t2`, a sentence in `F.body` ink2, then `FINISH` in `F.caps` beside a 64 pt `C.optimal` disc with a check. A 12 % `C.optimal` glow rises from the bottom-left corner.
 
 ### 14.12 Small screens

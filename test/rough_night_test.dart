@@ -183,7 +183,7 @@ void main() {
     );
 
     Future<void> pump(WidgetTester t, Widget w) => t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: Scaffold(body: SingleChildScrollView(child: w)),
     ));
 
@@ -231,7 +231,7 @@ void main() {
         await t.pumpWidget(MediaQuery(
           data: MediaQueryData(textScaler: TextScaler.linear(scale)),
           child: MaterialApp(
-            theme: buildTheme(Brightness.light),
+            theme: buildTheme(),
             home: const Scaffold(
               body: SingleChildScrollView(
                 child: Padding(

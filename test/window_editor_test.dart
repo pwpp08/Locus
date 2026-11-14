@@ -39,7 +39,7 @@ void main() {
         ];
     (DateTime, DateTime)? got;
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: Builder(
         builder: (c) => Scaffold(
           body: Center(

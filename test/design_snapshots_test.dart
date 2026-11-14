@@ -68,7 +68,7 @@ Widget _frame(Widget child, Brightness b, double scale) => MediaQuery(
       data: MediaQueryData(size: _phone, textScaler: TextScaler.linear(scale)),
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: buildTheme(b),
+        theme: buildTheme(),
         locale: _locale,
         localizationsDelegates:
             _locale == null ? null : AppLocalizations.localizationsDelegates,
@@ -138,7 +138,7 @@ Widget _shell(Brightness b, double scale, {bool banner = false}) => MediaQuery(
           padding: const EdgeInsets.only(top: 47, bottom: 34)),
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: buildTheme(b),
+        theme: buildTheme(),
         home: AppShell(
           banner: banner
               ? Builder(
@@ -173,7 +173,7 @@ Widget _root(Widget child, Brightness b, double scale) => MediaQuery(
           padding: const EdgeInsets.only(top: 47, bottom: 34)),
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: buildTheme(b),
+        theme: buildTheme(),
         locale: _locale,
         localizationsDelegates:
             _locale == null ? null : AppLocalizations.localizationsDelegates,
@@ -219,7 +219,7 @@ Widget _readme(String name) {
         size: _phone, padding: EdgeInsets.only(top: 47, bottom: 34)),
     child: MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: RepaintBoundary(
         key: _shot,
         child: domain == null
@@ -317,7 +317,8 @@ void main() {
     expect(errors, isEmpty, reason: errors.join('\n'));
   });
 
-  for (final b in Brightness.values) {
+  // One theme: the app is dark only.
+  for (final b in const [Brightness.dark]) {
     for (final scale in const [1.0, 2.0]) {
       final variant = '${b.name}_${scale}x';
       testWidgets('snapshot every gallery case · $variant', skip: skip != null,

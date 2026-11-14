@@ -28,7 +28,7 @@ class _Repo extends LocalRepository {
 }
 
 Future<void> _pump(WidgetTester t, HomeData d) => t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: Scaffold(body: SingleChildScrollView(child: RingTrio(d: d))),
     ));
 
@@ -109,7 +109,7 @@ void main() {
       t.view.devicePixelRatio = 3;
       addTearDown(t.view.reset);
       return t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: ReadinessDetail(data: d),

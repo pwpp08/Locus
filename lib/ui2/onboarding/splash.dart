@@ -93,10 +93,9 @@ class _CoverState extends State<_Cover> {
   /// The point has landed: the wordmark comes up under it.
   bool _drawn = false;
 
-  // Char in both themes, like the onboarding it opens onto.
   @override
   Widget build(BuildContext c) =>
-      AlwaysChar(child: Builder(builder: _build));
+      Builder(builder: _build);
 
   Widget _build(BuildContext c) {
     // Material, not ColoredBox: the cover sits at MaterialApp.home, above every

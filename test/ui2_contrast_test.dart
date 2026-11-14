@@ -22,7 +22,7 @@ import 'package:openstrap_edge/ui2/theme.dart';
 const _aa = 4.5;
 
 void main() {
-  final themes = {'light': const P(false), 'dark': const P(true)};
+  final themes = {'light': const P(), 'dark': const P()};
 
   // The tokens' own luminance/contrast maths, checked against the two anchors
   // everyone knows, so a bug in the metric can't quietly pass every other test
@@ -122,7 +122,7 @@ void main() {
       // Glass: the solid fallback colour, over the page and over the worst
       // backdrop art can put under it — white in dark, black in light.
       test('$name · ink on glass over bg and over the worst backdrop', () {
-        final worst = p.dark ? C.white : const Color(0xFF000000);
+        const worst = C.white;
         for (final under in {'bg': p.bg, 'art': worst}.entries) {
           final surface = Color.alphaBlend(p.glass, under.value);
           final r = P.contrast(p.ink, surface);
@@ -213,7 +213,7 @@ void main() {
         for (var i = 1; i < lum.length; i++) {
           expect(lum[i], lessThan(lum[i - 1]),
               reason: '${SleepStage.values[i].name} must be darker than '
-                  '${SleepStage.values[i - 1].name} (dark: ${p.dark})');
+                  '${SleepStage.values[i - 1].name}');
           expect(
               P.contrast(ink[SleepStage.values[i]]!,
                   ink[SleepStage.values[i - 1]]!),
@@ -227,17 +227,20 @@ void main() {
     // If the solver ever became a no-op, every assertion above would still
     // pass on whichever accents happen to be dark enough. Pin the specific
     // failure it exists to prevent.
-    const p = P(false);
-    expect(P.contrast(C.optimal, p.card), lessThan(_aa),
-        reason: 'raw green on white is 2.28:1 — that is the bug');
-    expect(P.contrast(p.on(C.optimal), p.card), greaterThanOrEqualTo(_aa));
+    // Every shipped accent already clears the dark card, so the teeth are a
+    // deep green that does not.
+    const p = P();
+    const deep = Color(0xFF0B4D22);
+    expect(P.contrast(deep, p.card), lessThan(_aa),
+        reason: 'raw deep green on the dark card is the bug');
+    expect(P.contrast(p.on(deep), p.card), greaterThanOrEqualTo(_aa));
     // …and that the fix is a nudge, not a repaint: it must still read green.
-    expect(p.on(C.optimal).g, greaterThan(p.on(C.optimal).b));
-    expect(p.on(C.optimal).g, greaterThan(p.on(C.optimal).r));
+    expect(p.on(deep).g, greaterThan(p.on(deep).b));
+    expect(p.on(deep).g, greaterThan(p.on(deep).r));
   });
 
   test('solving is memoised — a repaint is not a search', () {
-    const p = P(true);
+    const p = P();
     final first = p.on(C.dialStrain);
     expect(identical(p.on(C.dialStrain), first) || p.on(C.dialStrain) == first, isTrue);
   });

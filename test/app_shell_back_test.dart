@@ -28,9 +28,7 @@ void main() {
   }) async {
     await tester.pumpWidget(
       MaterialApp(
-        theme: buildTheme(
-          Brightness.light,
-        ).copyWith(platform: TargetPlatform.android),
+        theme: buildTheme().copyWith(platform: TargetPlatform.android),
         home: AppShell(
           initial: initial,
           onSelect: onSelect,

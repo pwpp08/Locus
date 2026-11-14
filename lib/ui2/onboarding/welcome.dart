@@ -653,13 +653,11 @@ class OnboardingPage extends StatelessWidget {
     this.actions = const [],
   });
 
-  // Char in both themes.
   @override
   Widget build(BuildContext c) {
     final centred = hero != null;
     final align = centred ? TextAlign.center : TextAlign.start;
-    return AlwaysChar(
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: DC.bgFoot,
         body: DecoratedBox(
           decoration: kDialGround,
@@ -715,8 +713,7 @@ class OnboardingPage extends StatelessWidget {
             ]),
           ),
         ),
-      ),
-    );
+      );
   }
 }
 

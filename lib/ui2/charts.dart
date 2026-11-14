@@ -848,11 +848,8 @@ class Hypnogram extends CustomPainter {
   final List<SleepStage> stages;
   final double t;
 
-  /// The surface's palette. A painter is the one place in this library that
-  /// used to spend RAW pigment: `C.dialStrain` measures **1.67:1** on a white card, so
-  /// the Light lane — the lane most of a night is spent in — was very nearly
-  /// invisible in the light theme. A lane's colour IS the information, so it
-  /// goes through the same solver every label does.
+  /// The surface's palette. A lane's colour IS the information, so it goes
+  /// through the same solver every label does, never raw pigment.
   final P p;
 
   Hypnogram(this.stages, this.p, {this.t = 1});
@@ -869,8 +866,7 @@ class Hypnogram extends CustomPainter {
   /// themes: awake is the palest mark and deep the darkest. On a light card
   /// darker means more contrast; on a dark card it means less, so the targets
   /// flip. The lowest target is still the 4.5:1 floor every mark clears.
-  static const _lightTheme = [4.6, 6.2, 8.2, 11.0];
-  static const _darkTheme = [11.0, 8.2, 6.2, 4.6];
+  static const _steps = [11.0, 8.2, 6.2, 4.6];
 
   /// The lane colours as drawn. Each keeps its hue and is pushed lighter or
   /// darker until it hits its step on the ramp, so the four lanes differ by
@@ -878,7 +874,7 @@ class Hypnogram extends CustomPainter {
   static Map<SleepStage, Color> cols(P p) => {
         for (final s in SleepStage.values)
           s: _shade(p, pigment[s]!,
-              (p.dark ? _darkTheme : _lightTheme)[s.index]),
+              _steps[s.index]),
       };
 
   static double _worst(P p, Color c) => [p.bg, p.card, p.card2]
@@ -889,7 +885,7 @@ class Hypnogram extends CustomPainter {
   /// measures [target] against the worst surface. Bisection, like the solver
   /// in theme.dart; the result always clears [target].
   static Color _shade(P p, Color hue, double target) {
-    final toward = p.dark ? C.white : C.n900;
+    const toward = C.white;
     if (_worst(p, hue) >= target) {
       // Already past the step: walk back toward the surface, keeping the
       // last colour that still clears it.
@@ -1004,7 +1000,7 @@ class Hypnogram extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant Hypnogram o) =>
-      o.t != t || o.stages != stages || o.p.dark != p.dark;
+      o.t != t || o.stages != stages;
 }
 
 /// Time in heart-rate zones as five labelled rows: the zone, its bpm range,
@@ -1462,7 +1458,7 @@ class DayLanes extends CustomPainter {
       if (r - l < .5) continue;
       cv.drawRect(
         Rect.fromLTRB(l, 0, r, s.height),
-        Paint()..color = col.withValues(alpha: p.dark ? .20 : .13),
+        Paint()..color = col.withValues(alpha: .20),
       );
     }
 
@@ -1505,8 +1501,7 @@ class DayLanes extends CustomPainter {
       o.gaps != gaps ||
       o.rest != rest ||
       o.work != work ||
-      o.movement != movement ||
-      o.p.dark != p.dark;
+      o.movement != movement;
 }
 
 // ══════════════════ VOLT SHAPES ══════════════════

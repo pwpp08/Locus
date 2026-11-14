@@ -218,7 +218,7 @@ void main() {
       for (final phase in PairPhase.values) {
         var skipped = false;
         await tester.pumpWidget(MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           home: PairingView(
               phase: phase, onPair: () {}, onSkip: () => skipped = true),
         ));
@@ -262,7 +262,7 @@ void main() {
       final s = bandStatusFor(
           connection: 'disconnected', blocker: BleBlocker.permissionDenied);
       await tester.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: PairingView(
             phase: PairPhase.bluetoothBlocked,
             blocker: BleBlocker.permissionDenied,
@@ -282,7 +282,7 @@ void main() {
       _tallView(tester);
       Map<String, dynamic>? saved;
       await tester.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: ProfileSetupView(onSave: (f) async => saved = f),
       ));
 
@@ -309,7 +309,7 @@ void main() {
       _tallView(tester);
       Map<String, dynamic>? saved;
       await tester.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: ProfileSetupView(onSave: (f) async => saved = f),
       ));
       await tester.tap(find.text('MALE'));
@@ -330,7 +330,7 @@ void main() {
       _tallView(tester);
       Map<String, dynamic>? saved;
       await tester.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: ProfileSetupView(onSave: (f) async => saved = f),
       ));
       await tester.tap(find.text('MALE'));
@@ -441,7 +441,7 @@ void main() {
           connection: 'disconnected', autoReconnectPaused: true,
           bondRefusals: 5);
       await tester.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: MyDevicesView(sources: [band(connected: false)], status: s),
       ));
       expect(find.text(s.title), findsOneWidget);
@@ -452,7 +452,7 @@ void main() {
         (tester) async {
       _tallView(tester);
       await tester.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: MyDevicesView(
             sources: [band(connected: false)],
             status: bandStatusFor(connection: 'disconnected')),
@@ -485,7 +485,7 @@ void main() {
       await tester.pumpWidget(ChangeNotifierProvider<AppState>.value(
         value: app,
         child: MaterialApp(
-            theme: buildTheme(Brightness.light), home: const MyDevices()),
+            theme: buildTheme(), home: const MyDevices()),
       ));
       expect(find.text('Your band'), findsOneWidget);
       expect(find.text('PAIR A BAND'), findsNothing);
@@ -506,7 +506,7 @@ void main() {
       _tallView(tester);
       var pairs = 0;
       await tester.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: MyDevicesView(
           sources: [
             const HealthSource(
@@ -549,7 +549,7 @@ void main() {
     testWidgets('a paired band is not asked to pair again', (tester) async {
       _tallView(tester);
       await tester.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: MyDevicesView(sources: [
           const HealthSource(
               name: 'WHOOP 4.0',
@@ -613,7 +613,7 @@ void main() {
     testWidgets('reaches the band page', (tester) async {
       _tallView(tester);
       await tester.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: DeviceDetailView(band('gen5')),
       ));
       expect(find.text('CALIBRATION'), findsOneWidget);

@@ -73,7 +73,7 @@ void main() {
     t.view.devicePixelRatio = 3;
     addTearDown(t.view.reset);
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: MyDevicesView(sources: const [], onAddSensor: () {}),
     ));
     await t.pumpAndSettle();
@@ -85,7 +85,7 @@ void main() {
 
   testWidgets('a paired strap does not satisfy "a band is paired"', (t) async {
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: MyDevicesView(sources: [_sensor()], onPair: () {}, onAddSensor: () {}),
     ));
     await t.pumpAndSettle();

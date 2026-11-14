@@ -13,7 +13,6 @@ import 'package:provider/provider.dart';
 import 'package:openstrap_edge/data/day_label.dart';
 import 'package:openstrap_edge/data/local_repository.dart';
 import 'package:openstrap_edge/state/app_state.dart';
-import 'package:openstrap_edge/theme/theme_controller.dart';
 import 'package:openstrap_edge/ui2/screens/screens.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
@@ -79,7 +78,7 @@ void main() {
     app.repo = _Repo();
 
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: ChangeNotifierProvider<AppState>.value(
         value: app,
         child: const Scaffold(body: HomeScreen(hour: 9)),
@@ -123,12 +122,9 @@ void main() {
     await t.pumpWidget(MultiProvider(
       providers: [
         ChangeNotifierProvider<AppState>.value(value: app),
-        ChangeNotifierProvider<ThemeController>.value(
-            value: ThemeController.seed(
-                AppThemeChoice.light, Brightness.light)),
       ],
       child: MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: const Scaffold(body: HomeScreen(hour: 9)),
       ),
     ));
@@ -161,12 +157,9 @@ void main() {
     await t.pumpWidget(MultiProvider(
       providers: [
         ChangeNotifierProvider<AppState>.value(value: app),
-        ChangeNotifierProvider<ThemeController>.value(
-            value: ThemeController.seed(
-                AppThemeChoice.light, Brightness.light)),
       ],
       child: MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: const Scaffold(body: HomeScreen(hour: 9)),
       ),
     ));
@@ -194,7 +187,7 @@ void main() {
     app.repo = _EmptyPastRepo();
 
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: ChangeNotifierProvider<AppState>.value(
         value: app,
         child: const Scaffold(body: HomeScreen(hour: 9)),
@@ -217,7 +210,7 @@ void main() {
     app.repo = _FailingRepo();
 
     await t.pumpWidget(MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: ChangeNotifierProvider<AppState>.value(
         value: app,
         child: const Scaffold(body: HomeScreen(hour: 9)),

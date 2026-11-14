@@ -217,7 +217,7 @@ void main() {
       t.view.devicePixelRatio = 3;
       addTearDown(t.view.reset);
       await t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.dark),
+        theme: buildTheme(),
         home: Builder(
           builder: (c) => Scaffold(
             body: TextButton(

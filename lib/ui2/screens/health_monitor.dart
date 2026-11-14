@@ -312,8 +312,7 @@ class _HealthMonitorScreenState extends State<HealthMonitorScreen> {
     // each saying it has no data.
     final loaded = _d?.vitals ?? const [];
     final vitals = loaded.isNotEmpty ? loaded : _emptyVitals;
-    return AlwaysChar(
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: HM.foot,
         body: DecoratedBox(
           decoration: const BoxDecoration(
@@ -359,8 +358,7 @@ class _HealthMonitorScreenState extends State<HealthMonitorScreen> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }
 

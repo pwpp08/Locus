@@ -13,8 +13,6 @@ import 'state/clock_format.dart';
 import 'state/locale_controller.dart';
 import 'state/prefs.dart';
 import 'telemetry/telemetry_service.dart';
-import 'theme/theme_controller.dart';
-import 'theme/theme_switcher.dart';
 import 'updater/update_service.dart';
 import 'widget/widget_service.dart';
 import 'ui2/activity/catalogue.dart';
@@ -79,13 +77,6 @@ class _OpenStrapAppState extends State<OpenStrapApp> with WidgetsBindingObserver
   }
 
   @override
-  void didChangePlatformBrightness() {
-    // Keep the app in sync with the OS when the user is on "System".
-    context.read<ThemeController>().updatePlatformBrightness(
-        WidgetsBinding.instance.platformDispatcher.platformBrightness);
-  }
-
-  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final app = context.read<AppState>();
     if (state == AppLifecycleState.resumed) {
@@ -141,10 +132,8 @@ class _OpenStrapAppState extends State<OpenStrapApp> with WidgetsBindingObserver
     return MaterialApp(
       title: 'Locus',
       debugShowCheckedModeBanner: false,
-      // Dark, always: the dial screens and the whole design system are drawn
-      // for it, and there is no appearance setting any more.
-      theme: buildTheme(Brightness.dark),
-      darkTheme: buildTheme(Brightness.dark),
+      // Dark, always: there is one theme and no appearance setting.
+      theme: buildTheme(),
       themeMode: ThemeMode.dark,
       locale: locale.locale, // null = follow the OS locale
       // First, so a 12-hour choice reaches the time pickers (see the delegate).
@@ -173,8 +162,7 @@ class _OpenStrapAppState extends State<OpenStrapApp> with WidgetsBindingObserver
         }
         return const Locale('en');
       },
-      builder: (context, child) => _ClockScope(
-          child: ThemeSwitchOverlay(key: themeSwitchKey, child: child!)),
+      builder: (context, child) => _ClockScope(child: child!),
       navigatorObservers: [TelemetryNavigatorObserver()],
       home: const _Gate(),
     );

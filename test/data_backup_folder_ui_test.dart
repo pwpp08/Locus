@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/data/auto_backup.dart';
 import 'package:openstrap_edge/state/app_state.dart';
 import 'package:openstrap_edge/state/prefs.dart';
-import 'package:openstrap_edge/theme/theme_controller.dart';
 import 'package:openstrap_edge/ui2/profile/data.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 import 'package:provider/provider.dart';
@@ -38,13 +37,9 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider<AppState>.value(value: app),
-          ChangeNotifierProvider<ThemeController>(
-            create: (_) =>
-                ThemeController.seed(AppThemeChoice.light, Brightness.light),
-          ),
         ],
         child: MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           home: const DataScreen(),
         ),
       ),

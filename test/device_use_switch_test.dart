@@ -32,7 +32,7 @@ Future<void> _settle(WidgetTester t, [Widget? w]) async {
 Future<void> _page(WidgetTester t, String id, String adapter) => _settle(
     t,
     MaterialApp(
-      theme: buildTheme(Brightness.light),
+      theme: buildTheme(),
       home: Scaffold(
           body: SingleChildScrollView(
               child: DeviceUseSwitch(deviceId: id, adapterId: adapter))),

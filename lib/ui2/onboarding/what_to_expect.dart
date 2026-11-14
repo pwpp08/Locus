@@ -21,8 +21,7 @@ class WhatToExpectScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext c) {
-    return AlwaysChar(
-      child: Builder(builder: (c) {
+    return Builder(builder: (c) {
         final p = P.of(c);
         final done = onFinish ?? () => Navigator.of(c).maybePop();
         final fill = p.fill(C.optimal);
@@ -105,8 +104,7 @@ class WhatToExpectScreen extends StatelessWidget {
             ),
           ),
         );
-      }),
-    );
+      });
   }
 }
 

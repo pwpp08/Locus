@@ -609,7 +609,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: S.x3),
                 decoration: BoxDecoration(
                   color: p.ink.withValues(alpha: .12),
-                  borderRadius: R.rPill,
+                  borderRadius: R.rMd,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

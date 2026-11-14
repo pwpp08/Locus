@@ -275,7 +275,7 @@ void main() {
     });
 
     Widget frame(HomeData d) => MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: Scaffold(body: HomeScreen(data: d, hour: 20)));
 
     testWidgets('a day with nothing of its own says where the data stops',
@@ -300,7 +300,7 @@ void main() {
     testWidgets('a bare day during a live workout blames the workout, not sync',
         (t) async {
       await t.pumpWidget(MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           home: const Scaffold(
               body: HomeScreen(
                   data: HomeData(
@@ -320,7 +320,7 @@ void main() {
   // produces could only be found by opening Health and scrolling to it.
   group('illness watch on Home', () {
     Widget frame(HomeData d, {DateTime? now}) => MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: Scaffold(
             body: HomeScreen(
                 data: d, hour: 9, now: now ?? DateTime(2026, 5, 20, 9))));
@@ -450,7 +450,7 @@ void main() {
       t.view.devicePixelRatio = 3;
       addTearDown(t.view.reset);
       await t.pumpWidget(MaterialApp(
-          theme: buildTheme(Brightness.light), home: Scaffold(body: w)));
+          theme: buildTheme(), home: Scaffold(body: w)));
       await t.pumpAndSettle();
     }
 
@@ -544,7 +544,7 @@ void main() {
       t.view.devicePixelRatio = 3;
       addTearDown(t.view.reset);
       await t.pumpWidget(MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           home: Scaffold(body: MetricDetail('resting_hr', data: d))));
       await t.pumpAndSettle();
     }
@@ -589,7 +589,7 @@ void main() {
       t.view.devicePixelRatio = 3;
       addTearDown(t.view.reset);
       await t.pumpWidget(MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           home: Scaffold(body: MetricDetail(key, data: d))));
       await t.pumpAndSettle();
     }
@@ -633,7 +633,7 @@ void main() {
       t.view.devicePixelRatio = 3;
       addTearDown(t.view.reset);
       await t.pumpWidget(MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           home: Scaffold(
               body: MetricDetail('steps',
                   data: MetricData(
@@ -674,7 +674,7 @@ void main() {
       t.view.devicePixelRatio = 3;
       addTearDown(t.view.reset);
       await t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: Investigate('hrv', data: InvestigateData(day: _day(0))),
       ));
       await t.pumpAndSettle();
@@ -682,7 +682,7 @@ void main() {
       expect(find.textContaining('INVESTIGATE'), findsNothing);
 
       await t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: Scaffold(
           body: Builder(builder: (c) => investigateRow(c, () {})),
         ),
@@ -706,7 +706,7 @@ void main() {
       t.view.devicePixelRatio = 3;
       addTearDown(t.view.reset);
       await t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: Investigate('hrv',
             data: InvestigateData(day: _day(0), hrv: {
               'rmssd': 61.0,
@@ -735,7 +735,7 @@ void main() {
       t.view.devicePixelRatio = 3;
       addTearDown(t.view.reset);
       await t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: Investigate('hrv',
             data: InvestigateData(day: _day(0), hrv: {
               'rmssd': 48.3,
@@ -765,7 +765,7 @@ void main() {
       t.view.devicePixelRatio = 3;
       addTearDown(t.view.reset);
       await t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: Investigate('hrv',
             data: InvestigateData(day: _day(0), rhythmPoints: [
               for (var i = 9; i >= 0; i--) (t: _noon(i), v: i == 3 ? 1.0 : 0.0),
@@ -850,14 +850,14 @@ void main() {
       );
       // The hourly chart is a research view now, behind Advanced.
       await t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: CircadianDetail(data: data),
       ));
       await t.pumpAndSettle();
       expect(find.textContaining('still five-minute stretches'), findsNothing);
       expect(find.text('1h 30m later'), findsOneWidget);
       await t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: CircadianDetail(data: data, advanced: true),
       ));
       await t.pumpAndSettle();
@@ -871,7 +871,7 @@ void main() {
       // on the row it belongs to.
       expect(find.textContaining('free-day clock runs'), findsNothing);
       await t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: CircadianDetail(data: data),
       ));
       await t.pumpAndSettle();
@@ -913,7 +913,7 @@ void main() {
       await t.pumpWidget(MediaQuery(
         data: MediaQueryData(textScaler: TextScaler.linear(scale)),
         child: MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           // The forecast is a research view, behind Advanced.
           home: CircadianDetail(data: d, advanced: advanced),
         ),
@@ -1004,7 +1004,7 @@ void main() {
       await t.pumpWidget(MediaQuery(
         data: MediaQueryData(textScaler: TextScaler.linear(scale)),
         child: MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           home: Investigate('resp_rate',
               data: InvestigateData(day: _day(0), cvhrDist: m)),
         ),
@@ -1095,7 +1095,7 @@ void main() {
       await t.pumpWidget(MediaQuery(
         data: MediaQueryData(textScaler: TextScaler.linear(scale)),
         child: MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           home: CircadianDetail(data: d),
         ),
       ));
@@ -1210,7 +1210,7 @@ void main() {
       await t.pumpWidget(MediaQuery(
         data: MediaQueryData(textScaler: TextScaler.linear(scale)),
         child: MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           home: Investigate('hrv',
               data: InvestigateData(day: _day(0), hrv: hrv)),
         ),
@@ -1288,7 +1288,7 @@ void main() {
       await t.pumpWidget(MediaQuery(
         data: MediaQueryData(textScaler: TextScaler.linear(scale)),
         child: MaterialApp(
-          theme: buildTheme(Brightness.light),
+          theme: buildTheme(),
           home: Investigate('resp_rate', data: d),
         ),
       ));
@@ -1389,7 +1389,7 @@ void main() {
       t.view.devicePixelRatio = 3;
       addTearDown(t.view.reset);
       await t.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(),
         home: Investigate('sleep',
             data: InvestigateData(day: _day(0), night: const {
               'light_min': 301,

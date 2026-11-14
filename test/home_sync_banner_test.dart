@@ -7,7 +7,7 @@ import 'package:openstrap_edge/ui2/screens/home/home_header.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
 Widget _app(SyncBarState s) => MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(),
       home: Scaffold(
         body: HomeSyncBanner(state: s, syncedTo: '5:09 PM'),
       ),
