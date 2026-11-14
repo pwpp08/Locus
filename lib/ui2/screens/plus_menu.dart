@@ -12,13 +12,28 @@ enum PlusChoice { start, add, strength, journal }
 /// Opens the menu over [anchor] (the + button's rectangle, in the screen's own
 /// coordinates). Resolves to the door taken, or null when it was dismissed.
 Future<PlusChoice?> showPlusMenu(BuildContext c, Rect anchor) =>
-    showGeneralDialog<PlusChoice>(
+    showAnchoredMenu<PlusChoice>(c, anchor, PlusMenu.homeRows,
+        closeButton: Builder(
+            builder: (d) =>
+                PlusButton(onTap: () => Navigator.of(d).pop(), open: true)));
+
+/// The same panel for any list of doors: [rows] as (value, glyph, label),
+/// opening above [anchor] and resolving to the value taken. [closeButton]
+/// stands over the anchor while it is open; null draws a plain cross.
+Future<T?> showAnchoredMenu<T>(
+  BuildContext c,
+  Rect anchor,
+  List<(T, IconData, String)> rows, {
+  Widget? closeButton,
+}) =>
+    showGeneralDialog<T>(
       context: c,
       barrierDismissible: true,
       barrierLabel: 'Close the menu',
       barrierColor: C.char.withValues(alpha: .45),
       transitionDuration: motion(c, Motion.base),
-      pageBuilder: (_, _, _) => PlusMenu(anchor: anchor),
+      pageBuilder: (_, _, _) =>
+          PlusMenu<T>(anchor: anchor, rows: rows, closeButton: closeButton),
       transitionBuilder: (_, a, _, child) => FadeTransition(
         opacity: CurvedAnimation(parent: a, curve: Ease.standard),
         child: child,
@@ -59,11 +74,15 @@ class PlusButton extends StatelessWidget {
   }
 }
 
-class PlusMenu extends StatelessWidget {
+class PlusMenu<T> extends StatelessWidget {
   final Rect anchor;
-  const PlusMenu({super.key, required this.anchor});
+  final List<(T, IconData, String)> rows;
+  final Widget? closeButton;
+  const PlusMenu(
+      {super.key, required this.anchor, required this.rows, this.closeButton});
 
-  static const _rows = [
+  /// The doors behind the + beside "My Day".
+  static const homeRows = [
     (PlusChoice.start, LucideIcons.timer, 'Start activity'),
     (PlusChoice.add, LucideIcons.plus, 'Add activity'),
     (PlusChoice.strength, LucideIcons.dumbbell, 'Strength trainer'),
@@ -79,7 +98,7 @@ class PlusMenu extends StatelessWidget {
     final p = P.of(c);
     final size = MediaQuery.sizeOf(c);
     final inset = MediaQuery.paddingOf(c);
-    final h = _rows.length * _row + 2 * _pad;
+    final h = rows.length * _row + 2 * _pad;
     const w = 216.0;
 
     // Open upward, cleanly positioned above the plus button with a clear gap
@@ -90,13 +109,17 @@ class PlusMenu extends StatelessWidget {
     }
     top = top.clamp(inset.top + S.x2, size.height - inset.bottom - h - S.x2);
     final right = (size.width - anchor.right).clamp(S.x2, size.width - w - S.x2);
+    // A button in the left half opens its panel rightward from its own edge.
+    final fromLeft = anchor.center.dx < size.width / 2;
+    final left = anchor.left.clamp(S.x2, size.width - w - S.x2);
 
     return Material(
       type: MaterialType.transparency,
       child: Stack(children: [
         Positioned(
           top: top,
-          right: right,
+          right: fromLeft ? null : right,
+          left: fromLeft ? left : null,
           width: w,
           height: h,
           child: DecoratedBox(
@@ -114,7 +137,7 @@ class PlusMenu extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: _pad),
               child: Column(children: [
-                for (final (choice, icon, label) in _rows)
+                for (final (choice, icon, label) in rows)
                   Pressable(
                     onTap: () => Navigator.of(c).pop(choice),
                     semanticLabel: label,
@@ -143,10 +166,15 @@ class PlusMenu extends StatelessWidget {
           ),
         ),
         // The button, in the same place, as a cross.
-        Positioned(
-          left: anchor.left,
-          top: anchor.top,
-          child: PlusButton(onTap: () => Navigator.of(c).pop(), open: true),
+        Positioned.fromRect(
+          rect: anchor,
+          child: closeButton ??
+              Pressable(
+                onTap: () => Navigator.of(c).pop(),
+                semanticLabel: 'Close the menu',
+                child: Center(
+                    child: Icon(LucideIcons.x, size: I.lg, color: C.white)),
+              ),
         ),
       ]),
     );

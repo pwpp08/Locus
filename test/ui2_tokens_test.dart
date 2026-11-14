@@ -479,6 +479,9 @@ const _notComponents = {
   'IdentifyActivityScreen', 'LogWorkout',
   'DetectedActivitiesScreen', 'StrengthTrainerScreen', 'StrengthRecordScreen', 'StrengthWorkoutScreen', 'PlusMenu',
   'WindowEditor', 'WindowPreview',
+  // A settings page of SetRow and SetDropdown, all in the gallery already;
+  // covered by `ai_button_test.dart`.
+  'AiButtonSettings',
   // The window chart's bpm gutter: drawn against the chart's own plot rect,
   // meaningless on its own.
   'WindowTicks',

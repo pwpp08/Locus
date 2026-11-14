@@ -25,6 +25,7 @@
 // Strain are the deep dives behind their dials on Home.
 
 import 'package:flutter/material.dart';
+import '../state/ai_button_prefs.dart';
 import 'lucide.dart';
 import 'marks.dart';
 
@@ -113,8 +114,12 @@ class AppShell extends StatefulWidget {
   /// The Action (+) button. Null hides it.
   final void Function(BuildContext context)? onAction;
 
-  /// The coach button. Null hides it.
+  /// The floating coach button. Null hides it; so does the user, in
+  /// [AiButtonPrefs], which also sets its size, spot and strength.
   final void Function(BuildContext context)? onAi;
+
+  /// A long press on the floating coach button: its own settings.
+  final void Function(BuildContext context)? onAiHold;
 
   /// Pinned between the domain and the tab bar, above every tab. This is not
   /// a general slot — it exists for state that is RUNNING and is not on
@@ -129,6 +134,7 @@ class AppShell extends StatefulWidget {
     this.onSelect,
     this.onAction,
     this.onAi,
+    this.onAiHold,
     this.banner,
   });
 
@@ -246,6 +252,9 @@ class _AppShellState extends State<AppShell> {
                 children: [
                   // The minimised workout floats just above the bar as its
                   // own glass pill. Two blurs on screen, the glass budget in DESIGN.md.
+                  // A bottom-spot coach button rides above the pill and the
+                  // bar, so neither ever covers it.
+                  ?_ai(c, bottom: true),
                   if (widget.banner != null) ...[
                     Glass(radius: R.rPill, child: widget.banner!),
                     const SizedBox(height: S.x2),
@@ -258,14 +267,58 @@ class _AppShellState extends State<AppShell> {
                     onAction: widget.onAction == null
                         ? null
                         : () => widget.onAction!(c),
-                    onAi: widget.onAi == null ? null : () => widget.onAi!(c),
                   ),
                 ],
               ),
             ),
+            if (_ai(c, bottom: false) case final ai?)
+              Positioned.fill(child: ai),
           ],
         ),
       ),
+    );
+  }
+
+  /// The floating coach button for the spots on one row ([bottom]: above the
+  /// bar; otherwise halfway down an edge), or null when it is not wanted there.
+  Widget? _ai(BuildContext c, {required bool bottom}) {
+    final onAi = widget.onAi;
+    if (onAi == null) return null;
+    return ValueListenableBuilder<int>(
+      valueListenable: AiButtonPrefs.changed,
+      builder: (c, _, _) {
+        final spot = AiButtonPrefs.spot;
+        final isBottom = spot == AiButtonSpot.bottomRight ||
+            spot == AiButtonSpot.bottomLeft;
+        if (!AiButtonPrefs.on || isBottom != bottom) {
+          return const SizedBox.shrink();
+        }
+        final right = spot == AiButtonSpot.bottomRight ||
+            spot == AiButtonSpot.middleRight;
+        final button = Opacity(
+          opacity: AiButtonPrefs.opacity,
+          child: Pressable(
+            onTap: () => onAi(c),
+            onLongPress:
+                widget.onAiHold == null ? null : () => widget.onAiHold!(c),
+            semanticLabel: 'Ask the AI coach',
+            child: AiOrb(size: AiButtonPrefs.side),
+          ),
+        );
+        final placed = Align(
+          alignment: bottom
+              ? (right ? Alignment.centerRight : Alignment.centerLeft)
+              : Alignment(right ? 1 : -1, .15),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: bottom ? 0 : S.x4),
+            child: button,
+          ),
+        );
+        return bottom
+            ? Padding(
+                padding: const EdgeInsets.only(bottom: S.x3), child: placed)
+            : placed;
+      },
     );
   }
 }
@@ -274,15 +327,14 @@ class _TabBar extends StatelessWidget {
   final List<ShellDomain> tabs;
   final ShellDomain current;
   final ValueChanged<ShellDomain> onTap;
-  final VoidCallback? onAction, onAi, onLongPress;
+  final VoidCallback? onAction, onLongPress;
 
   const _TabBar(
       {required this.tabs,
       required this.current,
       required this.onTap,
       this.onLongPress,
-      this.onAction,
-      this.onAi});
+      this.onAction});
 
   @override
   Widget build(BuildContext c) {

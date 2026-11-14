@@ -202,6 +202,14 @@ class C {
   ];
   static const coachSkyStops = [0.0, 0.18, 0.36, 0.58, 1.0];
 
+  /// The floating button's coach sheet: deep violet at the top, near-black
+  /// at the composer.
+  static const coachSheet = [
+    Color(0xFF3A2766),
+    Color(0xFF231A40),
+    Color(0xFF15121F),
+  ];
+
 
   /// The sleep recommendation's panel: a pale mint ground on the white sheet,
   /// inked in [char]. A ground, not an accent, so it is not in [all].

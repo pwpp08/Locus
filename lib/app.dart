@@ -27,6 +27,7 @@ import 'ui2/onboarding/welcome.dart';
 import 'ui2/onboarding/what_to_expect.dart' show WhatToExpectScreen;
 import 'ui2/profile/alarm.dart';
 import 'ui2/profile/profile.dart';
+import 'ui2/profile/settings.dart' show AiButtonSettings;
 import 'ui2/screens/action_sheet.dart';
 import 'ui2/screens/ai_briefing.dart';
 import 'ui2/screens/calm_breathing.dart';
@@ -35,7 +36,13 @@ import 'ui2/screens/home_screen.dart';
 import 'ui2/screens/journal_compose.dart';
 import 'ui2/screens/detected_activities.dart';
 import 'ui2/screens/screens.dart'
-    show DayStepsDetail, HealthMonitorScreen, ReadinessDetail, SleepDetail;
+    show
+        DayStepsDetail,
+        HealthMonitorScreen,
+        ReadinessDetail,
+        SleepDetail,
+        coachReady,
+        openCoachSheet;
 import 'ui2/screens/health_tab.dart';
 import 'ui2/screens/strength_trainer.dart';
 import 'ui2/screens/wellness_screen.dart';
@@ -597,7 +604,10 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
       banner: live ? const _LiveSessionBar() : null,
       onSelect: (d) => _domain = d,
       onAction: (c) => openActionSheet(c),
-      onAi: null,
+      // The floating coach button, once there is a model to ask.
+      onAi: coachReady(context) ? openCoachSheet : null,
+      onAiHold: (c) => Navigator.of(c).push(MaterialPageRoute<void>(
+          builder: (_) => const AiButtonSettings())),
       builder: (c, d) => switch (d) {
         ShellDomain.today => const HomeScreen(),
         ShellDomain.strength => const StrengthTrainerScreen(tabMode: true),

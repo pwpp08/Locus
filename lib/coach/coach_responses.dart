@@ -44,7 +44,7 @@ class CoachResponses {
       if (role != 'assistant' ||
           (content is String && content.isNotEmpty) ||
           content is List) {
-        input.add({'role': role, 'content': content ?? ''});
+        input.add({'role': role, 'content': _parts(content)});
       }
       for (final call in _maps(message['tool_calls'] ?? const [])) {
         final function = call['function'];
@@ -73,6 +73,26 @@ class CoachResponses {
         'tools': [for (final tool in _maps(body['tools'])) _functionTool(tool)],
       if (body['tool_choice'] != null) 'tool_choice': body['tool_choice'],
     };
+  }
+
+  /// Chat Completions content parts as Responses ones: a text part and an
+  /// attached picture. A plain string, or anything else, passes unchanged.
+  static Object _parts(Object? content) {
+    if (content is! List) return content ?? '';
+    return [
+      for (final part in content)
+        if (part is Map && part['type'] == 'text')
+          {'type': 'input_text', 'text': part['text'] ?? ''}
+        else if (part is Map &&
+            part['type'] == 'image_url' &&
+            part['image_url'] is Map)
+          {
+            'type': 'input_image',
+            'image_url': (part['image_url'] as Map)['url'],
+          }
+        else
+          part,
+    ];
   }
 
   static Map<String, dynamic> _functionTool(Map tool) {

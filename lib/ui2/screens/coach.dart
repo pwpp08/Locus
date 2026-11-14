@@ -21,8 +21,12 @@ import 'coach_text.dart';
 
 import '../../data/db.dart';
 import '../../l10n/display_text.dart';
+import 'dart:convert' show utf8;
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -36,6 +40,7 @@ import 'ai_briefing.dart';
 import 'coach_figures.dart';
 import 'home_screen.dart' show go, pad, repoOf;
 import 'journal_compose.dart' show OsTextField;
+import 'plus_menu.dart' show showAnchoredMenu;
 
 /// The coach's accent. Not a domain colour: the coach reads across all five.
 const Color kCoachAccent = C.dialStrain;
@@ -92,6 +97,32 @@ String? coachSubtitle(BuildContext c) {
   }
 }
 
+/// The coach as a sheet over whatever is on screen: what the floating AI
+/// button opens. The same conversation machinery as [CoachScreen]; a fresh
+/// conversation each time, the earlier ones under Chats.
+Future<void> openCoachSheet(BuildContext c) {
+  if (!coachReadyNow(c)) {
+    go(c, const CoachSetup());
+    return Future.value();
+  }
+  return AppSheet.open<void>(
+    c,
+    bare: true,
+    scroll: true,
+    builder: (_) => const CoachScreen(sheet: true),
+  );
+}
+
+/// The doors behind the composer's (+).
+enum _Plus { newChat, image, file, camera, suggest }
+
+/// The text files the coach can be handed, read as UTF-8.
+const _textFiles = ['txt', 'csv', 'tsv', 'md', 'json', 'log', 'xml', 'gpx'];
+
+/// The most of one file that goes to the model; the rest is cut, and the
+/// model is told so.
+const _maxFileChars = 60000;
+
 class CoachScreen extends StatefulWidget {
   /// A message to send the moment the engine is up — visibly, as the user's
   /// own turn, so the model runs its tools on it like any other question
@@ -105,10 +136,14 @@ class CoachScreen extends StatefulWidget {
   /// there is none yet) is the coach's first turn, and the user can reply.
   final BriefingPeriod? outlook;
 
+  /// Drawn as the floating button's sheet rather than a page.
+  final bool sheet;
+
   const CoachScreen({
     super.key,
     this.initialMessage,
     this.outlook,
+    this.sheet = false,
   });
 
   @override
@@ -123,6 +158,14 @@ class _CoachScreenState extends State<CoachScreen> {
   final _scroll = ScrollController();
   bool _busy = false;
   String? _status;
+
+  /// What waits in the composer to go with the next message.
+  final List<CoachImage> _images = [];
+  ({String name, String text})? _file;
+
+  /// The last question asked, for Retry on an error.
+  String? _lastAsked;
+  final _plusKey = GlobalKey();
 
   static List<String> _starters(BuildContext c) {
     final l = AppLocalizations.of(c);
@@ -241,6 +284,98 @@ class _CoachScreenState extends State<CoachScreen> {
     });
   }
 
+  /// The composer's (+): a new conversation, a picture or a file to send, or
+  /// something to try asking.
+  Future<void> _plus() async {
+    final box = _plusKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final at = box.localToGlobal(Offset.zero) & box.size;
+    final l = AppLocalizations.of(context);
+    final pick = await showAnchoredMenu<_Plus>(context, at, [
+      (_Plus.newChat, LucideIcons.messageSquarePlus, 'New conversation'),
+      (_Plus.image, LucideIcons.image, 'Upload image'),
+      (_Plus.file, LucideIcons.fileText, 'Upload file'),
+      (_Plus.camera, LucideIcons.camera, 'Take picture'),
+      (_Plus.suggest, LucideIcons.lightbulb, l?.coachTryAsking ?? 'Try asking'),
+    ]);
+    if (!mounted) return;
+    switch (pick) {
+      case _Plus.newChat:
+        _newChat();
+      case _Plus.image:
+        await _pickImage(ImageSource.gallery);
+      case _Plus.camera:
+        await _pickImage(ImageSource.camera);
+      case _Plus.file:
+        await _pickFile();
+      case _Plus.suggest:
+        await _suggest();
+      case null:
+        break;
+    }
+  }
+
+  void _attachError(String message) {
+    if (mounted) setState(() => _items.add(CoachItem.error(message)));
+  }
+
+  /// A picture, scaled down on the phone before it is ever read: a 1600 px
+  /// JPEG is plenty for a model to read a label or a plate, and a fraction of
+  /// the original's size.
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final x = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 80,
+      );
+      if (x == null) return;
+      final bytes = await x.readAsBytes();
+      if (!mounted) return;
+      if (bytes.length > CoachImage.maxBytes) {
+        _attachError('That picture is too large to send '
+            '(${bytes.length ~/ 1024} KB; the limit is '
+            '${CoachImage.maxBytes ~/ 1024} KB).');
+        return;
+      }
+      setState(() {
+        // Three at most: the oldest makes way.
+        if (_images.length >= 3) _images.removeAt(0);
+        _images.add(CoachImage(x.mimeType ?? imageMimeFor(x.name), bytes));
+      });
+    } catch (e) {
+      _attachError(source == ImageSource.camera
+          ? 'The camera could not be opened: $e'
+          : 'The picture could not be opened: $e');
+    }
+  }
+
+  /// A text file — a CSV export, notes, a GPX track — read whole and sent
+  /// after the question.
+  Future<void> _pickFile() async {
+    try {
+      final r = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: _textFiles,
+        withData: true,
+      );
+      final f = r?.files.single;
+      final bytes = f?.bytes;
+      if (f == null || bytes == null || !mounted) return;
+      final String text;
+      try {
+        text = utf8.decode(bytes);
+      } on FormatException {
+        _attachError('${f.name} is not a text file the coach can read.');
+        return;
+      }
+      setState(() => _file = (name: f.name, text: clipFileText(text)));
+    } catch (e) {
+      _attachError('The file could not be opened: $e');
+    }
+  }
+
   /// The starters, from the composer's (+).
   Future<void> _suggest() async {
     final starters = _starters(context);
@@ -276,11 +411,36 @@ class _CoachScreenState extends State<CoachScreen> {
   }
 
   Future<void> _send(String text) async {
-    final t = text.trim();
+    var t = text.trim();
     final engine = _engine;
-    if (t.isEmpty || _busy || engine == null) return;
+    final images = List<CoachImage>.of(_images);
+    final file = _file;
+    final attached = images.isNotEmpty || file != null;
+    if ((t.isEmpty && !attached) || _busy || engine == null) return;
+    if (t.isEmpty) {
+      t = images.isNotEmpty
+          ? 'Have a look at this picture.'
+          : 'Have a look at this file.';
+    }
+    _lastAsked = t;
+    // The bubble names what went with the question; the file itself goes to
+    // the model in full, after it.
+    final shown = !attached
+        ? null
+        : [
+            t,
+            if (images.length == 1) '(a picture attached)',
+            if (images.length > 1) '(${images.length} pictures attached)',
+            if (file != null) '(attached: ${file.name})',
+          ].join('\n');
+    final sent =
+        file == null ? t : '$t\n\n--- ${file.name} ---\n${file.text}';
     _input.clear();
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _images.clear();
+      _file = null;
+    });
     // Read before the await: `send` can outlive this screen.
     final app = context.read<AppState>();
     var wrote = false;
@@ -288,7 +448,9 @@ class _CoachScreenState extends State<CoachScreen> {
       // `send` can block for up to 120 s, so every callback below can land after
       // the user has popped the screen.
       await engine.send(
-        t,
+        sent,
+        images: images,
+        shown: shown,
         onDelta: (delta) {
           if (!mounted) return;
           setState(() {
@@ -511,6 +673,63 @@ class _CoachScreenState extends State<CoachScreen> {
     );
   }
 
+  /// The sheet's top: the grab bar, the orb with the model in a small tag,
+  /// and the way into past chats.
+  Widget _sheetHeader(BuildContext c, P p, CoachConfig cfg) {
+    final l = AppLocalizations.of(c);
+    final model = cfg.configured ? cfg.model : (l?.coachNotSetUp ?? 'Not set up');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x2, S.x2),
+      child: Column(children: [
+        Container(
+          width: S.x8,
+          height: S.x1,
+          decoration: BoxDecoration(
+              color: p.ink.withValues(alpha: .3), borderRadius: R.rPill),
+        ),
+        const SizedBox(height: S.x2),
+        Row(children: [
+          const AiOrb(size: S.x8),
+          const SizedBox(width: S.x2),
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: S.x2, vertical: S.half),
+              decoration: BoxDecoration(
+                color: p.ink.withValues(alpha: .14),
+                borderRadius: R.rSm,
+              ),
+              child: Text(
+                model.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: F.over.copyWith(
+                    color: p.ink,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2),
+              ),
+            ),
+          ),
+          const Spacer(),
+          Pressable(
+            onTap: _menu,
+            semanticLabel: l?.coachMenuSemantic ?? 'Chats and AI settings',
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: S.x2),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text('Chats',
+                    style: F.body.copyWith(
+                        color: p.ink, fontWeight: FontWeight.w600)),
+                const SizedBox(width: S.x2),
+                Icon(LucideIcons.history, size: I.md, color: p.ink),
+              ]),
+            ),
+          ),
+        ]),
+      ]),
+    );
+  }
+
   /// Back, the coach's name with the model under it in a small tag, and
   /// History.
   Widget _header(BuildContext c, P p, CoachConfig cfg) {
@@ -571,6 +790,32 @@ class _CoachScreenState extends State<CoachScreen> {
   Widget _build(BuildContext c) {
     final p = P.of(c);
     final cfg = c.watch<CoachConfig>();
+    if (widget.sheet) {
+      return FractionallySizedBox(
+        heightFactor: .9,
+        child: ClipRRect(
+          borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(R.xxl)),
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: C.coachSheet,
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Column(children: [
+                _sheetHeader(c, p, cfg),
+                Expanded(child: _body(c, p, cfg)),
+                if (cfg.configured && _engine != null) _composer(c, p),
+              ]),
+            ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: C.coachSky.last,
       body: DecoratedBox(
@@ -710,11 +955,21 @@ class _CoachScreenState extends State<CoachScreen> {
         }
         // The coach's mark leads each run of answers, not every line of one.
         final prev = i == 0 ? null : _items[i - 1];
+        final asked = _lastAsked;
         return _Bubble(
           item: _items[i],
           lead: prev == null ||
               prev.kind == CoachItemKind.user ||
               prev.kind == CoachItemKind.error,
+          // Only the latest error, and only once nothing is on its way.
+          // ponytail: the failed question stays in the history, so a retry
+          // sends it a second time; models take two user turns in a row.
+          onRetry: i == _items.length - 1 &&
+                  _items[i].kind == CoachItemKind.error &&
+                  asked != null &&
+                  !_busy
+              ? () => _send(asked)
+              : null,
         );
       },
       ),
@@ -725,7 +980,8 @@ class _CoachScreenState extends State<CoachScreen> {
   /// on a coach-coloured edge with the send arrow inside it.
   Widget _composer(BuildContext c, P p) {
     final l = AppLocalizations.of(c);
-    final canSend = !_busy && _input.text.trim().isNotEmpty;
+    final attached = _images.isNotEmpty || _file != null;
+    final canSend = !_busy && (_input.text.trim().isNotEmpty || attached);
     Widget tool(IconData i, String label, VoidCallback? onTap, Color ink) =>
         Pressable(
           onTap: onTap,
@@ -739,10 +995,14 @@ class _CoachScreenState extends State<CoachScreen> {
     return Padding(
       padding: EdgeInsets.fromLTRB(
           S.x2, 0, S.x4, S.x3 + MediaQuery.of(c).viewInsets.bottom),
-      child: Row(children: [
-        tool(LucideIcons.plus, 'Suggestions', _busy ? null : _suggest, p.ink),
-        tool(LucideIcons.messageSquarePlus, l?.coachNewChat ?? 'New chat',
-            _busy ? null : _newChat, p.ink3),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        if (attached) _attachments(c, p),
+        Row(children: [
+        KeyedSubtree(
+          key: _plusKey,
+          child: tool(LucideIcons.plus, 'New conversation, a picture or a file',
+              _busy ? null : _plus, p.ink),
+        ),
         const SizedBox(width: S.x2),
         Expanded(
           child: Container(
@@ -773,7 +1033,7 @@ class _CoachScreenState extends State<CoachScreen> {
                       textInputAction: TextInputAction.send,
                       onSubmitted: _busy ? null : _send,
                       bare: true,
-                      hint: '',
+                      hint: widget.sheet ? 'Ask a question …' : '',
                     ),
                   ),
                 ),
@@ -790,10 +1050,78 @@ class _CoachScreenState extends State<CoachScreen> {
             ),
           ),
         ),
+        ]),
       ]),
     );
   }
+
+  /// What will go with the next message: each picture as a thumbnail and the
+  /// file by name, each with its own cross.
+  Widget _attachments(BuildContext c, P p) {
+    Widget remove(String label, VoidCallback onTap) => Pressable(
+          onTap: onTap,
+          semanticLabel: label,
+          child: Icon(LucideIcons.x, size: I.sm, color: p.ink2),
+        );
+    return Padding(
+      padding: const EdgeInsets.only(left: S.x2, bottom: S.x2),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Wrap(
+          spacing: S.x2,
+          runSpacing: S.x2,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            for (var i = 0; i < _images.length; i++)
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                ClipRRect(
+                  borderRadius: R.rSm,
+                  child: Image.memory(_images[i].bytes,
+                      width: S.x12, height: S.x12, fit: BoxFit.cover),
+                ),
+                remove('Remove the picture',
+                    () => setState(() => _images.removeAt(i))),
+              ]),
+            if (_file case final f?)
+              Container(
+                padding: const EdgeInsets.only(left: S.x3),
+                decoration: BoxDecoration(color: p.card2, borderRadius: R.rMd),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(LucideIcons.fileText, size: I.sm, color: p.ink2),
+                  const SizedBox(width: S.x2),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 180),
+                    child: Text(f.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: F.cap.copyWith(color: p.ink)),
+                  ),
+                  remove('Remove ${f.name}', () => setState(() => _file = null)),
+                ]),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
+/// The media type for a picked picture whose picker did not say.
+String imageMimeFor(String name) {
+  final n = name.toLowerCase();
+  if (n.endsWith('.png')) return 'image/png';
+  if (n.endsWith('.webp')) return 'image/webp';
+  if (n.endsWith('.gif')) return 'image/gif';
+  return 'image/jpeg';
+}
+
+/// [text] as it goes to the model: whole, or its first [_maxFileChars]
+/// characters with a line saying the rest was left out.
+String clipFileText(String text) => text.length <= _maxFileChars
+    ? text
+    : '${text.substring(0, _maxFileChars)}\n'
+        '[the rest of the file, ${text.length - _maxFileChars} more '
+        'characters, was left out]';
 
 /// A suggestion to start from: a glyph, the question, and an arrow.
 class _Starter extends StatelessWidget {
@@ -946,7 +1274,10 @@ class _Bubble extends StatelessWidget {
 
   /// First of a run of the coach's items, so it carries the coach's mark.
   final bool lead;
-  const _Bubble({required this.item, this.lead = true});
+
+  /// An error's Retry; null shows none.
+  final VoidCallback? onRetry;
+  const _Bubble({required this.item, this.lead = true, this.onRetry});
 
   @override
   Widget build(BuildContext c) {
@@ -1004,6 +1335,8 @@ class _Bubble extends StatelessWidget {
             AppLocalizations.of(c)?.coachErrorTitle ?? 'That did not go through',
             coachPresentationText(AppLocalizations.of(c), item.text ?? ''),
             icon: LucideIcons.triangleAlert,
+            fix: onRetry == null ? '' : 'Retry',
+            onFix: onRetry,
           ),
         );
     }

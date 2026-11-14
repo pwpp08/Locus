@@ -149,6 +149,22 @@ class CoachItem {
   }
 }
 
+/// A picture the user attached to one message: its bytes and media type.
+class CoachImage {
+  final String mime;
+  final Uint8List bytes;
+  const CoachImage(this.mime, this.bytes);
+
+  /// The most one picture may weigh. The picker already scales a photo down
+  /// to far less; this refuses an original nobody scaled.
+  static const int maxBytes = 1500 * 1024;
+
+  String get dataUrl => 'data:$mime;base64,${base64Encode(bytes)}';
+}
+
+/// What stands in a stored message for a picture that was sent with it.
+const String kCoachImageNote = '[a picture was attached to this message]';
+
 /// Lightweight index entry for a saved chat session (for the history list).
 class CoachSessionMeta {
   final String id;
@@ -275,7 +291,7 @@ class CoachEngine {
   int _historyChars() {
     var n = 0;
     for (final m in _history) {
-      n += jsonEncode(m).length;
+      n += jsonEncode(m).length - attachedChars(m['content']);
     }
     return n;
   }
@@ -524,12 +540,23 @@ class CoachEngine {
   /// Run one user turn. Emits items via [onItem]; reports the current tool via
   /// [onStatus]; asks the user to confirm writes via [confirm] (returns true to
   /// proceed). Returns when the model produces its final answer (or hits the cap).
+  ///
+  /// [images] go to the model with this message only. Once the turn is over
+  /// each is replaced in the kept history by [kCoachImageNote], so a picture
+  /// is neither stored on disk nor sent again with every later question.
+  /// [shown] is what the user's own bubble reads when it should differ from
+  /// [userText] (a long attached file is sent in full and shown by name).
+  ///
+  /// ponytail: a follow-up question cannot see the picture again; keep the
+  /// image for the session (in memory, never on disk) if that proves limiting.
   Future<void> send(
     String userText, {
     required void Function(CoachItem) onItem,
     required void Function(String?) onStatus,
     required Future<bool> Function(ActionRequest) confirm,
     void Function(String delta)? onDelta,
+    List<CoachImage> images = const [],
+    String? shown,
   }) async {
     _sending++;
     try {
@@ -537,8 +564,11 @@ class CoachEngine {
           onItem: onItem,
           onStatus: onStatus,
           confirm: confirm,
-          onDelta: onDelta);
+          onDelta: onDelta,
+          images: images,
+          shown: shown);
     } finally {
+      _dropSentImages();
       _sending--;
       if (_sending == 0 && _disposeRequested) dispose();
     }
@@ -550,10 +580,33 @@ class CoachEngine {
     required void Function(String?) onStatus,
     required Future<bool> Function(ActionRequest) confirm,
     void Function(String delta)? onDelta,
+    List<CoachImage> images = const [],
+    String? shown,
   }) async {
     void emit(CoachItem it) { transcript.add(it); onItem(it); }
-    emit(CoachItem.user(userText));
-    _history.add({'role': 'user', 'content': userText});
+    for (final image in images) {
+      if (image.bytes.length > CoachImage.maxBytes) {
+        throw CoachException(
+          'That picture is too large to send '
+          '(${image.bytes.length ~/ 1024} KB; the limit is '
+          '${CoachImage.maxBytes ~/ 1024} KB).',
+        );
+      }
+    }
+    emit(CoachItem.user(shown ?? userText));
+    _history.add({
+      'role': 'user',
+      'content': images.isEmpty
+          ? userText
+          : [
+              {'type': 'text', 'text': userText},
+              for (final image in images)
+                {
+                  'type': 'image_url',
+                  'image_url': {'url': image.dataUrl},
+                },
+            ],
+    });
 
     const maxIters = 10;
     for (var i = 0; i < maxIters; i++) {
@@ -736,7 +789,14 @@ class CoachEngine {
       // the request is never truncated and silently sent, it is refused, so a
       // runaway tool loop cannot ship the health database to a third party.
       final payload = jsonEncode(body);
-      final payloadBytes = utf8.encode(payload).length;
+      var attached = 0;
+      final sent = body['messages'];
+      if (sent is List) {
+        for (final m in sent) {
+          if (m is Map) attached += attachedChars(m['content']);
+        }
+      }
+      final payloadBytes = utf8.encode(payload).length - attached;
       if (payloadBytes > kMaxRequestBytes) {
         throw CoachException(
           'That question pulled in too much data '
@@ -904,6 +964,30 @@ class CoachEngine {
 
   /// A message's content as text: a string, or a list of parts some providers
   /// send (`[{type: text, text: ...}]`) joined together.
+  /// The characters of [content] that are attached pictures (data URLs).
+  /// They are the user's own choice to send, so neither the history budget
+  /// nor the request cap (both there to bound HEALTH data) counts them.
+  static int attachedChars(Object? content) {
+    if (content is! List) return 0;
+    var n = 0;
+    for (final part in content) {
+      final image = part is Map ? part['image_url'] : null;
+      final url = image is Map ? image['url'] : null;
+      if (url is String && url.startsWith('data:')) n += url.length;
+    }
+    return n;
+  }
+
+  /// Replaces every picture in the kept history with [kCoachImageNote].
+  void _dropSentImages() {
+    for (final m in _history) {
+      final content = m['content'];
+      if (m['role'] != 'user' || content is! List) continue;
+      if (attachedChars(content) == 0) continue;
+      m['content'] = '${contentText(content)}\n$kCoachImageNote';
+    }
+  }
+
   static String contentText(Object? content) {
     if (content is String) return content;
     if (content is List) {

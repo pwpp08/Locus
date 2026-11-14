@@ -25,6 +25,7 @@ import '../../l10n/app_localizations.dart';
 import '../../platform/tasker_bridge.dart';
 import '../../notify/notification_prefs.dart';
 import '../../notify/notification_service.dart';
+import '../../state/ai_button_prefs.dart';
 import '../../state/app_state.dart';
 import '../../state/clock_format.dart';
 import '../../state/prefs.dart';
@@ -489,6 +490,9 @@ class MoreSettingsView extends StatelessWidget {
             'Model and key',
             sub: 'The AI coach’s model, its API key and how it answers',
             onTap: () => goto(c, const CoachSetup())),
+        SetRow(LucideIcons.messageSquare, C.dialStrain, 'AI button',
+            sub: 'The floating button that opens the coach anywhere',
+            onTap: () => goto(c, const AiButtonSettings())),
       ]),
       settingsGroup(c, l?.settingsGroupPrivacy ?? 'Privacy', [
         SetRow(LucideIcons.bug, C.dialStrain,
@@ -553,6 +557,46 @@ class MoreSettingsView extends StatelessWidget {
           textAlign: TextAlign.center, style: F.over.copyWith(color: p.ink3)),
     ]);
   }
+}
+
+/// The floating AI button: on or off, its size, where it sits and how
+/// strongly it shows. Every change is live on the shell behind this page.
+class AiButtonSettings extends StatelessWidget {
+  const AiButtonSettings({super.key});
+
+  @override
+  Widget build(BuildContext c) => ValueListenableBuilder<int>(
+        valueListenable: AiButtonPrefs.changed,
+        builder: (c, _, _) {
+          final on = AiButtonPrefs.on;
+          return settingsPage(c, 'AI button', [
+            settingsGroup(c, '', [
+              SetRow(LucideIcons.messageSquare, C.dialStrain, 'Show the button',
+                  sub: on
+                      ? 'Tap it to ask the coach; hold it to come back here'
+                      : 'The coach is still in Home and Settings',
+                  switchValue: on,
+                  onTap: () => AiButtonPrefs.setOn(!on)),
+            ]),
+            if (on)
+              settingsGroup(c, 'Look', [
+                SetDropdown(LucideIcons.maximize2, 'Size',
+                    AiButtonPrefs.sizeLabels, AiButtonPrefs.sizeIndex,
+                    onChanged: (i) =>
+                        AiButtonPrefs.setIndex(AiButtonPrefs.kSize, i)),
+                SetDropdown(LucideIcons.mapPin, 'Position',
+                    AiButtonPrefs.spotLabels, AiButtonPrefs.spotIndex,
+                    onChanged: (i) =>
+                        AiButtonPrefs.setIndex(AiButtonPrefs.kSpot, i)),
+                SetDropdown(LucideIcons.sunMoon, 'Visibility',
+                    AiButtonPrefs.visibilityLabels,
+                    AiButtonPrefs.visibilityIndex,
+                    onChanged: (i) =>
+                        AiButtonPrefs.setIndex(AiButtonPrefs.kVisibility, i)),
+              ]),
+          ]);
+        },
+      );
 }
 
 /// A settings page: the bar with its name, then its groups.
