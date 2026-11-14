@@ -174,7 +174,7 @@ class _Welcome extends StatefulWidget {
 }
 
 class _WelcomeState extends State<_Welcome> {
-  bool _google = false;
+  bool _google = false, _busy = false;
 
   @override
   void initState() {
@@ -226,8 +226,21 @@ class _WelcomeState extends State<_Welcome> {
             'Nothing leaves this phone until you tick it. Untick it and it is '
                 'taken back down.'),
         const SizedBox(height: S.x4),
-        BigButton('Continue with email',
-            icon: LucideIcons.send, onTap: () => go(c, const CommunitySignIn())),
+        BigButton('Join',
+            icon: LucideIcons.logIn,
+            busy: _busy,
+            onTap: _busy
+                ? null
+                : () async {
+                    setState(() => _busy = true);
+                    try {
+                      await _svc.join();
+                    } catch (e) {
+                      if (c.mounted) _say(c, communityError(e));
+                    } finally {
+                      if (mounted) setState(() => _busy = false);
+                    }
+                  }),
         if (_google) ...[
           const SizedBox(height: S.x3),
           BigButton('Continue with Google', soft: true, onTap: () async {
@@ -245,122 +258,6 @@ class _WelcomeState extends State<_Welcome> {
           style: F.cap.copyWith(color: p.ink3),
         ),
       ],
-    );
-  }
-}
-
-/// Email, then the code that was sent to it.
-class CommunitySignIn extends StatefulWidget {
-  const CommunitySignIn({super.key});
-
-  @override
-  State<CommunitySignIn> createState() => _CommunitySignInState();
-}
-
-class _CommunitySignInState extends State<CommunitySignIn> {
-  final _email = TextEditingController();
-  final _code = TextEditingController();
-  bool _sent = false, _busy = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _email.dispose();
-    _code.dispose();
-    super.dispose();
-  }
-
-  Future<void> _run(Future<void> Function() job) async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await job();
-    } catch (e) {
-      if (mounted) setState(() => _error = communityError(e));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _send() => _run(() async {
-        final e = _email.text.trim();
-        if (!e.contains('@') || !e.contains('.')) {
-          throw Exception('That does not look like an email address.');
-        }
-        await _svc.sendCode(e);
-        if (mounted) setState(() => _sent = true);
-      });
-
-  Future<void> _verify() => _run(() async {
-        await _svc.verifyCode(_email.text, _code.text);
-        if (mounted) Navigator.of(context).maybePop();
-      });
-
-  @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: S.x4),
-          children: [
-            const NavBar('Sign in'),
-            const SizedBox(height: S.x4),
-            Text(
-              _sent
-                  ? 'We sent a code to ${_email.text.trim()}. It can take a '
-                      'minute; check spam too.'
-                  : 'Your email, and we send you a code. No password.',
-              style: F.body.copyWith(color: p.ink2, height: 1.45),
-            ),
-            const SizedBox(height: S.x5),
-            if (!_sent)
-              AppField(
-                label: 'Email',
-                controller: _email,
-                keyboardType: TextInputType.emailAddress,
-                autofocus: true,
-                autocorrect: false,
-                enableSuggestions: false,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _busy ? null : _send(),
-              )
-            else
-              AppField(
-                label: 'Code',
-                controller: _code,
-                keyboardType: TextInputType.number,
-                autofocus: true,
-                maxLength: 8,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _busy ? null : _verify(),
-                textStyle: F.t2.copyWith(letterSpacing: 6),
-              ),
-            if (_error != null) ...[
-              const SizedBox(height: S.x3),
-              ErrorLine(_error!),
-            ],
-            const SizedBox(height: S.x5),
-            BigButton(_sent ? 'Sign in' : 'Send the code',
-                busy: _busy, onTap: _busy ? null : (_sent ? _verify : _send)),
-            if (_sent) ...[
-              const SizedBox(height: S.x3),
-              Center(
-                child: TextAction('Use another email', () {
-                  setState(() {
-                    _sent = false;
-                    _code.clear();
-                    _error = null;
-                  });
-                }),
-              ),
-            ],
-          ],
-        ),
-      ),
     );
   }
 }
@@ -440,9 +337,10 @@ class _SignedIn extends StatelessWidget {
                   trailing: CommunityAvatar(me.name, me.hue, size: S.x8),
                   onTap: () => _toggle(c,
                       () => _svc.updateProfile(hue: (me.hue + 47) % 360))),
-              SetRow(LucideIcons.logOut, C.dialStrain, 'Sign out',
-                  value: _svc.user?.email ?? '',
-                  onTap: () => _toggle(c, _svc.signOut)),
+              if (!_svc.anonymous)
+                SetRow(LucideIcons.logOut, C.dialStrain, 'Sign out',
+                    value: _svc.user?.email ?? '',
+                    onTap: () => _toggle(c, _svc.signOut)),
               SetRow(LucideIcons.trash2, C.dialStrain, 'Delete my account',
                   danger: true, onTap: () => _delete(c)),
             ]),

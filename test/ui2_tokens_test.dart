@@ -485,7 +485,7 @@ const _notComponents = {
   // The community's pages: they read a signed-in server session, which a
   // gallery cannot have. The leaderboard rules are in
   // `community_leaderboard_test.dart`; the avatar is in the gallery.
-  'CommunityScreen', 'CommunitySignIn', 'TeamScreen', 'MemberProfile',
+  'CommunityScreen', 'TeamScreen', 'MemberProfile',
   // The window chart's bpm gutter: drawn against the chart's own plot rect,
   // meaningless on its own.
   'WindowTicks',

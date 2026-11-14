@@ -180,19 +180,18 @@ class CommunityService extends ChangeNotifier {
 
   // ── sign in ──────────────────────────────────────────────────────────────
 
-  Future<void> sendCode(String email) async {
+  /// In with no email and no password: an anonymous account tied to this
+  /// phone. The name is asked for straight after.
+  Future<void> join() async {
     await ensureReady();
-    await _db.auth.signInWithOtp(
-        email: email.trim(), shouldCreateUser: true, emailRedirectTo: null);
-  }
-
-  Future<void> verifyCode(String email, String code) async {
-    await ensureReady();
-    await _db.auth.verifyOTP(
-        type: OtpType.email, email: email.trim(), token: code.trim());
+    if (signedIn) return;
+    await _db.auth.signInAnonymously();
     Prefs.setBool(kUsed, true);
     await refresh();
   }
+
+  /// An anonymous account cannot be signed back into once signed out.
+  bool get anonymous => user?.isAnonymous ?? false;
 
   /// Whether Google sign-in is switched on in the project. The button only
   /// shows when it is, so it never leads to "provider is not enabled".
