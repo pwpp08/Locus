@@ -1096,6 +1096,9 @@ class CoachEngine {
               await LocalDb.instance, args['date']));
         case 'get_medications':
           return _figures.note(await CoachActions.medications(await LocalDb.instance));
+        case 'get_app_state':
+          return _figures.note(await CoachActions.appState(
+              await LocalDb.instance, await api.getProfile()));
         // data — one saved ECG reading, by id. Bound query + bounded payload;
         // the packet tables stay unreachable through run_sql.
         case 'get_ecg_reading':
@@ -1225,6 +1228,7 @@ class CoachEngine {
       case 'get_today': return 'Reading today…';
       case 'get_nutrition': return 'Reading your food log…';
       case 'get_medications': return 'Reading your medications…';
+      case 'get_app_state': return 'Reading your settings…';
       case 'render': return 'Rendering ${args['type'] ?? 'figure'}…';
       default: return 'Working…';
     }
@@ -1285,6 +1289,16 @@ class CoachEngine {
         'missing_segments) — WHOOP MG ECG readings, SUMMARY only (the '
         'category is the band\'s own result); the waveform is in '
         'get_ecg_reading. '
+        'v_journal(date,tags,note); '
+        'v_journal_values(date,field,label,unit,value,at_min) — mood, energy, '
+        'water_ml, caffeine_mg, alcohol_units, weight_kg and custom fields; '
+        'v_cycle(date,kind,symptoms,note); '
+        'v_strength_sets(date,session_id,exercise,set_index,reps,load_kg,rpe,'
+        'hold_sec,rest_sec); v_strength_records(exercise,kind,value,date); '
+        'v_labs(date,marker,label,value,unit,ref_low,ref_high,note); '
+        'v_breathing(date,start_ts,minutes,pattern,coherence,pre_hrv,post_hrv); '
+        'v_naps(date,start_ts,end_ts,duration_min,source); '
+        'v_detected_activities(date,kind,start_ts,end_ts,duration_min,status). '
         'Read-only, derived only — no other tables. Dates are \'YYYY-MM-DD\'; '
         'timestamps are epoch seconds. Prefer aggregates (AVG/MIN/MAX/COUNT) over '
         'SELECT *. Results are capped at 200 rows.',
@@ -1310,6 +1324,10 @@ class CoachEngine {
     _fn('get_medications',
         'Read the medication/supplement schedule and today\'s doses '
         '(taken/skipped/missed/upcoming). Not in run_sql — use this.', {}),
+    _fn('get_app_state',
+        'The person\'s profile (body, goals, HR zones), step goal, sleep '
+        'planner, activity strain goal, zone alert, alarm days and the band '
+        '(model, worn, last seen, battery). Not in run_sql — use this.', {}),
     _fn('get_ecg_reading',
         'Read ONE saved WHOOP MG ECG reading by id: local time, status, the '
         'BAND-REPORTED category and result code, average HR, signal quality, '

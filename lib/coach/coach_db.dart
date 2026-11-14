@@ -66,6 +66,15 @@ class CoachDb {
     'v_baselines',
     'v_insights',
     'v_ecg_readings',
+    'v_journal',
+    'v_journal_values',
+    'v_cycle',
+    'v_strength_sets',
+    'v_strength_records',
+    'v_labs',
+    'v_breathing',
+    'v_naps',
+    'v_detected_activities',
   };
 
   // Keywords that must never appear as standalone tokens (anything mutating or
@@ -96,6 +105,12 @@ class CoachDb {
     'sleep_override', 'sleep_session_candidates', 'wake_day_features',
     'workout_suggestions', 'workout_route', 'live_coverage',
     'session_score_mask', 'session_sensor',
+    // Base tables of the log views: named only through their view, so a
+    // filter there (private sessions) cannot be stepped around.
+    'journal_metric', 'journal_field_def', 'strength_set', 'strength_record',
+    'strength_workout', 'exercise_def', 'lab_result', 'lab_marker_def',
+    'breathing_session', 'sleep_nap', 'activity_suggestions', 'alarm_schedule',
+    'device',
     // raw / decoded substrate
     'raw_records', 'raw_archive', 'decoded_onehz', 'decoded_rr', 'samples',
     'events', 'band_events', 'band_battery', 'substrate_archive',

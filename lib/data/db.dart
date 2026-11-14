@@ -5341,6 +5341,15 @@ class LocalDb {
       'v_baselines',
       'v_insights',
       'v_ecg_readings',
+      'v_journal',
+      'v_journal_values',
+      'v_cycle',
+      'v_strength_sets',
+      'v_strength_records',
+      'v_labs',
+      'v_breathing',
+      'v_naps',
+      'v_detected_activities',
     ];
     for (final v in views) {
       await db.execute('DROP VIEW IF EXISTS $v');
@@ -5547,6 +5556,71 @@ class LocalDb {
              sample_count, sample_rate_hz, sample_unit,
              min_uv, max_uv, rms_uv, missing_segments
       FROM ecg_reading
+    ''');
+    // ── The person's own logs, for the coach (all read-only, all local). ──
+    // Journal: the day's tags and note, and every number logged for a day
+    // (mood, water, weight, custom fields) with its label and unit.
+    await db.execute('''
+      CREATE VIEW v_journal AS
+      SELECT date, tags_json AS tags, note FROM journal
+    ''');
+    await db.execute('''
+      CREATE VIEW v_journal_values AS
+      SELECT m.date, m.field, COALESCE(d.label, m.field) AS label,
+             COALESCE(d.unit, '') AS unit, m.value, m.at_min
+      FROM journal_metric m LEFT JOIN journal_field_def d ON d.key = m.field
+    ''');
+    // Cycle: period days and symptom days, one row per entry.
+    await db.execute('''
+      CREATE VIEW v_cycle AS
+      SELECT date, kind, NULL AS symptoms, note FROM cycle_log
+      UNION ALL
+      SELECT date, 'symptoms', symptoms_json, note FROM cycle_symptom
+    ''');
+    // Strength: every logged set, dated by its session's LOCAL day. Private
+    // sessions stay out, as in v_sessions.
+    await db.execute('''
+      CREATE VIEW v_strength_sets AS
+      SELECT strftime('%Y-%m-%d', s.start_ts, 'unixepoch', 'localtime') AS date,
+             x.session_id, COALESCE(e.label, x.exercise_key) AS exercise,
+             x.set_index, x.reps, x.load_kg, x.rpe, x.hold_sec, x.rest_sec
+      FROM strength_set x
+      JOIN sessions s ON s.id = x.session_id AND s.private = 0
+      LEFT JOIN exercise_def e ON e.key = x.exercise_key
+    ''');
+    await db.execute('''
+      CREATE VIEW v_strength_records AS
+      SELECT COALESCE(e.label, r.exercise_key) AS exercise, r.kind, r.value,
+             strftime('%Y-%m-%d', r.at_ts, 'unixepoch', 'localtime') AS date
+      FROM strength_record r LEFT JOIN exercise_def e ON e.key = r.exercise_key
+    ''');
+    // Blood work typed in by hand, with the reference range the lab gave.
+    await db.execute('''
+      CREATE VIEW v_labs AS
+      SELECT r.taken_on AS date, r.marker, COALESCE(d.label, r.marker) AS label,
+             r.value, r.unit, d.ref_low, d.ref_high, r.note
+      FROM lab_result r LEFT JOIN lab_marker_def d ON d.key = r.marker
+    ''');
+    // Paced-breathing sessions; HRV before and after where it was measured.
+    await db.execute('''
+      CREATE VIEW v_breathing AS
+      SELECT strftime('%Y-%m-%d', started_at, 'unixepoch', 'localtime') AS date,
+             started_at AS start_ts, ROUND(seconds / 60.0, 1) AS minutes,
+             pattern, coherence, pre_rmssd AS pre_hrv, post_rmssd AS post_hrv
+      FROM breathing_session
+    ''');
+    await db.execute('''
+      CREATE VIEW v_naps AS
+      SELECT day_id AS date, start_ts, end_ts,
+             (end_ts - start_ts) / 60 AS duration_min, source
+      FROM sleep_nap
+    ''');
+    // Activities the app noticed in the data, and what the person did with them.
+    await db.execute('''
+      CREATE VIEW v_detected_activities AS
+      SELECT day_id AS date, kind, start_ts, end_ts,
+             (end_ts - start_ts) / 60 AS duration_min, status
+      FROM activity_suggestions
     ''');
   }
 

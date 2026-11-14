@@ -33,6 +33,7 @@ import '../data/local_repository.dart';
 import '../data/med_store.dart';
 import '../data/nutrition_store.dart';
 import '../health/health_export.dart';
+import '../state/prefs.dart';
 
 /// Raised when the model's arguments cannot be honoured. The message goes back
 /// into the transcript so the model can correct itself rather than retrying the
@@ -241,6 +242,59 @@ class CoachActions {
   /// the same number the Nutrition screen shows — including its FLOOR flag, the
   /// one thing a naive sum destroys (a day with one unlabelled item has a total
   /// that is a lower bound, not a total).
+  /// Profile keys that identify the person rather than describe their body
+  /// or goals. The coach never needs them, so they never leave the phone.
+  static final _identifying =
+      RegExp(r'name|mail|photo|avatar|token|bio|location|address|phone|^id$');
+
+  /// Settings and state that live outside the database: the profile (body,
+  /// goals, zones), the sleep planner, the activity strain goal, the alarm
+  /// days and the band. Read-only.
+  static Future<String> appState(
+    Database db,
+    Map<String, dynamic> profile,
+  ) async {
+    final alarms = await db.query('alarm_schedule', orderBy: 'weekday');
+    final devices = await db.query('device',
+        columns: ['label', 'tier', 'role', 'wearing', 'last_seen']);
+    final battery = await db.query('band_battery',
+        columns: ['ts', 'battery_pct', 'charging', 'wrist_on'],
+        orderBy: 'ts DESC',
+        limit: 1);
+    final wakeDay = Prefs.getString(Prefs.sleepPlannerWakeDay, '');
+    final wakeMin = Prefs.getInt(Prefs.sleepPlannerWakeMin, -1);
+    String hm(int m) =>
+        '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+    return jsonEncode({
+      'profile': {
+        for (final e in profile.entries)
+          if (!_identifying.hasMatch(e.key.toLowerCase())) e.key: e.value,
+      },
+      'sleep_planner': {
+        'goal': Prefs.getString(Prefs.sleepPlannerGoal, 'optimize'),
+        if (wakeMin >= 0 && wakeDay.isNotEmpty)
+          'wake_time_set': {'for_morning': wakeDay, 'time': hm(wakeMin)},
+      },
+      'activity_strain_goal':
+          num.tryParse(Prefs.getString(Prefs.activityStrainTarget, '')),
+      'zone_alert': {
+        'on': Prefs.getBool(Prefs.zoneAlertEnabled, false),
+        'zone': Prefs.getInt(Prefs.zoneAlertTargetZone, 0),
+      },
+      'alarms': [
+        for (final a in alarms)
+          {
+            'weekday': a['weekday'],
+            'time': hm((a['hour'] as int) * 60 + (a['minute'] as int)),
+            'on': a['enabled'] == 1,
+            'smart_window_min': a['smart_window_minutes'],
+          },
+      ],
+      'bands': devices,
+      'battery': battery.isEmpty ? null : battery.first,
+    });
+  }
+
   static Future<String> nutritionDay(Database db, Object? date) async {
     final d = day(date);
     final entries = await NutritionDb.entriesForDay(db, d);
