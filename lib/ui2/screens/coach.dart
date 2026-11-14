@@ -25,7 +25,6 @@ import 'dart:convert' show utf8;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -38,6 +37,9 @@ import '../../state/app_state.dart';
 import '../ui2.dart';
 import 'ai_briefing.dart';
 import 'coach_figures.dart';
+import 'coach_parts.dart';
+import 'coach_workout.dart';
+import '../../coach/workout_plan.dart';
 import 'home_screen.dart' show go, pad, repoOf;
 import 'journal_compose.dart' show OsTextField;
 import 'plus_menu.dart' show showAnchoredMenu;
@@ -167,6 +169,9 @@ class _CoachScreenState extends State<CoachScreen> {
   String? _lastAsked;
   final _plusKey = GlobalKey();
 
+  /// Scrolled up far enough from the newest line to offer the way back.
+  bool _farFromEnd = false;
+
   static List<String> _starters(BuildContext c) {
     final l = AppLocalizations.of(c);
     return [
@@ -195,6 +200,11 @@ class _CoachScreenState extends State<CoachScreen> {
     // The send arrow lights once there is something to send.
     _input.addListener(() {
       if (mounted) setState(() {});
+    });
+    _scroll.addListener(() {
+      final far = _scroll.hasClients &&
+          _scroll.position.maxScrollExtent - _scroll.offset > S.x16 * 2;
+      if (far != _farFromEnd && mounted) setState(() => _farFromEnd = far);
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _initEngine());
   }
@@ -410,7 +420,22 @@ class _CoachScreenState extends State<CoachScreen> {
     super.dispose();
   }
 
-  Future<void> _send(String text) async {
+  /// Ask the latest question again for a new answer.
+  Future<void> _regenerate() async {
+    final engine = _engine;
+    final q = engine?.takeBackLastTurn();
+    if (engine == null || q == null) return;
+    setState(() {
+      _items
+        ..clear()
+        ..addAll(engine.transcript);
+    });
+    // A file sent with it goes again, but the bubble shows the question.
+    final i = q.indexOf('\n\n--- ');
+    await _send(q, display: i < 0 ? null : q.substring(0, i));
+  }
+
+  Future<void> _send(String text, {String? display}) async {
     var t = text.trim();
     final engine = _engine;
     final images = List<CoachImage>.of(_images);
@@ -425,14 +450,15 @@ class _CoachScreenState extends State<CoachScreen> {
     _lastAsked = t;
     // The bubble names what went with the question; the file itself goes to
     // the model in full, after it.
-    final shown = !attached
+    final shown = display ??
+        (!attached
         ? null
         : [
             t,
             if (images.length == 1) '(a picture attached)',
             if (images.length > 1) '(${images.length} pictures attached)',
             if (file != null) '(attached: ${file.name})',
-          ].join('\n');
+          ].join('\n'));
     final sent =
         file == null ? t : '$t\n\n--- ${file.name} ---\n${file.text}';
     _input.clear();
@@ -673,115 +699,57 @@ class _CoachScreenState extends State<CoachScreen> {
     );
   }
 
-  /// The sheet's top: the grab bar, the orb with the model in a small tag,
-  /// and the way into past chats.
-  Widget _sheetHeader(BuildContext c, P p, CoachConfig cfg) {
-    final l = AppLocalizations.of(c);
-    final model = cfg.configured ? cfg.model : (l?.coachNotSetUp ?? 'Not set up');
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x2, S.x2),
-      child: Column(children: [
-        Container(
-          width: S.x8,
-          height: S.x1,
-          decoration: BoxDecoration(
-              color: p.ink.withValues(alpha: .3), borderRadius: R.rPill),
-        ),
-        const SizedBox(height: S.x2),
-        Row(children: [
-          const AiOrb(size: S.x8),
-          const SizedBox(width: S.x2),
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: S.x2, vertical: S.half),
-              decoration: BoxDecoration(
-                color: p.ink.withValues(alpha: .14),
-                borderRadius: R.rSm,
-              ),
-              child: Text(
-                model.toUpperCase(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: F.over.copyWith(
-                    color: p.ink,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2),
-              ),
-            ),
-          ),
-          const Spacer(),
-          Pressable(
-            onTap: _menu,
-            semanticLabel: l?.coachMenuSemantic ?? 'Chats and AI settings',
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: S.x2),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text('Chats',
-                    style: F.body.copyWith(
-                        color: p.ink, fontWeight: FontWeight.w600)),
-                const SizedBox(width: S.x2),
-                Icon(LucideIcons.history, size: I.md, color: p.ink),
-              ]),
-            ),
-          ),
-        ]),
-      ]),
-    );
-  }
+  /// The model the coach runs on, for its tag.
+  String _modelLabel(BuildContext c, CoachConfig cfg) => cfg.configured
+      ? cfg.model
+      : (AppLocalizations.of(c)?.coachNotSetUp ?? 'Not set up');
 
-  /// Back, the coach's name with the model under it in a small tag, and
-  /// History.
-  Widget _header(BuildContext c, P p, CoachConfig cfg) {
-    final l = AppLocalizations.of(c);
-    final model = cfg.configured ? cfg.model : (l?.coachNotSetUp ?? 'Not set up');
-    Widget icon(IconData i, String label, VoidCallback onTap) => Pressable(
-          onTap: onTap,
-          semanticLabel: label,
-          child: SizedBox.square(
-            dimension: S.x12,
-            child: Icon(i, size: I.lg + S.x1, color: p.ink),
-          ),
-        );
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(S.x2, S.x2, S.x2, S.x3),
-      child: Row(children: [
-        icon(LucideIcons.chevronLeft, l?.supplementNavBack ?? 'Back',
-            () => Navigator.maybePop(c)),
-        Expanded(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text(
-              'LOCUS COACH',
-              style: F.body.copyWith(
-                  color: p.ink,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 2.2),
-            ),
-            const SizedBox(height: S.x1),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: S.x2, vertical: S.half),
-              decoration: BoxDecoration(
-                color: p.ink.withValues(alpha: .14),
-                borderRadius: R.rSm,
-              ),
-              child: Text(
-                model.toUpperCase(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: F.over.copyWith(
-                    color: p.ink,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2),
-              ),
-            ),
-          ]),
+  Widget _historyButton(BuildContext c) => Pressable(
+        onTap: _menu,
+        semanticLabel: AppLocalizations.of(c)?.coachMenuSemantic ??
+            'Chats and AI settings',
+        child: const SizedBox.square(
+          dimension: S.tap,
+          child: Icon(LucideIcons.history, size: I.lg, color: C.white),
         ),
-        icon(LucideIcons.history,
-            l?.coachMenuSemantic ?? 'Chats and AI settings', _menu),
-      ]),
-    );
-  }
+      );
+
+  /// The sheet's top: the grab bar, the coach's tag, and past chats.
+  Widget _sheetHeader(BuildContext c, CoachConfig cfg) => Padding(
+        padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x2, S.x1),
+        child: Column(children: [
+          Container(
+            width: S.x10,
+            height: S.x1,
+            decoration: BoxDecoration(
+                color: C.white.withValues(alpha: .3), borderRadius: R.rPill),
+          ),
+          const SizedBox(height: S.x2),
+          Row(children: [
+            Flexible(child: CoachTag(_modelLabel(c, cfg))),
+            const Spacer(),
+            _historyButton(c),
+          ]),
+        ]),
+      );
+
+  /// Back, the coach's tag in the middle, and past chats.
+  Widget _header(BuildContext c, CoachConfig cfg) => Padding(
+        padding: const EdgeInsets.fromLTRB(S.x1, S.x2, S.x1, S.x2),
+        child: Row(children: [
+          Pressable(
+            onTap: () => Navigator.maybePop(c),
+            semanticLabel:
+                AppLocalizations.of(c)?.supplementNavBack ?? 'Back',
+            child: const SizedBox.square(
+              dimension: S.tap,
+              child: Icon(LucideIcons.chevronLeft, size: I.lg, color: C.white),
+            ),
+          ),
+          Expanded(child: Center(child: CoachTag(_modelLabel(c, cfg)))),
+          _historyButton(c),
+        ]),
+      );
 
   @override
   Widget build(BuildContext c) =>
@@ -790,54 +758,58 @@ class _CoachScreenState extends State<CoachScreen> {
   Widget _build(BuildContext c) {
     final p = P.of(c);
     final cfg = c.watch<CoachConfig>();
+    final ready = cfg.configured && _engine != null;
+    final replies = ready && !_busy ? _replies() : const <String>[];
+    final column = Column(children: [
+      widget.sheet ? _sheetHeader(c, cfg) : _header(c, cfg),
+      Expanded(
+        child: Stack(children: [
+          Positioned.fill(child: _body(c, p, cfg)),
+          if (_farFromEnd)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: S.x2,
+              child: Center(child: CoachScrollDown(onTap: _scrollDown)),
+            ),
+        ]),
+      ),
+      if (replies.isNotEmpty) ...[
+        CoachReplyChips(replies, onTap: _send),
+        const SizedBox(height: S.x2),
+      ],
+      if (ready) _composer(c, p),
+    ]);
     if (widget.sheet) {
       return FractionallySizedBox(
-        heightFactor: .9,
+        heightFactor: .92,
         child: ClipRRect(
           borderRadius:
               const BorderRadius.vertical(top: Radius.circular(R.xxl)),
-          child: DecoratedBox(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: C.coachSheet,
-              ),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Column(children: [
-                _sheetHeader(c, p, cfg),
-                Expanded(child: _body(c, p, cfg)),
-                if (cfg.configured && _engine != null) _composer(c, p),
-              ]),
-            ),
+          child: CoachGround(
+            child: SafeArea(top: false, child: column),
           ),
         ),
       );
     }
     return Scaffold(
-      backgroundColor: C.coachSky.last,
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: C.coachSky,
-            stops: C.coachSkyStops,
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _header(c, p, cfg),
-              Expanded(child: _body(c, p, cfg)),
-              if (cfg.configured && _engine != null) _composer(c, p),
-            ],
-          ),
-        ),
-      ),
+      backgroundColor: C.coachNight.last,
+      body: CoachGround(child: SafeArea(child: column)),
     );
+  }
+
+  /// The latest answer's suggested replies, until the person says anything.
+  List<String> _replies() {
+    for (var i = _items.length - 1; i >= 0; i--) {
+      final it = _items[i];
+      if (it.kind == CoachItemKind.user || it.kind == CoachItemKind.error) {
+        return const [];
+      }
+      if (it.kind == CoachItemKind.assistant && it.replies.isNotEmpty) {
+        return it.replies;
+      }
+    }
+    return const [];
   }
 
   Widget _body(BuildContext c, P p, CoachConfig cfg) {
@@ -930,7 +902,8 @@ class _CoachScreenState extends State<CoachScreen> {
       );
     }
     final waiting = _busy && _streamingItem == null;
-    final last = _items.isEmpty ? null : _items.last;
+    final lastAnswer =
+        _items.lastIndexWhere((i) => i.kind == CoachItemKind.assistant);
     // The lines fade out into the composer rather than stop at a hard edge.
     return ShaderMask(
       blendMode: BlendMode.dstIn,
@@ -947,20 +920,21 @@ class _CoachScreenState extends State<CoachScreen> {
       itemBuilder: (_, i) {
         if (i == _items.length) {
           return _Thinking(
-            lead: last == null || last.kind == CoachItemKind.user,
             status: _status == null
                 ? null
                 : coachPresentationText(AppLocalizations.of(context), _status!),
           );
         }
-        // The coach's mark leads each run of answers, not every line of one.
-        final prev = i == 0 ? null : _items[i - 1];
         final asked = _lastAsked;
         return _Bubble(
           item: _items[i],
-          lead: prev == null ||
-              prev.kind == CoachItemKind.user ||
-              prev.kind == CoachItemKind.error,
+          onAlternatives: !_busy && i == _items.length - 1 ||
+                  !_busy && i == _items.length - 2 &&
+                      _items.last.kind == CoachItemKind.assistant
+              ? () => _send('Give me different options.')
+              : null,
+          streaming: identical(_items[i], _streamingItem),
+          onRegenerate: !_busy && i == lastAnswer ? _regenerate : null,
           // Only the latest error, and only once nothing is on its way.
           // ponytail: the failed question stays in the history, so a retry
           // sends it a second time; models take two user turns in a row.
@@ -976,80 +950,83 @@ class _CoachScreenState extends State<CoachScreen> {
     );
   }
 
-  /// (+) for suggestions, a new chat, and the message box: an outlined field
-  /// on a coach-coloured edge with the send arrow inside it.
+  /// The (+) square, and the message box: a dark field in a violet-to-blue
+  /// edge with the send arrow inside it.
   Widget _composer(BuildContext c, P p) {
     final l = AppLocalizations.of(c);
     final attached = _images.isNotEmpty || _file != null;
     final canSend = !_busy && (_input.text.trim().isNotEmpty || attached);
-    Widget tool(IconData i, String label, VoidCallback? onTap, Color ink) =>
-        Pressable(
-          onTap: onTap,
-          semanticLabel: label,
-          child: SizedBox(
-            width: S.x10,
-            height: S.x12,
-            child: Icon(i, size: I.lg + S.x1, color: ink),
-          ),
-        );
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          S.x2, 0, S.x4, S.x3 + MediaQuery.of(c).viewInsets.bottom),
+          S.x4, S.x1, S.x4, S.x3 + MediaQuery.of(c).viewInsets.bottom),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         if (attached) _attachments(c, p),
-        Row(children: [
-        KeyedSubtree(
-          key: _plusKey,
-          child: tool(LucideIcons.plus, 'New conversation, a picture or a file',
-              _busy ? null : _plus, p.ink),
-        ),
-        const SizedBox(width: S.x2),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(S.half),
-            decoration: const BoxDecoration(
-              borderRadius: R.rXl,
-              gradient: LinearGradient(
-                  colors: [C.coachEdgeA, C.coachEdgeB]),
-            ),
-            child: Container(
-              constraints: const BoxConstraints(minHeight: S.x10),
-              padding: const EdgeInsets.only(left: S.x3),
-              decoration: BoxDecoration(
-                color: C.coachSky.last,
-                borderRadius:
-                    const BorderRadius.all(Radius.circular(R.xl - S.half)),
+        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          KeyedSubtree(
+            key: _plusKey,
+            child: Pressable(
+              onTap: _busy ? null : _plus,
+              semanticLabel: 'New conversation, a picture or a file',
+              child: Container(
+                width: S.tap + S.x1,
+                height: S.tap + S.x1,
+                decoration: const BoxDecoration(
+                    color: C.coachPlus, borderRadius: R.rLg),
+                child: Icon(LucideIcons.plus,
+                    size: I.lg, color: _busy ? p.ink3 : C.white),
               ),
-              child: Row(children: [
-                Expanded(
-                  child: Semantics(
-                    label: l?.coachAskLabel ?? 'Ask the coach',
-                    textField: true,
-                    child: AppField(
-                      controller: _input,
-                      minLines: 1,
-                      maxLines: 4,
-                      enabled: !_busy,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: _busy ? null : _send,
-                      bare: true,
-                      hint: widget.sheet ? 'Ask a question …' : '',
-                    ),
-                  ),
-                ),
-                Pressable(
-                  semanticLabel: l?.coachSendLabel ?? 'Send',
-                  onTap: canSend ? () => _send(_input.text) : null,
-                  child: SizedBox.square(
-                    dimension: S.x10,
-                    child: Icon(LucideIcons.arrowUp,
-                        size: I.md, color: canSend ? p.ink : p.ink3),
-                  ),
-                ),
-              ]),
             ),
           ),
-        ),
+          const SizedBox(width: S.x3),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(S.hair + S.half / 4),
+              decoration: BoxDecoration(
+                borderRadius: R.rXl,
+                // Lit at the left, fading into the ground at the right.
+                gradient: LinearGradient(colors: [
+                  C.coachGoA,
+                  C.coachGoB.withValues(alpha: .35),
+                ]),
+              ),
+              child: Container(
+                constraints: const BoxConstraints(minHeight: S.tap),
+                padding: const EdgeInsets.only(left: S.x4),
+                decoration: const BoxDecoration(
+                  color: C.coachField,
+                  borderRadius:
+                      BorderRadius.all(Radius.circular(R.xl - S.hair)),
+                ),
+                child: Row(children: [
+                  Expanded(
+                    child: Semantics(
+                      label: l?.coachAskLabel ?? 'Ask the coach',
+                      textField: true,
+                      child: AppField(
+                        controller: _input,
+                        minLines: 1,
+                        maxLines: 4,
+                        enabled: !_busy,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: _busy ? null : _send,
+                        bare: true,
+                        hint: 'Ask Locus anything',
+                      ),
+                    ),
+                  ),
+                  Pressable(
+                    semanticLabel: l?.coachSendLabel ?? 'Send',
+                    onTap: canSend ? () => _send(_input.text) : null,
+                    child: SizedBox.square(
+                      dimension: S.tap,
+                      child: Icon(LucideIcons.arrowUp,
+                          size: I.md, color: canSend ? C.white : p.ink3),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+          ),
         ]),
       ]),
     );
@@ -1138,7 +1115,8 @@ class _Starter extends StatelessWidget {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x3),
-        decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
+        decoration: BoxDecoration(
+            color: C.white.withValues(alpha: .07), borderRadius: R.rXl),
         child: Row(children: [
           Container(
             width: S.x8,
@@ -1159,34 +1137,10 @@ class _Starter extends StatelessWidget {
   }
 }
 
-/// The coach's side of a conversation: its mark in a fixed gutter (shown on the
-/// first line of a run, empty after it) and the content beside it.
-class _CoachRow extends StatelessWidget {
-  final bool lead;
-  final Widget child;
-  const _CoachRow({required this.lead, required this.child});
-
-  static const double gutter = S.x6;
-
-  @override
-  Widget build(BuildContext c) => Padding(
-        padding: const EdgeInsets.only(bottom: S.x4),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          SizedBox(
-            width: gutter,
-            child: lead ? const AiOrb(size: gutter) : null,
-          ),
-          const SizedBox(width: S.x3),
-          Expanded(child: child),
-        ]),
-      );
-}
-
 /// Waiting on the model: three dots, and what it is doing if it says.
 class _Thinking extends StatefulWidget {
-  final bool lead;
   final String? status;
-  const _Thinking({required this.lead, this.status});
+  const _Thinking({this.status});
 
   @override
   State<_Thinking> createState() => _ThinkingState();
@@ -1228,8 +1182,8 @@ class _ThinkingState extends State<_Thinking>
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    return _CoachRow(
-      lead: widget.lead,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: S.x5),
       child: Row(children: [
         AnimatedBuilder(
           animation: _t,
@@ -1266,68 +1220,72 @@ class _ThinkingState extends State<_Thinking>
   }
 }
 
-/// One transcript entry. The user's turn is a bubble on the right; the coach
-/// answers on the page beside its mark (no card chrome — a card around every
-/// answer makes a chat read as a feed); figures keep their own frame.
+/// One transcript entry: the person's turn in a bubble on the right, the
+/// coach's on the ground, its figures in a coach card.
 class _Bubble extends StatelessWidget {
   final CoachItem item;
 
-  /// First of a run of the coach's items, so it carries the coach's mark.
-  final bool lead;
+  /// Still arriving: no copy row yet, and the replies line held back.
+  final bool streaming;
+
+  /// Answer again; null shows no button (only the latest answer has one).
+  final VoidCallback? onRegenerate;
 
   /// An error's Retry; null shows none.
   final VoidCallback? onRetry;
-  const _Bubble({required this.item, this.lead = true, this.onRetry});
+
+  /// Ask for other workouts; only on the latest proposal.
+  final VoidCallback? onAlternatives;
+  const _Bubble({
+    required this.item,
+    this.onAlternatives,
+    this.streaming = false,
+    this.onRegenerate,
+    this.onRetry,
+  });
 
   @override
   Widget build(BuildContext c) {
-    final p = P.of(c);
+    Widget figure(Map<String, dynamic> spec) => Padding(
+          padding: const EdgeInsets.only(bottom: S.x5),
+          child: CoachCard(
+            padding: const EdgeInsets.all(S.x3),
+            child: CoachFigure(spec: spec),
+          ),
+        );
     switch (item.kind) {
       case CoachItemKind.user:
-        return Align(
-          alignment: Alignment.centerRight,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: S.x4, left: S.x12),
-            padding: const EdgeInsets.symmetric(
-              horizontal: S.x4,
-              vertical: S.x3,
-            ),
-            decoration: BoxDecoration(
-              color: p.card2,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(R.xxl),
-                topRight: Radius.circular(R.xxl),
-                bottomLeft: Radius.circular(R.xxl),
-                bottomRight: Radius.circular(S.x1),
-              ),
-            ),
-            child: Text(
-              item.text ?? '',
-              style: F.body.copyWith(color: p.ink, height: 1.4),
-            ),
-          ),
-        );
+        return CoachUserBubble(item.text ?? '');
       case CoachItemKind.assistant:
-        return _CoachRow(
-          lead: lead,
-          child: GptMarkdown(
-            item.text ?? '',
-            style: F.head.copyWith(
-                color: p.ink.withValues(alpha: .84),
-                fontWeight: FontWeight.w400,
-                height: 1.6),
-          ),
+        final text = item.text ?? '';
+        return CoachAnswer(
+          streaming ? withoutRepliesTail(text) : text,
+          actions: !streaming,
+          onRegenerate: onRegenerate,
         );
       case CoachItemKind.chart:
-        return _CoachRow(
-          lead: lead,
-          child: CoachFigure(spec: item.chart!.toJson()),
-        );
+        return figure(item.chart!.toJson());
       case CoachItemKind.render:
-        return _CoachRow(
-          lead: lead,
-          child: CoachFigure(spec: item.render!),
-        );
+        final spec = item.render!;
+        if (spec['type'] == 'workout') {
+          final plans = [
+            for (final o in (spec['options'] as List? ?? const []))
+              ?WorkoutPlan.fromJson(o),
+          ];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: S.x4),
+            child: ValueListenableBuilder<int>(
+              valueListenable: WorkoutPlanStore.changed,
+              builder: (_, _, _) => CoachWorkoutOptions(
+                plans: plans,
+                committed: WorkoutPlanStore.current,
+                onCommit: WorkoutPlanStore.save,
+                onAlternatives: onAlternatives,
+              ),
+            ),
+          );
+        }
+        return figure(spec);
       case CoachItemKind.error:
         return Padding(
           padding: const EdgeInsets.only(bottom: S.x4),

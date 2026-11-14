@@ -80,7 +80,7 @@ void main() {
       ),
     ));
     await t.pump();
-    expect(find.text('Chats'), findsOneWidget);
+    expect(find.bySemanticsLabel('Chats and AI settings'), findsOneWidget);
     expect(t.takeException(), isNull);
   });
 

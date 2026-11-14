@@ -191,25 +191,25 @@ class C {
   static const coachEdgeA = Color(0xFF7E57C2);
   static const coachEdgeB = Color(0xFF3FA7B5);
 
-  /// The coach's ground, top to bottom: a warm dusk grey under the header,
-  /// slate behind the first lines, then near-black for the rest of the chat.
-  static const coachSky = [
-    Color(0xFF786C62),
-    Color(0xFF4B5158),
-    Color(0xFF29343F),
-    Color(0xFF161B20),
-    Color(0xFF111316),
+  /// The coach's ground, top to bottom: deep navy under the header into
+  /// near-black at the composer, with [coachGlow] lit at the top left.
+  static const coachNight = [
+    Color(0xFF12141E),
+    Color(0xFF0B0C11),
+    Color(0xFF09090C),
   ];
-  static const coachSkyStops = [0.0, 0.18, 0.36, 0.58, 1.0];
+  static const coachNightStops = [0.0, 0.4, 1.0];
+  static const coachGlow = Color(0xFF4A3A8F);
 
-  /// The floating button's coach sheet: deep violet at the top, near-black
-  /// at the composer.
-  static const coachSheet = [
-    Color(0xFF3A2766),
-    Color(0xFF231A40),
-    Color(0xFF15121F),
-  ];
+  /// The composer's field and the coach's cards: one step above the ground.
+  static const coachField = Color(0xFF12141D);
 
+  /// The composer's (+) square.
+  static const coachPlus = Color(0xFF25272E);
+
+  /// A coach card's primary button runs violet into sky blue.
+  static const coachGoA = Color(0xFF8B5CF6);
+  static const coachGoB = Color(0xFF52C6F5);
 
   /// The sleep recommendation's panel: a pale mint ground on the white sheet,
   /// inked in [char]. A ground, not an accent, so it is not in [all].
@@ -1437,6 +1437,9 @@ class Motion {
   /// One pulse of the ECG capture screen's contact rings. Phase is owned by
   /// the screen (like [breath]); nothing runs when [enabled] is false.
   static const ecgPulse = Duration(seconds: 2);
+
+  /// How long a Copy button reads Copied before it turns back.
+  static const copied = Duration(seconds: 2);
 
   /// The ECG live-preview repaint cadence: incoming packets only mark the
   /// ring dirty, and the screen's clock repaints at most this often.

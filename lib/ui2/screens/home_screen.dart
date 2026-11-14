@@ -39,6 +39,9 @@ import '../../ai/briefing.dart' show BriefingPeriod, currentBriefingPeriod;
 import 'add_activity.dart' show openAddActivity;
 import 'calibration.dart' show Calibration, CalibrationCard;
 import 'coach.dart' show CoachScreen;
+import 'coach_workout.dart' show TodayPlanCard;
+import '../../coach/workout_plan.dart';
+import '../activity/catalogue.dart' show activityByName;
 import 'day_heart.dart';
 import 'detected_activities.dart';
 import 'health_monitor.dart'
@@ -915,6 +918,29 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             onOutlook: () => go(c, CoachScreen(outlook: period)),
           );
         }),
+      // The workout committed in the coach for today, ready to start.
+      if (isToday)
+        ValueListenableBuilder<int>(
+          valueListenable: WorkoutPlanStore.changed,
+          builder: (c, _, _) {
+            final plan = WorkoutPlanStore.forDay(todayLabel());
+            if (plan == null) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(top: S.x3),
+              child: TodayPlanCard(
+                plan,
+                onDrop: WorkoutPlanStore.clear,
+                onStart: () {
+                  // The plan's strain is the session's goal on Start.
+                  Prefs.setString(Prefs.activityStrainTarget,
+                      plan.strain?.toStringAsFixed(1) ?? '');
+                  go(c, StartActivityScreen(
+                      initial: activityByName(plan.sport)));
+                },
+              ),
+            );
+          },
+        ),
       _MyDay(
         day: d.dayId ?? _day ?? todayLabel(),
         night: _night,

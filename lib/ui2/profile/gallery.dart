@@ -47,6 +47,9 @@ import '../activity/catalogue.dart';
 import '../activity/exercise_image.dart';
 import '../activity/live.dart';
 import '../screens/plus_menu.dart';
+import '../screens/coach_parts.dart';
+import '../screens/coach_workout.dart';
+import '../../coach/workout_plan.dart';
 import '../activity/poster.dart'
     show PosterCard, PosterFormat, PosterStatRow, kPosterMapH, kPosterMapW;
 import '../activity/setup.dart' show ActivitySetup;
@@ -487,8 +490,85 @@ Map<String, Widget> componentCases() => {
           action: 'History'),
       ..._chartCases(),
       ..._coachFigureCases(),
+      ..._coachPartCases(),
+      ..._coachWorkoutCases(),
       ..._nutritionAndWellnessCases(),
     };
+
+/// The coach's chat pieces, on the coach's own ground.
+Map<String, Widget> _coachPartCases() => {
+  'coach_thread': CoachGround(
+    child: Padding(
+      padding: const EdgeInsets.all(S.x4),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const CoachTag('Coach'),
+        const SizedBox(height: S.x4),
+        const CoachUserBubble('Why was my recovery low today?'),
+        CoachAnswer(
+          'Your HRV was **48 ms**, against your usual **61 ms**, and you '
+          'slept **5:52**. Both point the same way.',
+          onRegenerate: () {},
+        ),
+        CoachReplyChips(const ['Plan an easy day', 'Show my HRV'],
+            onTap: (_) {}),
+        const SizedBox(height: S.x3),
+        Center(child: CoachScrollDown(onTap: () {})),
+      ]),
+    ),
+  ),
+  'coach_card': CoachGround(
+    child: Padding(
+      padding: const EdgeInsets.all(S.x4),
+      child: CoachCard(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('A card the coach made',
+              style: F.head.copyWith(color: C.white)),
+          const SizedBox(height: S.x3),
+          CoachGoButton('Commit', onTap: () {}),
+          const SizedBox(height: S.x2),
+          const CoachGoButton('Committed', done: true),
+        ]),
+      ),
+    ),
+  ),
+};
+
+const _galleryPlans = [
+  WorkoutPlan(
+      date: '2026-11-14',
+      sport: 'Running',
+      durationMin: 17,
+      zoneMin: [0, 3, 9, 5, 0],
+      strain: 10.1),
+  WorkoutPlan(
+      date: '2026-11-14',
+      sport: 'Cycling',
+      durationMin: 45,
+      zoneMin: [5, 30, 10, 0, 0]),
+];
+
+Map<String, Widget> _coachWorkoutCases() => {
+  'coach_workout_card': CoachGround(
+    child: Padding(
+      padding: const EdgeInsets.all(S.x4),
+      child: CoachWorkoutCard(_galleryPlans.first, onCommit: () {}),
+    ),
+  ),
+  'coach_workout_options': CoachGround(
+    child: Padding(
+      padding: const EdgeInsets.all(S.x4),
+      child: CoachWorkoutOptions(
+        plans: _galleryPlans,
+        committed: _galleryPlans.first,
+        onCommit: (_) {},
+        onAlternatives: () {},
+      ),
+    ),
+  ),
+  'today_plan_card': TodayPlanCard(_galleryPlans.first,
+      onStart: () {}, onDrop: () {}),
+  'plan_zones': const PlanZones([0, 3, 9, 5, 0], dark: false),
+};
 
 /// The AI coach's figures. The model authors these specs, so the cases that
 /// matter are the loose ones: a series with a hole in it, a table wider than the

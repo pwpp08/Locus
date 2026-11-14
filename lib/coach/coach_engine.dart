@@ -23,6 +23,7 @@ import '../data/db.dart';
 import '../data/local_repository.dart';
 import '../models/payloads.dart' show todayHeadlineOf;
 import 'coach_actions.dart';
+import 'workout_plan.dart';
 import 'coach_chat_completions.dart';
 import 'coach_config.dart';
 import 'coach_db.dart';
@@ -124,14 +125,19 @@ class CoachItem {
   final ChartSpec? chart;
   /// Generic render spec ({type, title?, ...payload}) drawn by [CoachRender].
   final Map<String, dynamic>? render;
-  CoachItem.user(this.text) : kind = CoachItemKind.user, chart = null, render = null;
-  CoachItem.assistant(this.text) : kind = CoachItemKind.assistant, chart = null, render = null;
-  CoachItem.error(this.text) : kind = CoachItemKind.error, chart = null, render = null;
-  CoachItem.chart(this.chart) : kind = CoachItemKind.chart, text = null, render = null;
-  CoachItem.render(this.render) : kind = CoachItemKind.render, text = null, chart = null;
 
-  Map<String, dynamic> toJson() =>
-      {'kind': kind.name, 'text': text, 'chart': chart?.toJson(), 'render': render};
+  /// An answer's suggested replies: what the person might say next.
+  final List<String> replies;
+  CoachItem.user(this.text) : kind = CoachItemKind.user, chart = null, render = null, replies = const [];
+  CoachItem.assistant(this.text, {this.replies = const []}) : kind = CoachItemKind.assistant, chart = null, render = null;
+  CoachItem.error(this.text) : kind = CoachItemKind.error, chart = null, render = null, replies = const [];
+  CoachItem.chart(this.chart) : kind = CoachItemKind.chart, text = null, render = null, replies = const [];
+  CoachItem.render(this.render) : kind = CoachItemKind.render, text = null, chart = null, replies = const [];
+
+  Map<String, dynamic> toJson() => {
+        'kind': kind.name, 'text': text, 'chart': chart?.toJson(), 'render': render,
+        if (replies.isNotEmpty) 'replies': replies,
+      };
 
   static CoachItem fromJson(Map<String, dynamic> j) {
     final k = j['kind'];
@@ -145,8 +151,33 @@ class CoachItem {
     final t = j['text']?.toString();
     if (k == 'user') return CoachItem.user(t);
     if (k == 'error') return CoachItem.error(t);
-    return CoachItem.assistant(t);
+    return CoachItem.assistant(t, replies: [
+      for (final r in (j['replies'] as List?) ?? const []) r.toString(),
+    ]);
   }
+}
+
+/// The line an answer ends with to suggest replies:
+/// `[[replies: one | two | three]]`.
+final _repliesTag = RegExp(r'\[\[\s*replies\s*:([\s\S]*?)\]\]', caseSensitive: false);
+
+/// [content] without its replies line, and the replies it suggested: three
+/// at most, each short, none empty.
+(String, List<String>) splitReplies(String content) {
+  final found = _repliesTag.allMatches(content).toList();
+  if (found.isEmpty) return (content, const []);
+  final replies = [
+    for (final r in found.last.group(1)!.split('|'))
+      if (r.trim().isNotEmpty && r.trim().length <= 60) r.trim(),
+  ].take(3).toList();
+  return (content.replaceAll(_repliesTag, '').trim(), replies);
+}
+
+/// What to show of an answer still arriving: everything before its replies
+/// line, which may be only half there yet.
+String withoutRepliesTail(String text) {
+  final i = text.indexOf('[[');
+  return i < 0 ? text : text.substring(0, i).trimRight();
 }
 
 /// A picture the user attached to one message: its bytes and media type.
@@ -383,6 +414,25 @@ class CoachEngine {
       ..add({'role': 'assistant', 'content': answer});
     transcript.add(CoachItem.assistant(answer));
     if (_title.isEmpty) _title = title;
+  }
+
+  /// Takes the last question and everything after it back out of the
+  /// conversation, for Answer again; returns the question, or null when
+  /// there is none.
+  String? takeBackLastTurn() {
+    final t = transcript.lastIndexWhere((i) => i.kind == CoachItemKind.user);
+    final h = _history.lastIndexWhere((m) => m['role'] == 'user');
+    if (t < 0 || h < 0) return null;
+    final content = _history[h]['content'];
+    final question = content is String
+        ? content
+        : [
+            for (final part in (content as List? ?? const []))
+              if (part is Map && part['type'] == 'text') part['text'],
+          ].join('\n');
+    transcript.removeRange(t, transcript.length);
+    _history.removeRange(h, _history.length);
+    return question;
   }
 
   /// Load a specific session into the working set.
@@ -681,7 +731,8 @@ class CoachEngine {
   // code-field styling), not a chart. Detect a chart/render JSON payload inside
   // any fence and draw it as a real figure instead; leave real code fences (rare,
   // the coach is told never to write code) or non-figure JSON untouched.
-  static void _emitAssistantText(String content, void Function(CoachItem) emit) {
+  static void _emitAssistantText(String raw, void Function(CoachItem) emit) {
+    final (content, replies) = splitReplies(raw);
     final fence = RegExp(r'```[a-zA-Z0-9_-]*\n([\s\S]*?)```');
     final figures = <CoachItem>[];
     final cleaned = content.replaceAllMapped(fence, (m) {
@@ -705,7 +756,7 @@ class CoachEngine {
       }
       return m.group(0) ?? '';
     }).trim();
-    if (cleaned.isNotEmpty) emit(CoachItem.assistant(cleaned));
+    if (cleaned.isNotEmpty) emit(CoachItem.assistant(cleaned, replies: replies));
     for (final f in figures) {
       emit(f);
     }
@@ -1105,6 +1156,27 @@ class CoachEngine {
           return _figures.note(await CoachActions.ecgReading(
               await LocalDb.instance, args['reading_id']));
 
+        // workouts — priced by the app, committed by the person on the card
+        case 'propose_workout':
+          final opts = (args['options'] as List?) ?? const [];
+          if (opts.isEmpty) return 'Give one to three options.';
+          final date = CoachActions.day(args['date']);
+          final price = await _strainPricer();
+          final plans = [
+            for (final o in opts.take(3))
+              WorkoutPlan.parse(o, date: date, priceWith: price),
+          ];
+          onItem(CoachItem.render({
+            'type': 'workout',
+            'options': [for (final w in plans) w.toJson()],
+          }));
+          return 'Shown ${plans.length} option(s) as cards for $date: '
+              '${plans.map((w) => '${w.sport} ${w.durationMin} min, '
+                  'estimated strain ${w.strain?.toStringAsFixed(1) ?? 'unavailable'}').join('; ')}. '
+              'The person taps Commit on the one they want, which saves it as '
+              'the plan for that day. Do not log it as a workout and do not '
+              'repeat the cards in prose.';
+
         // render — checked and filled in by FigureBook; the result is saved
         case 'render':
           final figure = _figures.prepare(args);
@@ -1190,6 +1262,32 @@ class CoachEngine {
     }
   }
 
+  /// Prices a planned workout's zone minutes with this person's own zone
+  /// bands, resting heart rate and ceiling; null where one is missing.
+  Future<double? Function(List<double>, String)> _strainPricer() async {
+    try {
+      final z = await api.getZones();
+      final bands = [
+        for (final b in (z['zones'] as List? ?? const []))
+          if (b is Map && b['lo'] is num && b['hi'] is num)
+            ((b['lo'] as num).toDouble(), (b['hi'] as num).toDouble()),
+      ];
+      final maxHr = (z['max_hr'] as num?)?.toDouble();
+      var rest = (z['resting_hr'] as num?)?.toDouble();
+      if (rest == null) {
+        final recent = await LocalDb.trailingSeriesValues('rhr', 7);
+        if (recent.isNotEmpty) {
+          final sorted = [...recent]..sort();
+          rest = sorted[sorted.length ~/ 2];
+        }
+      }
+      return (mins, sport) => plannedStrain(mins,
+          zones: bands, restingHr: rest, maxHr: maxHr, sport: sport);
+    } catch (_) {
+      return (_, _) => null;
+    }
+  }
+
   Future<String> _action(
     Future<bool> Function(ActionRequest) confirm,
     ActionRequest req,
@@ -1230,6 +1328,7 @@ class CoachEngine {
       case 'get_medications': return 'Reading your medications…';
       case 'get_app_state': return 'Reading your settings…';
       case 'render': return 'Rendering ${args['type'] ?? 'figure'}…';
+      case 'propose_workout': return 'Building your workout…';
       default: return 'Working…';
     }
   }
@@ -1324,6 +1423,31 @@ class CoachEngine {
     _fn('get_medications',
         'Read the medication/supplement schedule and today\'s doses '
         '(taken/skipped/missed/upcoming). Not in run_sql — use this.', {}),
+    _fn('propose_workout',
+        'Propose one to three workouts as cards the person can commit to '
+        '(Commit saves it as that day\'s plan, shown on Home with Start). '
+        'Give each the sport and the minutes in heart-rate zones 1-5; the '
+        'app prices the strain itself from their own zones. Use this whenever '
+        'they ask for a workout or a plan, instead of describing one.',
+        {
+          'date': {'type': 'string', 'description': 'YYYY-MM-DD, default today'},
+          'options': {
+            'type': 'array',
+            'items': {
+              'type': 'object',
+              'properties': {
+                'sport': {'type': 'string', 'description': 'Running, Cycling, Strength…'},
+                'duration_min': {'type': 'integer'},
+                'zone_minutes': {
+                  'type': 'array',
+                  'items': {'type': 'number'},
+                  'description': 'Minutes in zones 1 to 5; they sum to duration_min.',
+                },
+              },
+              'required': ['sport', 'zone_minutes'],
+            },
+          },
+        }, ['options']),
     _fn('get_app_state',
         'The person\'s profile (body, goals, HR zones), step goal, sleep '
         'planner, activity strain goal, zone alert, alarm days and the band '

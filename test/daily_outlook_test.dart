@@ -84,8 +84,7 @@ void main() {
         child: const CoachScreen(),
       ),
     );
-    expect(find.text('LOCUS COACH'), findsOneWidget);
-    expect(find.text('NOT SET UP'), findsOneWidget);
+    expect(find.text('Not set up'), findsOneWidget);
     expect(find.bySemanticsLabel('Chats and AI settings'), findsOneWidget);
     expect(t.takeException(), isNull);
   });
