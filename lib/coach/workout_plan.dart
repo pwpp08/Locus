@@ -27,12 +27,17 @@ class WorkoutPlan {
   /// The app's estimate on the 0-21 scale, or null when it cannot price it.
   final double? strain;
 
+  /// Why there is no [strain]: what it is waiting for, in a few words
+  /// ("a few nights of resting heart rate"). Null when there is one.
+  final String? strainWhy;
+
   const WorkoutPlan({
     required this.date,
     required this.sport,
     required this.durationMin,
     required this.zoneMin,
     this.strain,
+    this.strainWhy,
   });
 
   Map<String, dynamic> toJson() => {
@@ -41,6 +46,7 @@ class WorkoutPlan {
         'duration_min': durationMin,
         'zone_min': zoneMin,
         'strain': strain,
+        if (strain == null && strainWhy != null) 'strain_why': strainWhy,
       };
 
   static WorkoutPlan? fromJson(Object? j) {
@@ -58,6 +64,7 @@ class WorkoutPlan {
       durationMin: minutes,
       zoneMin: [for (final z in zones) (z as num?)?.toDouble() ?? 0],
       strain: (j['strain'] as num?)?.toDouble(),
+      strainWhy: j['strain_why']?.toString(),
     );
   }
 
@@ -73,7 +80,7 @@ class WorkoutPlan {
   static WorkoutPlan parse(
     Object? raw, {
     required String date,
-    double? Function(List<double> zoneMin, String sport)? priceWith,
+    StrainPrice Function(List<double> zoneMin, String sport)? priceWith,
   }) {
     if (raw is! Map) {
       throw CoachActionError('Each option is an object.');
@@ -104,14 +111,45 @@ class WorkoutPlan {
       throw CoachActionError('duration_min ($said) must equal the sum of '
           'zone_minutes ($total).');
     }
+    final price = priceWith?.call(mins, sport);
     return WorkoutPlan(
       date: date,
       sport: sport,
       durationMin: total.round(),
       zoneMin: mins,
-      strain: priceWith?.call(mins, sport),
+      strain: price?.value,
+      strainWhy: price == null
+          ? 'your heart-rate zones'
+          : price.value == null
+              ? price.why
+              : null,
     );
   }
+}
+
+/// A priced plan: the estimate, or what it is waiting for.
+typedef StrainPrice = ({double? value, String? why});
+
+/// [plannedStrain], or the one missing anchor named in the person's words,
+/// for the card to say instead of a number.
+StrainPrice priceStrain(
+  List<double> zoneMin, {
+  required List<(double, double)> zones,
+  required double? restingHr,
+  required double? maxHr,
+  String? sport,
+}) {
+  if (zones.length != 5 || maxHr == null) {
+    return (value: null, why: 'your heart-rate zones (your age in My profile)');
+  }
+  if (restingHr == null) {
+    return (value: null, why: 'a few nights of resting heart rate');
+  }
+  final v = plannedStrain(zoneMin,
+      zones: zones, restingHr: restingHr, maxHr: maxHr, sport: sport);
+  return v == null
+      ? (value: null, why: 'zones above your resting heart rate')
+      : (value: v, why: null);
 }
 
 /// Estimated strain of [zoneMin] minutes in zones 1-5 whose bands are

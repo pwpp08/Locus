@@ -63,6 +63,26 @@ void main() {
           isNull);
     });
 
+    test('a missing anchor is named, never priced as a guess', () {
+      final noRest = priceStrain([0, 10, 10, 0, 0],
+          zones: _bands, restingHr: null, maxHr: 190);
+      expect(noRest.value, isNull);
+      expect(noRest.why, contains('resting heart rate'));
+      final noZones = priceStrain([0, 10, 10, 0, 0],
+          zones: const [], restingHr: 55, maxHr: null);
+      expect(noZones.why, contains('heart-rate zones'));
+      final ok = priceStrain([0, 10, 10, 0, 0],
+          zones: _bands, restingHr: 55, maxHr: 190);
+      expect(ok.value, isNotNull);
+      expect(ok.why, isNull);
+      final plan = WorkoutPlan.parse({'sport': 'Run', 'zone_minutes': [0, 20]},
+          date: '2026-11-14',
+          priceWith: (m, s) => priceStrain(m,
+              zones: _bands, restingHr: null, maxHr: 190));
+      expect(WorkoutPlan.fromJson(plan.toJson())!.strainWhy,
+          contains('resting heart rate'));
+    });
+
     test('rises with time and with intensity, and stays on the dial', () {
       double s(List<double> m) =>
           plannedStrain(m, zones: _bands, restingHr: 55, maxHr: 190)!;

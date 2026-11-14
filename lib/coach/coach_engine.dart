@@ -1172,7 +1172,7 @@ class CoachEngine {
           }));
           return 'Shown ${plans.length} option(s) as cards for $date: '
               '${plans.map((w) => '${w.sport} ${w.durationMin} min, '
-                  'estimated strain ${w.strain?.toStringAsFixed(1) ?? 'unavailable'}').join('; ')}. '
+                  '${w.strain == null ? 'no strain estimate (needs ${w.strainWhy})' : 'estimated strain ${w.strain!.toStringAsFixed(1)}'}').join('; ')}. '
               'The person taps Commit on the one they want, which saves it as '
               'the plan for that day. Do not log it as a workout and do not '
               'repeat the cards in prose.';
@@ -1264,7 +1264,7 @@ class CoachEngine {
 
   /// Prices a planned workout's zone minutes with this person's own zone
   /// bands, resting heart rate and ceiling; null where one is missing.
-  Future<double? Function(List<double>, String)> _strainPricer() async {
+  Future<StrainPrice Function(List<double>, String)> _strainPricer() async {
     try {
       final z = await api.getZones();
       final bands = [
@@ -1281,10 +1281,11 @@ class CoachEngine {
           rest = sorted[sorted.length ~/ 2];
         }
       }
-      return (mins, sport) => plannedStrain(mins,
+      return (mins, sport) => priceStrain(mins,
           zones: bands, restingHr: rest, maxHr: maxHr, sport: sport);
     } catch (_) {
-      return (_, _) => null;
+      return (_, _) =>
+          (value: null, why: 'your heart-rate zones, which could not be read');
     }
   }
 

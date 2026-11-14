@@ -16,9 +16,12 @@ const _zoneInk = [
   C.refZone5,
 ];
 
-/// The estimate as the cards write it: one decimal, or a dash with none.
-String planStrainText(double? strain) =>
-    strain == null ? '–' : strain.toStringAsFixed(1);
+/// The estimate as the cards write it, to one decimal.
+String planStrainText(double strain) => strain.toStringAsFixed(1);
+
+/// What stands in for a missing estimate: why there is none.
+String planStrainWhy(WorkoutPlan plan) =>
+    'No strain estimate yet: it needs ${plan.strainWhy ?? 'your heart-rate zones'}.';
 
 IconData _iconFor(String sport) =>
     activityByName(sport)?.icon ?? LucideIcons.activity;
@@ -106,8 +109,14 @@ class CoachWorkoutCard extends StatelessWidget {
         const SizedBox(height: S.x3),
         Wrap(spacing: S.x5, runSpacing: S.x1, children: [
           fact('Duration', '${plan.durationMin} min'),
-          fact('Estimated strain', planStrainText(plan.strain)),
+          if (plan.strain case final s?)
+            fact('Estimated strain', planStrainText(s)),
         ]),
+        if (plan.strain == null) ...[
+          const SizedBox(height: S.x1),
+          Text(planStrainWhy(plan),
+              style: F.cap.copyWith(color: C.white.withValues(alpha: .65))),
+        ],
         const SizedBox(height: S.x4),
         Text('HR zone targets',
             style: F.cap.copyWith(color: C.white.withValues(alpha: .65))),
@@ -250,10 +259,15 @@ class TodayPlanCard extends StatelessWidget {
               Expanded(
                 child: Text(
                     '${plan.sport} · ${plan.durationMin} min'
-                    '${plan.strain == null ? '' : ' · strain ${planStrainText(plan.strain)}'}',
+                    '${plan.strain == null ? '' : ' · strain ${planStrainText(plan.strain!)}'}',
                     style: F.head.copyWith(color: p.ink)),
               ),
             ]),
+            if (plan.strain == null) ...[
+              const SizedBox(height: S.x1),
+              Text(planStrainWhy(plan),
+                  style: F.cap.copyWith(color: p.ink3)),
+            ],
             const SizedBox(height: S.x3),
             PlanZones(plan.zoneMin, dark: false),
             const SizedBox(height: S.x4),
