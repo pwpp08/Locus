@@ -1,8 +1,12 @@
 // Pull to refresh, the Locus way. The word is not on the page: pulling the
 // page down opens a gap at the top and LOCUS slides into it, gray and
-// unfilled. Let go past the line and it holds there while the page waits, and
-// only then does white fill it from left to right. When the refresh is done
-// the page rises again and takes the word up with it, out of sight.
+// unfilled. Once the pull is past the line white fills it from left to right,
+// and on letting go it holds there while the page waits. When the refresh is
+// done the page rises again and takes the word up with it, out of sight.
+//
+// Only a pull opens the gap. A flick up the page stops dead at its top rather
+// than carrying past it ([PullOnlyPhysics]), so scrolling back up never shows
+// the word, let alone starts a refresh.
 //
 // A sliver, to sit first in a [CustomScrollView] whose physics let the page
 // be pulled past its top ([BouncingScrollPhysics]): the platform's own
@@ -19,9 +23,49 @@ import 'logo.dart';
 import 'theme.dart';
 
 /// Physics for a page that can be pulled down: it always scrolls, and it
-/// gives past its top the way the refresh needs.
+/// gives past its top under a finger, the way the refresh needs.
 const ScrollPhysics kPullPhysics =
-    AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics());
+    AlwaysScrollableScrollPhysics(parent: PullOnlyPhysics());
+
+/// Bouncing physics whose fling toward the top stops at the top. A finger
+/// still pulls past it; a page let go out past it still springs back.
+class PullOnlyPhysics extends BouncingScrollPhysics {
+  const PullOnlyPhysics({super.parent});
+
+  @override
+  PullOnlyPhysics applyTo(ScrollPhysics? ancestor) =>
+      PullOnlyPhysics(parent: buildParent(ancestor));
+
+  @override
+  Simulation? createBallisticSimulation(
+      ScrollMetrics position, double velocity) {
+    final sim = super.createBallisticSimulation(position, velocity);
+    // Only a fling heading up from inside the page; a release out past the
+    // top is the pull's own spring back.
+    if (sim == null ||
+        velocity >= 0 ||
+        position.pixels < position.minScrollExtent) {
+      return sim;
+    }
+    return _StopAtTop(sim, position.minScrollExtent);
+  }
+}
+
+/// [inner], ending where it reaches [top] instead of running past it.
+class _StopAtTop extends Simulation {
+  final Simulation inner;
+  final double top;
+  _StopAtTop(this.inner, this.top);
+
+  @override
+  double x(double time) => math.max(inner.x(time), top);
+
+  @override
+  double dx(double time) => inner.x(time) <= top ? 0 : inner.dx(time);
+
+  @override
+  bool isDone(double time) => inner.isDone(time) || inner.x(time) <= top;
+}
 
 class LocusPullRefresh extends StatefulWidget {
   final Future<void> Function() onRefresh;
@@ -93,9 +137,9 @@ class _LocusPullMarkState extends State<_LocusPullMark>
     super.initState();
     _c = AnimationController(vsync: this, duration: Motion.write);
     _armed = widget.mode == RefreshIndicatorMode.armed;
-    // A pull let go in one flick can build this already refreshing, with no
-    // earlier state to change from: fill from here.
-    if (widget.mode == RefreshIndicatorMode.refresh) {
+    // One quick pull can build this already armed, or already refreshing,
+    // with no earlier state to change from: fill from here.
+    if (_armed || widget.mode == RefreshIndicatorMode.refresh) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _c.value == 0 && !_c.isAnimating) _fill();
       });
@@ -112,11 +156,13 @@ class _LocusPullMarkState extends State<_LocusPullMark>
   void didUpdateWidget(_LocusPullMark old) {
     super.didUpdateWidget(old);
     final m = widget.mode;
-    // A tick under the finger the moment the pull is enough.
+    // A tick under the finger the moment the pull is enough, and the white
+    // starts across the word then, not once the page has settled.
     final armed = m == RefreshIndicatorMode.armed;
     if (armed && !_armed) HapticFeedback.selectionClick();
-    // The finger has let go: only now does the white fill the word.
-    if (m == RefreshIndicatorMode.refresh && _c.value == 0 && !_c.isAnimating) {
+    if ((armed || m == RefreshIndicatorMode.refresh) &&
+        _c.value == 0 &&
+        !_c.isAnimating) {
       _fill();
     }
     // Pulled back under the line before letting go: gray again.

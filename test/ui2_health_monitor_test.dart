@@ -1,4 +1,4 @@
-// Health Monitor: the heart rate and the five vitals.
+// Health Monitor: the heart rate and the four vitals.
 //
 // Pins the honesty rules the redesign must keep: a verdict pill only ever
 // states the user's own range numbers, a reading far out on the harmful side
@@ -146,8 +146,8 @@ void main() {
     expect(_inkOf(t, rhr), C.poor);
     // HRV up is not the harmful side: green, however high.
     expect(_inkOf(t, hrv), HM.within);
-    // No skin reading and no ring's blood oxygen: no number, no range.
-    expect(find.text('No data'), findsNWidgets(2));
+    // No skin reading: no number, no range.
+    expect(find.text('No data'), findsOneWidget);
   });
 
   testWidgets('a °C skin reading never shows its SD range', (t) async {
@@ -172,13 +172,13 @@ void main() {
     expect(SchedulerBinding.instance.transientCallbackCount, 0);
   });
 
-  testWidgets('nothing recorded: a dash and five tiles of No data', (t) async {
+  testWidgets('nothing recorded: a dash and four tiles of No data', (t) async {
     final app = AppState.forTesting()..repo = _Repo(empty: true);
     addTearDown(app.dispose);
     await _pump(t, app);
 
-    expect(find.text('--'), findsNWidgets(6));
-    expect(find.text('No data'), findsNWidgets(5));
+    expect(find.text('--'), findsNWidgets(5));
+    expect(find.text('No data'), findsNWidgets(4));
     expect(find.textContaining('Last recorded'), findsNothing);
   });
 

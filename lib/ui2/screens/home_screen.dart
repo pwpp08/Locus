@@ -879,7 +879,9 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         WearableCells(kHomeWearableRows, date: isToday ? null : _day),
       ],
 
-      const SizedBox(height: S.x3),
+      // A past day has no cards or monitors under its dials, so the dials'
+      // own foot is gap enough before what follows.
+      if (isToday) const SizedBox(height: S.x3),
       const DetectedActivitiesCard(),
 
       _SectionHead(

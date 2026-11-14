@@ -1,4 +1,4 @@
-// HEALTH MONITOR — the heart rate over a faint grid, then the five overnight
+// HEALTH MONITOR — the heart rate over a faint grid, then the four overnight
 // vitals in a two-column grid, each against your own usual range, then a card
 // that shares them as text.
 //
@@ -8,8 +8,9 @@
 // is a held-over night rather than today's ([overnightMetric]), so a tile never
 // shows last week's reading as this morning's.
 //
-// Blood oxygen is a ring's own overnight figure, when a ring owns the night.
-// The band's SpO2 byte is recorded for research only and never shown here.
+// No blood oxygen tile: none of the bands Locus pairs with serves one (the
+// WHOOP SpO2 byte is recorded for research only), so it could only ever say
+// "No data".
 //
 // The number is the live beat while the band streams, and the heart beats
 // with it. Without one it is the last heart rate the day actually recorded,
@@ -58,9 +59,6 @@ class _Vital {
   /// writes no numbers, rather than numbers in a unit the tile never shows.
   final bool rangeElsewhere;
 
-  /// Written after EACH range number (SpO2: "95% - 100%").
-  final String eachUnit;
-
   /// A signed range, written "−0.6 to +0.7".
   final bool signed;
 
@@ -73,7 +71,6 @@ class _Vital {
       this.raw,
       this.places = 0,
       this.rangeElsewhere = false,
-      this.eachUnit = '',
       this.signed = false});
 
   /// The pill's words.
@@ -83,7 +80,7 @@ class _Vital {
     if (r == null || x == null) return 'No baseline';
     String n(double v) =>
         '${signed ? (v < 0 ? '−' : '+') : (v < 0 ? '−' : '')}'
-        '${v.abs().toStringAsFixed(places)}$eachUnit';
+        '${v.abs().toStringAsFixed(places)}';
     if (rangeElsewhere) {
       return x > r.hi ? 'elevated' : x < r.lo ? 'low' : 'within usual range';
     }
@@ -96,13 +93,11 @@ class _Vital {
 }
 
 const _respLabel = 'Respiratory Rate';
-const _spo2Label = 'Blood Oxygen\n(SpO₂)';
 const _skinLabel = 'Skin Temp\n(from baseline)';
 
-/// The five tiles with nothing in them, in their order.
+/// The four tiles with nothing in them, in their order.
 final List<_Vital> _emptyVitals = [
   _Vital('resp_rate', _respLabel, (c) => _Glyph(_lungs, c)),
-  _Vital('spo2', _spo2Label, (c) => _Glyph(_drop, c)),
   _Vital('resting_hr', 'RHR', (c) => _Glyph(_restingHeart, c)),
   _Vital('hrv', 'HRV', (c) => _Glyph(_pulse, c)),
   _Vital('skin_temp', _skinLabel, (c) => _Glyph(_thermometer, c)),
@@ -150,10 +145,6 @@ class _MonitorData {
     final skinC = skinZ == null
         ? null
         : ((skinRaw is Map ? skinRaw['dev_c'] : null) as num?)?.toDouble();
-    num? spo2;
-    try {
-      spo2 = await repo.getNightSpo2(todayLabel());
-    } catch (_) {}
 
     String signed(double v, int places) =>
         '${v >= 0 ? '+' : '−'}${v.abs().toStringAsFixed(places)}';
@@ -162,11 +153,6 @@ class _MonitorData {
     final rhrR = await rangeOf('resting_hr', rhr?.toDouble(), harmfulUp: true);
     final hrvR = await rangeOf('hrv', hrv?.toDouble(), harmfulUp: false);
     final skinR = await rangeOf('skin_temp', skinZ?.toDouble(), harmfulUp: true);
-    // Blood oxygen holds against the usual healthy band, not a personal one:
-    // a ring's nightly figure sits at the top of its scale, so a personal
-    // "middle half" would flag ordinary nights.
-    final _Range? spo2R =
-        spo2 == null ? null : (lo: 95, hi: 100, flagged: spo2 < 95);
 
     final e = _emptyVitals;
     var nights = 0;
@@ -184,29 +170,21 @@ class _MonitorData {
             range: respR,
             raw: resp?.toDouble(),
             places: 1),
-        _Vital('spo2', _spo2Label, e[1].icon,
-            present: spo2 != null,
-            value: spo2 == null ? '' : '${spo2.round()}',
-            unit: '%',
-            side: sideOf(spo2R, harmfulUp: false),
-            range: spo2R,
-            raw: spo2?.toDouble(),
-            eachUnit: '%'),
-        _Vital('resting_hr', 'RHR', e[2].icon,
+        _Vital('resting_hr', 'RHR', e[1].icon,
             present: rhr != null,
             value: rhr == null ? '' : '${rhr.round()}',
             unit: 'bpm',
             side: sideOf(rhrR, harmfulUp: true),
             range: rhrR,
             raw: rhr?.toDouble()),
-        _Vital('hrv', 'HRV', e[3].icon,
+        _Vital('hrv', 'HRV', e[2].icon,
             present: hrv != null,
             value: hrv == null ? '' : '${hrv.round()}',
             unit: 'ms',
             side: sideOf(hrvR, harmfulUp: false),
             range: hrvR,
             raw: hrv?.toDouble()),
-        _Vital('skin_temp', _skinLabel, e[4].icon,
+        _Vital('skin_temp', _skinLabel, e[3].icon,
             present: skinZ != null,
             value: skinZ == null
                 ? ''
@@ -330,7 +308,7 @@ class _HealthMonitorScreenState extends State<HealthMonitorScreen> {
 
   @override
   Widget build(BuildContext c) {
-    // No repository (goldens) loads no vitals: the five tiles still stand,
+    // No repository (goldens) loads no vitals: the four tiles still stand,
     // each saying it has no data.
     final loaded = _d?.vitals ?? const [];
     final vitals = loaded.isNotEmpty ? loaded : _emptyVitals;
@@ -813,14 +791,10 @@ class _VitalTile extends StatelessWidget {
         : r.flagged
             ? (C.poor, DC.hurtChip, false)
             : (HM.within, HM.withinChip, true);
-    // A ring's blood oxygen has no chart of its own to open.
-    final opens = v.key != 'spo2';
     return Pressable(
       // The chart Home's dashboard row opens for the same metric; skin
       // temperature has a trend of its own that only this tile opens.
-      onTap: !opens
-          ? null
-          : () => go(
+      onTap: () => go(
               c,
               trendMetricOf(v.key) != null || v.key == kSkinTempTrend.id
                   ? TrendViewScreen(initial: v.key)
@@ -1027,24 +1001,6 @@ void _lungs(Canvas c, Paint p) {
         p);
     c.drawLine(Offset(x(7.4), 11.8), Offset(x(10), 11.8), p);
   }
-}
-
-/// A drop, a glint low in it, and two bubbles rising off its shoulder.
-void _drop(Canvas c, Paint p) {
-  const cx = 9.0, cy = 16.4, r = 5.6, tipY = 4.8;
-  // The sides leave the bulb on its tangents to the tip.
-  final a = math.asin(r / (cy - tipY));
-  c.drawPath(
-      Path()
-        ..moveTo(cx, tipY)
-        ..lineTo(cx - r * math.cos(a), cy - r * math.sin(a))
-        ..arcTo(Rect.fromCircle(center: const Offset(cx, cy), radius: r),
-            math.pi + a, -(math.pi + 2 * a), false)
-        ..close(),
-      p);
-  c.drawLine(const Offset(7.9, 19.4), const Offset(10.2, 18.8), p);
-  c.drawCircle(const Offset(15, 3.6), 2.1, p);
-  c.drawCircle(const Offset(18.6, 8.2), 1.2, p);
 }
 
 /// A heart with an arrow down beside it, cut clear of the arrow's head.

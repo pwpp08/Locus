@@ -51,28 +51,42 @@ void main() {
     expect(runs, 1);
   });
 
-  testWidgets('the white waits under the finger and fills once released',
+  testWidgets('the white starts as soon as the pull is past the line',
       (t) async {
     await pump(t, () async {});
     final g = await t.startGesture(const Offset(200, 300));
     await g.moveBy(const Offset(0, 300)); // well past the line
     await t.pump(const Duration(milliseconds: 50)); // built, armed
     await t.pump(const Duration(milliseconds: 50));
-    await t.pump(const Duration(milliseconds: 400));
+    await t.pump(const Duration(milliseconds: 300));
     double fill() => t.widget<WordmarkFill>(find.byType(WordmarkFill)).fill;
-    expect(fill(), 0, reason: 'still gray while the finger holds it');
+    expect(fill(), greaterThan(0), reason: 'filling under the finger');
     await g.up();
-    var filled = 0.0;
-    for (var i = 0; i < 12 && filled == 0; i++) {
-      await t.pump(const Duration(milliseconds: 100));
-      filled = fill();
-    }
-    expect(filled, greaterThan(0), reason: 'filling once let go');
     // Let the refresh run out its hold, so nothing is left pending.
     for (var i = 0; i < 30; i++) {
       await t.pump(const Duration(milliseconds: 100));
     }
     await t.pumpAndSettle();
+  });
+
+  testWidgets('a flick back up the page stops at the top: no word, no refresh',
+      (t) async {
+    var runs = 0;
+    await pump(t, () async => runs++);
+    final sc = t.state<ScrollableState>(find.byType(Scrollable));
+    sc.position.jumpTo(400);
+    await t.pump();
+    // A short, fast flick: the finger itself never reaches the top.
+    await t.fling(find.byType(CustomScrollView), const Offset(0, 120), 4000);
+    var lowest = 0.0;
+    for (var i = 0; i < 40; i++) {
+      await t.pump(const Duration(milliseconds: 16));
+      if (sc.position.pixels < lowest) lowest = sc.position.pixels;
+    }
+    await t.pumpAndSettle();
+    expect(lowest, 0, reason: 'never carried past the top');
+    expect(sc.position.pixels, 0);
+    expect(runs, 0);
   });
 
   testWidgets('the word always goes back up, even if the work never ends',
