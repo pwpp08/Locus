@@ -769,7 +769,7 @@ class MemberProfile extends StatelessWidget {
         C.dialStrain,
         label,
         sub: best == null ? '' : 'Best ${boardValue(m, best)}',
-        value: month.isEmpty ? '—' : '${boardValue(m, month.first.value)} avg',
+        value: month.isEmpty ? '--' : '${boardValue(m, month.first.value)} avg',
         chevron: false,
       );
     }
