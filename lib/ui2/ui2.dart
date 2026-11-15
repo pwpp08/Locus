@@ -15,6 +15,7 @@ export 'logo.dart';
 export 'pull_refresh.dart';
 export 'time_picker.dart';
 export 'logo_geometry.dart';
+export 'activity_icons.dart';
 export 'lucide.dart';
 export 'marks.dart';
 export 'ecg_widgets.dart';

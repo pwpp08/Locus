@@ -285,7 +285,7 @@ Nothing animates a gradient.
 
 ## 7. Icons and drawn marks
 
-**Lucide at the 300 weight (1.5 px stroke).** Every icon comes from `lib/ui2/lucide.dart`, which re-exports Lucide's `…300` glyphs. Never import the package directly. A name not listed there does not exist yet: add it to the file.
+**Lucide at the 300 weight (1.5 px stroke).** Every icon comes from `lib/ui2/lucide.dart`, which re-exports Lucide's `…300` glyphs. Never import the package directly. A name not listed there does not exist yet: add it to the file. **Activities are the exception:** each catalogue activity's icon is `ActIcons` (`lib/ui2/activity_icons.dart`): Material Symbols Outlined at weight 300 (Apache 2.0), with Tabler Icons 300 (MIT) for the few Material lacks (treadmill, jump rope, table tennis, bowling, javelin, horse riding). Both fonts are cut to those glyphs (`assets/fonts/ActivityIcons`, licences beside them); a new activity adds its glyph to the cut. The catalogue's group headings stay Lucide.
 
 **Sizes:** `I.sm 16`, `I.md 20`, `I.lg 24`, `I.xl 32`, `I.hero 48` (offsets like `I.lg + S.x1` are allowed). Typical colours are ink3 for a trailing chevron or decorative row icon, ink2 for a row or menu icon, and ink for an action icon.
 
