@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/data/day_label.dart';
 import 'package:openstrap_edge/data/local_repository.dart';
+import 'package:openstrap_edge/state/clock_format.dart';
 import 'package:openstrap_edge/ui2/screens/stress_monitor.dart';
 import 'package:openstrap_edge/ui2/screens/trend_view.dart' show shiftDay;
 import 'package:openstrap_edge/ui2/ui2.dart';
@@ -89,7 +90,7 @@ void main() {
     expect(find.text('STRESS MONITOR'), findsOneWidget);
     expect(find.text('FRI, MAY 22'), findsOneWidget);
     // The last reading of the day is the evening, at rest: low.
-    expect(find.text('22:41'), findsWidgets);
+    expect(find.text(formatClockMinute(22 * 60 + 41)), findsWidgets);
     expect(find.text('LOW'), findsWidgets);
     expect(find.text('TOTAL DAY'), findsOneWidget);
     expect(find.textContaining('VS. TYPICAL DAY'), findsOneWidget);
@@ -105,10 +106,10 @@ void main() {
     final x = box.left + gutter + (box.width - gutter - right) * (13 * 60 + 45) / (22 * 60 + 41);
     final g = await t.startGesture(Offset(x, box.center.dy));
     await t.pump();
-    expect(find.text('13:45'), findsWidgets);
+    expect(find.text(formatClockMinute(13 * 60 + 45)), findsWidgets);
     await g.up();
     await t.pump();
-    expect(find.text('22:41'), findsWidgets);
+    expect(find.text(formatClockMinute(22 * 60 + 41)), findsWidgets);
   });
 
   testWidgets('sleep and the workout are each marked by their own icon',

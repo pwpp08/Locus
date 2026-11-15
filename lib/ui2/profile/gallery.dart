@@ -2423,7 +2423,7 @@ const _wcFindings = [
       high: true),
   SweepFinding(
       key: 'rmssd',
-      text: 'HVR 32 ms — below your usual range (usually 41–58 ms)',
+      text: 'HRV 32 ms — below your usual range (usually 41–58 ms)',
       z: -2.7,
       high: false),
 ];

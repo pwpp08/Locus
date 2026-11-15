@@ -32,6 +32,7 @@ import '../ble/pebble_link.dart';
 import '../ble/ultrahuman_link.dart';
 import '../compute/derivation_engine.dart';
 import '../compute/profile.dart';
+import '../data/day_label.dart';
 import '../data/db.dart';
 import '../ecg/ecg_guard_store.dart';
 import '../ecg/ecg_recovery.dart';
@@ -558,7 +559,7 @@ Future<void> checkSyncStaleness({bool allowPermissionPrompt = false}) async {
       NotificationEvent(
         // Date-bucketed so a legitimate re-fire after the cooldown isn't
         // blocked by putNotification's INSERT-OR-IGNORE dedupe.
-        dedupeKey: '${now.toIso8601String().substring(0, 10)}:sync_stale',
+        dedupeKey: '${dayLabelOf(now)}:sync_stale',
         category: NotifCategory.device,
         // Quiet hours DROP a normal-priority event; nothing queues it for the
         // morning. The 48-hour cooldown below is therefore only spent when the
@@ -567,7 +568,7 @@ Future<void> checkSyncStaleness({bool allowPermissionPrompt = false}) async {
         title: "Your band hasn't synced in a while",
         body: 'No new data for about $hoursStale hours. Open Locus to '
             'reconnect — background sync may have stalled.',
-        date: now.toIso8601String().substring(0, 10),
+        date: dayLabelOf(now),
         // Home: its day card carries the synced-through line and the sync
         // button this body points at. Profile shows neither.
         route: '/today',

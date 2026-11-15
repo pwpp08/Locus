@@ -36,8 +36,9 @@ import '../screens/trend_view.dart';
 import '../../theme/theme_switcher.dart' show themedRoute;
 import '../screens/training_readiness_card.dart' show TrainingReadinessCard;
 import '../screens/workout_detail.dart' show WorkoutDetailScreen;
+import '../../state/clock_format.dart';
 import '../ui2.dart';
-import 'catalogue.dart' show activityByName;
+import 'catalogue.dart' show activityByName, kUnknownActivityIcon;
 
 /// Below this the day is not comparable to a full one and the screen says so.
 /// Wear coverage is a percentage of the whole day, so a normal night off the
@@ -868,10 +869,8 @@ class _ActivityCard extends StatelessWidget {
   final Map<String, dynamic> session;
   const _ActivityCard({required this.session});
 
-  String _clock(int ts) {
-    final t = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
-    return '${t.hour}:${t.minute.toString().padLeft(2, '0')}';
-  }
+  String _clock(int ts) =>
+      formatClockOf(DateTime.fromMillisecondsSinceEpoch(ts * 1000));
 
   @override
   Widget build(BuildContext c) {
@@ -897,7 +896,7 @@ class _ActivityCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: S.x3),
           decoration: BoxDecoration(color: C.dialStrain, borderRadius: R.rMd),
           child: Row(children: [
-            Icon(act?.icon ?? LucideIcons.activity, size: I.lg, color: C.white),
+            Icon(act?.icon ?? kUnknownActivityIcon, size: I.lg, color: C.white),
             const SizedBox(width: S.x2),
             Expanded(
               child: FittedBox(
@@ -1080,8 +1079,7 @@ class _CurveCard extends StatefulWidget {
 class _CurveCardState extends State<_CurveCard> {
   int? _at;
 
-  String _clock(int minute) =>
-      '${(minute ~/ 60).toString().padLeft(2, '0')}:${(minute % 60).toString().padLeft(2, '0')}';
+  String _clock(int minute) => formatClockMinute(minute);
 
   @override
   Widget build(BuildContext c) {
@@ -1177,7 +1175,7 @@ extension on _CurveCardState {
               st.clamp(0, n - 1),
               en.clamp(0, n - 1),
               a?.color ?? C.dialStrain,
-              a?.icon ?? LucideIcons.activity,
+              a?.icon ?? kUnknownActivityIcon,
             );
           }(),
     ];

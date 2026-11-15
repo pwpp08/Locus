@@ -423,7 +423,7 @@ String localizedText(AppLocalizations? l, String text) {
     "Unusual overnight physiology" =>
       l.supplementUnusualOvernightPhysiology69c322,
     "Unusual together" => l.supplementUnusualTogether4ca5cd,
-    "VO2max (est.)" => l.supplementVO2maxEst25e886,
+    "VO₂ max (est.)" => l.supplementVO2maxEst25e886,
     "View data" => l.supplementViewData9a8de9,
     "Vitamin B12" => l.supplementVitaminB12be7c1e,
     "Vitamin D (25-OH)" => l.supplementVitaminD25OHacb2ca,

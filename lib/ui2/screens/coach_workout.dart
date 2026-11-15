@@ -24,7 +24,7 @@ String planStrainWhy(WorkoutPlan plan) =>
     'No strain estimate yet: it needs ${plan.strainWhy ?? 'your heart-rate zones'}.';
 
 IconData _iconFor(String sport) =>
-    activityByName(sport)?.icon ?? LucideIcons.activity;
+    activityByName(sport)?.icon ?? kUnknownActivityIcon;
 
 /// The zones a plan spends time in, as a bar in proportion and the minutes
 /// under it.

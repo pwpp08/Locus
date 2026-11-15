@@ -212,7 +212,7 @@ List<Widget> whatChangedBody(BuildContext c, WhatChangedData d) {
           color: p.card2,
           elevation: 0,
           child: Text(
-            sweepText(l, pairing),
+            _sentence(sweepText(l, pairing)),
             style: F.cap.copyWith(color: p.ink2, height: 1.5),
           ),
         ),
@@ -238,6 +238,11 @@ List<Widget> whatChangedBody(BuildContext c, WhatChangedData d) {
       Section(l?.whatChangedMonthSection ?? 'The month behind it', MonthGrid(d.grid)),
   ];
 }
+
+/// A finding starts with its metric's name, which the sweep writes in lower
+/// case ("resting heart rate 68 bpm"): on screen it is a sentence.
+String _sentence(String s) =>
+    s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
 /// One finding, translated for display with its evidence and window intact.
 class SweepFindingRow extends StatelessWidget {
@@ -266,7 +271,7 @@ class SweepFindingRow extends StatelessWidget {
           const SizedBox(width: S.x3),
           Expanded(
             child: Text(
-              sweepText(AppLocalizations.of(c), f.text),
+              _sentence(sweepText(AppLocalizations.of(c), f.text)),
               style: F.body.copyWith(color: p.ink, height: 1.45),
             ),
           ),

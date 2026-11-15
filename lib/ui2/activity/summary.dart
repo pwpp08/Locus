@@ -639,7 +639,7 @@ List<(String, String)> sessionStats(ActivityResult r, UnitsController? u) {
   add('HR recovery', r.hrr60 == null ? null : '${r.hrr60} bpm in 60 s');
   // ESTIMATE from one completed km split of THIS session's own route + HR —
   // absent on almost every session (indoor, no GPS, no full km) by design.
-  add('VO2max (est.)',
+  add('VO₂ max (est.)',
       r.vo2max == null ? null : '${r.vo2max!.toStringAsFixed(1)} ml/kg/min');
   add('Calories', r.calories == null ? null : '${grouped(r.calories!)} kcal');
   add('Strain', r.strain?.toStringAsFixed(1));

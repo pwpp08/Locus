@@ -18,7 +18,8 @@ import '../../compute/stress_monitor.dart';
 import '../../data/day_label.dart';
 import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
-import '../activity/catalogue.dart' show activityByName;
+import '../activity/catalogue.dart' show activityByName, kUnknownActivityIcon;
+import '../../state/clock_format.dart';
 import '../ui2.dart';
 import 'calibration.dart' show CalibrationStrip, Milestone;
 import 'home_screen.dart' show monthShortName, pad, repoOf, weekdayShortName;
@@ -361,7 +362,7 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
           const SizedBox(height: S.x4),
           _Gauge(
             score: score,
-            time: shown == null ? null : _clock(shown),
+            time: shown == null ? null : formatClockMinute(shown),
             onInfo: () => _info(c, d),
           ),
           const SizedBox(height: S.x6),
@@ -505,7 +506,7 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
       gutter: gutter,
       label: 'Stress through the day',
       onPinch: _zoom ? (phase, scale, focal, pan) => _pinch(phase, scale, focal, pan, last) : null,
-      describe: (i) => '${_clock(from + i)}: '
+      describe: (i) => '${formatClockMinute(from + i)}: '
           '${values[i] == null ? 'no reading' : values[i]!.toStringAsFixed(1)}',
       onScrub: (i) => setState(() => _at = i == null ? null : from + i),
       paintUnder: (canvas, plot, xOf, yOf) {
@@ -550,7 +551,7 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
         for (final (a, b, icon) in [
           for (final (a, b) in d.sleep) (a, b, LucideIcons.moon),
           for (final s in d.sessions)
-            (s.from, s.to, activityByName(s.type)?.icon ?? LucideIcons.activity),
+            (s.from, s.to, activityByName(s.type)?.icon ?? kUnknownActivityIcon),
         ])
           if (b > from && a <= to)
             (

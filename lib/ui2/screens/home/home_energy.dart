@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../compute/energy_reserve.dart';
+import '../../../state/clock_format.dart';
 import '../../ui2.dart';
 
 Color _tone(double level) => level >= 67
@@ -11,11 +12,8 @@ Color _tone(double level) => level >= 67
         ? C.recYellow
         : C.recRed;
 
-String _clockOf(int ts) {
-  final d = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
-  return '${d.hour.toString().padLeft(2, '0')}:'
-      '${d.minute.toString().padLeft(2, '0')}';
-}
+String _clockOf(int ts) =>
+    formatClockOf(DateTime.fromMillisecondsSinceEpoch(ts * 1000));
 
 class EnergyReserveCard extends StatelessWidget {
   final EnergyReserve data;

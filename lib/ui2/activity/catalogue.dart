@@ -121,6 +121,10 @@ String catalogueName(AppLocalizations? l, String name) =>
     ) ??
     name;
 
+/// The icon of a session whose type the catalogue does not know, and of a
+/// detected activity nobody has named yet. One icon everywhere.
+const kUnknownActivityIcon = ActIcons.exercise;
+
 const activityLibrary = <ActGroup>[
   ActGroup('Cardio', LucideIcons.heartPulse, [
     Activity('Running', ActIcons.directionsRun, C.dialStrain, Track.distance, 9.8,

@@ -249,6 +249,9 @@ String whyText(AppLocalizations l, String? reason, String device) =>
 }) {
   String int0(num x) => x.round().toString();
   String fixed1(num x) => x.toStringAsFixed(1);
+  // 8,412 rather than 8412, as Home writes steps and calories.
+  String grouped(num x) => int0(x).replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
   return switch (row) {
     'sleep_window' || 'sleep_stages' || 'naps' => (axisHm(v.toDouble()), ''),
     'efficiency_awakenings' || 'spo2' => (int0(v), l.wearableUnitPct),
@@ -267,7 +270,8 @@ String whyText(AppLocalizations l, String? reason, String device) =>
         ? (fixed1(v), l.wearableUnitCelsius)
         : ('${v > 0 ? '+' : ''}${fixed1(v)}', l.wearableUnitSd),
     'strain' => (fixed1(v), ''),
-    'calories' => (int0(v), l.wearableUnitKcal),
+    'calories' => (grouped(v), l.wearableUnitKcal),
+    'steps' => (grouped(v), ''),
     // A ring's movement is the share of the night's records with steps in
     // them; a watch's is minutes in a heart-rate zone.
     'movement' => method == 'steps_5min'

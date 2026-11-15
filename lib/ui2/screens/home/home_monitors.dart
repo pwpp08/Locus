@@ -4,6 +4,7 @@ import '../../../compute/stress_monitor.dart' show StressLevel, stressLevel;
 import '../../grammar.dart' show Surface;
 import '../../marks.dart' show BoldChevron;
 import '../../theme.dart' show C, F, I, P, R, S;
+import '../../../state/clock_format.dart';
 import '../../ui2.dart' show LucideIcons;
 import '../../../compute/stress_monitor.dart' show kStressBaselineDays;
 import '../calibration.dart' show Milestone, SegmentBar;
@@ -108,8 +109,7 @@ class HomeMonitors extends StatelessWidget {
       StressLevel.high => C.stressHigh,
       null => p.ink3,
     };
-    String at(int m) =>
-        '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+    String at(int m) => formatClockMinute(m);
 
     return Padding(
       padding: const EdgeInsets.only(top: S.x3),

@@ -43,7 +43,7 @@ import '../../data/med_store.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
 import '../../state/locale_controller.dart';
-import '../activity/catalogue.dart' show activityByName;
+import '../activity/catalogue.dart' show activityByName, kUnknownActivityIcon;
 import '../profile/devices.dart'
     show DeviceFilter, DeviceOption, signalCandidates;
 import '../profile/wearable_numbers.dart' show deviceScoreLabel, observationTitle;
@@ -190,7 +190,7 @@ List<Moment> dayMoments({
               ? (l?.dayTimelineWorkout ?? 'Workout')
               : type.replaceAll('_', ' ')),
       detail: bits.join(' · '),
-      icon: act?.icon ?? LucideIcons.dumbbell,
+      icon: act?.icon ?? kUnknownActivityIcon,
       color: act?.color ?? C.strainDown,
     ));
   }

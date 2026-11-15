@@ -7,7 +7,7 @@ import '../../../state/clock_format.dart' show formatClockOf;
 import '../../grammar.dart' show Pressable, Surface;
 import '../../theme.dart' show C, DC, F, I, P, R, S;
 import '../../ui2.dart' show LucideIcons;
-import '../../activity/catalogue.dart' show activityByName;
+import '../../activity/catalogue.dart' show activityByName, kUnknownActivityIcon;
 import 'home_data.dart';
 
 class HomeSectionHead extends StatelessWidget {
@@ -154,7 +154,7 @@ class HomeMyDay extends StatelessWidget {
         start: start,
         widget: HomeActivityRow(
           color: C.blockSession,
-          icon: a?.icon ?? LucideIcons.dumbbell,
+          icon: a?.icon ?? kUnknownActivityIcon,
           value: strain != null
               ? strain.toStringAsFixed(1)
               : (mins == null ? '--' : hMinutes(mins)),
@@ -171,7 +171,7 @@ class HomeMyDay extends StatelessWidget {
         start: s.startTs,
         widget: HomeActivityRow(
           color: C.blockSession,
-          icon: LucideIcons.personStanding,
+          icon: kUnknownActivityIcon,
           // No strain yet: that is scored when it is named. Its length is
           // what is known.
           value: hMinutes(s.durationMin),

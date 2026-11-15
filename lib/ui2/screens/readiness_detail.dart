@@ -325,10 +325,13 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
           ]),
         ),
       ),
-      const SizedBox(height: S.x12 + S.hair),
-      dialHeading('Weekly Trends'),
-      const SizedBox(height: S.x8 + S.half),
-      _RecoveryWeek(d.vitals),
+      // No heading over nothing: a first week has no trends yet.
+      if (d.vitals.week.isNotEmpty) ...[
+        const SizedBox(height: S.x12 + S.hair),
+        dialHeading('Weekly Trends'),
+        const SizedBox(height: S.x8 + S.half),
+        _RecoveryWeek(d.vitals),
+      ],
     ]);
   }
 
