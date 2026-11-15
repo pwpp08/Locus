@@ -42,6 +42,8 @@ import 'hr_max.dart'
         smoothedMinHr,
         trainingZones;
 import 'profile.dart' show workoutSex;
+import 'day_energy.dart' show dayEnergy, moveShareForMinutes;
+import 'sleep_latency.dart' show kMaxLatencySec;
 import 'step_cadence.dart' show cadenceSpmForMinutes;
 import 'strain_peak.dart' show keptStrainCurve, peakStrain;
 // Same argument: a pure `DateTime` lookup, no DB / IO / Flutter binding. It is
@@ -403,6 +405,17 @@ class DayBundleInput {
   /// the same walk the same way. Empty when nothing measured steps.
   final List<List<int>> stepSpans;
 
+  /// The wrist's moving share per minute of the day, `[minute key (epoch
+  /// seconds ~/ 60), share 0…1]`, from `movementBuckets`: what prices a wake
+  /// minute under the heart-rate gate when no pedometer covered it, the same
+  /// way the coordinator's `wakeDayEnergy` does. Empty when not measured.
+  final List<List<num>> moveMinutes;
+
+  /// When the sleeper lay down (`sleep_latency.dart` `bedTimeBefore`), epoch
+  /// seconds, for latency on a night the detector found. Null when it could
+  /// not be seen; ignored on a user-set or confirmed window.
+  final int? bedTsSec;
+
   /// Which strap measured this day — `'gen4'`, `'gen5'`, or null for UNKNOWN
   /// (unstamped historical rows, imports, the raw-hex replay path). Null is its
   /// own case, never gen4: see [Substrate.deviceFamily] and analytics'
@@ -447,11 +460,15 @@ class DayBundleInput {
     this.deviceFamily,
     this.sleepSource = 'auto',
     this.stepSpans = const [],
+    this.moveMinutes = const [],
+    this.bedTsSec,
   });
 
   Map<String, dynamic> toJson() => {
     'date': date,
     'step_spans': stepSpans,
+    'move_minutes': moveMinutes,
+    'bed_ts': bedTsSec,
     'day_ts': dayTsSec,
     'day_hr': dayHr,
     'day_rr_ts_ms': dayRrTsMs,
@@ -539,6 +556,11 @@ class DayBundleInput {
         for (final r in (m['step_spans'] as List? ?? const []))
           [for (final v in (r as List)) (v as num).toInt()],
       ],
+      moveMinutes: [
+        for (final r in (m['move_minutes'] as List? ?? const []))
+          [for (final v in (r as List)) v as num],
+      ],
+      bedTsSec: (m['bed_ts'] as num?)?.toInt(),
     );
   }
 }
@@ -1130,7 +1152,11 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
         weightKg != null &&
         heightCm != null &&
         rhrForTrimp != null) {
-      caloriesKcal = Calories.dailyEnergy(
+      final minuteKeys = [for (final p in wakeHr) p.tsSec ~/ 60];
+      // `dayEnergy` (day_energy.dart), the same pricing `wakeDayEnergy` uses,
+      // fed the same moving share, so the early read and the derived day
+      // agree under the heart-rate gate too.
+      caloriesKcal = dayEnergy(
         perMin,
         profile: WorkoutUserProfile(
           weightKg: weightKg,
@@ -1146,10 +1172,13 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
         // of the number growing when the coordinator's pass lands.
         cadenceSpmPerMin: d.stepSpans.isEmpty
             ? null
-            : cadenceSpmForMinutes(
-                [for (final p in wakeHr) p.tsSec ~/ 60],
-                d.stepSpans,
-              ),
+            : cadenceSpmForMinutes(minuteKeys, d.stepSpans),
+        moveSharePerMin: d.moveMinutes.isEmpty
+            ? null
+            : moveShareForMinutes(minuteKeys, [
+                for (final r in d.moveMinutes)
+                  (t: r[0].toInt() * 60, v: r[1].toDouble()),
+              ]),
         // `?.` — `dailyEnergy` abstains outright when the anchors cannot
         // define a gate, rather than billing every waking minute as active.
         // Absent stays absent here, same as every other input on this seam.
@@ -2297,13 +2326,15 @@ const int kAwakeningMinSec = 300;
 ///   * `longest_sleep_sec` — the longest unbroken sleep run. Runs TERMINATE at
 ///     `unobserved`, never merge across it: bridging a three-hour hole prints a
 ///     fabricated five-hour stretch.
-///   * `sol_sec` — seconds from window start to the first sleep second, and ONLY
-///     on a user-forced window. On the auto path the window is built by
-///     `_classifyStill` over gravity, gated on HR-in-band, so it cannot begin
-///     before you are already lying still with a sleep-ish heart rate — the
-///     40-minutes-of-tossing case falls OUTSIDE the window and would report a
-///     latency near zero. Also null when the leading edge is unobserved: we did
-///     not watch you fall asleep.
+///   * `sol_sec` — seconds from getting into bed to the first sleep second. On
+///     a window whose start the user set ('manual'), bed is that start. On the auto path the
+///     window is built by `_classifyStill` over gravity, gated on HR-in-band,
+///     so it cannot begin before you are already lying still with a sleep-ish
+///     heart rate — the 40-minutes-of-tossing case falls OUTSIDE the window —
+///     so bed is the lie-down read off the wrist before it
+///     ([DayBundleInput.bedTsSec], `sleep_latency.dart`), and null when that
+///     could not be seen. Also null when the leading edge is unobserved: we
+///     did not watch you fall asleep.
 Map<String, dynamic> _sleepRuns(DayBundleInput d) {
   final stages = d.hypnoStages;
   const absent = {
@@ -2339,14 +2370,29 @@ Map<String, dynamic> _sleepRuns(DayBundleInput d) {
   // A trailing wake run inside the sleep period is only possible if it is
   // followed by sleep, which the loop already counted, so nothing to flush.
 
-  final forced = d.sleepSource == 'manual' || d.sleepSource == 'confirmed';
+  // Only a window whose START the person set ('manual') starts at bed. A
+  // 'confirmed' one keeps the detector's onset (I'm awake, or a proposal
+  // accepted), so it is measured from the lie-down like an automatic one.
+  final forced = d.sleepSource == 'manual';
   final leadingObserved = !stages
       .sublist(0, firstSleep)
       .any((s) => s == 'unobserved');
+  final bed = d.bedTsSec;
+  final int? sol;
+  if (!leadingObserved) {
+    sol = null;
+  } else if (forced) {
+    sol = firstSleep;
+  } else if (bed != null && d.sleepOnsetSec > 0 && bed <= d.sleepOnsetSec) {
+    final s = d.sleepOnsetSec + firstSleep - bed;
+    sol = s <= kMaxLatencySec ? s : null;
+  } else {
+    sol = null;
+  }
   return {
     'awakenings': awakenings,
     'longest_sleep_sec': longest,
-    'sol_sec': (forced && leadingObserved) ? firstSleep : null,
+    'sol_sec': sol,
   };
 }
 

@@ -1,16 +1,13 @@
 // A NAP, opened from My Day, the Naps list or the Sleep screen. Laid out like
-// a recorded activity: the figure up top, the heart rate through the nap with
-// the wrist's movement under it, then the key statistics.
+// the Sleep screen: the figure up top, then the nap's stages over its heart
+// rate and movement, then the key statistics.
 //
-// ONLY WHAT WAS MEASURED. The pipeline stores a nap as a window and the
-// minutes asleep in it — no stages — so this screen draws no stages. It used
-// to: deep sleep was set to 40 % of the nap, REM to 10 %, laid out in a
-// scripted order, with wake events, latency and "typical ranges" computed
-// from that script, a respiratory rate of 16.4 when none was read, and "this
-// nap reduced your sleep need by N minutes" stating the raw nap minutes the
-// sleep coach deliberately does not take (crossday_pipeline.dart). All of it
-// is gone. What remains is the window, the minutes asleep, the heart rate the
-// band recorded and the movement it measured.
+// ONLY WHAT WAS MEASURED. A nap's stages are the night's own stager run over
+// the window the person confirmed (compute/nap_staging.dart), stored with the
+// nap. A nap too short or too thinly recorded to stage has none, and then the
+// screen shows the heart rate and movement alone, as it always did. An older
+// version of this screen drew stages from a script (deep 40 %, REM 10 %) with
+// latency and "typical ranges" computed from it; none of that comes back.
 
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -27,6 +24,7 @@ import '../../state/clock_format.dart';
 import '../ui2.dart';
 import 'home_screen.dart' show repoOf;
 import 'movement_lane.dart';
+import 'sleep_detail.dart' show NapStagesCard;
 import 'window_editor.dart' show HrPoint, WindowKind, openWindowEditor;
 
 /// "0:52": hours and minutes, as a recorded activity writes its duration.
@@ -49,6 +47,10 @@ class NapDetailData {
   final int? avgHr, lowHr;
   final List<MovePoint> movement;
 
+  /// The nap's stages (`nap_staging.dart` `stageNap`), or null when it was not
+  /// staged.
+  final Map<String, dynamic>? staging;
+
   const NapDetailData({
     required this.day,
     required this.start,
@@ -61,9 +63,41 @@ class NapDetailData {
     this.avgHr,
     this.lowHr,
     this.movement = const [],
+    this.staging,
   });
 
-  int get inBedMin => math.max(0, (end - start) ~/ 60);
+  int get inBedMin => math.max(0, ((end - start) / 60).round());
+
+  /// Minutes asleep: the staging's when there is one, never more than in bed.
+  int? get asleepShown {
+    final a = (staging?['asleep_min'] as num?)?.round() ?? asleepMin;
+    return a == null ? null : math.min(a, inBedMin);
+  }
+
+  /// The nap as the Sleep screen's night card reads one, or null unstaged.
+  Map<String, dynamic>? get stagedNight {
+    final st = staging;
+    final runs = st?['runs'];
+    if (st == null || runs is! List || runs.isEmpty) return null;
+    final pts = <Map<String, dynamic>>[
+      for (final r in runs)
+        if (r is List && r.length >= 3) {'t': r[0], 'stage': r[2]},
+    ];
+    final last = runs.last;
+    if (last is List && last.length >= 3) {
+      pts.add({'t': last[1], 'stage': last[2]});
+    }
+    return {
+      'onset_ts': start,
+      'wake_ts': end,
+      'duration_min': asleepShown,
+      'awake_min': st['wake_min'],
+      'light_min': st['light_min'],
+      'deep_min': st['deep_min'],
+      'rem_min': st['rem_min'],
+      'hypnogram': pts,
+    };
+  }
 
   /// The nap as the list handed it over, with nothing read around it.
   factory NapDetailData.bare(Map<String, dynamic> nap, {String? day}) {
@@ -77,6 +111,7 @@ class NapDetailData {
       end: end,
       asleepMin: (nap['duration_min'] as num?)?.round(),
       source: nap['source']?.toString(),
+      staging: (nap['staging'] as Map?)?.cast<String, dynamic>(),
       from: start - pad,
       to: end + pad,
     );
@@ -154,6 +189,24 @@ class NapDetailData {
           .fold<int?>(null, (a, v) => a == null || v < a ? v : a);
     }
 
+    // The nap's stages live with the day's naps; the list that opened this
+    // screen may not have carried them.
+    var staging = b.staging;
+    if (staging == null) {
+      try {
+        final naps = (await repo.getDayNaps(b.day))['naps'];
+        if (naps is List) {
+          for (final n in naps) {
+            if (n is Map && n['start'] == b.start && n['end'] == b.end) {
+              staging = (n['staging'] as Map?)?.cast<String, dynamic>();
+            }
+          }
+        }
+      } catch (_) {
+        // Unstaged is a real answer here: the screen draws without stages.
+      }
+    }
+
     return NapDetailData(
       day: b.day,
       start: b.start,
@@ -166,6 +219,7 @@ class NapDetailData {
       avgHr: avg,
       lowHr: low,
       movement: await readMovement(b.from, b.to, repo: repo, day: b.day),
+      staging: staging,
     );
   }
 }
@@ -412,7 +466,17 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
                   children: [
                     _hero(p, d),
                     const SizedBox(height: S.x2),
-                    _chart(p, d),
+                    if (d.stagedNight case final night?)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: S.x4),
+                        child: NapStagesCard(
+                          nap: night,
+                          heart: d.hr,
+                          movement: d.movement,
+                        ),
+                      )
+                    else
+                      _chart(p, d),
                     const SizedBox(height: S.x8),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: S.x4),
@@ -552,7 +616,7 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(d.asleepMin == null ? '--' : _hmm(d.asleepMin!),
+                  Text(d.asleepShown == null ? '--' : _hmm(d.asleepShown!),
                       style: figure),
                   Text('TIME ASLEEP', style: label),
                 ],
@@ -636,7 +700,9 @@ class _NapDetailScreenState extends State<NapDetailScreen> {
             .round();
     final cells = [
       (LucideIcons.bedDouble, 'IN BED', _hmm(d.inBedMin), ''),
-      (LucideIcons.moon, 'ASLEEP', d.asleepMin == null ? '--' : _hmm(d.asleepMin!), ''),
+      (LucideIcons.moon, 'ASLEEP', d.asleepShown == null ? '--' : _hmm(d.asleepShown!), ''),
+      if ((d.staging?['efficiency'] as num?) case final eff?)
+        (LucideIcons.gauge, 'EFFICIENCY', '${eff.round()}', '%'),
       (LucideIcons.heart, 'AVG HR', d.avgHr == null ? '--' : '${d.avgHr}', 'bpm'),
       (LucideIcons.heartPulse, 'LOWEST HR', d.lowHr == null ? '--' : '${d.lowHr}', 'bpm'),
       if (restless != null) (LucideIcons.activity, 'MOVING', '$restless', '%'),

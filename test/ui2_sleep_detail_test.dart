@@ -141,8 +141,16 @@ void main() {
   });
 
   group('sleep latency', () {
-    testWidgets('an auto window never claims one', (t) async {
+    // The pipeline decides when a latency can be measured (from the lie-down
+    // on a detected night, from the start of one the user set); the screen
+    // shows what it stored, and a dash when it stored nothing.
+    testWidgets('a detected night shows the latency it stored', (t) async {
       await _pump(t, SleepData(day: _day, night: _night(), solMin: 37));
+      expect(find.text('0:37'), findsOneWidget);
+    });
+
+    testWidgets('none stored reads as a dash', (t) async {
+      await _pump(t, SleepData(day: _day, night: _night()));
       expect(find.text('0:37'), findsNothing);
     });
 

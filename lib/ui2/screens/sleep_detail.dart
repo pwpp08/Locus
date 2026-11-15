@@ -1047,16 +1047,57 @@ num? _stageMinutes(Map<String, dynamic> n, SleepStage s) => switch (s) {
       SleepStage.rem => n['rem_min'] as num?,
     };
 
+/// A nap's stages, drawn as a night's are: the hypnogram over its heart rate
+/// and movement, then each stage's time and share. [nap] carries `onset_ts`,
+/// `wake_ts`, `duration_min`, the stage minutes (`awake_min`, `light_min`,
+/// `deep_min`, `rem_min`) and `hypnogram` (`[{t, stage}]`).
+class NapStagesCard extends StatefulWidget {
+  final Map<String, dynamic> nap;
+  final List<({int t, double v})> heart;
+  final List<MovePoint> movement;
+  const NapStagesCard({
+    super.key,
+    required this.nap,
+    this.heart = const [],
+    this.movement = const [],
+  });
+
+  @override
+  State<NapStagesCard> createState() => _NapStagesCardState();
+}
+
+class _NapStagesCardState extends State<NapStagesCard> {
+  SleepStage? _picked;
+
+  @override
+  Widget build(BuildContext c) => _NightCard(
+        d: SleepData(
+            vitals:
+                SleepVitals(heart: widget.heart, movement: widget.movement)),
+        night: widget.nap,
+        // No typical range: a nap has no run of earlier naps to stand against.
+        device: true,
+        nap: true,
+        picked: _picked,
+        onPick: (s) => setState(() => _picked = _picked == s ? null : s),
+      );
+}
+
 class _NightCard extends StatefulWidget {
   final SleepData d;
   final Map<String, dynamic> night;
   final bool device;
+
+  /// A nap: titled for one, with no sleep latency (a nap's window is the
+  /// person's own, not a time in bed).
+  final bool nap;
   final SleepStage? picked;
   final ValueChanged<SleepStage> onPick;
   const _NightCard({
     required this.d,
     required this.night,
     required this.device,
+    this.nap = false,
     required this.picked,
     required this.onPick,
   });
@@ -1103,12 +1144,22 @@ class _NightCardState extends State<_NightCard> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(kDialPad, S.x1 + S.hair, S.x4, 0),
-          child: dialCardTitle('Hours of sleep',
-              trailing: const DialInfo(
-                  'Hours of sleep',
-                  'How long you were asleep, with your heart rate through the '
-                      'night. Under it is what the night was made of, each '
-                      'stage against the middle half of your own recent nights.')),
+          child: widget.nap
+              ? dialCardTitle('Nap stages',
+                  trailing: const DialInfo(
+                      'Nap stages',
+                      'The nap staged the way a night is: the same stager '
+                          'over the window you confirmed, with your heart rate '
+                          'and movement through it. Light and deep are an '
+                          'estimate from heart rate and carry less confidence '
+                          'than awake and asleep.'))
+              : dialCardTitle('Hours of sleep',
+                  trailing: const DialInfo(
+                      'Hours of sleep',
+                      'How long you were asleep, with your heart rate through '
+                          'the night. Under it is what the night was made of, '
+                          'each stage against the middle half of your own '
+                          'recent nights.')),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: kDialPad),
@@ -1185,18 +1236,24 @@ class _NightCardState extends State<_NightCard> {
           padding: const EdgeInsets.fromLTRB(
               S.x8 - S.hair, 0, S.x6 + S.hair, 0),
           child: Row(children: [
-            CustomPaint(
-                size: const Size(S.x4, S.x4 + S.hair),
-                painter: _TypicalKeyPaint()),
-            const SizedBox(width: S.x3),
+            // A nap has no typical range to key.
+            if (!widget.nap) ...[
+              CustomPaint(
+                  size: const Size(S.x4, S.x4 + S.hair),
+                  painter: _TypicalKeyPaint()),
+              const SizedBox(width: S.x3),
+            ],
             Expanded(
               child: Wrap(
-                alignment: WrapAlignment.spaceBetween,
+                alignment: widget.nap
+                    ? WrapAlignment.end
+                    : WrapAlignment.spaceBetween,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 spacing: S.x2,
                 children: [
-                  Text('TYPICAL RANGE',
-                      style: F.dLabel.copyWith(color: DC.ink2)),
+                  if (!widget.nap)
+                    Text('TYPICAL RANGE',
+                        style: F.dLabel.copyWith(color: DC.ink2)),
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -1240,19 +1297,20 @@ class _NightCardState extends State<_NightCard> {
           label: 'Restorative sleep',
           trailing: _restorative(d, n),
         ),
+        if (!widget.nap) ...[
         const SizedBox(height: S.x6 + S.x1),
         _KeyedRow(
           swatch: const LinearGradient(
               colors: [DC.stageAwake, DC.stageAwake]),
           label: 'Sleep latency',
-          // Only on a window whose START the user set themselves ('manual').
-          // An auto window's onset is the stager's guess, and a 'confirmed'
-          // one keeps that same onset (I'm awake, or accepting a proposal), so
-          // measuring back from either always reads 0:00.
-          trailing: Text(
-              clockDur(n['sleep_source'] == 'manual' ? d.solMin : null),
+          // From getting into bed: the window's start when the user set it,
+          // otherwise the lie-down read off the wrist before the detector's
+          // window (onehz_pipeline `_sleepRuns`). A dash when neither could be
+          // seen.
+          trailing: Text(clockDur(d.solMin),
               style: F.nRow.copyWith(color: DC.ink)),
         ),
+        ],
         const SizedBox(height: S.x6 + S.hair),
       ]),
     );

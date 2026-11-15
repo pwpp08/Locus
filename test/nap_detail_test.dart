@@ -1,8 +1,9 @@
 // A nap is drawn from what was measured: its window, the minutes asleep in
-// it, the heart rate and the wrist's movement. The pipeline stores no nap
-// stages, so none are drawn — this screen used to script a 40 % deep / 10 %
-// REM split, invent a 16.4 rpm breathing rate and print "within 0:00-0:00 min"
-// ranges nothing had computed. These tests pin that none of it comes back.
+// it, the heart rate, the wrist's movement and, when the stager ran over it,
+// its stages. This screen used to script a 40 % deep / 10 % REM split, invent
+// a 16.4 rpm breathing rate and print "within 0:00-0:00 min" ranges nothing
+// had computed. These tests pin that an unstaged nap draws no stages, and a
+// staged one draws only the stages it stored.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,6 +20,7 @@ NapDetailData _fixture({
   int? asleep = 52,
   bool movement = true,
   bool hr = true,
+  Map<String, dynamic>? staging,
 }) =>
     NapDetailData(
       day: '2025-05-07',
@@ -36,6 +38,7 @@ NapDetailData _fixture({
       movement: movement
           ? [for (var t = _start; t < _end; t += 60) (t: t, span: 60, v: (t ~/ 60) % 5 / 10)]
           : const [],
+      staging: staging,
     );
 
 Future<void> _pump(WidgetTester t, NapDetailData d) async {
@@ -114,5 +117,35 @@ void main() {
     expect(find.text('EDIT NAP'), findsOneWidget);
     expect(find.text('DELETE NAP'), findsOneWidget);
     expect(find.text('CONVERT TO SLEEP'), findsOneWidget);
+  });
+
+  testWidgets('a staged nap draws its stages the way a night does',
+      (t) async {
+    await _pump(
+        t,
+        _fixture(staging: {
+          'asleep_min': 50,
+          'in_bed_min': 62,
+          'wake_min': 12,
+          'light_min': 30,
+          'deep_min': 8,
+          'rem_min': 12,
+          'efficiency': 80.6,
+          'runs': [
+            [_start, _start + 600, 'wake'],
+            [_start + 600, _start + 2400, 'light'],
+            [_start + 2400, _start + 2880, 'deep'],
+            [_start + 2880, _start + 3600, 'rem'],
+            [_start + 3600, _end, 'wake'],
+          ],
+        }));
+    expect(find.text('NAP STAGES'), findsOneWidget);
+    expect(find.text('0:30'), findsOneWidget, reason: 'light');
+    expect(find.text('0:08'), findsOneWidget, reason: 'deep');
+    expect(find.text('EFFICIENCY'), findsOneWidget);
+    expect(find.text('81'), findsOneWidget);
+    expect(find.text('LATENCY'), findsNothing);
+    expect(find.text('TYPICAL RANGE'), findsNothing);
+    expect(t.takeException(), isNull);
   });
 }

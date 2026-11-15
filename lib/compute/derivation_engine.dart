@@ -37,6 +37,9 @@ import 'package:flutter/foundation.dart';
 import 'findings.dart';
 import 'nap_overlap_cleanup.dart';
 import 'nap_edits.dart';
+import 'day_energy.dart' show dayEnergy, moveShareForMinutes;
+import 'nap_staging.dart' show stageNap;
+import 'sleep_latency.dart' show kBedLookbackSec;
 import 'movement.dart' show movementBuckets;
 import 'package:openstrap_analytics/onehz.dart' as ana;
 import '../data/live_coverage_policy.dart' show CoverageSpan;
@@ -1847,7 +1850,21 @@ import 'vendor_sleep.dart';
 // (no bump) Every cross-day pass now also stores `sleep_performance`,
 // `sleep_consistency` and `sleep_last_need_min` for each night in its window,
 // on the v116 formulas; no day_result changes, so nothing needs re-deriving.
-const int kAlgoVersion = 116;
+// 116 → 117 (edge-only; metric arithmetic that belongs in analytics, kept here
+// because analytics is pinned upstream): (1) day energy prices the wake
+// minutes under the heart-rate gate instead of billing them zero
+// (compute/day_energy.dart): a measured cadence under 100 a minute on a line
+// from 1 to 3 METs, a moving wrist from its heart rate on a line from 1 MET at
+// rest to 3 at the gate, a still wrist nothing. Over the gate is unchanged.
+// Both energy call sites (`wakeDayEnergy`, the pipeline's early read) use it,
+// with the per-minute moving share carried into the pipeline input. (2) Sleep
+// latency on a detected or confirmed night runs from the lie-down read off the
+// wrist before the window (compute/sleep_latency.dart), abstaining when it
+// cannot be seen; a window the user started is measured from its start as
+// before. (3) Each accepted nap is staged by the night's stager over its
+// window (compute/nap_staging.dart) and stored as `naps.value[].staging`.
+// Days derived before 117 keep their stored values.
+const int kAlgoVersion = 117;
 /// The sibling SHAs this version was derived against, asserted against
 /// pubspec.yaml in test/db_serve_version_and_reads_test.dart.
 ///
@@ -3652,10 +3669,29 @@ class DerivationEngine {
       dayEndSec: dayEnd,
       sleepOffsetSec: candidate.present ? candidate.sleepOffsetSec : 0,
     );
+    // The minutes before the window, for when the sleeper lay down
+    // (sleep_latency.dart): only a night the detector found needs them.
+    int? bedTs;
+    if (candidate.present &&
+        candidate.sleepOnsetSec > 0 &&
+        candidate.sleepSource != 'manual') {
+      try {
+        final from = candidate.sleepOnsetSec - kBedLookbackSec;
+        final lead = wearable != null
+            ? await wearableSubstrate(
+                wearable, from, candidate.sleepOnsetSec - 1)
+            : await _loadSubstrateRange(from, candidate.sleepOnsetSec - 1,
+                dayId: dayId, stats: stats, ownership: ownership);
+        bedTs = bedTimeIn(lead, candidate.sleepOnsetSec);
+      } catch (_) {
+        // No lead-in to read: latency abstains.
+      }
+    }
     return candidate.toPreparedDay(
       daySub: daySub,
       napSub: napSub,
       sleepSub: sleepSub,
+      bedTsSec: bedTs,
       tonightSleepOnsetSec: tonight?.startSec ?? 0,
       tonightSleepOffsetSec: tonight?.endSec ?? 0,
       ownership: ownership,
@@ -5210,6 +5246,7 @@ class DerivationEngine {
         sleepSub: sleepSub,
         tonightSleepOnsetSec: tonight?.startSec ?? 0,
         tonightSleepOffsetSec: tonight?.endSec ?? 0,
+        bedTsSec: bedTimeIn(sub, onsetSec),
       ),
       profile,
       dataNowSec,
@@ -5254,6 +5291,15 @@ class DerivationEngine {
     final stepSpans = [
       for (final s in liveSteps.spans) [s.startTs, s.endTs, s.steps],
     ];
+    // The wrist's moving share per minute, for the energy mirror's pricing
+    // under the heart-rate gate (the same buckets `wakeDayEnergy` reads).
+    final moveBuckets = movementBuckets(
+        daySub.tsSec, daySub.ax, daySub.ay, daySub.az,
+        bucketSec: 60);
+    final moveMinutes = [
+      for (final b in moveBuckets) <num>[b.t ~/ 60, b.v],
+    ];
+
     // Step-counter calibration profile, keyed by (family, wearing). Wearing
     // is 0 (refused: no profile, no learning) when the stored code is one
     // this build does not know, or the day started before the last wearing
@@ -5278,6 +5324,8 @@ class DerivationEngine {
       dayTsSec: daySub.tsSec,
       dayHr: daySub.hr,
       stepSpans: stepSpans,
+      moveMinutes: moveMinutes,
+      bedTsSec: day.bedTsSec,
       dayRrTsMs: daySub.rrTsMs,
       dayRrMs: daySub.rrMs,
       sleepTsSec: sleepSub.tsSec,
@@ -7312,14 +7360,20 @@ class DerivationEngine {
   /// The 1 Hz pipeline's early-read `calories` gates on height for the same
   /// reason, so Today does not show a figure the derived day then withdraws.
   @visibleForTesting
-  static ({double active, double basal, double total, double walking})?
-      wakeDayEnergy(
+  static ({
+    double active,
+    double basal,
+    double total,
+    double walking,
+    double light,
+  })? wakeDayEnergy(
     List<double> wakeHrPerMin, {
     required Profile profile,
     required double? restingHr,
     int? dayMinutes,
     String? deviceFamily,
     List<double?>? cadenceSpmPerMin,
+    List<double?>? moveSharePerMin,
   }) {
     if (!profile.hasCalorieAnchors) return null;
     // The active gate is a %HRR flex point, so it needs BOTH ends of the
@@ -7345,15 +7399,24 @@ class DerivationEngine {
       // beats a misaligned one, and the HR half of the figure is still real.
       cadenceSpmPerMin = null;
     }
+    if (moveSharePerMin != null &&
+        moveSharePerMin.length != wakeHrPerMin.length) {
+      moveSharePerMin = null;
+    }
     final hr = <double>[];
     final cadence = cadenceSpmPerMin == null ? null : <double?>[];
+    final move = moveSharePerMin == null ? null : <double?>[];
     for (var i = 0; i < wakeHrPerMin.length; i++) {
       if (wakeHrPerMin[i] <= 0) continue;
       hr.add(wakeHrPerMin[i]);
       cadence?.add(cadenceSpmPerMin?[i]);
+      move?.add(moveSharePerMin?[i]);
     }
     if (hr.isEmpty) return null;
-    final e = ana.Calories.dailyEnergy(
+    // `dayEnergy` (day_energy.dart): `dailyEnergy`'s arithmetic over the gate,
+    // with the minutes under it priced from cadence or a moving wrist instead
+    // of left at zero.
+    final e = dayEnergy(
       hr,
       profile: ana.WorkoutUserProfile(
         weightKg: profile.weightKg!,
@@ -7365,6 +7428,7 @@ class DerivationEngine {
       restingHr: restingHr,
       dayMinutes: dayMinutes ?? 1440,
       cadenceSpmPerMin: cadence,
+      moveSharePerMin: move,
     );
     // Anchors that cannot define an active gate are an ABSENT day's energy,
     // not a day billed entirely as active. `dailyEnergy` abstains; so does the
@@ -7375,6 +7439,7 @@ class DerivationEngine {
       basal: e.basal,
       total: e.total,
       walking: e.walking,
+      light: e.light,
     );
   }
 
@@ -8120,6 +8185,13 @@ class DerivationEngine {
         ? null
         : cadenceSpmForMinutes(wakeSeries.keys, stepSpans);
     final motion = _motionMinutes(daySub);
+    // How much of each wake minute the wrist was moving: what lets a minute
+    // under the heart-rate gate earn anything without a pedometer.
+    final wakeMove = moveShareForMinutes(
+      wakeSeries.keys,
+      movementBuckets(daySub.tsSec, daySub.ax, daySub.ay, daySub.az,
+          bucketSec: 60),
+    );
     final dayHrValid = <double>[
       for (final h in daySub.hr)
         if (h > 0) h.toDouble(),
@@ -8308,6 +8380,7 @@ class DerivationEngine {
         dayMinutes: motion.length,
         deviceFamily: daySub.deviceFamily,
         cadenceSpmPerMin: wakeCadence,
+        moveSharePerMin: wakeMove,
       );
       if (energy != null) {
         calories = energy.active;
@@ -9386,7 +9459,16 @@ class DerivationEngine {
       ];
       candidates?.addAll(detected.where((n) => !napEdits.any((e) =>
         e.overlaps(n['start'] as int, n['end'] as int))));
-      final merged = applyNapEdits(const [], napEdits);
+      // Each accepted nap staged by the night's own stager over its window
+      // (nap_staging.dart); a nap the band barely saw carries none.
+      final merged = [
+        for (final nap in applyNapEdits(const [], napEdits))
+          {
+            ...nap,
+            'staging': stageNap(
+                s, (nap['start'] as num).toInt(), (nap['end'] as num).toInt()),
+          },
+      ];
 
       bundle['naps'] = <String, dynamic>{
         'value': merged,

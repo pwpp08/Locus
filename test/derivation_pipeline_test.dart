@@ -233,6 +233,7 @@ void main() {
       String sleepSource = 'auto',
       int tempEvery = 1,
       String? deviceFamily = 'gen4',
+      int? bedTsSec,
     }) {
       final n = stages.length;
       final ts = <int>[for (var i = 0; i < n; i++) t0 + i];
@@ -266,6 +267,7 @@ void main() {
         },
         deviceFamily: deviceFamily,
         sleepSource: sleepSource,
+        bedTsSec: bedTsSec,
       ).toJson());
     }
 
@@ -300,14 +302,39 @@ void main() {
     });
 
     // On the auto path the window cannot begin before you are already still
-    // with a sleep-ish heart rate, so a latency measured off it is not the
-    // number people read it as.
-    test('sleep-onset latency is published only on a forced window', () {
+    // with a sleep-ish heart rate, so latency is measured from the lie-down
+    // before it, and never off the window's start.
+    test('sleep-onset latency runs from bed, not from the window', () {
       final stages = <String>[
         ...List<String>.filled(900, 'wake'),
         ...List<String>.filled(3600, 'light'),
       ];
-      expect(accountingOf(bundleFor(stages: stages))['sol_sec'], isNull);
+      expect(accountingOf(bundleFor(stages: stages))['sol_sec'], isNull,
+          reason: 'no lie-down seen');
+      expect(
+          accountingOf(bundleFor(stages: stages, bedTsSec: t0 - 1200))[
+              'sol_sec'],
+          2100,
+          reason: '20 min before the window, then 15 min of it awake');
+      expect(
+          accountingOf(bundleFor(
+              stages: stages,
+              sleepSource: 'confirmed',
+              bedTsSec: t0 - 600))['sol_sec'],
+          1500,
+          reason: "a confirmed night keeps the detector's onset");
+      expect(
+          accountingOf(bundleFor(stages: stages, bedTsSec: t0 - 4000))[
+              'sol_sec'],
+          isNull,
+          reason: 'over an hour is rest, not falling asleep');
+      expect(
+          accountingOf(bundleFor(
+              stages: stages,
+              sleepSource: 'manual',
+              bedTsSec: t0 - 1200))['sol_sec'],
+          900,
+          reason: 'a window the person started is measured from its start');
       expect(
         accountingOf(
             bundleFor(stages: stages, sleepSource: 'manual'))['sol_sec'],

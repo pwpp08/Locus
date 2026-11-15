@@ -5,6 +5,8 @@ import 'package:openstrap_analytics/onehz.dart' as ana;
 
 import '../ble/adapters/signals.dart';
 import '../data/coverage_resolver.dart';
+import 'movement.dart' show movementBuckets;
+import 'sleep_latency.dart';
 import 'substrate.dart';
 import 'vendor_sleep.dart';
 
@@ -37,6 +39,11 @@ class PreparedDerivationDay {
   /// be booked again as a nap.
   final int tonightSleepOnsetSec;
   final int tonightSleepOffsetSec;
+
+  /// When the sleeper lay down before this night (`sleep_latency.dart`),
+  /// epoch seconds, read off the minutes before the window; null when it
+  /// could not be seen.
+  final int? bedTsSec;
 
   /// M5: the resolved exclusive-owner spans, one entry per anchor signal
   /// (`hr1Hz`, `rrIntervals`), over the union window `_prepareTargetDay`
@@ -73,6 +80,7 @@ class PreparedDerivationDay {
     this.sleepSource = 'auto',
     this.tonightSleepOnsetSec = 0,
     this.tonightSleepOffsetSec = 0,
+    this.bedTsSec,
     this.ownership = const {},
     this.priority = const {},
   }) : napSub = napSub ?? daySub;
@@ -92,6 +100,7 @@ class PreparedDerivationDay {
     'nap_sub': napSub.toJson(),
     'tonight_sleep_onset_sec': tonightSleepOnsetSec,
     'tonight_sleep_offset_sec': tonightSleepOffsetSec,
+    'bed_ts': bedTsSec,
     // ponytail: `ownership` is NOT round-tripped here. Grepped for real
     // callers of PreparedDerivationDay.toJson()/fromJson() outside this file
     // — none exist (only `candidate.toPreparedDay(...)` at
@@ -120,6 +129,7 @@ class PreparedDerivationDay {
           (m['tonight_sleep_onset_sec'] as num?)?.toInt() ?? 0,
       tonightSleepOffsetSec:
           (m['tonight_sleep_offset_sec'] as num?)?.toInt() ?? 0,
+      bedTsSec: (m['bed_ts'] as num?)?.toInt(),
       daySub: daySub,
       sleepSub: Substrate.fromJson(
         ((m['sleep_sub'] as Map?) ?? const {}).cast<String, dynamic>(),
@@ -260,6 +270,7 @@ class SleepSessionCandidate {
     Substrate? napSub,
     int tonightSleepOnsetSec = 0,
     int tonightSleepOffsetSec = 0,
+    int? bedTsSec,
     Map<InputSignal, List<OwnedSpan>> ownership = const {},
     Map<InputSignal, List<String>> priority = const {},
   }) => PreparedDerivationDay(
@@ -286,6 +297,7 @@ class SleepSessionCandidate {
     sleepSub: sleepSub,
     tonightSleepOnsetSec: tonightSleepOnsetSec,
     tonightSleepOffsetSec: tonightSleepOffsetSec,
+    bedTsSec: bedTsSec,
     ownership: ownership,
     priority: priority,
   );
@@ -445,6 +457,7 @@ PreparedDerivationPayload prepareDerivationPayload(
         sleepOnsetSec: onsetSec,
         sleepOffsetSec: offsetSec,
         sleepSource: day.sleepSource,
+        bedTsSec: bedTimeIn(sub, onsetSec),
         daySub: daySub,
         sleepSub: sleepSub,
         napSub: napSub,
@@ -816,4 +829,16 @@ class _PrepareAccumulator {
       deviceIds: _deviceIds,
     );
   }
+}
+
+/// The lie-down before a night that opened at [onsetSec], read off [sub]'s
+/// minutes in the [kBedLookbackSec] before it (`sleep_latency.dart`).
+int? bedTimeIn(Substrate sub, int onsetSec) {
+  if (onsetSec <= 0) return null;
+  final lead = sub.slice(onsetSec - kBedLookbackSec, onsetSec);
+  if (lead.isEmpty) return null;
+  return bedTimeBefore(
+    onsetSec,
+    movementBuckets(lead.tsSec, lead.ax, lead.ay, lead.az, bucketSec: 60),
+  );
 }

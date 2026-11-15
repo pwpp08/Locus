@@ -5,7 +5,20 @@ import 'nap_edits.dart';
 void composeAcceptedNaps(Map<String, dynamic> bundle, List<NapEdit> edits) {
   final old = bundle['naps'] as Map?;
   if (old == null && edits.isEmpty) return;
-  final accepted = applyNapEdits(const [], edits);
+  // A nap's staging is derived from raw seconds that may be gone by now: a
+  // compose keeps what the derivation staged for the same window.
+  final staged = <String, Object?>{
+    if (old?['value'] is List)
+      for (final n in (old!['value'] as List).whereType<Map>())
+        if (n['staging'] != null) '${n['start']}-${n['end']}': n['staging'],
+  };
+  final accepted = [
+    for (final n in applyNapEdits(const [], edits))
+      {
+        ...n,
+        'staging': ?staged['${n['start']}-${n['end']}'],
+      },
+  ];
   // Whether the detector judged the day, persisted so a later compose cannot
   // turn an unjudged day into a measured zero once its logged naps are gone.
   // Rows from before the flag: an unjudged day only carried a value when the

@@ -1483,6 +1483,9 @@ class LocalRepositoryImpl extends LocalRepository {
                 'duration_min': (n['duration_min'] as num?)?.round(),
                 // 'manual' on a nap the user logged; absent on a detected one.
                 if (n['source'] != null) 'source': n['source'].toString(),
+                // The nap's stages (nap_staging.dart), when it was staged.
+                if (n['staging'] is Map)
+                  'staging': (n['staging'] as Map).cast<String, dynamic>(),
               },
         ],
       'nap_min': (_sub(b, 'scalars')?['nap_min'] as num?)?.round(),
