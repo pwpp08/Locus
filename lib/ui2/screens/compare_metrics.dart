@@ -1,7 +1,7 @@
 // Compare metrics: two metrics' weeks on ONE chart, each in its own Trend View
 // shape — a line for HRV, columns for steps, zones stacked in their colours,
-// nights as ranges on a clock — the first read on the left axis and the second
-// on the right, each axis in its metric's colour. Two column metrics stand
+// nights as ranges on a clock — the first read on the left axis in strain blue
+// and the second on the right in grey, as Strain & Recovery draws its two. Two column metrics stand
 // side by side in each day's slot; a line runs over any columns. Touching a
 // day reads it out for both. A week pager under the chart steps back through
 // earlier weeks. Tapping either figure's name picks another metric for it.
@@ -41,10 +41,10 @@ typedef CompareData = ({
   Map<String, ({double bed, double wake})>? spans,
 });
 
-/// The two series' colours: the strain blue and amber, opposite each other on
-/// the wheel, so the two read apart at a glance whatever the metrics are
-/// (and never as two shades of one family).
-const kCompareColours = (C.dialStrain, C.amber);
+/// The first series' colour. The second is ink2, the grey: the pairing the
+/// Strain & Recovery card draws its two lines in, so the two read apart at a
+/// glance whatever the metrics are.
+const kCompareColour = C.dialStrain;
 
 class CompareMetricsCard extends StatefulWidget {
   final TrendLoader loader;
@@ -152,7 +152,7 @@ class _CompareMetricsCardState extends State<CompareMetricsCard> {
         earliest == null || shiftDay(end, -7).compareTo(earliest) >= 0;
     final a = trendMetricOf(_pair.$1)!, b = trendMetricOf(_pair.$2)!;
     final da = _data[a.id], db = _data[b.id];
-    final (ca, cb) = kCompareColours;
+    final (ca, cb) = (kCompareColour, p.ink2);
 
     // The Strain & Recovery card's anatomy: the title in capitals with its
     // door on the right, then the two figures, the chart, and the week.
@@ -672,11 +672,13 @@ class _ComparePainter extends CustomPainter {
 
     // Columns: side by side when both are columns, centred when one is.
     final cols = [if (a.bars && !a.empty) a, if (b.bars && !b.empty) b];
-    final w = slot * (cols.length == 2 ? .3 : .44);
+    // Slim, as the trend columns are; the grey ones dimmed, as Strain &
+    // Recovery dims its grey line, so the blue leads.
+    final w = slot * (cols.length == 2 ? .22 : .36);
     final gap = cols.length == 2 ? S.half : 0.0;
     final r = Radius.circular(math.min(w / 2, R.sm));
     for (final (k, s) in cols.indexed) {
-      final colour = identical(s, a) ? ca : cb;
+      final colour = identical(s, a) ? ca : cb.withValues(alpha: .55);
       final dx = cols.length == 2
           ? (k == 0 ? -(w / 2 + gap) : w / 2 + gap)
           : 0.0;
@@ -770,7 +772,7 @@ class _ComparePainter extends CustomPainter {
           ..strokeWidth = S.half + .2
           ..strokeJoin = StrokeJoin.round
           ..strokeCap = StrokeCap.round
-          ..color = colour,
+          ..color = identical(s, a) ? colour : colour.withValues(alpha: .7),
       );
       for (var i = 0; i < n; i++) {
         final v = s.values[i];

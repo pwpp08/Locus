@@ -70,8 +70,8 @@ void main() {
     expect(zones.values.last, 30);
   });
 
-  test('the two series are blue and amber, whatever the metrics', () {
-    expect(kCompareColours, (C.dialStrain, C.amber));
+  test('the first series is strain blue, whatever the metrics', () {
+    expect(kCompareColour, C.dialStrain);
   });
 
   testWidgets('both metrics share one chart', (t) async {

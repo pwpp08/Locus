@@ -1269,6 +1269,6 @@ The first two weeks, while Locus learns your normal. Each metric unlocks on its 
 - **Alarm editor** (sheet): fits one screen. The time is the control, with no box drawn round it, "Rings in…" under it; REPEAT presets and the day circles; the label; one card with Alarm on, Alarm mode (value only) and Smart wake (value only, opens a picker); Save, then Delete.
 - **Weight trend:** the logged weights are joined point to point across the days between them in strain blue, with a ring on each logged day, like the trend view's lines; the 7-day trend is a thin faint line behind it. Axis labels never climb into the legend.
 - **Charts open on the week.** Trend View, metric detail (7 days, or Today while there is less than a week of history), battery and weight all start on the week view; the day view is one tap away.
-- **Compare metrics** draws its two series in strain blue and amber, `C.dialStrain` and `C.amber` (`kCompareColours`), whatever the metrics: opposite on the wheel, never two shades of one family.
+- **Compare metrics** draws its two series in strain blue (`kCompareColour`, `C.dialStrain`) and grey (`p.ink2`), whatever the metrics: the pairing Strain & Recovery draws its two lines in. No amber.
 - **Paired line labels** (`ScrubPair`): on each day the higher value is labelled above its point and the lower below, so close values never print over each other.
 - **My workouts:** the saved workouts come first, then Generate with AI and Build a workout, then Start a Workout.
