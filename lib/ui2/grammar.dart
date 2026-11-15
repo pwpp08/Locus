@@ -2677,6 +2677,10 @@ class BigButton extends StatelessWidget {
   /// pill stays the one primary action of a page.
   final bool compact;
 
+  /// A [compact] button that fills the width it is given (a share of a row of
+  /// buttons) instead of hugging its label.
+  final bool fill;
+
   /// Shows a small spinner in place of [icon] (work in progress).
   final bool busy;
 
@@ -2696,6 +2700,7 @@ class BigButton extends StatelessWidget {
     this.tone = ButtonTone.standard,
     this.round = false,
     this.compact = false,
+    this.fill = false,
   });
 
   @override
@@ -2742,11 +2747,12 @@ class BigButton extends StatelessWidget {
         // label is taller than 56 and a fixed box would clip it.
         constraints:
             BoxConstraints(minHeight: compact ? S.x10 : S.x12 + S.x2),
-        width: compact ? null : double.infinity,
+        width: compact && !fill ? null : double.infinity,
         padding: compact
-            ? const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x2)
+            ? EdgeInsets.symmetric(
+                horizontal: fill ? S.x2 : S.x4, vertical: S.x2)
             : const EdgeInsets.symmetric(horizontal: S.x5, vertical: S.x3),
-        alignment: compact ? null : Alignment.center,
+        alignment: compact && !fill ? null : Alignment.center,
         decoration: BoxDecoration(
             color: ground, borderRadius: compact ? R.rMd : R.rPill),
         child: Row(

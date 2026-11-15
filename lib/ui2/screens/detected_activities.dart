@@ -387,27 +387,40 @@ class _ActivityProposalCardState extends State<ActivityProposalCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // The title, with the nap's length on the right; when it was, under.
           Row(
             children: [
-              Icon(LucideIcons.moon, color: p.ink3, size: I.md),
+              Icon(LucideIcons.moon, color: p.ink2, size: I.md),
               const SizedBox(width: S.x2),
               Expanded(
                 child: Text(
                   (l?.activityPossibleNap ?? 'Possible nap').toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: F.caps.copyWith(color: p.ink),
                 ),
               ),
-              if (widget.highlighted)
-                Icon(LucideIcons.bell, color: p.on(C.dialStrain), size: I.md),
+              if (widget.highlighted) ...[
+                Icon(LucideIcons.bell, color: p.on(C.dialStrain), size: I.sm),
+                const SizedBox(width: S.x2),
+              ],
+              Text(
+                l?.activityLengthMinutes(minutes) ?? '$minutes min',
+                style: F.num(F.cap).copyWith(color: p.ink),
+              ),
             ],
           ),
-          const SizedBox(height: S.x1),
-          Text(
-            '$when · '
-            '${l?.activityLengthMinutes(minutes) ?? '$minutes min'}',
-            style: F.cap.copyWith(color: p.ink2),
+          const SizedBox(height: S.half),
+          Padding(
+            padding: const EdgeInsets.only(left: I.md + S.x2),
+            child: Text(
+              when,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: F.cap.copyWith(color: p.ink3),
+            ),
           ),
-          const SizedBox(height: S.x3),
+          const SizedBox(height: S.x2),
           // The heart rate and the wrist's movement around it, the window drawn
           // on them the way the editor draws it. Its two lines can be dragged
           // to where the nap or the session really began and ended; two
@@ -418,41 +431,53 @@ class _ActivityProposalCardState extends State<ActivityProposalCard> {
             kind: WindowKind.nap,
             hr: widget.hr,
             zoomable: true,
-            height: S.x16 * 2 + S.x6,
+            // The card's title says what the window is.
+            mark: false,
+            title: false,
+            height: S.x16 * 2 - S.x2,
             onChanged: (a, b) => setState(() {
               _start = a;
               _end = b;
             }),
           ),
           const SizedBox(height: S.x4),
-          // A discard is kept by window and wins over every re-detection; same
-          // words as the correction on a logged nap and a night. The answer
-          // first, on its own line: three pills abreast left no word room to
-          // fit its label.
-          BigButton(
-            l?.activityConfirm ?? 'Confirm',
-            onTap: widget.onConfirm == null
-                ? null
-                : () => widget.onConfirm!(_start, _end),
-          ),
-          const SizedBox(height: S.x2),
+          // One row of compact buttons: the two quiet answers, then Confirm,
+          // the one filled and the widest. A discard is kept by window and
+          // wins over every re-detection; same words as the correction on a
+          // logged nap and a night.
           Row(
             children: [
               Expanded(
+                flex: 4,
+                child: BigButton(
+                  l?.napsNotANapLabel ?? 'Not a nap',
+                  compact: true,
+                  fill: true,
+                  soft: true,
+                  onTap: widget.onDiscard,
+                ),
+              ),
+              const SizedBox(width: S.x2),
+              Expanded(
+                flex: 3,
                 child: BigButton(
                   l?.activityEdit ?? 'Edit',
                   compact: true,
+                  fill: true,
                   soft: true,
                   onTap: widget.onEdit,
                 ),
               ),
               const SizedBox(width: S.x2),
               Expanded(
+                flex: 5,
                 child: BigButton(
-                  l?.napsNotANapLabel ?? 'Not a nap',
+                  l?.activityConfirm ?? 'Confirm',
                   compact: true,
-                  tone: ButtonTone.danger,
-                  onTap: widget.onDiscard,
+                  fill: true,
+                  onTap: widget.onConfirm == null
+                      ? null
+                      : () => widget.onConfirm!(_start, _end),
                 ),
               ),
             ],

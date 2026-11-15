@@ -515,6 +515,10 @@ class WindowChart extends StatelessWidget {
   /// when null.
   final Color? ground;
 
+  /// The moon over a sleep or nap window. Off where a title already says
+  /// what the window is.
+  final bool mark;
+
   const WindowChart({
     super.key,
     required this.hr,
@@ -526,6 +530,7 @@ class WindowChart extends StatelessWidget {
     required this.kind,
     this.empty = false,
     this.ground,
+    this.mark = true,
   });
 
   @override
@@ -556,7 +561,8 @@ class WindowChart extends StatelessWidget {
                 ),
               ),
             ),
-            if (kind != WindowKind.workout &&
+            if (mark &&
+                kind != WindowKind.workout &&
                 x1 > 0 &&
                 x0 < w &&
                 x1 - x0 > I.md)
@@ -598,6 +604,13 @@ class WindowPreview extends StatefulWidget {
   /// null (and none when [hr] is a test's).
   final Future<List<MovePoint>> Function(int from, int to)? movement;
 
+  /// [WindowChart.mark].
+  final bool mark;
+
+  /// The HEART RATE title over a [zoomable] chart; off where the card around
+  /// it already has a title.
+  final bool title;
+
   const WindowPreview({
     super.key,
     required this.start,
@@ -609,6 +622,8 @@ class WindowPreview extends StatefulWidget {
     this.onExpand,
     this.zoomable = false,
     this.movement,
+    this.mark = true,
+    this.title = true,
   });
 
   @override
@@ -846,21 +861,23 @@ class _WindowPreviewState extends State<WindowPreview> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Flexible(
-              child: Text(
-                'HEART RATE',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: F.caps.copyWith(color: p.ink),
+        if (widget.title) ...[
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  'HEART RATE',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: F.caps.copyWith(color: p.ink),
+                ),
               ),
-            ),
-            const SizedBox(width: S.x2),
-            Text('bpm', style: F.num(F.cap).copyWith(color: p.ink3)),
-          ],
-        ),
-        const SizedBox(height: S.x2),
+              const SizedBox(width: S.x2),
+              Text('bpm', style: F.num(F.cap).copyWith(color: p.ink3)),
+            ],
+          ),
+          const SizedBox(height: S.x2),
+        ],
         SizedBox(
           height: widget.height,
           child: withWindowTicks(
@@ -903,6 +920,7 @@ class _WindowPreviewState extends State<WindowPreview> {
       ground: widget.zoomable
           ? null
           : Color.alphaBlend(p.ink.withValues(alpha: .08), p.card),
+      mark: widget.mark,
     );
 
     if (widget.zoomable) return _zoomable(c, p, chartWidget);
