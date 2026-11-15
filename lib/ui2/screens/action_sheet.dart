@@ -12,9 +12,8 @@ import 'home_screen.dart' show go;
 import 'log_weight_sheet.dart' show LogWeightSheet;
 import 'start_activity.dart' show StartActivityScreen;
 
-/// The coach, or its setup when no model is configured yet.
-void openCoach(BuildContext c) =>
-    go(c, coachReadyNow(c) ? const CoachScreen() : const CoachSetup());
+/// The coach's sheet, or its setup when no model is configured yet.
+void openCoach(BuildContext c) => openCoachSheet(c);
 
 Future<void> openActionSheet(BuildContext c) {
   return AppSheet.show<void>(

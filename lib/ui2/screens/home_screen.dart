@@ -38,7 +38,7 @@ import '../ui2.dart';
 import '../../ai/briefing.dart' show BriefingPeriod, currentBriefingPeriod;
 import 'add_activity.dart' show openAddActivity;
 import 'calibration.dart' show Calibration, CalibrationCard;
-import 'coach.dart' show CoachScreen;
+import 'coach.dart' show openCoachSheet;
 import 'coach_workout.dart' show TodayPlanCard;
 import '../../coach/workout_plan.dart';
 import '../activity/catalogue.dart' show activityByName;
@@ -915,7 +915,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           return DailyOutlookRow(
             name: d.name,
             evening: period == BriefingPeriod.evening,
-            onOutlook: () => go(c, CoachScreen(outlook: period)),
+            onOutlook: () => openCoachSheet(c, outlook: period),
           );
         }),
       // The workout committed in the coach for today, ready to start.

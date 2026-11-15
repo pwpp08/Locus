@@ -13,7 +13,8 @@ import '../../../state/clock_format.dart' show formatClockOf;
 import '../../../theme/theme_switcher.dart' show themedRoute;
 import '../../grammar.dart' show Pressable;
 import '../../marks.dart' show BoldChevron, StrapIcon, SyncArrowMark;
-import '../../profile/devices.dart' show MyDevices, formatDayTime;
+import '../../profile/device_settings.dart' show DeviceSettings;
+import '../../profile/devices.dart' show formatDayTime;
 import '../../theme.dart' show C, DC, Ease, F, I, Motion, P, R, S, motion;
 import '../../ui2.dart' show LucideIcons;
 import '../battery_detail_screen.dart';
@@ -291,7 +292,9 @@ class HomeDeviceStatus extends StatelessWidget {
         connected ? 'connected' : 'not connected',
       ].join(', '),
       onTap: () {
-        Navigator.of(c).push(themedRoute((_) => const MyDevices(), name: 'MyDevices'));
+        // The band's own page; it offers pairing when there is no band.
+        Navigator.of(c).push(
+            themedRoute((_) => const DeviceSettings(), name: 'DeviceSettings'));
       },
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         if (battery != null) ...[

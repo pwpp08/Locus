@@ -101,6 +101,27 @@ void main() {
       expect(replies, ['Plan a workout', 'Why?']);
     });
 
+    test('are read without their "replies:" too', () {
+      final (text, replies) = splitReplies(
+          'No latency is shown.\n\n[[View last night | What is my debt? | '
+          'How is efficiency calculated?]]');
+      expect(text, 'No latency is shown.');
+      expect(replies,
+          ['View last night', 'What is my debt?', 'How is efficiency calculated?']);
+      final (inline, none) = splitReplies('See [[this]] and that.');
+      expect(inline, 'See [[this]] and that.');
+      expect(none, isEmpty);
+    });
+
+    test('an old answer saved with the bare line is cleaned on load', () {
+      final it = CoachItem.fromJson({
+        'kind': 'assistant',
+        'text': 'Done.\n[[One | Two]]',
+      });
+      expect(it.text, 'Done.');
+      expect(it.replies, ['One', 'Two']);
+    });
+
     test('an answer without them is left alone', () {
       final (text, replies) = splitReplies('Just this.');
       expect(text, 'Just this.');

@@ -312,7 +312,7 @@ void main() {
   });
 
   test('yesterday: strain target met and step goal reached', () {
-    // Recovery 60 sets a 7.4 to 15.4 target.
+    // Recovery 60 sets a target of 11.4 in a 7.4 to 15.4 range.
     expect(
       _kinds({
         'recovery': {1: 60},
@@ -326,6 +326,14 @@ void main() {
         'strain': {1: 17},
       }),
       isEmpty,
+    );
+    expect(
+      _kinds({
+        'recovery': {1: 60},
+        'strain': {1: 9},
+      }),
+      isEmpty,
+      reason: 'inside the range is not the target',
     );
     expect(
       _kinds({
@@ -356,9 +364,11 @@ void main() {
   });
 
   test('today: a goal reached shows the moment it is reached', () {
-    // Recovery 60 sets a 7.4 to 15.4 target.
+    // Recovery 60 sets a target of 11.4 in a 7.4 to 15.4 range.
     expect(_kinds({}, recovery: 60, strainNow: 6), isEmpty);
-    expect(_kinds({}, recovery: 60, strainNow: 9.2),
+    expect(_kinds({}, recovery: 60, strainNow: 9.2), isEmpty,
+        reason: 'inside the range, short of the target');
+    expect(_kinds({}, recovery: 60, strainNow: 11.6),
         {DailyCardKind.targetReached});
     expect(_kinds({}, recovery: 60, strainNow: 16.1),
         {DailyCardKind.strainOver});

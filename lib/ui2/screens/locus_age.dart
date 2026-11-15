@@ -771,9 +771,7 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
             child: _InsightCard(
               title: insight.title,
               body: insight.body,
-              onCoach: () => Navigator.of(c).push(
-                MaterialPageRoute<void>(builder: (_) => const CoachScreen()),
-              ),
+              onCoach: () => openCoachSheet(c),
             ),
           ),
         ],

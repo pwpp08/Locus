@@ -85,8 +85,6 @@ class WorkoutDetail {
   final SportAverage avg;
   final WorkoutRoute? route;
 
-  /// Sessions of this sport ever stored, this one included.
-  final int count;
 
   const WorkoutDetail({
     required this.id,
@@ -107,7 +105,6 @@ class WorkoutDetail {
     this.zoneRuns = const [[], [], [], [], []],
     this.avg = const SportAverage(),
     this.route,
-    this.count = 0,
   });
 
   int get durationSec => end - start;
@@ -314,11 +311,6 @@ class WorkoutDetail {
       }
     } catch (_) {}
 
-    var count = 0;
-    try {
-      count = await LocalDb.sessionCountOfType(type);
-    } catch (_) {}
-
     final strain = n('strain')?.toDouble();
     var curve = <HrPoint>[];
     try {
@@ -355,7 +347,6 @@ class WorkoutDetail {
       zoneRuns: runs,
       avg: avg,
       route: route,
-      count: count,
     );
   }
 }
@@ -625,15 +616,6 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
                             ),
                           ),
                           _keyStats(c, p, d),
-                          if (d.count > 0) ...[
-                            const SizedBox(height: S.x5),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: S.x4,
-                              ),
-                              child: _milestone(p, d),
-                            ),
-                          ],
                         ],
                       ),
               ),
@@ -1245,90 +1227,6 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
       ],
     ),
   );
-
-  // ── the sport's count ───────────────────────────────────────────────────
-  Widget _milestone(P p, WorkoutDetail d) {
-    const steps = [5, 10, 25, 50, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
-    final next = steps.firstWhere(
-      (s) => s > d.count,
-      orElse: () => (d.count ~/ 500 + 1) * 500,
-    );
-    final prev = steps.lastWhere((s) => s <= d.count, orElse: () => 0);
-    final frac = ((d.count - prev) / math.max(1, next - prev)).clamp(0.0, 1.0);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(S.x5, S.x5, S.x5, S.x6),
-      decoration: BoxDecoration(
-        borderRadius: R.rXl,
-        border: Border.all(color: p.ink.withValues(alpha: .16), width: 1.5),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: S.x16 + S.x2,
-            height: S.x16 + S.x2,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: C.char,
-              border: Border.all(
-                color: C.lavender.withValues(alpha: .8),
-                width: S.half,
-              ),
-            ),
-            child: Icon(d.activity.icon, size: I.lg, color: C.lavender),
-          ),
-          const SizedBox(width: S.x5),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text: '${d.count}',
-                        style: F.num(F.n24).copyWith(
-                          color: C.dialStrain,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      TextSpan(
-                        text: '/$next',
-                        style: F.num(
-                          F.n24,
-                        ).copyWith(color: p.ink, fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: S.x1),
-                Text(
-                  '${next - d.count} more until your next milestone',
-                  style: F.body.copyWith(color: p.ink),
-                ),
-                const SizedBox(height: S.x3),
-                ClipRRect(
-                  borderRadius: R.rPill,
-                  child: SizedBox(
-                    height: S.x2,
-                    child: Stack(
-                      children: [
-                        Container(color: p.ink.withValues(alpha: .12)),
-                        FractionallySizedBox(
-                          widthFactor: frac,
-                          child: Container(color: C.dialSleep),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(LucideIcons.chevronRight, size: I.md, color: p.ink3),
-        ],
-      ),
-    );
-  }
 }
 
 class _Stat {

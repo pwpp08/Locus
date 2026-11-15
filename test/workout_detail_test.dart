@@ -91,7 +91,6 @@ WorkoutDetail _detail() {
         movingSec: 640,
         splitsKm: const [],
         splitsMi: const []),
-    count: 40,
   );
 }
 
@@ -160,7 +159,8 @@ void main() {
     expect(find.text('178+ BPM'), findsOneWidget);
     expect(find.text('ROUTE'), findsOneWidget);
     expect(find.text('4.43'), findsOneWidget);
-    expect(find.text('10 more until your next milestone'), findsOneWidget);
+    expect(find.textContaining('milestone'), findsNothing,
+        reason: 'an activity carries no milestone badge');
     // Zone 3 opens; zone 5 was never reached and is not a door.
     expect(find.bySemanticsLabel(RegExp('^Zone 3')), findsOneWidget);
     expect(find.bySemanticsLabel(RegExp('^Zone 5')), findsNothing);

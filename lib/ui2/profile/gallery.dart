@@ -2153,8 +2153,8 @@ Map<String, Widget> _listCases() => {
         builder: (c) => moreGroup(c, 'More tab rows', [
           MoreRow(LucideIcons.hardDriveDownload, 'Export and backup',
               onTap: () {}),
-          MoreRow(LucideIcons.watch, 'My devices',
-              badge: LucideIcons.settings, value: '84%', onTap: () {}),
+          MoreRow.brand((tint, size) => StrapIcon(color: tint, height: size),
+              'My devices', value: '84%', onTap: () {}),
           MoreRow(LucideIcons.database, 'Storage',
               value: '1.24 GB', onTap: () {}),
         ]),

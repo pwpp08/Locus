@@ -803,14 +803,7 @@ class _EcgDetailScreenState extends State<EcgDetailScreen> {
       );
       if (ok != true || !c.mounted) return;
     }
-    await Navigator.of(c).push(
-      themedRoute(
-        (_) => CoachScreen(
-          initialMessage: ecgAnalyzePrompt(id),
-        ),
-        name: 'CoachScreen',
-      ),
-    );
+    await openCoachSheet(c, initialMessage: ecgAnalyzePrompt(id));
   }
 
   Future<void> _delete(BuildContext c) async {

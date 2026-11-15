@@ -677,8 +677,8 @@ class ProfileHomeView extends StatelessWidget {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
     final s = stats;
-    // Outline glyphs; a gear badge marks the doors that are settings OF
-    // something (the band, your heart, the app).
+    // Outline glyphs, one per door, no badges: the band is the band Home's
+    // header draws, the zones its heart with bands, the app's settings a gear.
     final doors = <Widget>[
       MoreRow(LucideIcons.circleUserRound, 'My profile', onTap: onProfile),
       MoreRow(LucideIcons.clipboardPenLine, 'Reports', onTap: onReports),
@@ -692,16 +692,19 @@ class ProfileHomeView extends StatelessWidget {
               onTap: onCommunity);
         },
       ),
-      MoreRow(LucideIcons.watch, 'Device settings',
-          badge: LucideIcons.settings, onTap: onDevice),
-      MoreRow(LucideIcons.heartPulse, 'Heart rate zones',
-          badge: LucideIcons.settings, onTap: onZones),
+      MoreRow.brand(
+          (tint, size) => StrapIcon(color: tint, height: size),
+          'Device settings',
+          onTap: onDevice),
+      MoreRow.brand(
+          (tint, size) => StatIcon(StatMark.zonesLow, color: tint, size: size),
+          'Heart rate zones',
+          onTap: onZones),
       MoreRow(LucideIcons.bell, 'Notifications', onTap: onNotifications),
       MoreRow(LucideIcons.inboxDown, 'Your data', onTap: onData),
       AnimatedBuilder(
         animation: UpdateService.instance,
-        builder: (c, _) => MoreRow(LucideIcons.smartphone, 'Settings',
-            badge: LucideIcons.settings,
+        builder: (c, _) => MoreRow(LucideIcons.settings, 'Settings',
             value: UpdateService.instance.hasUpdate ? 'Update ready' : '',
             onTap: onSettings),
       ),

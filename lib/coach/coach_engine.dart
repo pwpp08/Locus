@@ -151,9 +151,16 @@ class CoachItem {
     final t = j['text']?.toString();
     if (k == 'user') return CoachItem.user(t);
     if (k == 'error') return CoachItem.error(t);
-    return CoachItem.assistant(t, replies: [
+    final saved = [
       for (final r in (j['replies'] as List?) ?? const []) r.toString(),
-    ]);
+    ];
+    // An answer saved before its replies line could be read (the model left
+    // off `replies:`) still carries it as text: take it off now.
+    if (saved.isEmpty && t != null) {
+      final (body, replies) = splitReplies(t);
+      if (replies.isNotEmpty) return CoachItem.assistant(body, replies: replies);
+    }
+    return CoachItem.assistant(t, replies: saved);
   }
 }
 
@@ -161,16 +168,30 @@ class CoachItem {
 /// `[[replies: one | two | three]]`.
 final _repliesTag = RegExp(r'\[\[\s*replies\s*:([\s\S]*?)\]\]', caseSensitive: false);
 
+/// The same line with its `replies:` dropped, which models do: only taken as
+/// the very end of an answer, so a `[[…]]` inside the prose is left alone.
+final _bareRepliesTail = RegExp(r'\[\[([^\[\]]*)\]\]\s*$');
+
 /// [content] without its replies line, and the replies it suggested: three
 /// at most, each short, none empty.
 (String, List<String>) splitReplies(String content) {
   final found = _repliesTag.allMatches(content).toList();
-  if (found.isEmpty) return (content, const []);
+  final String body;
+  final String list;
+  if (found.isNotEmpty) {
+    body = content.replaceAll(_repliesTag, '').trim();
+    list = found.last.group(1)!;
+  } else if (_bareRepliesTail.firstMatch(content) case final m?) {
+    body = content.substring(0, m.start).trim();
+    list = m.group(1)!;
+  } else {
+    return (content, const []);
+  }
   final replies = [
-    for (final r in found.last.group(1)!.split('|'))
+    for (final r in list.split('|'))
       if (r.trim().isNotEmpty && r.trim().length <= 60) r.trim(),
   ].take(3).toList();
-  return (content.replaceAll(_repliesTag, '').trim(), replies);
+  return (body, replies);
 }
 
 /// What to show of an answer still arriving: everything before its replies

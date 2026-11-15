@@ -99,10 +99,15 @@ String? coachSubtitle(BuildContext c) {
   }
 }
 
-/// The coach as a sheet over whatever is on screen: what the floating AI
-/// button opens. The same conversation machinery as [CoachScreen]; a fresh
-/// conversation each time, the earlier ones under Chats.
-Future<void> openCoachSheet(BuildContext c) {
+/// The coach, as a sheet over whatever is on screen. Every door into the
+/// coach opens it this way (the floating button, quick actions, the outlook,
+/// an ECG, Locus Age): a fresh conversation each time, the earlier ones under
+/// Chats. [initialMessage] and [outlook] are as on [CoachScreen].
+Future<void> openCoachSheet(
+  BuildContext c, {
+  String? initialMessage,
+  BriefingPeriod? outlook,
+}) {
   if (!coachReadyNow(c)) {
     go(c, const CoachSetup());
     return Future.value();
@@ -111,7 +116,8 @@ Future<void> openCoachSheet(BuildContext c) {
     c,
     bare: true,
     scroll: true,
-    builder: (_) => const CoachScreen(sheet: true),
+    builder: (_) =>
+        CoachScreen(initialMessage: initialMessage, outlook: outlook),
   );
 }
 
@@ -138,14 +144,10 @@ class CoachScreen extends StatefulWidget {
   /// there is none yet) is the coach's first turn, and the user can reply.
   final BriefingPeriod? outlook;
 
-  /// Drawn as the floating button's sheet rather than a page.
-  final bool sheet;
-
   const CoachScreen({
     super.key,
     this.initialMessage,
     this.outlook,
-    this.sheet = false,
   });
 
   @override
@@ -733,24 +735,6 @@ class _CoachScreenState extends State<CoachScreen> {
         ]),
       );
 
-  /// Back, the coach's tag in the middle, and past chats.
-  Widget _header(BuildContext c, CoachConfig cfg) => Padding(
-        padding: const EdgeInsets.fromLTRB(S.x1, S.x2, S.x1, S.x2),
-        child: Row(children: [
-          Pressable(
-            onTap: () => Navigator.maybePop(c),
-            semanticLabel:
-                AppLocalizations.of(c)?.supplementNavBack ?? 'Back',
-            child: const SizedBox.square(
-              dimension: S.tap,
-              child: Icon(LucideIcons.chevronLeft, size: I.lg, color: C.white),
-            ),
-          ),
-          Expanded(child: Center(child: CoachTag(_modelLabel(c, cfg)))),
-          _historyButton(c),
-        ]),
-      );
-
   @override
   Widget build(BuildContext c) =>
       Builder(builder: _build);
@@ -761,7 +745,7 @@ class _CoachScreenState extends State<CoachScreen> {
     final ready = cfg.configured && _engine != null;
     final replies = ready && !_busy ? _replies() : const <String>[];
     final column = Column(children: [
-      widget.sheet ? _sheetHeader(c, cfg) : _header(c, cfg),
+      _sheetHeader(c, cfg),
       Expanded(
         child: Stack(children: [
           Positioned.fill(child: _body(c, p, cfg)),
@@ -780,21 +764,14 @@ class _CoachScreenState extends State<CoachScreen> {
       ],
       if (ready) _composer(c, p),
     ]);
-    if (widget.sheet) {
-      return FractionallySizedBox(
-        heightFactor: .92,
-        child: ClipRRect(
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(R.xxl)),
-          child: CoachGround(
-            child: SafeArea(top: false, child: column),
-          ),
+    return FractionallySizedBox(
+      heightFactor: .92,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(R.xxl)),
+        child: CoachGround(
+          child: SafeArea(top: false, child: column),
         ),
-      );
-    }
-    return Scaffold(
-      backgroundColor: C.coachNight.last,
-      body: CoachGround(child: SafeArea(child: column)),
+      ),
     );
   }
 

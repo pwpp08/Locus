@@ -76,7 +76,7 @@ void main() {
       create: (_) => CoachConfig(),
       child: MaterialApp(
         theme: buildTheme(),
-        home: const Scaffold(body: CoachScreen(sheet: true)),
+        home: const Scaffold(body: CoachScreen()),
       ),
     ));
     await t.pump();

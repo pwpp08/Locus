@@ -474,13 +474,15 @@ List<DailyCard> dailyCardsFor({
               'to what tonight has to recover.',
         ),
       );
-    } else if (strainNow >= target.lo) {
+    } else if (strainNow >= target.optimal) {
+      // The target itself, not the bottom of its range: being inside the
+      // range is on the way there, not there.
       out.add(
         DailyCard(
           DailyCardKind.targetReached,
           'Strain target reached',
-          "Today's strain of ${one(strainNow)} is inside the "
-              '${one(target.lo)}–${one(target.hi)} target your recovery set.',
+          "Today's strain of ${one(strainNow)} reached the "
+              '${one(target.optimal)} target your recovery set.',
         ),
       );
     }
@@ -500,13 +502,13 @@ List<DailyCard> dailyCardsFor({
   if (yesterday != null) {
     final s = of('strain')[yesterday];
     final t = whoopStrainTarget(of('recovery')[yesterday]);
-    if (s != null && t != null && s >= t.lo && s <= t.hi) {
+    if (s != null && t != null && s >= t.optimal && s <= t.hi) {
       out.add(
         DailyCard(
           DailyCardKind.targetMet,
           'Strain target met',
-          'Yesterday\'s strain of ${one(s)} landed inside the '
-              '${one(t.lo)}–${one(t.hi)} target your recovery set.',
+          'Yesterday\'s strain of ${one(s)} reached the ${one(t.optimal)} '
+              'target your recovery set.',
         ),
       );
     }
