@@ -38,10 +38,13 @@ final Map<String, num> kMethodBand = {
     '$family/baselines_load_illness/$hr': 1,
     // 0.15 / 0.43.
     '$family/strain/$hr': hr == 'hr_1min' ? 0.3 : 0.6,
-    // 4.1 / 2.7 kcal. Not Colmi's: our estimate serves there only on a day
-    // the ring stored no calories, and no low-resolution profile has such a
-    // day, so its error is unmeasured and shows no band.
-    if (family != 'colmi') '$family/calories/$hr': hr == 'hr_1min' ? 10 : 5,
+    // 63.8 / 66.1 kcal (4.1 / 2.7 before algo 117), all of it one way: the
+    // 1 Hz day prices light movement under the heart-rate gate off the
+    // wrist's motion (compute/day_energy.dart), and these profiles carry no
+    // accelerometer, so they miss it. Not Colmi's: our estimate serves there
+    // only on a day the ring stored no calories, and no low-resolution
+    // profile has such a day, so its error is unmeasured and shows no band.
+    if (family != 'colmi') '$family/calories/$hr': 70,
     // 0.42 / 2.27 points.
     '$family/readiness/rhr_only_partial': hr == 'hr_1min' ? 1 : 3,
     // 0.03 / 0.06 h, off the nights the row is served from.

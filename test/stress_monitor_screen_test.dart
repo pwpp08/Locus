@@ -117,7 +117,7 @@ void main() {
     // The night is the shaded stretch at the start of the day; the cycling
     // session is the one at five. Each has its icon over the middle of it.
     expect(find.byIcon(LucideIcons.moon), findsOneWidget);
-    expect(find.byIcon(LucideIcons.bike), findsOneWidget);
+    expect(find.byIcon(ActIcons.directionsBike), findsOneWidget);
   });
 
   testWidgets('with too little history it says it is still calibrating',
