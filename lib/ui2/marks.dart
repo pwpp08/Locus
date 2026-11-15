@@ -94,6 +94,12 @@ enum StatMark {
   lifter,
   flame,
   heartbeat,
+  // The More tab's doors, drawn as one family with the band and the heart.
+  profile,
+  reports,
+  community,
+  bell,
+  data,
 }
 
 /// A fine-lined icon for one of the [StatMark]s, drawn on a 24-unit grid.
@@ -428,6 +434,86 @@ class _StatPaint extends CustomPainter {
               ..lineTo(13.2, 15)
               ..lineTo(14.6, 11.8)
               ..lineTo(17.6, 11.8),
+            line);
+      case StatMark.profile:
+        // A head over shoulders, no ring round them.
+        canvas.drawCircle(const Offset(12, 8.2), 3.8, line);
+        canvas.drawPath(
+            Path()
+              ..moveTo(4.5, 20)
+              ..cubicTo(4.5, 15.6, 8, 13.6, 12, 13.6)
+              ..cubicTo(16, 13.6, 19.5, 15.6, 19.5, 20),
+            line);
+      case StatMark.reports:
+        // A page with a title line and three columns.
+        canvas.drawRRect(
+            RRect.fromLTRBR(4.5, 3.5, 19.5, 20.5, const Radius.circular(2.5)),
+            line);
+        canvas.drawLine(const Offset(8, 7.5), const Offset(12.5, 7.5), line);
+        for (final (x, h) in const [(8.5, 3.0), (12.0, 7.0), (15.5, 5.0)]) {
+          canvas.drawLine(Offset(x, 16.5), Offset(x, 16.5 - h), line);
+        }
+      case StatMark.community:
+        // One person in front, a second behind their shoulder.
+        canvas.drawCircle(const Offset(9, 8.5), 3.2, line);
+        canvas.drawPath(
+            Path()
+              ..moveTo(3, 19.5)
+              ..cubicTo(3, 15.8, 5.6, 14, 9, 14)
+              ..cubicTo(12.4, 14, 15, 15.8, 15, 19.5),
+            line);
+        canvas.drawPath(
+            Path()
+              ..addArc(Rect.fromCircle(center: const Offset(16.5, 9.2), radius: 2.6),
+                  -math.pi * .55, math.pi * 1.5),
+            line);
+        canvas.drawPath(
+            Path()
+              ..moveTo(17, 14.2)
+              ..cubicTo(19.6, 14.4, 21, 16.2, 21, 19.5),
+            line);
+      case StatMark.bell:
+        // A bell on its rim, its stem, and the clapper under it.
+        canvas.drawPath(
+            Path()
+              ..moveTo(4.5, 17)
+              ..lineTo(19.5, 17)
+              ..moveTo(6.5, 17)
+              ..lineTo(6.5, 10.5)
+              ..cubicTo(6.5, 7, 8.9, 4.5, 12, 4.5)
+              ..cubicTo(15.1, 4.5, 17.5, 7, 17.5, 10.5)
+              ..lineTo(17.5, 17),
+            line);
+        canvas.drawPath(
+            Path()
+              ..moveTo(10, 20)
+              ..quadraticBezierTo(12, 21.6, 14, 20),
+            line);
+        canvas.drawLine(const Offset(12, 2.5), const Offset(12, 4.5), line);
+      case StatMark.data:
+        // A store: a drum seen a little from above, with one band round it.
+        canvas.drawOval(
+            Rect.fromCenter(center: const Offset(12, 6), width: 14, height: 5),
+            line);
+        canvas.drawPath(
+            Path()
+              ..moveTo(5, 6)
+              ..lineTo(5, 18)
+              ..arcTo(
+                  Rect.fromCenter(
+                      center: const Offset(12, 18), width: 14, height: 5),
+                  math.pi,
+                  -math.pi,
+                  false)
+              ..lineTo(19, 6),
+            line);
+        canvas.drawPath(
+            Path()
+              ..addArc(
+                  Rect.fromCenter(
+                      center: const Offset(12, 12), width: 14, height: 5),
+                  0,
+                  math.pi),
             line);
       case StatMark.sleepPerf:
         // One thin crescent, open at the top right.

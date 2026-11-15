@@ -677,17 +677,27 @@ class ProfileHomeView extends StatelessWidget {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
     final s = stats;
-    // Outline glyphs, one per door, no badges: the band is the band Home's
-    // header draws, the zones its heart with bands, the app's settings a gear.
+    // Drawn glyphs, one per door, no badges (StatMark, one family with the
+    // band Home's header draws and the zones' heart); the app's settings a
+    // gear.
     final doors = <Widget>[
-      MoreRow(LucideIcons.circleUserRound, 'My profile', onTap: onProfile),
-      MoreRow(LucideIcons.clipboardPenLine, 'Reports', onTap: onReports),
+      MoreRow.brand(
+          (tint, size) => StatIcon(StatMark.profile, color: tint, size: size),
+          'My profile',
+          onTap: onProfile),
+      MoreRow.brand(
+          (tint, size) => StatIcon(StatMark.reports, color: tint, size: size),
+          'Reports',
+          onTap: onReports),
       // Its unread count, when there is one: the in-app badge.
       ListenableBuilder(
         listenable: CommunityService.instance,
         builder: (c, _) {
           final n = CommunityService.instance.unread;
-          return MoreRow(LucideIcons.users, 'Community',
+          return MoreRow.brand(
+              (tint, size) =>
+                  StatIcon(StatMark.community, color: tint, size: size),
+              'Community',
               value: n == 0 ? '' : '${n > 99 ? '99+' : n} new',
               onTap: onCommunity);
         },
@@ -700,8 +710,14 @@ class ProfileHomeView extends StatelessWidget {
           (tint, size) => StatIcon(StatMark.zonesLow, color: tint, size: size),
           'Heart rate zones',
           onTap: onZones),
-      MoreRow(LucideIcons.bell, 'Notifications', onTap: onNotifications),
-      MoreRow(LucideIcons.inboxDown, 'Your data', onTap: onData),
+      MoreRow.brand(
+          (tint, size) => StatIcon(StatMark.bell, color: tint, size: size),
+          'Notifications',
+          onTap: onNotifications),
+      MoreRow.brand(
+          (tint, size) => StatIcon(StatMark.data, color: tint, size: size),
+          'Your data',
+          onTap: onData),
       AnimatedBuilder(
         animation: UpdateService.instance,
         builder: (c, _) => MoreRow(LucideIcons.settings, 'Settings',
