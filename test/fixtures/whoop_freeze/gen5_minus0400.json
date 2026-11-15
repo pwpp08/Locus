@@ -2,7 +2,7 @@
  "day_result": [
   {
    "day_id": "2026-07-13",
-   "algo_version": 116,
+   "algo_version": 117,
    "payload_json": {
     "date": "2026-07-13",
     "day_confidence": 0.6,
@@ -331,7 +331,7 @@
        "deep_low_confidence": true,
        "awakenings": 3,
        "longest_sleep_sec": 9898,
-       "sol_sec": null
+       "sol_sec": 1492
       },
       "confidence": 0.6,
       "tier": "ESTIMATE",
@@ -4042,7 +4042,7 @@
      "min": 45,
      "avg": 68
     },
-    "calories": 360.0,
+    "calories": 400.0,
     "absent_notes": {
      "strain": "need_baseline:have=0,need=3"
     },
@@ -23104,7 +23104,7 @@
      "stress": 61.03520288391907,
      "stress_si": 159.4387755102041,
      "spo2": null,
-     "calories": 359.8518200286807,
+     "calories": 400.0918513743081,
      "sleeping_hr_nadir": 47.0,
      "sleeping_hr_nadir_ts": 1783914589.0,
      "waking_hr": 73.60755598517802,
@@ -23122,13 +23122,13 @@
      "unobserved_min": 0.0,
      "awakenings": 3.0,
      "longest_sleep_min": 165.0,
-     "sol_min": null,
+     "sol_min": 25.0,
      "midsleep_sec": -3589.0,
      "sleep_onset_sec": -17108.0,
      "active_min": 90.0,
      "quiet_hrr": 0.17186959065025606,
      "trimp_net": null,
-     "calories_total": 1707.6018200286808,
+     "calories_total": 1747.8418513743081,
      "steps": 18240.0,
      "dyn_p90": 0.016945539023250016,
      "nap_min": 0.0,
@@ -23136,8 +23136,8 @@
     },
     "sleep_source": "auto",
     "calories_total": {
-     "value": 1708,
-     "active": 360,
+     "value": 1748,
+     "active": 400,
      "basal": 1348,
      "confidence": 0.5,
      "tier": "ESTIMATE",
@@ -25150,11 +25150,11 @@
    "readiness": 58.99218718525535,
    "skipped": 0,
    "partial": 0,
-   "payload_sha256": "22f3165d96c1f780438cb31104018fc6307fa6a693a30112eca3eb3b73114b74"
+   "payload_sha256": "02ff083779e07213a857eb8923280fe078eea35acf5b89f8cbb2b529e86f68d2"
   },
   {
    "day_id": "2026-07-14",
-   "algo_version": 116,
+   "algo_version": 117,
    "payload_json": {
     "date": "2026-07-14",
     "day_confidence": 0.6,
@@ -25483,7 +25483,7 @@
        "deep_low_confidence": true,
        "awakenings": 3,
        "longest_sleep_sec": 9898,
-       "sol_sec": null
+       "sol_sec": 1492
       },
       "confidence": 0.6,
       "tier": "ESTIMATE",
@@ -29194,7 +29194,7 @@
      "min": 45,
      "avg": 67
     },
-    "calories": 360.0,
+    "calories": 532.0,
     "absent_notes": {
      "strain": "need_baseline:have=1,need=3"
     },
@@ -48076,7 +48076,7 @@
      "stress": 61.03520288391907,
      "stress_si": 159.4387755102041,
      "spo2": null,
-     "calories": 359.8518200286807,
+     "calories": 531.9219485983542,
      "sleeping_hr_nadir": 47.0,
      "sleeping_hr_nadir_ts": 1784000989.0,
      "waking_hr": 73.89752703749873,
@@ -48094,13 +48094,13 @@
      "unobserved_min": 0.0,
      "awakenings": 3.0,
      "longest_sleep_min": 165.0,
-     "sol_min": null,
+     "sol_min": 25.0,
      "midsleep_sec": -3589.0,
      "sleep_onset_sec": -17108.0,
      "active_min": 240.0,
      "quiet_hrr": 0.17007890935571285,
      "trimp_net": null,
-     "calories_total": 1707.6018200286808,
+     "calories_total": 1879.6719485983542,
      "steps": 17640.0,
      "dyn_p90": 0.6766952190329969,
      "nap_min": 45.0,
@@ -48109,8 +48109,8 @@
     },
     "sleep_source": "auto",
     "calories_total": {
-     "value": 1708,
-     "active": 360,
+     "value": 1880,
+     "active": 532,
      "basal": 1348,
      "confidence": 0.5,
      "tier": "ESTIMATE",
@@ -49631,7 +49631,33 @@
        "in_bed_min": 45,
        "efficiency": 1.0,
        "confidence": 0.85,
-       "source": "confirmed"
+       "source": "confirmed",
+       "staging": {
+        "asleep_min": 45,
+        "in_bed_min": 45,
+        "wake_min": 0,
+        "light_min": 40,
+        "deep_min": 5,
+        "rem_min": 0,
+        "efficiency": 100.0,
+        "runs": [
+         [
+          1784050199,
+          1784051279,
+          "light"
+         ],
+         [
+          1784051279,
+          1784051579,
+          "deep"
+         ],
+         [
+          1784051579,
+          1784052901,
+          "light"
+         ]
+        ]
+       }
       }
      ],
      "count": 1,
@@ -50090,11 +50116,11 @@
    "readiness": 59.51407073830209,
    "skipped": 0,
    "partial": 0,
-   "payload_sha256": "dc94c2a6e105f986b00dfe8ae78109bb1f3df80bb4f0d2abf02afeeacab78ccd"
+   "payload_sha256": "a02ea4c75397a3986df495947e093f062d1efb18071ce34c81d85c27a8399e17"
   },
   {
    "day_id": "2026-07-15",
-   "algo_version": 116,
+   "algo_version": 117,
    "payload_json": {
     "date": "2026-07-15",
     "day_confidence": 0.6,
@@ -50423,7 +50449,7 @@
        "deep_low_confidence": true,
        "awakenings": 3,
        "longest_sleep_sec": 9898,
-       "sol_sec": null
+       "sol_sec": 1492
       },
       "confidence": 0.6,
       "tier": "ESTIMATE",
@@ -54134,7 +54160,7 @@
      "min": 46,
      "avg": 69
     },
-    "calories": 360.0,
+    "calories": 363.0,
     "absent_notes": {
      "strain": "need_baseline:have=2,need=3"
     },
@@ -71632,7 +71658,7 @@
      "stress": 61.03520288391907,
      "stress_si": 159.4387755102041,
      "spo2": null,
-     "calories": 359.8518200286807,
+     "calories": 362.6576101966466,
      "sleeping_hr_nadir": 47.0,
      "sleeping_hr_nadir_ts": 1784087389.0,
      "waking_hr": 75.30632403863677,
@@ -71650,13 +71676,13 @@
      "unobserved_min": 0.0,
      "awakenings": 3.0,
      "longest_sleep_min": 165.0,
-     "sol_min": null,
+     "sol_min": 25.0,
      "midsleep_sec": -3589.0,
      "sleep_onset_sec": -17108.0,
      "active_min": 40.0,
      "quiet_hrr": 0.17604784700419027,
      "trimp_net": null,
-     "calories_total": 1595.2893200286808,
+     "calories_total": 1598.0951101966466,
      "steps": 17640.0,
      "dyn_p90": 0.0166173604770428,
      "nap_min": 0.0,
@@ -71664,8 +71690,8 @@
     },
     "sleep_source": "auto",
     "calories_total": {
-     "value": 1595,
-     "active": 360,
+     "value": 1598,
+     "active": 363,
      "basal": 1235,
      "confidence": 0.5,
      "tier": "ESTIMATE",
@@ -73452,7 +73478,7 @@
    "readiness": 60.227462631222465,
    "skipped": 0,
    "partial": 0,
-   "payload_sha256": "c98857a10c409c48a312d3f14cdfdaf535b0920b9197a143862f1c55b4e101e4"
+   "payload_sha256": "9b2b145021158e53757606aedfc37fc1ffe7bbdb1b010d7ab2fa2b457e329862"
   }
  ],
  "metric_series": [
@@ -73474,12 +73500,12 @@
   {
    "date": "2026-07-13",
    "key": "calories",
-   "value": 359.8518200286807
+   "value": 400.0918513743081
   },
   {
    "date": "2026-07-13",
    "key": "calories_total",
-   "value": 1707.6018200286808
+   "value": 1747.8418513743081
   },
   {
    "date": "2026-07-13",
@@ -73624,7 +73650,7 @@
   {
    "date": "2026-07-13",
    "key": "sol_min",
-   "value": null
+   "value": 25.0
   },
   {
    "date": "2026-07-13",
@@ -73684,12 +73710,12 @@
   {
    "date": "2026-07-14",
    "key": "calories",
-   "value": 359.8518200286807
+   "value": 531.9219485983542
   },
   {
    "date": "2026-07-14",
    "key": "calories_total",
-   "value": 1707.6018200286808
+   "value": 1879.6719485983542
   },
   {
    "date": "2026-07-14",
@@ -73834,7 +73860,7 @@
   {
    "date": "2026-07-14",
    "key": "sol_min",
-   "value": null
+   "value": 25.0
   },
   {
    "date": "2026-07-14",
@@ -73894,12 +73920,12 @@
   {
    "date": "2026-07-15",
    "key": "calories",
-   "value": 359.8518200286807
+   "value": 362.6576101966466
   },
   {
    "date": "2026-07-15",
    "key": "calories_total",
-   "value": 1595.2893200286808
+   "value": 1598.0951101966466
   },
   {
    "date": "2026-07-15",
@@ -74044,7 +74070,7 @@
   {
    "date": "2026-07-15",
    "key": "sol_min",
-   "value": null
+   "value": 25.0
   },
   {
    "date": "2026-07-15",
@@ -74090,7 +74116,7 @@
  "metric_series_version": [
   {
    "date": "2026-07-13",
-   "algo_version": 116,
+   "algo_version": 117,
    "source": "band",
    "device_family": "gen5",
    "coverage_devices": "",
@@ -74098,7 +74124,7 @@
   },
   {
    "date": "2026-07-14",
-   "algo_version": 116,
+   "algo_version": 117,
    "source": "band",
    "device_family": "gen5",
    "coverage_devices": "",
@@ -74106,7 +74132,7 @@
   },
   {
    "date": "2026-07-15",
-   "algo_version": 116,
+   "algo_version": 117,
    "source": "band",
    "device_family": "gen5",
    "coverage_devices": "",
@@ -74116,7 +74142,7 @@
  "wake_day_features": [
   {
    "day_id": "2026-07-13",
-   "algo_version": 116,
+   "algo_version": 117,
    "payload_json": {
     "day_id": "2026-07-13",
     "active_min": 90,
@@ -74128,9 +74154,9 @@
     "absent_notes": {
      "strain": "need_baseline:have=0,need=3"
     },
-    "calories": 359.8518200286807,
+    "calories": 400.0918513743081,
     "steps": 18240.0,
-    "calories_total": 1707.6018200286808,
+    "calories_total": 1747.8418513743081,
     "calories_basal": 1347.75,
     "calories_walking": 0.0,
     "wear_min": 1440.0,
@@ -75320,11 +75346,11 @@
      "coverage_pct": 100
     }
    },
-   "payload_sha256": "6c453477fe90243d117212c8c0cc449cbaa4f177d9b8bf1f84dcda62aba97aa0"
+   "payload_sha256": "265b4c9c3f2cab352ca4e0821e63b3f1149ea4a294717d3e2a92fc1eea72f4e7"
   },
   {
    "day_id": "2026-07-14",
-   "algo_version": 116,
+   "algo_version": 117,
    "payload_json": {
     "day_id": "2026-07-14",
     "active_min": 240,
@@ -75336,9 +75362,9 @@
     "absent_notes": {
      "strain": "need_baseline:have=1,need=3"
     },
-    "calories": 359.8518200286807,
+    "calories": 531.9219485983542,
     "steps": 17640.0,
-    "calories_total": 1707.6018200286808,
+    "calories_total": 1879.6719485983542,
     "calories_basal": 1347.75,
     "calories_walking": 0.0,
     "wear_min": 1440.0,
@@ -76528,11 +76554,11 @@
      "coverage_pct": 100
     }
    },
-   "payload_sha256": "125b45d7ed6bad55ad01e772afaa6ceaeab94ae51019d5c9aae442a6579c9f82"
+   "payload_sha256": "1194238481da267fa28c4d14e29853c061e2f02c5164122dfa689243b6f8e151"
   },
   {
    "day_id": "2026-07-15",
-   "algo_version": 116,
+   "algo_version": 117,
    "payload_json": {
     "day_id": "2026-07-15",
     "active_min": 40,
@@ -76544,9 +76570,9 @@
     "absent_notes": {
      "strain": "need_baseline:have=2,need=3"
     },
-    "calories": 359.8518200286807,
+    "calories": 362.6576101966466,
     "steps": 17640.0,
-    "calories_total": 1595.2893200286808,
+    "calories_total": 1598.0951101966466,
     "calories_basal": 1235.4375,
     "calories_walking": 0.0,
     "wear_min": 1320.0,
@@ -77640,7 +77666,7 @@
      "coverage_pct": 100
     }
    },
-   "payload_sha256": "9c4b8f06d9f900a0cc26bb8f98a7cf5c4e6d5b8b405dca9b4281818d8373a2f5"
+   "payload_sha256": "fed003f98cd5b5c1877294ce14a51d635c5722651772924c5ceb2345d9fb1569"
   }
  ],
  "activity_suggestions": [

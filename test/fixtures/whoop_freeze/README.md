@@ -12,6 +12,14 @@ means a WHOOP number moved. Fix the change, not the golden.
 
 ## History
 
+- v117, 2026-11-15: regenerated with the owner's approval. Energy under the
+  40 % HRR gate now prices light movement (`compute/day_energy.dart`), so
+  `calories`, `calories_total` and the active share move; sleep latency comes
+  from the lie-down before onset (`compute/sleep_latency.dart`), so `sol_sec`
+  and `sol_min` appear where they were null; a confirmed nap carries its
+  `staging` (`compute/nap_staging.dart`). Generated on CI under UTC, +05:30
+  and -04:00 (temporary `golden-regen-v117` branch).
+
 - v116, 2026-11-11: regenerated with the owner's approval, for the Sleep
   Planner's "stay consistent" (`crossday_pipeline.dart`). The sleep coach
   gains `habit_bed_min` and `habit_wake_min`, the median bedtime and wake
