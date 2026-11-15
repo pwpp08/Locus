@@ -811,16 +811,20 @@ class DC {
   static const barFace = Color(0xFF595A5E);
   static const barSide = Color(0xFF514F54);
 
-  /// The goal cards' box.
+  /// The metal of the cards' pictures (`card_pictures.dart`).
   static const boxFront = Color(0xFF4E5256);
-  static const boxInner = Color(0xFF63686C);
   static const boxLedge = Color(0xFF6E7376);
   static const boxLidHi = Color(0xFF5B5F62);
   static const boxLidLo = Color(0xFF494D50);
   static const boxLidEdge = Color(0xFF3F4346);
   static const boxInk = Color(0xFF34383B);
-  static const boxGlow = Color(0xFFC277CC);
-  static const boxGlowHi = Color(0xFFE3A6EA);
+
+  /// What a lit part of a picture is lightened toward; the hourglass's glass
+  /// and its edge; the rules across the cell's window.
+  static const pictureHi = Color(0xFFFFFFFF);
+  static const glass = Color(0x14FFFFFF);
+  static const glassEdge = Color(0x40FFFFFF);
+  static const cellRule = Color(0x55000000);
   static const hurtChip = Color(0x33FFA733);
   static const helpChip = Color(0x3300F19F);
   static const sparkChip = Color(0xFF263B50);

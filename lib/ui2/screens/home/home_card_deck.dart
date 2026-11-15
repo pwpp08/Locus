@@ -14,6 +14,7 @@ import 'package:flutter/services.dart' show HapticFeedback;
 import '../../grammar.dart' show Pressable, SideDrag, panelDecoration;
 import '../../theme.dart';
 import '../../ui2.dart' show LucideIcons;
+import 'card_pictures.dart';
 import 'home_daily_cards.dart';
 
 /// How far the card beneath shows under the top one, and how much narrower
@@ -392,12 +393,18 @@ class DailyCardFace extends StatelessWidget {
 typedef _Art = ({Widget picture, double gap, double right, double pad});
 
 /// Most cards are only words. A picture is kept for what is rare: a record, a
-/// turn in the week's recovery, a goal reached.
+/// turn in the week's recovery, a goal reached, a good night.
 _Art? _artOf(DailyCard card) {
   _Art coin(IconData icon) => (
     picture: _Coin(icon),
     gap: S.x4,
     right: S.x10 + S.x1 + S.hair,
+    pad: S.x5,
+  );
+  _Art picture(CardPicture p) => (
+    picture: CardPictureView(p),
+    gap: S.x5,
+    right: S.x12 + S.x2 + S.hair,
     pad: S.x5,
   );
   return switch (card.kind) {
@@ -409,15 +416,15 @@ _Art? _artOf(DailyCard card) {
       right: S.x12 + S.x1,
       pad: S.x6 + S.hair,
     ),
+    DailyCardKind.stepGoal || DailyCardKind.stepGoalToday =>
+      picture(CardPicture.steps),
     DailyCardKind.targetMet ||
-    DailyCardKind.stepGoal ||
-    DailyCardKind.targetReached ||
-    DailyCardKind.stepGoalToday => (
-      picture: const _Box(),
-      gap: S.x5,
-      right: S.x12 + S.x2 + S.hair,
-      pad: S.x5,
-    ),
+    DailyCardKind.targetReached => picture(CardPicture.summit),
+    DailyCardKind.greenTarget => picture(CardPicture.signal),
+    DailyCardKind.sleptPlenty => picture(CardPicture.pillow),
+    DailyCardKind.debtPaid => picture(CardPicture.hourglass),
+    DailyCardKind.restorative => picture(CardPicture.cell),
+    DailyCardKind.consistencyHigh => picture(CardPicture.metronome),
     _ => null,
   };
 }
@@ -490,111 +497,6 @@ class _WeekBarsPaint extends CustomPainter {
 
   @override
   bool shouldRepaint(_WeekBarsPaint o) => o.values != values || o.lit != lit;
-}
-
-/// A box with its lid slid back and the light coming out of it: a goal reached.
-class _Box extends StatelessWidget {
-  const _Box();
-
-  @override
-  Widget build(BuildContext c) => ExcludeSemantics(
-    child: CustomPaint(size: _BoxPaint.size, painter: const _BoxPaint()),
-  );
-}
-
-class _BoxPaint extends CustomPainter {
-  const _BoxPaint();
-
-  static const size = Size(76, 74);
-
-  // The corners, measured off the reference.
-  static const _backLeft = Offset(0, 17.5);
-  static const _lowLeft = Offset(0, 48.7);
-  static const _foot = Offset(24.5, 73.5);
-  static const _lowRight = Offset(66.4, 61.7);
-  static const _highRight = Offset(66.4, 32.2);
-  static const _seam = Offset(33.4, 38.1);
-  static const _ledge = Offset(24, 41);
-  static const _lid = [
-    Offset(9.8, 6.8),
-    Offset(49.3, 0),
-    Offset(73.3, 25.1),
-    Offset(34, 32.8),
-  ];
-  static const _lidDeep = 5.6;
-  static const _slot = [
-    Offset(3.3, 17.5),
-    Offset(12.2, 15.7),
-    _seam,
-    _ledge,
-  ];
-
-  Path _poly(List<Offset> pts) => Path()..addPolygon(pts, true);
-
-  @override
-  void paint(Canvas canvas, Size _) {
-    // Inside, seen past the lid, with the strip of light down it.
-    canvas.drawPath(
-      _poly(const [_backLeft, Offset(12.2, 15.7), _seam, _ledge, _lowLeft]),
-      Paint()..color = DC.boxInner,
-    );
-    canvas.drawPath(
-      _poly(const [Offset(0, 39), _ledge, _seam, Offset(24, 41.8), _lowLeft]),
-      Paint()..color = DC.boxLedge,
-    );
-    final slot = _poly(_slot);
-    canvas.drawPath(
-      slot,
-      Paint()
-        ..color = DC.boxGlow
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, S.x1),
-    );
-    canvas.drawPath(
-      slot,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [DC.boxGlow, DC.boxGlowHi],
-        ).createShader(slot.getBounds()),
-    );
-    // The two faces toward you.
-    final front = _poly(const [
-      _lowLeft,
-      _foot,
-      _lowRight,
-      _highRight,
-      _seam,
-      _ledge,
-    ]);
-    canvas.drawPath(front, Paint()..color = DC.boxFront);
-    // The lid: its edge, then its top with the mark struck into it.
-    final deep = const Offset(0, _lidDeep);
-    canvas.drawPath(
-      _poly([_lid[3], _lid[2], _lid[2] + deep, _lid[3] + deep]),
-      Paint()..color = DC.boxLidEdge,
-    );
-    final lid = _poly(_lid);
-    canvas.drawPath(
-      lid,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [DC.boxLidHi, DC.boxLidLo],
-        ).createShader(lid.getBounds()),
-    );
-    canvas.drawOval(
-      Rect.fromCenter(center: const Offset(42.2, 15.3), width: 26, height: 14.6),
-      Paint()
-        ..color = DC.boxInk
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = S.hair * .8,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_BoxPaint o) => false;
 }
 
 /// A metal coin, seen a little from the side: a thick dark edge, a brushed

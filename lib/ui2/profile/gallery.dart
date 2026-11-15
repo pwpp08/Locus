@@ -73,6 +73,7 @@ import '../screens/home/home_energy.dart';
 import '../../compute/training_readiness.dart';
 import '../screens/training_readiness_card.dart' show TrainingReadinessView;
 import '../screens/reports.dart' show ScoreRing;
+import '../screens/home/card_pictures.dart';
 
 /// A deterministic series — a gallery cannot depend on random data.
 final _series =
@@ -1252,6 +1253,30 @@ Map<String, Widget> extraCases() => {
           'You walked 11,240 steps yesterday, past your goal of 10,000.',
         ),
       ]),
+      // The daily cards' pictures, every one.
+      'card_pictures': Wrap(
+        spacing: S.x4,
+        runSpacing: S.x4,
+        children: [for (final p in CardPicture.values) CardPictureView(p)],
+      ),
+      // A staged nap, drawn as a night is.
+      'nap_stages_card': NapStagesCard(nap: {
+        'onset_ts': 1786700000,
+        'wake_ts': 1786700000 + 3600,
+        'duration_min': 52,
+        'awake_min': 8,
+        'light_min': 30,
+        'deep_min': 14,
+        'rem_min': 8,
+        'hypnogram': [
+          {'t': 1786700000, 'stage': 'wake'},
+          {'t': 1786700000 + 480, 'stage': 'light'},
+          {'t': 1786700000 + 1500, 'stage': 'deep'},
+          {'t': 1786700000 + 2340, 'stage': 'light'},
+          {'t': 1786700000 + 3120, 'stage': 'rem'},
+          {'t': 1786700000 + 3600, 'stage': 'rem'},
+        ],
+      }),
       'chart_ring': Builder(builder: (c) {
         final p = P.of(c);
         return Surface(
