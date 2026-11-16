@@ -39,11 +39,10 @@ class HomeMonitors extends StatelessWidget {
           child: Surface(
             onTap: onTap,
             semanticLabel: semantic,
-            pad: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x3, S.x5),
+            pad: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x3, S.x4),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // The chevron follows the title, as the dials' labels do.
               Row(children: [
-                Flexible(
+                Expanded(
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
@@ -53,15 +52,12 @@ class HomeMonitors extends StatelessWidget {
                             color: p.ink, fontWeight: FontWeight.w800)),
                   ),
                 ),
-                const SizedBox(width: S.x2),
                 BoldChevron(left: false, color: p.ink3, height: S.x3),
               ]),
-              const SizedBox(height: S.x4),
+              const SizedBox(height: S.x5),
               Row(children: [
                 tile,
-                // Room between the square and its words, so they read as a
-                // pair rather than one block.
-                const SizedBox(width: S.x4),
+                const SizedBox(width: S.x3),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(word,
@@ -70,16 +66,11 @@ class HomeMonitors extends StatelessWidget {
                         style: F.caps.copyWith(
                             color: wordColor, fontWeight: FontWeight.w800)),
                     const SizedBox(height: S.half),
-                    // One line, shrunk rather than cut: "Needs a night" must
-                    // not lose its last word.
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(sub,
-                          maxLines: 1,
-                          style: F.num(F.body).copyWith(
-                              color: p.ink2, fontWeight: FontWeight.w500)),
-                    ),
+                    Text(sub,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: F.num(F.cap).copyWith(
+                            color: p.ink2, fontWeight: FontWeight.w600)),
                   ]),
                 ),
               ]),

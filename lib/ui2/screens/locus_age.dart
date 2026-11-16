@@ -79,7 +79,7 @@ const kLocusGroups = <(String, List<LocusRow>)>[
     'Strain',
     [
       LocusRow('zones_13', 'Time in HR zones 1-3 (weekly)',
-          'time in heart rate zones 1 to 3', 'zones_13', 0, 420, '0h', '7h',
+          'time in heart rate zones 1 to 3', 'zones_13', 0, 180, '0h', '3h',
           _hmmMinutes),
       LocusRow('zones_45', 'Time in HR zones 4-5 (weekly)',
           'time in heart rate zones 4 and 5', 'zones_45', 0, 60, '0h', '1h',
@@ -254,10 +254,9 @@ class LocusAgeScreen extends StatefulWidget {
 
 class _LocusAgeScreenState extends State<LocusAgeScreen>
     with RevisionReload, SingleTickerProviderStateMixin {
-  // The two poses of the blob, in points below the top inset. Even at rest it
-  // is a badge between its two side figures, not a hero filling the page.
-  static const _heroD = 150.0, _heroY = 138.0, _smallD = 100.0, _smallY = 58.0;
-  static const _headerFull = 236.0, _headerSmall = 118.0;
+  // The two poses of the blob, in points below the top inset.
+  static const _heroD = 274.0, _heroY = 209.0, _smallD = 100.0, _smallY = 58.0;
+  static const _headerFull = 366.0, _headerSmall = 118.0;
 
   final _sim = BlobSim();
   final _frame = ValueNotifier<int>(0);
@@ -597,8 +596,9 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
     final (d, centre) = _pose(t, width, top);
     final canvas = d * 1.5;
     final head = top + _headerFull + (_headerSmall - _headerFull) * t;
-    // The years and the pace flank the blob in both poses.
-    final sideW = (width - d) / 2 - S.x5;
+    final sides = ((t - .55) / .45).clamp(0.0, 1.0);
+    final subFade = (1 - t * 3).clamp(0.0, 1.0);
+    final sideW = (width - _smallD) / 2 - S.x3;
     final age = r.whoopAge;
     final base = r.age;
     final delta = age == null || base == null ? null : age - base;
@@ -662,19 +662,29 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
                       style: TextStyle.lerp(AC.ageLabel, AC.ageLabelSmall, t)!
                           .copyWith(color: DC.ink2),
                     ),
+                    if (subFade > 0) ...[
+                      SizedBox(height: S.x1 * subFade),
+                      Opacity(
+                        opacity: subFade,
+                        child: Text(
+                          _deltaWords(),
+                          style: AC.ageDelta.copyWith(color: toneText),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
           ),
         ),
-        ...[
+        if (sides > 0) ...[
           Positioned(
             left: S.x2,
             width: sideW,
             top: centre.dy - S.x5,
-            child: Semantics(
-              label: _deltaWords(),
+            child: Opacity(
+              opacity: sides,
               child: _sideStat(
                 delta == null ? '--' : delta.abs().toStringAsFixed(1),
                 delta == null
@@ -690,7 +700,8 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
             right: S.x2,
             width: sideW,
             top: centre.dy - S.x5,
-            child: Semantics(
+            child: Opacity(
+              opacity: sides,
               child: _sideStat(
                 r.pace == null ? '--' : '${r.pace!.toStringAsFixed(1)}x',
                 'PACE OF AGING',
