@@ -1313,23 +1313,7 @@ class _EditProfileViewState extends State<EditProfileView> {
       TextEditingController(text: '${widget.initial['name'] ?? ''}');
   late final _age =
       TextEditingController(text: _s(widget.initial['age']));
-  late final _birth = TextEditingController(text: () {
-    final b = birthDateOf(widget.initial);
-    return b == null ? '' : '${b.day}/${b.month}/${b.year}';
-  }());
-
-  /// "24/3/1997", "24.03.1997" or "1997-03-24" as a day, null when it is not
-  /// a real past date.
-  static DateTime? _parseBirth(String text) {
-    final n = RegExp(r'\d+').allMatches(text).map((m) => int.parse(m[0]!)).toList();
-    if (n.length != 3) return null;
-    final (y, m, d) = n[0] > 31 ? (n[0], n[1], n[2]) : (n[2], n[1], n[0]);
-    final at = DateTime(y, m, d);
-    final now = DateTime.now();
-    if (at.year != y || at.month != m || at.day != d) return null;
-    if (at.isAfter(now) || y < now.year - 120) return null;
-    return at;
-  }
+  late DateTime? _birth = birthDateOf(widget.initial);
   late final _height =
       TextEditingController(text: _u.heightField(widget.initial['height_cm'] as num?));
   late final _weight =
@@ -1402,7 +1386,6 @@ class _EditProfileViewState extends State<EditProfileView> {
   void dispose() {
     _name.dispose();
     _age.dispose();
-    _birth.dispose();
     _height.dispose();
     _weight.dispose();
     super.dispose();
@@ -1419,10 +1402,8 @@ class _EditProfileViewState extends State<EditProfileView> {
     final age = Typed.of(_age.text);
     final height = Typed.of(_height.text);
     final weight = Typed.of(_weight.text);
-    final birthText = _birth.text.trim();
-    final birth = _parseBirth(birthText);
+    final birth = _birth;
     final bad = [
-      if (birthText.isNotEmpty && birth == null) 'Birthday',
       if (birth == null && age.bad) (l?.settingsAgeFieldLabel ?? 'Age'),
       if (height.bad) uiText(context, _u.heightLabel),
       if (weight.bad) uiText(context, _u.weightLabel),
@@ -1487,22 +1468,17 @@ class _EditProfileViewState extends State<EditProfileView> {
                 ),
                 const SizedBox(height: S.x4),
                 // With a birthday the age is worked out from it, to the day.
-                _text(c, _birth, 'BIRTHDAY (DAY/MONTH/YEAR)',
-                    TextInputType.datetime),
-                // The typed age only while there is no birthday to read it from.
-                ListenableBuilder(
-                  listenable: _birth,
-                  builder: (c, _) => _parseBirth(_birth.text) != null
-                      ? const SizedBox.shrink()
-                      : Padding(
-                          padding: const EdgeInsets.only(top: S.x4),
-                          child: _text(
-                              c,
-                              _age,
-                              l?.settingsAgeYearsFieldLabel ?? 'AGE (YEARS)',
-                              TextInputType.number),
-                        ),
+                Text('BIRTHDAY', style: F.over.copyWith(color: p.ink3)),
+                BirthdayRow(
+                  value: _birth,
+                  onChanged: (d) => setState(() => _birth = d),
                 ),
+                // The typed age only while there is no birthday to read it from.
+                if (_birth == null) ...[
+                  const SizedBox(height: S.x4),
+                  _text(c, _age, l?.settingsAgeYearsFieldLabel ?? 'AGE (YEARS)',
+                      TextInputType.number),
+                ],
                   const SizedBox(height: S.x4),
                   _text(
                     c,

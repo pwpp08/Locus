@@ -1637,12 +1637,17 @@ class TrendViewScreen extends StatefulWidget {
   /// is what is usually wanted from one.
   final String? day;
 
+  /// Opens with the metric list down, for the design snapshots.
+  @visibleForTesting
+  final bool debugPicking;
+
   const TrendViewScreen({
     super.key,
     required this.initial,
     this.loader,
     this.today,
     this.day,
+    this.debugPicking = false,
   });
 
   @override
@@ -1667,7 +1672,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
 
   /// The point under a finger. Null at rest, so the readout shows the average.
   int? _selected;
-  bool _picking = false;
+  late bool _picking = widget.debugPicking;
+  final _pickedRow = GlobalKey();
   final _page = ScrollController();
 
   /// The part of the day a minute chart shows, in minutes, after pinching.
@@ -1709,7 +1715,18 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     super.initState();
     // Every chart opens on the week, the day view included one tap away.
     _range = TrendRange.week;
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _load();
+      if (_picking) _centrePicked();
+    });
+  }
+
+  /// Scrolls the open list so the metric being read sits mid-screen.
+  void _centrePicked() {
+    final ctx = _pickedRow.currentContext;
+    if (ctx == null || !ctx.mounted) return;
+    Scrollable.ensureVisible(ctx,
+        alignment: .5, duration: motion(ctx, Motion.base));
   }
 
   @override
@@ -2156,11 +2173,18 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
               m: m,
               compare: _compare,
               open: _picking,
-              onTap: () => setState(() => _picking = !_picking),
+              onTap: () {
+                setState(() => _picking = !_picking);
+                if (!_picking) return;
+                // Open on the metric being read, in the middle of the screen.
+                WidgetsBinding.instance
+                    .addPostFrameCallback((_) => _centrePicked());
+              },
             ),
             if (_picking) ...[
               const SizedBox(height: S.x2),
               _Picker(
+                currentKey: _pickedRow,
                 current: _compare ? null : m,
                 onPick: _pick,
                 onCompare: () => setState(() {
@@ -3410,7 +3434,7 @@ class _MetricPill extends StatelessWidget {
         height: S.x16,
         padding: const EdgeInsets.symmetric(horizontal: S.x5),
         decoration: BoxDecoration(
-          color: Color.alphaBlend(p.ink.withValues(alpha: .12), p.card2),
+          color: p.card2,
           borderRadius: R.rLg,
         ),
         child: Row(
@@ -3661,6 +3685,9 @@ class _TrianglePainter extends CustomPainter {
 class _Picker extends StatelessWidget {
   /// The metric on screen; null while Compare metrics is.
   final TrendMetric? current;
+
+  /// Put on the row of [current], so the screen can scroll it to the middle.
+  final GlobalKey? currentKey;
   final ValueChanged<TrendMetric> onPick;
   final VoidCallback onCompare;
 
@@ -3669,6 +3696,7 @@ class _Picker extends StatelessWidget {
   final Set<String>? allowed;
   const _Picker(
       {required this.current,
+      this.currentKey,
       required this.onPick,
       required this.onCompare,
       this.allowed});
@@ -3679,9 +3707,11 @@ class _Picker extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
+    // Darker than a card and tighter than a menu: a long list read quickly.
+    final ground = Color.lerp(p.card, p.bg, .55)!;
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: S.x2),
-      decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
+      padding: const EdgeInsets.symmetric(vertical: S.x1),
+      decoration: BoxDecoration(color: ground, borderRadius: R.rXl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -3693,14 +3723,14 @@ class _Picker extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: S.x2),
               padding: const EdgeInsets.symmetric(
                 horizontal: S.x3,
-                vertical: S.x4,
+                vertical: S.x3,
               ),
               decoration: BoxDecoration(
-                color: current == null ? p.card2 : null,
+                color: current == null ? p.card : null,
                 borderRadius: R.rLg,
               ),
               child: Row(children: [
-                Icon(LucideIcons.gitCompareArrows, size: I.lg, color: p.ink2),
+                Icon(LucideIcons.gitCompareArrows, size: I.md, color: p.ink2),
                 const SizedBox(width: S.x4),
                 Expanded(
                   child: Text('COMPARE METRICS',
@@ -3712,7 +3742,7 @@ class _Picker extends StatelessWidget {
           for (final g in TrendGroup.values)
             if (kTrendCatalogue.any((m) => m.group == g && _listed(m))) ...[
               Padding(
-                padding: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x4, S.x2),
+                padding: const EdgeInsets.fromLTRB(S.x4, S.x3, S.x4, S.x1),
                 child: Row(
                   children: [
                     Text(
@@ -3732,21 +3762,23 @@ class _Picker extends StatelessWidget {
               for (final m in kTrendCatalogue)
                 if (m.group == g && _listed(m))
                   Pressable(
+                    key: m == current ? currentKey : null,
                     onTap: () => onPick(m),
                     semanticLabel: m.title,
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: S.x2),
+                      constraints: const BoxConstraints(minHeight: S.tap),
                       padding: const EdgeInsets.symmetric(
                         horizontal: S.x3,
-                        vertical: S.x4,
+                        vertical: S.x2 + S.half,
                       ),
                       decoration: BoxDecoration(
-                        color: m == current ? p.card2 : null,
+                        color: m == current ? p.card : null,
                         borderRadius: R.rLg,
                       ),
                       child: Row(
                         children: [
-                          Icon(m.icon, size: I.lg, color: p.ink2),
+                          Icon(m.icon, size: I.md, color: p.ink2),
                           const SizedBox(width: S.x4),
                           Expanded(
                             child: Text(

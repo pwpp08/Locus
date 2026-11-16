@@ -60,11 +60,15 @@ class HomeMonitors extends StatelessWidget {
                 const SizedBox(width: S.x3),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(word,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: F.caps.copyWith(
-                            color: wordColor, fontWeight: FontWeight.w800)),
+                    // Shrunk to fit, never cut: "WITHIN RA…" says nothing.
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(word,
+                          maxLines: 1,
+                          style: F.caps.copyWith(
+                              color: wordColor, fontWeight: FontWeight.w800)),
+                    ),
                     const SizedBox(height: S.half),
                     Text(sub,
                         maxLines: 1,

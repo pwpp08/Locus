@@ -719,9 +719,22 @@ class AC {
   static const blobCore0 = Color(0x00040506);
   static const blobSpeck = Color(0xFFEFFFFA);
 
-  static const segAmber = Color(0xFFF2B15C);
-  static const segGreen = Color(0xFF5BE39B);
-  static const segGrey = Color(0xFF8F9296);
+  // A bar segment's coloured edge and the wash under it, sampled off the
+  // reference: full amber and green at the far ends, dim by the target.
+  static const segAmber = Color(0xFFFFA824);
+  static const segAmberDim = Color(0xFF6E522D);
+  static const segAmberFill = Color(0xFF3F3323);
+  static const segAmberFillDim = Color(0xFF28261F);
+  static const segGreen = Color(0xFF00F09E);
+  static const segGreenDim = Color(0xFF0F5F46);
+  static const segGreenFill = Color(0xFF183E33);
+  static const segGreenFillDim = Color(0xFF1A2926);
+  static const segGrey = Color(0xFF959597);
+  static const segGreyFill = Color(0xFF2A2B2D);
+
+  /// A contributor row closed, and open: the open one sits darker.
+  static const row = Color(0xFF272C2F);
+  static const rowOpen = Color(0xFF1D1E20);
 
   static final ageNum = F.n48.copyWith(fontSize: 40);
   static final ageNumSmall = F.n24.copyWith(fontSize: 24);
@@ -729,10 +742,10 @@ class AC {
   static final ageLabelSmall = F.dLabel.copyWith(fontSize: 9);
   static final ageDelta = F.dBody.copyWith(fontSize: 13, fontWeight: FontWeight.w600);
   static final sideNum = F.n17.copyWith(fontSize: 18);
-  static final section = F.dTitle.copyWith(fontSize: 20, fontWeight: FontWeight.w500);
+  static final section = F.dTitle.copyWith(fontSize: 24, fontWeight: FontWeight.w500);
   static final rowTitle = F.dBody.copyWith(fontSize: 15, fontWeight: FontWeight.w500);
   static final rowValue = F.nTiny.copyWith(fontSize: 13);
-  static final rowYears = F.n17.copyWith(fontSize: 16);
+  static final rowYears = F.n17.copyWith(fontSize: 20);
   static final body = F.dBody.copyWith(fontSize: 13, height: 1.35);
   static final barLabel = F.dLabel.copyWith(fontSize: 9, letterSpacing: .4);
   static final barLabelMid = F.dBody.copyWith(fontSize: 11, height: 1.2);

@@ -7,6 +7,7 @@ import 'package:openstrap_edge/compute/whoop_age.dart';
 import 'package:openstrap_edge/ui2/profile/storage_screen.dart';
 import 'package:openstrap_edge/ui2/screens/locus_age.dart';
 import 'package:openstrap_edge/ui2/screens/locus_blob.dart';
+import 'package:openstrap_edge/ui2/theme.dart' show AC;
 
 double _maxOffset(BlobSim s) {
   var most = 0.0;
@@ -147,11 +148,16 @@ void main() {
 
     test('a bar is amber short of the target and green past it', () {
       final row = kLocusGroups.first.$2.last; // hours of sleep
-      expect(locusSegment(5.2, row, 7).g, lessThan(locusSegment(7.9, row, 7).g));
-      expect(
-        locusSegment(7, row, 7).toARGB32(),
-        locusSegment(7.05, row, 7).toARGB32(),
-      );
+      expect(locusSegment(5.2, row, 7).line.g,
+          lessThan(locusSegment(7.9, row, 7).line.g));
+      // Nearer the target is dimmer than far from it, on both sides.
+      expect(locusSegment(6.9, row, 7).line.r,
+          lessThan(locusSegment(5.1, row, 7).line.r));
+      expect(locusSegment(7.1, row, 7).line.g,
+          lessThan(locusSegment(7.9, row, 7).line.g));
+      // The grey segment is the one the target falls inside, and only it.
+      final segs = locusSegments(row, 6.6);
+      expect(segs.where((s) => s.line == AC.segGrey), hasLength(1));
     });
   });
 

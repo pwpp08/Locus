@@ -464,11 +464,11 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
         Positioned(
           top: top + S.x1,
           right: S.x4,
-          child: const SizedBox(
+          child: SizedBox(
             width: S.x10,
             height: S.x10,
             child: Center(
-              child: DialInfo('Locus Age', _about),
+              child: DialInfo('Locus Age', _aboutWithUpdate(_today)),
             ),
           ),
         ),
@@ -521,14 +521,14 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
 
   Widget _pager(BuildContext c, double top) {
     final week = _week!;
-    final days = daysToNextUpdate(_today);
     final canBack = _at > 0, canNext = _at < _weeks.length - 1;
     return AnimatedBuilder(
       animation: _scroll,
       builder: (_, _) {
         final fade = (1 - _t * 3).clamp(0.0, 1.0);
+        // On the info button's line: the countdown lives in its sheet.
         return Positioned(
-          top: top,
+          top: top + S.x1,
           left: S.x10 + S.x4,
           right: S.x10 + S.x4,
           child: IgnorePointer(
@@ -537,14 +537,6 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
               opacity: fade,
               child: Column(
                 children: [
-                  Text(
-                    days == 1
-                        ? 'NEXT UPDATE TOMORROW'
-                        : 'NEXT UPDATE IN $days DAYS',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AC.barLabel.copyWith(color: DC.ink3),
-                  ),
                   SizedBox(
                     height: S.x10,
                     child: Row(
@@ -833,7 +825,7 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
         ClipRRect(
           borderRadius: R.rXl,
           child: ColoredBox(
-            color: AC.card,
+            color: AC.row,
             child: Column(
               children: [
                 for (var i = 0; i < shown.length; i++)
@@ -843,7 +835,8 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
                     recent: r.recent[shown[i].key],
                     showYears: unlocked,
                     open: _open.contains(shown[i].key),
-                    divider: i > 0,
+                    // No rule under an open row: its darker ground is the edge.
+                    divider: i > 0 && !_open.contains(shown[i - 1].key),
                     onToggle: () => setState(() {
                       if (!_open.remove(shown[i].key)) _open.add(shown[i].key);
                     }),
@@ -861,6 +854,14 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
       ],
     );
   }
+}
+
+/// The info sheet's words, with when the next weekly reading lands.
+String _aboutWithUpdate(String today) {
+  final days = daysToNextUpdate(today);
+  final when = days == 1 ? 'tomorrow' : 'in $days days';
+  return 'Locus Age updates once a week, on Sunday. The next update is '
+      '$when.\n\n$_about';
 }
 
 const _about =
@@ -1110,6 +1111,8 @@ class _Legend extends StatelessWidget {
       const SizedBox(width: S.x1 + S.half),
       Text('6 Month avg.', style: AC.barLabelMid.copyWith(color: DC.ink2)),
       const SizedBox(width: S.x3),
+      Container(width: S.hair, height: S.x4, color: DC.line),
+      const SizedBox(width: S.x3),
       const CustomPaint(
         size: Size(S.x2 + S.x1, S.x2),
         painter: _MarkPainter(down: false, colour: DC.ink3),
@@ -1144,15 +1147,42 @@ class _MarkPainter extends CustomPainter {
       old.down != down || old.colour != colour;
 }
 
-/// A segment's colour along a contributor's bar. Past the target is green, short
-/// of it amber, and around it grey; the further from the target the brighter.
-Color locusSegment(double v, LocusRow row, double target) {
-  const neutral = .05;
+/// One segment of a contributor's bar: the coloured edge along its top (the
+/// whole of a closed bar) and the wash under it (an open bar's body).
+typedef LocusSeg = ({Color line, Color fill});
+
+/// A segment's colours, measured off the reference. Short of the target it
+/// is amber, past it green; the nearer the target the dimmer, reaching full
+/// amber a tenth of the range away and full green a little further out.
+LocusSeg locusSegment(double v, LocusRow row, double target) {
   final span = row.max - row.min;
-  final g = (v - target) / span * (row.higherBetter ? 1 : -1);
-  if (g.abs() < neutral) return AC.segGrey;
-  final base = g < 0 ? AC.segAmber : AC.segGreen;
-  return base.withValues(alpha: (.4 + 1.5 * g.abs()).clamp(.4, 1.0));
+  final d = (v - target) / span * (row.higherBetter ? 1 : -1);
+  if (d < 0) {
+    final t = ((-d - .03) / .1).clamp(0.0, 1.0);
+    return (
+      line: Color.lerp(AC.segAmberDim, AC.segAmber, t)!,
+      fill: Color.lerp(AC.segAmberFillDim, AC.segAmberFill, t)!,
+    );
+  }
+  final t = ((d - .05) / .18).clamp(0.0, 1.0);
+  return (
+    line: Color.lerp(AC.segGreenDim, AC.segGreen, t)!,
+    fill: Color.lerp(AC.segGreenFillDim, AC.segGreenFill, t)!,
+  );
+}
+
+/// The segments of a bar. Ten, as the reference; the one the target falls
+/// inside (not on an edge of) is the grey one.
+List<LocusSeg> locusSegments(LocusRow row, double target) {
+  const n = 10;
+  final step = (row.max - row.min) / n;
+  return [
+    for (var i = 0; i < n; i++)
+      target > row.min + step * i + 1e-9 &&
+              target < row.min + step * (i + 1) - 1e-9
+          ? (line: AC.segGrey, fill: AC.segGreyFill)
+          : locusSegment(row.min + step * (i + .5), row, target),
+  ];
 }
 
 class _Contributor extends StatelessWidget {
@@ -1194,14 +1224,7 @@ class _Contributor extends StatelessWidget {
             ? '0.0'
             : '${years > 0 ? '+' : '-'}${years.abs().toStringAsFixed(1)}';
     final insight = rowInsight(row, long, recent);
-    final segs = [
-      for (var i = 0; i < 12; i++)
-        locusSegment(
-          row.min + (row.max - row.min) * (i + .5) / 12,
-          row,
-          long.target,
-        ),
-    ];
+    final segs = locusSegments(row, long.target);
     Widget valueLine(LocusValue v, TextStyle s, TextStyle u) => Text.rich(
       TextSpan(
         children: [
@@ -1215,7 +1238,7 @@ class _Contributor extends StatelessWidget {
     final unitStyle = AC.barLabelMid.copyWith(color: DC.ink3);
 
     return ColoredBox(
-      color: open ? AC.cardOpen : AC.card,
+      color: open ? AC.rowOpen : AC.row,
       child: Column(
         children: [
           if (divider && !open)
@@ -1302,13 +1325,13 @@ class _Contributor extends StatelessWidget {
                                     Text(
                                       row.minLabel,
                                       style: AC.barLabel.copyWith(
-                                        color: segs.first.withValues(alpha: 1),
+                                        color: segs.first.line,
                                       ),
                                     ),
                                     Text(
                                       row.maxLabel,
                                       style: AC.barLabel.copyWith(
-                                        color: segs.last.withValues(alpha: 1),
+                                        color: segs.last.line,
                                       ),
                                     ),
                                   ],
@@ -1324,13 +1347,13 @@ class _Contributor extends StatelessWidget {
                             Text(
                               row.minLabel,
                               style: AC.barLabel.copyWith(
-                                color: segs.first.withValues(alpha: 1),
+                                color: segs.first.line,
                               ),
                             ),
                             Text(
                               row.maxLabel,
                               style: AC.barLabel.copyWith(
-                                color: segs.last.withValues(alpha: 1),
+                                color: segs.last.line,
                               ),
                             ),
                           ],
@@ -1351,9 +1374,11 @@ class _Contributor extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: S.x3),
+                // A narrow years column, so the bar runs as wide as the
+                // reference's.
+                const SizedBox(width: S.x1),
                 SizedBox(
-                  width: S.x10 + S.x1,
+                  width: S.x10,
                   child: Column(
                     children: [
                       FittedBox(
@@ -1405,13 +1430,14 @@ class _Contributor extends StatelessWidget {
 }
 
 class _BandPainter extends CustomPainter {
-  static const _tip = S.x2, _thin = S.half + S.hair, _thick = S.x4 + S.half;
+  static const _tip = 6.0, _under = 5.0, _thin = 4.0, _thick = 19.0;
+  static const _edge = 3.5, _gap = 1.0, _round = 2.0;
 
   /// The first marker, the band, and the small marker under it.
   static double heightFor({required bool thick}) =>
-      _tip + (thick ? _thick : _thin) + _tip;
+      _tip + (thick ? _thick : _thin) + _under + S.half;
 
-  final List<Color> segs;
+  final List<LocusSeg> segs;
   final double at;
   final double? at30;
   final bool thick;
@@ -1424,43 +1450,43 @@ class _BandPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const tipH = _tip, gap = S.half, bandTop = _tip;
+    const bandTop = _tip;
     final bandH = thick ? _thick : _thin;
-    final w = (size.width - gap * (segs.length - 1)) / segs.length;
+    final bar = Rect.fromLTWH(0, bandTop, size.width, bandH);
+    canvas.save();
+    canvas.clipRRect(
+        RRect.fromRectAndRadius(bar, const Radius.circular(_round)));
+    final w = (size.width - _gap * (segs.length - 1)) / segs.length;
     for (var i = 0; i < segs.length; i++) {
-      final x = i * (w + gap);
-      canvas.drawRect(
-        Rect.fromLTWH(x, bandTop, w, bandH),
-        Paint()
-          ..color = thick ? segs[i].withValues(alpha: segs[i].a * .32) : segs[i],
-      );
+      final x = i * (w + _gap);
       if (thick) {
-        canvas.drawRect(
-          Rect.fromLTWH(x, bandTop, w, S.half + S.hair),
-          Paint()..color = segs[i],
-        );
+        canvas.drawRect(Rect.fromLTWH(x, bandTop, w, bandH),
+            Paint()..color = segs[i].fill);
       }
+      canvas.drawRect(Rect.fromLTWH(x, bandTop, w, thick ? _edge : bandH),
+          Paint()..color = segs[i].line);
     }
+    canvas.restore();
     final x = at * size.width;
     canvas.drawPath(
       Path()
-        ..moveTo(x - S.x1 - S.half / 2, 0)
-        ..lineTo(x + S.x1 + S.half / 2, 0)
-        ..lineTo(x, tipH)
+        ..moveTo(x - 5, 0)
+        ..lineTo(x + 5, 0)
+        ..lineTo(x, _tip)
         ..close(),
       Paint()..color = DC.ink,
     );
     final a30 = at30;
     if (a30 != null) {
       final x2 = a30 * size.width;
-      final y = bandTop + bandH + S.half;
+      final y = bandTop + bandH;
       canvas.drawPath(
         Path()
-          ..moveTo(x2 - S.x1 + S.half / 2, y + S.x1 + S.half / 2)
-          ..lineTo(x2 + S.x1 - S.half / 2, y + S.x1 + S.half / 2)
+          ..moveTo(x2 - 3.5, y + _under)
+          ..lineTo(x2 + 3.5, y + _under)
           ..lineTo(x2, y)
           ..close(),
-        Paint()..color = DC.ink3,
+        Paint()..color = DC.ink2,
       );
     }
   }

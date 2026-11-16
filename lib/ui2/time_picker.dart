@@ -28,6 +28,216 @@ Future<TimeOfDay?> pickTime(
       builder: (_) => TimePickerSheet(initial: initial, title: title),
     );
 
+/// Asks for a birthday on three wheels, day, month and year. Null when the
+/// sheet was closed without choosing.
+Future<DateTime?> pickBirthday(BuildContext c, {DateTime? initial}) =>
+    AppSheet.open<DateTime>(
+      c,
+      scroll: true,
+      builder: (_) => BirthdayPickerSheet(initial: initial),
+    );
+
+/// A birthday as a row: "24 Mar 1997 · 29 years", or "Add your birthday",
+/// opening the wheels on a tap.
+class BirthdayRow extends StatelessWidget {
+  final DateTime? value;
+  final ValueChanged<DateTime> onChanged;
+  const BirthdayRow({super.key, required this.value, required this.onChanged});
+
+  static const _months = _BirthdayPickerSheetState._months;
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final b = value;
+    final now = DateTime.now();
+    final age = b == null
+        ? null
+        : now.year -
+            b.year -
+            (now.month > b.month || (now.month == b.month && now.day >= b.day)
+                ? 0
+                : 1);
+    return Pressable(
+      semanticLabel: b == null
+          ? 'Birthday, not set. Choose'
+          : 'Birthday ${b.day} ${_months[b.month - 1]} ${b.year}. Change',
+      onTap: () async {
+        final d = await pickBirthday(c, initial: b);
+        if (d != null) onChanged(d);
+      },
+      child: Container(
+        constraints: const BoxConstraints(minHeight: S.tap + S.x1),
+        child: Row(children: [
+          Icon(LucideIcons.calendarHeart, size: I.md, color: p.ink2),
+          const SizedBox(width: S.x3),
+          Expanded(
+            child: Text.rich(
+              TextSpan(children: [
+                TextSpan(
+                  text: b == null
+                      ? 'Add your birthday'
+                      : '${b.day} ${_months[b.month - 1]} ${b.year}',
+                  style: F.head.copyWith(color: b == null ? p.ink2 : p.ink),
+                ),
+                if (age != null)
+                  TextSpan(
+                    text: '  ·  $age years',
+                    style: F.body.copyWith(color: p.ink3),
+                  ),
+              ]),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Icon(LucideIcons.chevronRight, size: I.md, color: p.ink3),
+        ]),
+      ),
+    );
+  }
+}
+
+/// The birthday wheels. The age under them follows as they turn.
+class BirthdayPickerSheet extends StatefulWidget {
+  final DateTime? initial;
+  const BirthdayPickerSheet({super.key, this.initial});
+
+  @override
+  State<BirthdayPickerSheet> createState() => _BirthdayPickerSheetState();
+}
+
+class _BirthdayPickerSheetState extends State<BirthdayPickerSheet> {
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  static const _span = 110;
+
+  final _now = DateTime.now();
+  late final int _firstYear = _now.year - _span;
+  late final DateTime _start =
+      widget.initial ?? DateTime(_now.year - 30, _now.month, _now.day);
+  late int _day = _start.day, _month = _start.month, _year = _start.year;
+
+  /// The chosen day, pulled back to the month's last when it has fewer days,
+  /// and never later than today.
+  DateTime get _date {
+    final last = DateTime(_year, _month + 1, 0).day;
+    final d = DateTime(_year, _month, _day.clamp(1, last));
+    return d.isAfter(_now) ? DateTime(_now.year, _now.month, _now.day) : d;
+  }
+
+  int get _age {
+    final d = _date;
+    final had = _now.month > d.month ||
+        (_now.month == d.month && _now.day >= d.day);
+    return _now.year - d.year - (had ? 0 : 1);
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          S.gutter, S.x3, S.gutter, S.x5 + MediaQuery.paddingOf(c).bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: S.x10,
+              height: S.x1,
+              decoration: BoxDecoration(color: p.line, borderRadius: R.rPill),
+            ),
+          ),
+          const SizedBox(height: S.x5),
+          Semantics(
+            header: true,
+            child: Text('Your birthday', style: F.t2.copyWith(color: p.ink)),
+          ),
+          const SizedBox(height: S.x1),
+          Text('$_age years old',
+              style: F.body.copyWith(color: p.ink2)),
+          const SizedBox(height: S.x4),
+          SizedBox(
+            height: _Wheel.rows * _Wheel.extent,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                IgnorePointer(
+                  child: Container(
+                    height: _Wheel.extent,
+                    decoration:
+                        BoxDecoration(color: p.card2, borderRadius: R.rLg),
+                  ),
+                ),
+                Row(children: [
+                  Expanded(
+                    flex: 2,
+                    child: _Wheel(
+                      label: 'Day',
+                      count: 31,
+                      initial: _day - 1,
+                      text: (i) => '${i + 1}',
+                      onChanged: (v) => setState(() => _day = v + 1),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: _Wheel(
+                      label: 'Month',
+                      count: 12,
+                      initial: _month - 1,
+                      text: (i) => _months[i],
+                      onChanged: (v) => setState(() => _month = v + 1),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: _Wheel(
+                      label: 'Year',
+                      count: _span + 1,
+                      loop: false,
+                      initial: (_year - _firstYear).clamp(0, _span),
+                      text: (i) => '${_firstYear + i}',
+                      onChanged: (v) => setState(() => _year = _firstYear + v),
+                    ),
+                  ),
+                ]),
+                IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          p.card,
+                          p.card.withValues(alpha: 0),
+                          p.card.withValues(alpha: 0),
+                          p.card,
+                        ],
+                        stops: const [0, .34, .66, 1],
+                      ),
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: S.x5),
+          BigButton(
+            'Set birthday',
+            icon: LucideIcons.check,
+            onTap: () => Navigator.of(c).pop(_date),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class TimePickerSheet extends StatefulWidget {
   final TimeOfDay initial;
   final String title;
@@ -150,12 +360,16 @@ class _Wheel extends StatefulWidget {
   final String Function(int) text;
   final ValueChanged<int> onChanged;
 
+  /// Whether the column wraps round (hours, days) or stops at its ends (years).
+  final bool loop;
+
   const _Wheel({
     required this.label,
     required this.count,
     required this.initial,
     required this.text,
     required this.onChanged,
+    this.loop = true,
   });
 
   @override
@@ -176,6 +390,19 @@ class _WheelState extends State<_Wheel> {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
+    final rows = [
+      for (var i = 0; i < widget.count; i++)
+        Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              widget.text(i),
+              maxLines: 1,
+              style: F.n34.copyWith(color: p.ink),
+            ),
+          ),
+        ),
+    ];
     return Semantics(
       label: widget.label,
       child: ListWheelScrollView.useDelegate(
@@ -193,16 +420,9 @@ class _WheelState extends State<_Wheel> {
           _shown = v;
           widget.onChanged(v);
         },
-        childDelegate: ListWheelChildLoopingListDelegate(children: [
-          for (var i = 0; i < widget.count; i++)
-            Center(
-              child: Text(
-                widget.text(i),
-                maxLines: 1,
-                style: F.n34.copyWith(color: p.ink),
-              ),
-            ),
-        ]),
+        childDelegate: widget.loop
+            ? ListWheelChildLoopingListDelegate(children: rows)
+            : ListWheelChildListDelegate(children: rows),
       ),
     );
   }

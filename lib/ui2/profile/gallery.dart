@@ -71,6 +71,7 @@ import '../../compute/training_status.dart';
 import '../screens/training_status_card.dart' show TrainingStatusView;
 import '../screens/reports.dart' show ScoreRing;
 import '../screens/home/card_pictures.dart';
+import '../../compute/stress_monitor.dart' show StressBaseline;
 
 /// A deterministic series — a gallery cannot depend on random data.
 final _series =
@@ -735,6 +736,28 @@ Map<String, Widget> _nutritionAndWellnessCases() {
         ReadinessFactor.stressHistory: 100,
       },
     )),
+    // Home's two monitor tiles with a reading in each: all in range, and a
+    // medium stress at 8:21 in the morning. Then one out of range and a high.
+    'home_monitors': HomeMonitors(
+      health: (inside: 4, total: 4),
+      stress: StressMonitorData(
+        day: '2026-08-16',
+        scores: [for (var i = 0; i <= 501; i++) i < 420 ? null : 1.2],
+        baseline: _stressBase,
+      ),
+      onHealth: () {},
+      onStress: () {},
+    ),
+    'home_monitors_alert': HomeMonitors(
+      health: (inside: 3, total: 5),
+      stress: StressMonitorData(
+        day: '2026-08-16',
+        scores: [for (var i = 0; i <= 1094; i++) i < 420 ? null : 2.6],
+        baseline: _stressBase,
+      ),
+      onHealth: () {},
+      onStress: () {},
+    ),
     'training_status': const TrainingStatusView(TrainingStatusResult(
         status: TrainingStatus.productive, ratio: 1.18, hrvZ: .4, days: 28)),
     // Load up and HRV under its range: the sentence names both.
@@ -1674,6 +1697,12 @@ Map<String, Widget> _stateCases() => {
           initial: DateTime(2026, 11, 5),
           first: DateTime(2026, 9, 1),
           last: DateTime(2026, 11, 11)),
+      'birthday_picker_sheet':
+          BirthdayPickerSheet(initial: DateTime(1996, 3, 24)),
+      'birthday_row': Column(children: [
+        BirthdayRow(value: DateTime(1996, 3, 24), onChanged: (_) {}),
+        BirthdayRow(value: null, onChanged: (_) {}),
+      ]),
       'time_picker_sheet': const TimePickerSheet(
           initial: TimeOfDay(hour: 7, minute: 30), title: 'Alarm time'),
       'wordmark': Builder(builder: (c) => Wordmark(color: P.of(c).ink)),
@@ -3211,3 +3240,12 @@ Future<List<HrPoint>> _galleryHr(int from, int to) async => [
       for (var t = from; t < to; t += 300)
         (t: t, v: 55.0 + 20 * ((t ~/ 300) % 9) / 9),
     ];
+
+const _stressBase = StressBaseline(
+    hr: 62,
+    hrSigma: 6,
+    lnHrv: 3.9,
+    lnHrvSigma: .3,
+    days: 14,
+    minutes: 3200,
+    motionKnown: true);

@@ -313,14 +313,14 @@ void main() {
         home: ProfileSetupView(onSave: (f) async => saved = f),
       ));
       await tester.tap(find.text('MALE'));
-      await tester.enterText(find.byType(TextField).at(0), '34');
-      await tester.enterText(find.byType(TextField).at(2), '78.4');
+      // Height then weight: the age comes from the birthday row now.
+      await tester.enterText(find.byType(TextField).at(1), '78.4');
       await tester.pump();
       await tester.tap(find.text('CONTINUE'));
       await tester.pump();
 
       expect(saved!['sex'], 'm');
-      expect(saved!['age'], 34);
+      expect(saved!.containsKey('age'), isFalse);
       expect(saved!['weight_kg'], 78.4);
       expect(saved!.containsKey('height_cm'), isFalse);
     });
@@ -334,7 +334,7 @@ void main() {
         home: ProfileSetupView(onSave: (f) async => saved = f),
       ));
       await tester.tap(find.text('MALE'));
-      await tester.enterText(find.byType(TextField).at(2), '78 kg');
+      await tester.enterText(find.byType(TextField).at(1), '78 kg');
       await tester.pump();
       await tester.tap(find.text('CONTINUE'));
       await tester.pump();

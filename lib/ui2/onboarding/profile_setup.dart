@@ -15,6 +15,8 @@ import '../../l10n/display_text.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../compute/profile.dart' show birthDateOf, wholeYearsOn;
+import '../../data/day_label.dart';
 import '../../l10n/app_localizations.dart';
 import '../../l10n/date_text.dart';
 import '../../state/app_state.dart';
@@ -91,17 +93,14 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
   late final UnitsController _u =
       widget.units ?? UnitsController.seed(UnitSystem.metric);
   late String? _sex = (widget.initial['sex'] as String?)?.toLowerCase();
-  late final _age = TextEditingController(text: _str(widget.initial['age']));
+  late DateTime? _birth = birthDateOf(widget.initial);
   late final _height = TextEditingController(
       text: _u.heightField(widget.initial['height_cm'] as num?));
   late final _weight = TextEditingController(
       text: _u.weightField(widget.initial['weight_kg'] as num?));
 
-  static String _str(Object? v) => v == null ? '' : '$v';
-
   @override
   void dispose() {
-    _age.dispose();
     _height.dispose();
     _weight.dispose();
     super.dispose();
@@ -112,7 +111,11 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
   /// fields are typed in the units on their labels and stored in metric.
   Map<String, dynamic> _fields() => {
         if (_sex != null) 'sex': _sex,
-        if (Typed.of(_age.text).value case final v?) 'age': v.round(),
+        // The age is read off the birthday, so it moves on by itself.
+        if (_birth case final b?) ...{
+          'birth_date': dayLabelOf(b),
+          'age': wholeYearsOn(b, DateTime.now()),
+        },
         'height_cm': ?_u.heightToCm(_height.text),
         'weight_kg': ?_u.weightToKg(_weight.text),
       };
@@ -121,7 +124,6 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
   /// and dropping it silently is how a body ends up half-described.
   Future<void> _continue() async {
     final bad = [
-      if (Typed.of(_age.text).bad) 'Age',
       if (Typed.of(_height.text).bad) uiText(context, _u.heightLabel),
       if (Typed.of(_weight.text).bad) uiText(context, _u.weightLabel),
     ];
@@ -171,8 +173,12 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
           padding: const EdgeInsets.symmetric(horizontal: kDialPad),
           decoration: dialCard(),
           child: Column(children: [
-            _Field(_age, l?.profileSetupAgeLabel ?? 'AGE',
-                l?.profileSetupAgeUnit ?? 'years'),
+            // The birthday, not a typed age: Locus Age counts from it to the
+            // day.
+            BirthdayRow(
+              value: _birth,
+              onChanged: (d) => setState(() => _birth = d),
+            ),
             const Divider(height: S.hair, thickness: S.hair, color: DC.line),
             _Field(_height, l?.profileSetupHeightLabel ?? 'HEIGHT',
                 uiText(c, _u.isImperial ? 'in' : 'cm')),

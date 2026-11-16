@@ -164,6 +164,8 @@ final Map<String, Widget Function()> rootCases = {
         },
       ),
   'health_monitor': () => const HealthMonitorScreen(),
+  'trend_picker': () => TrendViewScreen(
+      initial: 'resting_hr', loader: TrendLoader(null), debugPicking: true),
   'locus_age': () => LocusAgeScreen(loader: _AgeLoader(), today: '2026-08-16'),
   'today_first_week': () => const HomeScreen(data: homeFirstWeek, hour: 9),
   'readiness': () => const ReadinessDetail(
