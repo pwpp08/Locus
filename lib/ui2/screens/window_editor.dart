@@ -936,7 +936,7 @@ class _WindowPreviewState extends State<WindowPreview> {
     final dtStart = _at(_curStart);
     final dtEnd = _at(_curEnd);
     final timeRangeStr =
-        '${formatClock(dtStart.hour, dtStart.minute)} - ${formatClock(dtEnd.hour, dtEnd.minute)}';
+        '${formatClock(dtStart.hour, dtStart.minute)} – ${formatClock(dtEnd.hour, dtEnd.minute)}';
 
     // Zoom out and in, side by side in one chip (the RESET chip's ground):
     // a bare glyph each, a hairline between.

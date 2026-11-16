@@ -12,6 +12,13 @@ Color _tone(double level) => level >= 67
         ? C.recYellow
         : C.recRed;
 
+/// The local midnight after [midnight] (epoch seconds), by the calendar, so a
+/// clock-change day is as long as it really is.
+int _nextMidnight(int midnight) {
+  final d = DateTime.fromMillisecondsSinceEpoch(midnight * 1000);
+  return DateTime(d.year, d.month, d.day + 1).millisecondsSinceEpoch ~/ 1000;
+}
+
 String _clockOf(int ts) =>
     formatClockOf(DateTime.fromMillisecondsSinceEpoch(ts * 1000));
 
@@ -29,7 +36,7 @@ class EnergyReserveCard extends StatelessWidget {
     final p = P.of(c);
     final tone = _tone(data.level);
     // Today only: the card is drawn on today's Home and nowhere else.
-    final projected = projectEnergy(data, midnight + 86400);
+    final projected = projectEnergy(data, _nextMidnight(midnight));
     Widget tile(String label, String value, Color colour) => Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(
@@ -199,7 +206,10 @@ class _ChartPainter extends CustomPainter {
     const left = S.x8, bottom = S.x6;
     final h = size.height - bottom;
     final w = size.width - left;
-    double x(int t) => left + (t - midnight) / 86400 * w;
+    // The day's own length: 23 or 25 hours on a clock-change day.
+    final day = _nextMidnight(midnight) - midnight;
+    final start = DateTime.fromMillisecondsSinceEpoch(midnight * 1000);
+    double x(int t) => left + (t - midnight) / day * w;
     double y(double v) => S.x1 + (h - S.x2) * (1 - v / 100);
 
     void label(String s, Offset at, {bool centre = false}) {
@@ -226,8 +236,13 @@ class _ChartPainter extends CustomPainter {
     }
     for (final hour in const [0, 6, 12, 18]) {
       label(
-        '${hour.toString().padLeft(2, '0')}:00',
-        Offset(x(midnight + hour * 3600) + (hour == 0 ? S.x4 : 0), h + S.x4),
+        formatAxisClock(hour * 60),
+        Offset(
+            x(DateTime(start.year, start.month, start.day, hour)
+                        .millisecondsSinceEpoch ~/
+                    1000) +
+                (hour == 0 ? S.x4 : 0),
+            h + S.x4),
         centre: true,
       );
     }

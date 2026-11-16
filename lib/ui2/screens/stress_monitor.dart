@@ -7,6 +7,7 @@
 // high it is. Under it, how long the day spent at each level against a typical
 // one. When there is no baseline yet the screen says so; it does not guess.
 
+import '../../state/duration_format.dart';
 import 'dart:isolate';
 
 import 'dart:math' as math;
@@ -46,8 +47,7 @@ String _levelName(StressLevel l) => switch (l) {
       StressLevel.high => 'HIGH',
     };
 
-String _clock(int minuteOfDay) =>
-    '${(minuteOfDay ~/ 60).toString().padLeft(2, '0')}:${(minuteOfDay % 60).toString().padLeft(2, '0')}';
+String _clock(int minuteOfDay) => formatAxisClock(minuteOfDay);
 
 /// A workout on the day, in minutes since midnight.
 class StressSession {
@@ -625,7 +625,7 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
       );
     }
 
-    String hm(int min) => '${min ~/ 60}:${(min % 60).toString().padLeft(2, '0')}';
+    String hm(int min) => durationText(min);
 
     return Container(
       padding: const EdgeInsets.all(S.x5),

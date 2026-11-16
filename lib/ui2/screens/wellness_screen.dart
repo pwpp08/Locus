@@ -16,6 +16,7 @@ import '../../l10n/display_text.dart';
 //     saying so either — a disclaimer for a feature that was never offered is
 //     still an advert for it.
 
+import '../../state/duration_format.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -686,11 +687,7 @@ String? _noteOf(Object? envelope) {
   return note is String ? note : null;
 }
 
-String _hm(double minutes) {
-  final sign = minutes < 0 ? '−' : '';
-  final t = minutes.abs().round();
-  return t < 60 ? '$sign${t}m' : '$sign${t ~/ 60}h ${t % 60}m';
-}
+String _hm(double minutes) => durationText(minutes);
 
 /// A label and a sentence. Used by journal findings and habit effects, both of
 /// which genuinely have only those two things.

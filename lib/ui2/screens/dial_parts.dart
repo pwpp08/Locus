@@ -2,6 +2,7 @@
 // panel with its caret, the hatched bars and the seven-day charts. Every size
 // here was measured off the reference recordings at 1.5 px to the dp (DC).
 
+import '../../state/duration_format.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -28,12 +29,9 @@ const kDialGround = BoxDecoration(
   ),
 );
 
-/// 'H:MM' for a duration, or '--' when there is none.
-String clockDur(num? minutes) {
-  if (minutes == null) return '--';
-  final m = minutes.round();
-  return '${m ~/ 60}:${(m % 60).toString().padLeft(2, '0')}';
-}
+/// A duration as the app writes them ("7h 23m"), or '--' when there is none.
+String clockDur(num? minutes) =>
+    minutes == null ? '--' : durationText(minutes);
 
 /// 'Fri, May 16', as the screens name a day.
 String dialDayName(String? day, AppLocalizations? l) {

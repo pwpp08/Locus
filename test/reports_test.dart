@@ -73,7 +73,7 @@ void main() {
       await _pump(t, ReportsScreen(series: _series(), today: _today),
           scale: scale);
       expect(find.text('Partial week'), findsOneWidget);
-      expect(find.text('2 NOV - 8 NOV'), findsOneWidget);
+      expect(find.text('2 NOV – 8 NOV'), findsOneWidget);
       // Weeks file under the month they start in.
       expect(find.text('SEPTEMBER 2026'), findsOneWidget);
       await t.tap(find.text('MONTHLY'));

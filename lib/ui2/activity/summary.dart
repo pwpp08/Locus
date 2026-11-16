@@ -18,6 +18,7 @@
 // come from elsewhere (`workout_route`, `strength_set`) or not at all, and the
 // screen has to be honest about it without falling apart.
 
+import '../../state/duration_format.dart';
 import '../../l10n/display_text.dart';
 import '../../state/locale_controller.dart';
 import 'package:intl/intl.dart';
@@ -618,7 +619,7 @@ List<(String, String)> sessionStats(ActivityResult r, UnitsController? u) {
     case Arch.match:
       add('Sets', r.gameScore.isEmpty ? null : '${r.gameScore.length}');
       add('Hard minutes',
-          r.hardMinutes == null ? null : '${r.hardMinutes!.round()} min');
+          r.hardMinutes == null ? null : durationText(r.hardMinutes!));
     case Arch.basic:
       break; // time, heart rate and calories are the whole story
   }
@@ -640,7 +641,7 @@ List<(String, String)> sessionStats(ActivityResult r, UnitsController? u) {
   // ESTIMATE from one completed km split of THIS session's own route + HR —
   // absent on almost every session (indoor, no GPS, no full km) by design.
   add('VO₂ max (est.)',
-      r.vo2max == null ? null : '${r.vo2max!.toStringAsFixed(1)} ml/kg/min');
+      r.vo2max == null ? null : '${r.vo2max!.toStringAsFixed(1)} mL/kg/min');
   add('Calories', r.calories == null ? null : '${grouped(r.calories!)} kcal');
   add('Strain', r.strain?.toStringAsFixed(1));
   // TS-09 — last, under the measurements, and named 'Your rating' rather than

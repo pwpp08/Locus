@@ -1,4 +1,5 @@
 import '../../l10n/presentation_text.dart';
+import '../../state/duration_format.dart';
 import '../../l10n/display_text.dart';
 // DAY TIMELINE — what happened, in the order it happened.
 //
@@ -111,7 +112,14 @@ const int kMinOffWristMin = 15;
 String _dur(num? minutes, AppLocalizations? l) {
   if (minutes == null) return '';
   final m = minutes.round();
-  return presentationText(l, m < 60 ? '${m}m' : '${m ~/ 60}h ${m % 60}m');
+  return presentationText(l, durationText(m));
+}
+
+/// A journal key nobody has a name for (an old or imported field), as a
+/// name: "late_meal" reads "Late meal".
+String _keyName(String key) {
+  final s = key.replaceAll('_', ' ').trim();
+  return s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 }
 
 String _span(int from, int? to) =>
@@ -286,7 +294,7 @@ List<Moment> dayMoments({
       Moment(
         at: at,
         title: spec == null
-            ? key.replaceAll('_', ' ')
+            ? _keyName(key)
             : spec.custom
             ? spec.label
             : localizedText(l, spec.label),
@@ -345,7 +353,7 @@ List<DayNote> dayNotes({
     out.add(
       DayNote(
         spec == null
-            ? key.replaceAll('_', ' ')
+            ? _keyName(key)
             : spec.custom
             ? spec.label
             : localizedText(l, spec.label),

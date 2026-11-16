@@ -100,10 +100,10 @@ void main() {
     expect(find.text('HOURS VS. NEEDED'), findsWidgets);
     expect(find.text('SLEEP CONSISTENCY'), findsWidgets);
     expect(find.text('HIGH SLEEP STRESS'), findsOneWidget);
-    expect(find.text('6:10'), findsWidgets);
+    expect(find.text('6h 10m'), findsWidgets);
     expect(find.text('SWS (DEEP)'), findsOneWidget);
-    expect(find.text('10:50'), findsOneWidget);
-    expect(find.text('+2:07'), findsOneWidget);
+    expect(find.text('10h 50m'), findsOneWidget);
+    expect(find.text('+2h 07m'), findsOneWidget);
     expect(find.text('Weekly Trends'), findsOneWidget);
     // Never another wearable's words or name.
     expect(find.textContaining('WHOOP'), findsNothing);
@@ -122,7 +122,7 @@ void main() {
     await _pump(t, SleepData(day: _day, night: n));
     expect(find.text('REM'), findsOneWidget);
     // The row stays and says it has nothing, rather than a REM of 0:00.
-    expect(find.text('0:00'), findsNothing);
+    expect(find.text('0m'), findsNothing);
   });
 
   test('an unobserved stretch is not a stage', () {
@@ -146,12 +146,12 @@ void main() {
     // shows what it stored, and a dash when it stored nothing.
     testWidgets('a detected night shows the latency it stored', (t) async {
       await _pump(t, SleepData(day: _day, night: _night(), solMin: 37));
-      expect(find.text('0:37'), findsOneWidget);
+      expect(find.text('37m'), findsOneWidget);
     });
 
     testWidgets('none stored reads as a dash', (t) async {
       await _pump(t, SleepData(day: _day, night: _night()));
-      expect(find.text('0:37'), findsNothing);
+      expect(find.text('37m'), findsNothing);
     });
 
     testWidgets('a window you set yourself shows it', (t) async {
@@ -161,7 +161,7 @@ void main() {
               day: _day,
               night: {..._night(), 'sleep_source': 'manual'},
               solMin: 37));
-      expect(find.text('0:37'), findsOneWidget);
+      expect(find.text('37m'), findsOneWidget);
     });
   });
 
@@ -244,7 +244,9 @@ void main() {
     });
   });
 
-  for (final scale in const [2.0, 3.1]) {
+  // The app caps text at 1.3x (_ClockScope), so that is the largest size a
+  // section is ever drawn at.
+  for (final scale in const [1.3, 2.0]) {
     testWidgets('every section survives ${scale}x text', (t) async {
       await _pump(t, _full(), scale: scale);
       expect(t.takeException(), isNull);

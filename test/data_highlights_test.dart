@@ -79,7 +79,7 @@ void main() {
 
     test('the longest sleep reads as hours and minutes', () {
       final h = highlightsOf(series, null).notable;
-      expect(h.singleWhere((s) => s.title == 'Longest Sleep').value, '9:21');
+      expect(h.singleWhere((s) => s.title == 'Longest Sleep').value, '9h 21m');
     });
 
     test('milestones sit in the same list, in the same shape', () {

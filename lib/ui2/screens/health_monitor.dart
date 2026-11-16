@@ -88,7 +88,7 @@ class _Vital {
     if (x < r.lo) return 'low < ${n(r.lo)}';
     return signed
         ? 'within ${n(r.lo)} to ${n(r.hi)}'
-        : 'within ${n(r.lo)} - ${n(r.hi)}';
+        : 'within ${n(r.lo)} – ${n(r.hi)}';
   }
 }
 

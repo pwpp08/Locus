@@ -504,6 +504,8 @@ class _RoughNightCardState extends State<RoughNightCard> {
           icon: LucideIcons.messageSquarePlus,
           color: C.dialSleep,
           soft: true,
+          compact: true,
+          fill: true,
           onTap: () => _setAsk('on'),
         )
       else

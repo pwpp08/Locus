@@ -36,6 +36,7 @@ import '../../data/local_repository.dart';
 import '../../models/metric.dart' show whyFromNote;
 import '../activity/catalogue.dart' show activityByName;
 import '../profile/devices.dart' show bandLabelFor;
+import '../../state/clock_format.dart';
 import '../ui2.dart';
 import 'step_calibration_screen.dart';
 import 'home_screen.dart' show clockOfTs, prettyDay, repoOf, thousands;
@@ -364,7 +365,7 @@ class _DayStepsDetailState extends State<DayStepsDetail> {
             unit: l?.dayStepsUnit ?? 'steps',
             height: 150,
             yAxis: axis,
-            xLabels: const ['00:00', '12:00', '24:00'],
+            xLabels: [for (final m in const [0, 720, 1440]) formatAxisClock(m)],
             series: totals,
             // ONE colour, one key — a day with a single sensor has nothing to
             // tell apart, and a legend of one is noise.

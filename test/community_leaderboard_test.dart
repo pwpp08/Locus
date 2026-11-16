@@ -55,7 +55,7 @@ void main() {
   });
 
   test('values and initials as the board writes them', () {
-    expect(boardValue(BoardMetric.sleep, 479.6), '8:00');
+    expect(boardValue(BoardMetric.sleep, 479.6), '8h 00m');
     expect(boardValue(BoardMetric.strain, 9.04), '9.0');
     expect(boardValue(BoardMetric.recovery, 66.6), '67%');
     expect(initialsOf('ana maria lopez'), 'AM');

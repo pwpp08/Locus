@@ -9,6 +9,7 @@
 // version of this screen drew stages from a script (deep 40 %, REM 10 %) with
 // latency and "typical ranges" computed from it; none of that comes back.
 
+import '../../state/duration_format.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -28,7 +29,7 @@ import 'sleep_detail.dart' show NapStagesCard;
 import 'window_editor.dart' show HrPoint, WindowKind, openWindowEditor;
 
 /// "0:52": hours and minutes, as a recorded activity writes its duration.
-String _hmm(int min) => '${min ~/ 60}:${(min % 60).toString().padLeft(2, '0')}';
+String _hmm(int min) => durationText(min);
 
 class NapDetailData {
   final String day;

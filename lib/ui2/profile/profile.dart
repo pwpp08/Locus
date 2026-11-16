@@ -748,7 +748,7 @@ class ProfileHomeView extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: S.x4),
-              child: NavBar(l?.profileTitle ?? 'Profile'),
+              child: NavBar(l?.tabMore ?? 'More'),
             ),
             Expanded(child: list),
           ],

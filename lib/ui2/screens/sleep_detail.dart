@@ -24,6 +24,7 @@ import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
 import '../profile/devices.dart' show DeviceFilter;
+import '../../state/clock_format.dart';
 import '../ui2.dart';
 import 'dial_parts.dart';
 import 'edit_time_in_bed.dart';
@@ -2169,7 +2170,7 @@ class _ConsistencyPaint extends CustomPainter {
       final y = yOf(m);
       canvas.drawLine(Offset(left, y), Offset(right, y), grid);
       final h = ((m + 720) ~/ 60) % 24;
-      _text(canvas, '${h.toString().padLeft(2, '0')}:00', axis,
+      _text(canvas, formatAxisClock(h * 60), axis,
           Offset(S.x8 - S.x1 + S.hair, y));
     }
 
@@ -2811,7 +2812,5 @@ class _SleepWeek extends StatelessWidget {
 
 /// Minutes after noon as a clock time.
 String _afterNoon(double m) {
-  final t = (m.round() + 720) % 1440;
-  final h = t ~/ 60;
-  return '${h.toString().padLeft(2, '0')}:${(t % 60).toString().padLeft(2, '0')}';
+  return formatAxisClock((m.round() + 720) % 1440);
 }

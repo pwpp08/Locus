@@ -2,6 +2,8 @@
 // server. Each member's figure is the mean of the days they shared in the
 // window; a member with none is not on the board at all (never ranked as 0).
 
+import '../state/duration_format.dart';
+
 /// What the board ranks.
 enum BoardMetric { recovery, strain, sleep, combined }
 
@@ -109,5 +111,4 @@ String initialsOf(String name) {
   return letters.isEmpty ? '?' : letters.join().toUpperCase();
 }
 
-String _hm(int minutes) =>
-    '${minutes ~/ 60}:${(minutes % 60).toString().padLeft(2, '0')}';
+String _hm(int minutes) => durationText(minutes);

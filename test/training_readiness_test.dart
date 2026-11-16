@@ -58,9 +58,9 @@ void main() {
     expect(
         recoveryHoursLeft([(end, 15.0), (end + 3600, 8.0)], end + 3600),
         closeTo(44, .01));
-    expect(recoveryTimeText(3.5), '3 h 30 min');
-    expect(recoveryTimeText(.75), '45 min');
-    expect(recoveryTimeText(2), '2 h');
+    expect(recoveryTimeText(3.5), '3h 30m');
+    expect(recoveryTimeText(.75), '45m');
+    expect(recoveryTimeText(2), '2h 00m');
   });
 
   test('HRV inside its range is balanced, under it costs', () {

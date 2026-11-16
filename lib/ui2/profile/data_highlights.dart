@@ -121,7 +121,7 @@ Highlights highlightsOf(Map<String, Map<String, double>> series, String? from) {
   add(StatMark.pulseDown, 'Lowest HRV', low(hrv.values), 'ms');
   add(StatMark.pulseUp, 'Highest HRV', top(hrv.values), 'ms');
   add(StatMark.heartUp, 'Max Heart Rate', top(of('hr_max').values), 'bpm');
-  add(StatMark.sleepPerf, 'Longest Sleep', top(tst.values), 'hr', clockDur);
+  add(StatMark.sleepPerf, 'Longest Sleep', top(tst.values), '', clockDur);
   add(StatMark.lotus, 'Lowest Recovery', low(recovery.values), '%');
   // What used to be Milestones: running totals of the same period.
   add(StatMark.flame, 'Energy Burned', sum(of('calories').values), 'kcal',

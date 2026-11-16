@@ -6,6 +6,7 @@
 // moved (movement_lane.dart). Opened from My Day's expand button; pinch to
 // zoom, drag to move along a zoomed day.
 
+import '../../state/duration_format.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -110,7 +111,7 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
           from: onset,
           to: wake,
           icon: LucideIcons.moon,
-          value: '${tst ~/ 60}:${(tst.round() % 60).toString().padLeft(2, '0')}',
+          value: durationText(tst),
           sleep: true,
         ),
       for (final s in widget.sessions)
@@ -137,7 +138,7 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
               final end = ((nap['end'] ?? nap['end_ts']) as num).toInt();
               final mins = (nap['duration_min'] as num?)?.toInt() ??
                   ((end - start) ~/ 60);
-              return '${mins ~/ 60}:${(mins % 60).toString().padLeft(2, '0')}';
+              return durationText(mins);
             }(),
             sleep: true,
           ),

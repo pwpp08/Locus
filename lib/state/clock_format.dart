@@ -126,6 +126,18 @@ String formatClockMinute(int minuteOfDay) {
   return formatClock(m ~/ 60, m % 60);
 }
 
+/// A chart axis label for local minutes past midnight. 24-hour: "06:00",
+/// "22:41", and "24:00" for the day's far edge. 12-hour: "6a", "10:41p",
+/// short enough that neighbouring labels never collide.
+String formatAxisClock(int minuteOfDay) {
+  final h = minuteOfDay ~/ 60, m = minuteOfDay % 60;
+  final mm = m.toString().padLeft(2, '0');
+  if (use24HourClock) return '${h.toString().padLeft(2, '0')}:$mm';
+  final h12 = h % 12 == 0 ? 12 : h % 12;
+  final period = h % 24 < 12 ? 'a' : 'p';
+  return m == 0 ? '$h12$period' : '$h12:$mm$period';
+}
+
 /// The time picker only takes `alwaysUse24HourFormat` as a way to force
 /// 24-hour; `false` leaves a 24-hour-native locale (de, es, fr) on its 24-hour
 /// dial. When the clock resolves to 12-hour this hands those locales the same

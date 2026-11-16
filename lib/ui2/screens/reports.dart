@@ -44,7 +44,7 @@ String reportRange(
   AppLocalizations? l,
 ) {
   if (span == ReportSpan.week) {
-    return '${_dayMonth(from, l)} - ${_dayMonth(to, l)}';
+    return '${_dayMonth(from, l)} – ${_dayMonth(to, l)}';
   }
   final d = DateTime.parse(from);
   return '${monthName(d.month, l)} ${d.year}';

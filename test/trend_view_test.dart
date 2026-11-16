@@ -5,6 +5,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:openstrap_edge/state/clock_format.dart';
 import 'package:openstrap_edge/compute/crossday_pipeline.dart'
     show sleepCoachDaySeries;
 import 'package:openstrap_edge/ui2/screens/trend_view.dart';
@@ -291,7 +292,7 @@ void main() {
     final g = await t.startGesture(Offset(box.right - 4, box.center.dy));
     await t.pump();
     // The right edge of the plot is the last minute of the day.
-    expect(find.text('23:59'), findsOneWidget);
+    expect(find.text(formatClockMinute(1439)), findsOneWidget);
     await g.up();
     await t.pump();
     expect(find.text('AVERAGE'), findsOneWidget);

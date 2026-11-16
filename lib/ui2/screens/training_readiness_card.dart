@@ -4,6 +4,7 @@
 // is `compute/training_readiness.dart`; this reads the stored inputs and lays
 // them out, sized off the reference (DESIGN.md §14.1).
 
+import '../../state/duration_format.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -36,43 +37,51 @@ String _levelWord(ReadinessLevel l) => switch (l) {
       ReadinessLevel.poor => 'POOR',
     };
 
-/// `3 h 30 min`, `45 min`, `0 min`.
-String recoveryTimeText(double hours) {
-  final m = (hours * 60).round();
-  if (m < 60) return '$m min';
-  return m % 60 == 0 ? '${m ~/ 60} h' : '${m ~/ 60} h ${m % 60} min';
-}
+/// `3h 30m`, `45m`, `0m`.
+String recoveryTimeText(double hours) => durationText(hours * 60);
 
 /// Reads [day]'s inputs off the repo. [now] is the moment recovery time is
 /// counted to.
+///
+/// The last 7 days' mean HRV up to [day], and the 30 days before them as a
+/// mean and spread (null with under 14 of those days stored).
+({double? week, ({double mean, double sd})? base}) hrvWeekAndBase(
+    Map<String, double> hrv, String day) {
+  double? mean(Iterable<double> xs) =>
+      xs.isEmpty ? null : xs.reduce((a, b) => a + b) / xs.length;
+  final week = mean([for (var i = 0; i < 7; i++) ?hrv[shiftDay(day, -i)]]);
+  final past = [for (var i = 7; i < 37; i++) ?hrv[shiftDay(day, -i)]];
+  if (past.length < 14) return (week: week, base: null);
+  final m = mean(past)!;
+  final sd = math.sqrt(
+      past.fold<double>(0, (a, v) => a + (v - m) * (v - m)) / past.length);
+  return (week: week, base: (mean: m, sd: sd));
+}
+
+/// The acute and chronic load stored for [day], each null when absent.
+Future<({double? acute, double? chronic})> storedLoads(
+    LocalRepository repo, String day) async {
+  try {
+    final load = (await repo.getDayStrain(day))['load'];
+    final v = load is Map && load['value'] is Map ? load['value'] as Map : load;
+    if (v is Map) {
+      return (
+        acute: (v['atl'] as num?)?.toDouble(),
+        chronic: (v['ctl'] as num?)?.toDouble(),
+      );
+    }
+  } catch (_) {}
+  return (acute: null, chronic: null);
+}
+
 Future<TrainingReadiness> loadTrainingReadiness(
     LocalRepository repo, String day, DateTime now) async {
   final rec = await dialSeries(repo, 'recovery');
   final perf = await dialSeries(repo, 'sleep_performance');
   final hrv = await dialSeries(repo, 'hrv');
 
-  double? mean(Iterable<double> xs) =>
-      xs.isEmpty ? null : xs.reduce((a, b) => a + b) / xs.length;
-
-  final hrv7 = mean([for (var i = 0; i < 7; i++) ?hrv[shiftDay(day, -i)]]);
-  final base = [for (var i = 7; i < 37; i++) ?hrv[shiftDay(day, -i)]];
-  ({double mean, double sd})? hrvBase;
-  if (base.length >= 14) {
-    final m = mean(base)!;
-    final sd = math.sqrt(
-        base.fold<double>(0, (a, v) => a + (v - m) * (v - m)) / base.length);
-    hrvBase = (mean: m, sd: sd);
-  }
-
-  double? acute, chronic;
-  try {
-    final load = (await repo.getDayStrain(day))['load'];
-    final v = load is Map && load['value'] is Map ? load['value'] as Map : load;
-    if (v is Map) {
-      acute = (v['atl'] as num?)?.toDouble();
-      chronic = (v['ctl'] as num?)?.toDouble();
-    }
-  } catch (_) {}
+  final (week: hrv7, base: hrvBase) = hrvWeekAndBase(hrv, day);
+  final (:acute, :chronic) = await storedLoads(repo, day);
 
   var stress3 = const <double>[];
   try {

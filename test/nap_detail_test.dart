@@ -64,11 +64,11 @@ void main() {
     await _pump(t, _fixture());
     expect(find.text('NAP'), findsOneWidget);
     expect(find.textContaining('May 7, 2025'), findsOneWidget);
-    expect(find.text('0:52'), findsWidgets);
+    expect(find.text('52m'), findsWidgets);
     expect(find.text('TIME ASLEEP'), findsOneWidget);
     expect(find.text('KEY STATISTICS'), findsOneWidget);
     expect(find.text('IN BED'), findsOneWidget);
-    expect(find.text('1:02'), findsOneWidget);
+    expect(find.text('1h 02m'), findsOneWidget);
     expect(find.text('AVG HR'), findsOneWidget);
     expect(find.text('61'), findsOneWidget);
     expect(find.text('LOWEST HR'), findsOneWidget);
@@ -140,8 +140,8 @@ void main() {
           ],
         }));
     expect(find.text('NAP STAGES'), findsOneWidget);
-    expect(find.text('0:30'), findsOneWidget, reason: 'light');
-    expect(find.text('0:08'), findsOneWidget, reason: 'deep');
+    expect(find.text('30m'), findsOneWidget, reason: 'light');
+    expect(find.text('8m'), findsOneWidget, reason: 'deep');
     expect(find.text('EFFICIENCY'), findsOneWidget);
     expect(find.text('81'), findsOneWidget);
     expect(find.text('LATENCY'), findsNothing);

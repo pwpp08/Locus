@@ -105,7 +105,7 @@ String _range(List<double> s, {required bool up, int places = 0}) {
       ? 'elevated > ${n(r.hi)}'
       : s.last < r.lo
           ? 'low < ${n(r.lo)}'
-          : 'within ${n(r.lo)} - ${n(r.hi)}';
+          : 'within ${n(r.lo)} – ${n(r.hi)}';
 }
 
 Future<void> _pump(WidgetTester t, AppState app, {bool still = false}) async {

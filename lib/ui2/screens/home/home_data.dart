@@ -1,5 +1,6 @@
 import 'dart:ui' show Color;
 
+import '../../../state/duration_format.dart';
 import 'package:flutter/material.dart' show Locale;
 import 'package:intl/intl.dart';
 
@@ -264,10 +265,7 @@ Color recoveryColor(num v) =>
     v >= 67 ? C.recGreen : (v >= 34 ? C.recYellow : C.recRed);
 
 /// Minutes → "7:06".
-String hMinutes(num minutes) {
-  final m = minutes.round();
-  return '${m ~/ 60}:${(m % 60).toString().padLeft(2, '0')}';
-}
+String hMinutes(num minutes) => durationText(minutes);
 
 /// The readiness band.
 ({String label, Color color, int tier}) readinessBand(num? v,

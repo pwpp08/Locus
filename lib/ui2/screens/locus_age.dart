@@ -5,6 +5,7 @@
 // Every figure comes from `compute/whoop_age.dart`. A contributor with no data
 // has no row, and until the age unlocks no years are shown against any of them.
 
+import '../../state/duration_format.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -47,17 +48,13 @@ class LocusRow {
 }
 
 LocusValue _hmmMinutes(double m) {
-  final total = m.round();
-  return (
-    value: '${total ~/ 60}:${(total % 60).toString().padLeft(2, '0')}',
-    unit: 'h',
-  );
+  return (value: durationText(m), unit: '');
 }
 
 LocusValue _hours(double h) => _hmmMinutes(h * 60);
 LocusValue _percent(double v) => (value: '${v.round()}%', unit: '');
 LocusValue _percent1(double v) => (value: '${v.toStringAsFixed(1)}%', unit: '');
-LocusValue _vo2(double v) => (value: '${v.round()}', unit: 'ml/kg/min');
+LocusValue _vo2(double v) => (value: '${v.round()}', unit: 'mL/kg/min');
 LocusValue _bpm(double v) => (value: '${v.round()}', unit: 'bpm');
 LocusValue _steps(double v) {
   final s = v.round().toString();
@@ -343,7 +340,7 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
     final e = DateTime.parse(end);
     final s = DateTime(e.year, e.month, e.day - 6);
     String part(DateTime d) => '${monthShortName(d.month, null)} ${d.day}';
-    return '${part(s)} - ${part(e)}'.toUpperCase();
+    return '${part(s)} – ${part(e)}'.toUpperCase();
   }
 
   _Week? get _week => _weeks.isEmpty ? null : _weeks[_at];

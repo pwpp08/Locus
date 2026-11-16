@@ -465,13 +465,13 @@ class _ProgressTabState extends State<_ProgressTab> {
     if (_span == VolumeSpan.sixMonths) {
       return '${monthShortName(d.month, l)} ${d.year}'.toUpperCase();
     }
-    return '${monthShortName(d.month, l)} ${d.day} - ${monthShortName(e.month, l)} ${e.day}'
+    return '${monthShortName(d.month, l)} ${d.day} – ${monthShortName(e.month, l)} ${e.day}'
         .toUpperCase();
   }
 
   String _range(VolumeWindow w, AppLocalizations? l) {
     final a = DateTime.parse(w.from), b = DateTime.parse(w.to);
-    return '${monthShortName(a.month, l)} ${a.day} - ${monthShortName(b.month, l)} ${b.day}, '
+    return '${monthShortName(a.month, l)} ${a.day} – ${monthShortName(b.month, l)} ${b.day}, '
             '${(b.year % 100).toString().padLeft(2, '0')}'
         .toUpperCase();
   }

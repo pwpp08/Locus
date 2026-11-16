@@ -3,6 +3,7 @@
 // (see lib/health/watch_compare.dart) and are shown under that app's name; they
 // are never blended into anything the band measured.
 
+import '../../state/duration_format.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -193,9 +194,7 @@ class _WatchCompareScreenState extends State<WatchCompareScreen>
     _ => s,
   };
 
-  static String _hm(int? min) => min == null
-      ? '--'
-      : '${min ~/ 60}h ${(min % 60).toString().padLeft(2, '0')}m';
+  static String _hm(int? min) => min == null ? '--' : durationText(min);
 
   static String _clock(DateTime? t) => t == null ? '--' : formatClockOf(t);
 

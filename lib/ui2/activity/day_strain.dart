@@ -18,6 +18,7 @@
 //     a line on a day screen whose subject is the curve. Naming the input in a
 //     sentence is enough.
 
+import '../../state/duration_format.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -35,6 +36,7 @@ import '../screens/metric_detail.dart' show detailScaffold;
 import '../screens/trend_view.dart';
 import '../../theme/theme_switcher.dart' show themedRoute;
 import '../screens/training_readiness_card.dart' show TrainingReadinessCard;
+import '../screens/training_status_card.dart' show TrainingStatusCard;
 import '../screens/workout_detail.dart' show WorkoutDetailScreen;
 import '../../state/clock_format.dart';
 import '../ui2.dart';
@@ -404,6 +406,7 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
           if (today == todayLabel()) ...[
             const SizedBox(height: S.x8),
             TrainingReadinessCard(key: ValueKey(today), day: today),
+            TrainingStatusCard(key: ValueKey('status $today'), day: today),
           ],
           const SizedBox(height: S.x8),
           _todaysActivities(p, l),
@@ -748,7 +751,7 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
             if (d.peakHr != null)
               (l?.dayStrainPeakHr ?? 'Peak HR', '${d.peakHr} bpm', C.dialStrain),
             if (d.wornMin != null)
-              (l?.dayStrainWorn ?? 'Worn', '${d.wornMin} min', C.stressLow),
+              (l?.dayStrainWorn ?? 'Worn', durationText(d.wornMin!), C.stressLow),
           ]),
         ),
       ],
@@ -1094,11 +1097,10 @@ class _CurveCardState extends State<_CurveCard> {
             ? pr.values[at - pr.from]
             : widget.curve[at];
     final xs = List<String>.generate(widget.curve.length, (m) {
-      if (m == 0) return '00:00';
-      if (m == 360) return '06:00';
-      if (m == 720) return '12:00';
-      if (m == 1080) return '18:00';
-      if (m == widget.curve.length - 1) return '24:00';
+      if (m == 0 || m == 360 || m == 720 || m == 1080) {
+        return formatAxisClock(m);
+      }
+      if (m == widget.curve.length - 1) return formatAxisClock(1440);
       return '';
     });
 

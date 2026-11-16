@@ -492,6 +492,7 @@ const _notComponents = {
   // Strain's training readiness: reads five series, the load and the last
   // 72 h of sessions. Its body, TrainingReadinessView, is in the gallery.
   'TrainingReadinessCard',
+  'TrainingStatusCard',
   // The activity list is a sheet's whole page; the start screen owns the live
   // heart rate and opens a session.
   'ActivityChooser', 'StartActivityScreen',

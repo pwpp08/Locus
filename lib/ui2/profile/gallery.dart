@@ -72,6 +72,8 @@ import '../../compute/energy_reserve.dart';
 import '../screens/home/home_energy.dart';
 import '../../compute/training_readiness.dart';
 import '../screens/training_readiness_card.dart' show TrainingReadinessView;
+import '../../compute/training_status.dart';
+import '../screens/training_status_card.dart' show TrainingStatusView;
 import '../screens/reports.dart' show ScoreRing;
 import '../screens/home/card_pictures.dart';
 
@@ -771,6 +773,11 @@ Map<String, Widget> _nutritionAndWellnessCases() {
         ReadinessFactor.stressHistory: 100,
       },
     )),
+    'training_status': const TrainingStatusView(TrainingStatusResult(
+        status: TrainingStatus.productive, ratio: 1.18, hrvZ: .4, days: 28)),
+    // Load up and HRV under its range: the sentence names both.
+    'training_status_strained': const TrainingStatusView(TrainingStatusResult(
+        status: TrainingStatus.overreaching, ratio: 1.22, hrvZ: -1.6, days: 26)),
     'energy_reserve': EnergyReserveCard(
       midnight: 1786665600,
       data: EnergyReserve(

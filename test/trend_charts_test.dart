@@ -6,6 +6,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:openstrap_edge/state/clock_format.dart';
 import 'package:openstrap_edge/state/prefs.dart';
 import 'package:openstrap_edge/ui2/screens/trend_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -117,7 +118,7 @@ void main() {
     await tab(t, 'M');
     // Four weeks, each named by its dates.
     expect(t.widget<ScrubColumns>(find.byType(ScrubColumns)).xLabels,
-        ['Jul 20 - 26', 'Jul 27 - Aug 2', 'Aug 3 - 9', 'Aug 10 - 16']);
+        ['Jul 20 – 26', 'Jul 27 – Aug 2', 'Aug 3 – 9', 'Aug 10 – 16']);
     final box = t.getRect(find.byType(ScrubColumns));
     final g = await t.startGesture(Offset(box.right - 20, box.center.dy));
     await t.pump();
@@ -160,7 +161,7 @@ void main() {
         _Loader({'time_in_bed': _days((i) => 480)}, spans: spans));
     await tab(t, 'M');
     final w = t.widget<ScrubRanges>(find.byType(ScrubRanges));
-    expect(w.tags.map((e) => e.text), ['22:00', '06:00']);
+    expect(w.tags.map((e) => e.text), [formatAxisClock(22 * 60), formatAxisClock(6 * 60)]);
     // The axis leaves room over and under the bars for their times.
     expect(w.ranges.whereType<Object>(), isNotEmpty);
     await tab(t, '6M');

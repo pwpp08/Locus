@@ -17,6 +17,7 @@
 // lowest-HR windows rather than step counts, and the card says so out loud
 // rather than letting the numbers imply accelerometry.
 
+import '../../state/duration_format.dart';
 import 'package:flutter/material.dart';
 import 'package:openstrap_analytics/onehz.dart' as ana;
 
@@ -414,8 +415,7 @@ class _CircadianDetailState extends State<CircadianDetail> {
   }
 
   String _hm(num hours) {
-    final m = (hours * 60).round();
-    return m < 60 ? '${m}m' : '${m ~/ 60}h ${(m % 60).toString().padLeft(2, '0')}m';
+    return durationText(hours * 60);
   }
 
   /// CV-09 — daytime HRV by hour of day, motion-gated.

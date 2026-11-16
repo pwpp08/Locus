@@ -1,6 +1,7 @@
 // The workouts the coach proposes, as cards in the chat, and the one the
 // person committed to, as a card on Home with a Start button.
 
+import '../../state/duration_format.dart';
 import 'package:flutter/material.dart';
 
 import '../../coach/workout_plan.dart';
@@ -65,7 +66,7 @@ class PlanZones extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: F.cap.copyWith(color: _zoneInk[z])),
-                Text('${zoneMin[z].round()} min',
+                Text(durationText(zoneMin[z]),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: F.cap.copyWith(color: ink)),
@@ -108,7 +109,7 @@ class CoachWorkoutCard extends StatelessWidget {
         ]),
         const SizedBox(height: S.x3),
         Wrap(spacing: S.x5, runSpacing: S.x1, children: [
-          fact('Duration', '${plan.durationMin} min'),
+          fact('Duration', durationText(plan.durationMin)),
           if (plan.strain case final s?)
             fact('Estimated strain', planStrainText(s)),
         ]),
@@ -258,7 +259,7 @@ class TodayPlanCard extends StatelessWidget {
               const SizedBox(width: S.x2),
               Expanded(
                 child: Text(
-                    '${plan.sport} · ${plan.durationMin} min'
+                    '${plan.sport} · ${durationText(plan.durationMin)}'
                     '${plan.strain == null ? '' : ' · strain ${planStrainText(plan.strain!)}'}',
                     style: F.head.copyWith(color: p.ink)),
               ),
@@ -271,7 +272,11 @@ class TodayPlanCard extends StatelessWidget {
             const SizedBox(height: S.x3),
             PlanZones(plan.zoneMin, dark: false),
             const SizedBox(height: S.x4),
-            BigButton('Start', icon: LucideIcons.play, onTap: onStart),
+            BigButton('Start',
+                icon: LucideIcons.play,
+                compact: true,
+                fill: true,
+                onTap: onStart),
           ]),
         ),
       ]),

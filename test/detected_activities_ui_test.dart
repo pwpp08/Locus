@@ -171,7 +171,7 @@ void main() {
       ));
       expect(find.text('ACTIVITY'), findsOneWidget);
       // Thirty minutes: its length, the only figure known before it is named.
-      expect(find.text('0:30'), findsOneWidget);
+      expect(find.text('30m'), findsOneWidget);
       await t.tap(find.text('ACTIVITY'));
       expect(tapped?.id, 'workout');
     });

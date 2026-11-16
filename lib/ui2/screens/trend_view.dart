@@ -28,6 +28,7 @@ import '../../compute/whoop_age.dart' show WhoopAgeResult;
 import '../../state/prefs.dart';
 import '../activity/catalogue.dart' show Track, activityByName;
 import 'compare_metrics.dart';
+import '../../state/clock_format.dart';
 import '../ui2.dart';
 import 'home_screen.dart'
     show
@@ -1850,15 +1851,14 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
   /// The readout's caption for a bar: its date, or its week's dates.
   String _caption(TrendBar b, AppLocalizations? l) => b.from == b.to
       ? _longDate(b.from, l)
-      : '${_shortDate(b.from, l)} - ${_longDate(b.to, l)}';
+      : '${_shortDate(b.from, l)} – ${_longDate(b.to, l)}';
 
-  static String _clock(int minuteOfDay) =>
-      '${(minuteOfDay ~/ 60).toString().padLeft(2, '0')}:${(minuteOfDay % 60).toString().padLeft(2, '0')}';
+  static String _clock(int minuteOfDay) => formatClockMinute(minuteOfDay);
 
   /// Minutes after noon as the clock reads them.
   static String _clockAfterNoon(double t) {
     final m = (t.round() + 720) % 1440;
-    return _clock(m);
+    return formatAxisClock(m);
   }
 
   ({double lo, double hi, List<double> ticks}) _axisFor(
@@ -1889,8 +1889,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       TrendRange.month when _m.weekly => () {
         final a = _dateOf(bars[i].from);
         return a.month == d.month
-            ? '${monthShortName(a.month, l)} ${a.day} - ${d.day}'
-            : '${monthShortName(a.month, l)} ${a.day} - ${monthShortName(d.month, l)} ${d.day}';
+            ? '${monthShortName(a.month, l)} ${a.day} – ${d.day}'
+            : '${monthShortName(a.month, l)} ${a.day} – ${monthShortName(d.month, l)} ${d.day}';
       }(),
       TrendRange.month =>
         (bars.length - 1 - i) % 7 == 0
@@ -2020,7 +2020,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       if (dayTouched) {
         final i = _selected!;
         caption = intra.hourly
-            ? '${_clock(i * 60)} - ${_clock((i + 1) * 60 % 1440 == 0 ? 1439 : (i + 1) * 60)}'
+            ? '${_clock(i * 60)} – ${_clock((i + 1) * 60 % 1440 == 0 ? 1439 : (i + 1) * 60)}'
             : _clock(i);
         value = trendFormat(m, dayPoint);
       } else {
@@ -2497,12 +2497,9 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       line: true,
     );
     final step = _clockStep(to - from);
-    const marks = {
-      0: '00:00',
-      360: '06:00',
-      720: '12:00',
-      1080: '18:00',
-      1439: '24:00',
+    final marks = {
+      for (final m in const [0, 360, 720, 1080]) m: formatAxisClock(m),
+      1439: formatAxisClock(1440),
     };
     final mean = m.cumulative ? null : trendDayValue(m, intra);
     return Column(
@@ -2528,7 +2525,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
           xLabels: [
             for (var i = 0; i < window.length; i++)
               _zoomed
-                  ? ((from + i) % step == 0 ? _clock(from + i) : '')
+                  ? ((from + i) % step == 0 ? formatAxisClock(from + i) : '')
                   : marks[i] ?? '',
           ],
           lo: axis.lo,
@@ -3094,7 +3091,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
           ? 'above'
           : 'within';
       return 'Your average ${_short(m)} during this 7-day period was $rel its '
-          'typical range (${trendFormat(m, band.lo)} - ${trendFormat(m, band.hi)}) '
+          'typical range (${trendFormat(m, band.lo)} – ${trendFormat(m, band.hi)}) '
           'at the time.';
     }
     String rel(double a, double b) => trendFormat(m, a) == trendFormat(m, b)

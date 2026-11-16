@@ -204,8 +204,14 @@ class _ClockScopeState extends State<_ClockScope> {
       });
     }
     _last = now;
+    final q = MediaQuery.of(context);
     return MediaQuery(
-      data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: use24),
+      data: q.copyWith(
+        alwaysUse24HourFormat: use24,
+        // Past 1.3x the dials, tiles and chart labels break (words split,
+        // times clip), so the phone's font size is honoured up to there.
+        textScaler: q.textScaler.clamp(maxScaleFactor: 1.3),
+      ),
       child: widget.child,
     );
   }

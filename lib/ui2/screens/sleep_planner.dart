@@ -1040,7 +1040,7 @@ class _PlannerBarState extends State<_PlannerBar>
                     const SizedBox(height: S.x1),
                     if (haveRec)
                       Text(
-                          '${clock(widget.recFrom!)} - ${clock(widget.recTo!)}',
+                          '${clock(widget.recFrom!)} – ${clock(widget.recTo!)}',
                           style: F.num(F.cap).copyWith(color: p.ink3))
                     else
                       Text(
