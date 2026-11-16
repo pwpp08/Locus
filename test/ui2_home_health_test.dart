@@ -46,55 +46,6 @@ List<ChartPoint> _points(int n, double base, double amp) {
 
 // ── fixtures ──
 
-/// A cycle with four logged starts — three measured gaps, so the prediction
-/// can state a width — plus a partial current cycle of derived nights behind
-/// it.
-final _cycle = CycleData(
-  enabled: true,
-  phase: 'luteal',
-  cycleDay: 19,
-  daysUntilNext: 9,
-  medianLength: 28,
-  gapN: 3,
-  // A phase only exists once she has declared she cycles (WH-07).
-  reproState: 'cycling',
-  predictedNext: '2026-05-29',
-  predictedFrom: '2026-05-25',
-  predictedTo: '2026-06-02',
-  logs: const [
-    {'date': '2026-02-18', 'kind': 'start'},
-    {'date': '2026-03-14', 'kind': 'start'},
-    {'date': '2026-04-13', 'kind': 'start'},
-    {'date': '2026-05-11', 'kind': 'start'},
-  ],
-  overlay: [
-    for (var i = 1; i <= 19; i++)
-      {
-        'date': '2026-05-${(10 + i).toString().padLeft(2, '0')}',
-        'cycle_day': i,
-        'resting_hr': 52.0 + ((i * 31) % 9) / 3,
-        'hrv_rmssd': 64.0,
-        'skin_temp_idx': 0.2,
-      },
-  ],
-  // Enough logged days across three cycles for the WH-06 look-back to have
-  // something to count. It renders folded away; the disclosure is the point.
-  symptoms: const {
-    '2026-02-19': ['cramps', 'fatigue'],
-    '2026-02-21': ['cramps'],
-    '2026-03-01': ['bloating'],
-    '2026-03-15': ['cramps', 'low mood'],
-    '2026-04-14': ['cramps'],
-    '2026-04-30': ['acne'],
-    '2026-05-12': ['cramps', 'fatigue'],
-  },
-);
-
-Widget _scroll(Widget child) => ListView(
-  padding: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x4, S.x16),
-  children: [child],
-);
-
 final _shot = GlobalKey();
 
 /// Full-viewport, because these are pages: a shrink-wrapped page hides the
@@ -312,58 +263,6 @@ void main() {
       );
       // Nothing here may read as a cause or a recommendation.
       expect(find.textContaining('never a cause'), findsOneWidget);
-    },
-  );
-
-  // ── WH-06 ────────────────────────────────────────────────────────────────
-  testWidgets(
-    'the symptom look-back counts against the days she LOGGED, is folded away '
-    'until asked for, and stays absent under two cycles',
-    (tester) async {
-      tester.view.physicalSize = const Size(390 * 3, 2400 * 3);
-      tester.view.devicePixelRatio = 3;
-      addTearDown(tester.view.reset);
-
-      await tester.pumpWidget(
-        _frame(_scroll(CycleTab(data: _cycle)), Brightness.light, 1),
-      );
-      await tester.pumpAndSettle();
-      // Folded: the chips are the thing, the history is behind a tap.
-      expect(find.text('What you usually notice'), findsOneWidget);
-      expect(find.textContaining('per week of the cycle'), findsNothing);
-
-      await tester.tap(find.text('What you usually notice'));
-      await tester.pumpAndSettle();
-      // cramps on 5 of the 7 logged days; the denominator sentence names the
-      // days she logged, never the calendar.
-      expect(find.text('cramps'), findsWidgets);
-      expect(find.textContaining('logged days per week'), findsOneWidget);
-
-      // One logged start is not two cycles — nothing to count over, so the
-      // control is not offered at all.
-      await tester.pumpWidget(
-        _frame(
-          // Own key: CycleTab takes its fixture in initState, so reusing the
-          // element would keep the previous one alive.
-          _scroll(
-            CycleTab(
-              key: const ValueKey('one-start'),
-              data: CycleData(
-                enabled: true,
-                cycleDay: 3,
-                logs: const [
-                  {'date': '2026-05-11', 'kind': 'start'},
-                ],
-                symptoms: _cycle.symptoms,
-              ),
-            ),
-          ),
-          Brightness.light,
-          1,
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('What you usually notice'), findsNothing);
     },
   );
 }

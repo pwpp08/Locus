@@ -61,15 +61,15 @@ void main() {
     );
     final text = find.text("Greg's Daily Outlook");
     expect(text, findsOneWidget);
-    // The reference: the strip 44 tall, the words about 2.8 strip-heights
-    // long, starting about 37 in.
+    // The reference: the strip 48 tall, the words at 17 starting after a
+    // 16 inset, the sun and a 12 gap, about three strip-heights long.
     final strip = t.getRect(find.byType(DailyOutlookRow));
-    expect(strip.height, 44 + 12, reason: 'the strip and its gap under it');
+    expect(strip.height, 48 + 12, reason: 'the strip and its gap under it');
     final words = t.getRect(text);
-    expect(words.left - strip.left, closeTo(37, 2));
+    expect(words.left - strip.left, closeTo(16 + I.md + 12, 2));
     final ink = (t.renderObject(text) as RenderParagraph)
         .getMaxIntrinsicWidth(double.infinity);
-    expect(ink, closeTo(124, 8));
+    expect(ink, closeTo(150, 14));
     expect(t.takeException(), isNull);
   });
 

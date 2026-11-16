@@ -21,7 +21,7 @@ import '../../data/day_label.dart';
 import '../../data/db.dart';
 import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
-import '../../compute/profile.dart' show Profile;
+import '../../compute/profile.dart' show Profile, exactAgeOn;
 import '../../compute/vo2max_estimate.dart';
 import '../../compute/whoop_age.dart' as wa;
 import '../../compute/whoop_age.dart' show WhoopAgeResult;
@@ -558,10 +558,14 @@ class TrendLoader {
     final r = repo;
     if (r == null) return const WhoopAgeResult(why: 'no_data');
     try {
-      final p = Profile.fromMap(await r.getProfile());
+      final map = await r.getProfile();
+      final p = Profile.fromMap(map);
+      final day = asOf ?? todayLabel();
       return wa.whoopAge(
-        today: asOf ?? todayLabel(),
-        age: p.ageYears,
+        today: day,
+        // The age on that day, so a week six months back starts from the age
+        // the user was then.
+        age: exactAgeOn(map, DateTime.parse(day)),
         sex: p.sex,
         recovery: await _chart('recovery'),
         sleepMin: await _chart('tst_min'),

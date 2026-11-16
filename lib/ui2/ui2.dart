@@ -18,7 +18,6 @@ export 'logo_geometry.dart';
 export 'activity_icons.dart';
 export 'lucide.dart';
 export 'marks.dart';
-export 'ecg_widgets.dart';
 export 'paint_activity.dart';
 export 'revision.dart';
 export 'scroll_hint.dart';

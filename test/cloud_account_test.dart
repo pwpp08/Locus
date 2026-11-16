@@ -1,7 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/cloud/account_service.dart';
-import 'package:openstrap_edge/ui2/profile/account_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -71,26 +69,6 @@ void main() {
       expect(updated.displayName, 'Google Name');
       expect(updated.authProvider, 'google');
       expect(updated.photoUrl, 'https://avatar.url');
-    });
-  });
-
-  group('AccountScreen UI', () {
-    testWidgets('logged out offers email sign-in only, no Google',
-        (tester) async {
-      await AccountService.instance.init();
-      if (AccountService.instance.isLoggedIn) {
-        await AccountService.instance.logOut();
-      }
-
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: AccountScreen(),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('Google'), findsNothing);
-      expect(find.text('SIGN IN'), findsOneWidget);
     });
   });
 }

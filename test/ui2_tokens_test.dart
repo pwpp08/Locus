@@ -306,14 +306,6 @@ void main() {
 const _notComponents = {
   // shell and routing
   'AppShell', 'Domain', 'GalleryScreen',
-  // WHOOP MG ECG routes: the Heart Screener entry reads the database and
-  // pushes; the capture screen owns a live BLE reading (a gallery case would
-  // start one); the detail screen reads and deletes a reading and routes to
-  // the coach; the wrist sheet pops a Navigator. `EcgCaptureBody` is the
-  // pure half of the capture screen and is what ecg_ui_test.dart pumps,
-  // phase by phase.
-  'EcgEntryCard', 'EcgHomeScreen', 'EcgCaptureScreen', 'EcgDetailScreen',
-  'EcgWristSheet',
   // onboarding routes
   'BootSplash', 'WelcomeScreen', 'WelcomeView', 'PairingScreen', 'PairingView',
   'OnboardingPage',
@@ -391,7 +383,7 @@ const _notComponents = {
   // `band_battery`; the step-calibration walk test polls the live IMU and the
   // account screen talks to Google sign-in; the update dialog is a release
   // fetched from GitHub; the device comparison reads Health Connect.
-  'BatteryDetailScreen', 'StepCalibrationScreen', 'AccountScreen',
+  'BatteryDetailScreen', 'StepCalibrationScreen',
   'UpdateDialog', 'WatchCompareScreen',
   // The double-tap picker. A Scaffold route whose whole content is decided by
   // what the OS answered to a method channel, so a gallery case would be a
@@ -424,7 +416,7 @@ const _notComponents = {
   'MilestonesScreen', 'WhatToExpectScreen',
   // tabs and drill-downs
   'HomeScreen', 'HealthScreen', 'WorkoutScreen', 'NutritionScreen',
-  'WellnessScreen', 'CycleTab', 'MetricDetail', 'ReadinessDetail',
+  'WellnessScreen', 'MetricDetail', 'ReadinessDetail',
   'SleepDetail', 'SleepTab', 'CircadianDetail', 'DayStrainDetail',
   // HomeScreen sub-sections (screen subcomponents reading AppState,
   // repository data, or executing home navigation drill-downs)
@@ -470,7 +462,7 @@ const _notComponents = {
   'LiveShell', 'LiveTick', 'LiveMeasured', 'LiveStrength', 'LiveSwim',
   'LiveFlow', 'LiveMatch', 'LiveInterval',
   // the activity flow: pick → set up → do → summarise → share
-  'ActivitySetup', 'ActivitySummary', 'ShareSheet',
+  'ActivitySummary', 'ShareSheet',
   // The two write routes for a session the band did not capture as it
   // happened. Both are Scaffolds that read `sessions` / `workout_suggestions`
   // and write through the repo; the second also asks the OS for a date and a

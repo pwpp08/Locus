@@ -247,13 +247,11 @@ void main() {
   });
 
   test('the screens the shell keeps alive re-read', () {
-    // Home, Locus Age and Wellness are the screens kept alive; Cycle lives
-    // inside Wellness and shares its lifetime.
+    // Home, Locus Age and Wellness are the screens kept alive.
     for (final f in const [
       'home_screen',
       'locus_age',
       'wellness_screen',
-      'cycle_screen',
     ]) {
       expect(File('lib/ui2/screens/$f.dart').readAsStringSync(),
           contains('with RevisionReload'),

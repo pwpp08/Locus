@@ -24,7 +24,6 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
@@ -33,9 +32,6 @@ import 'package:flutter/rendering.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../data/day_label.dart';
-import '../../ecg/ecg_controller.dart';
-import '../../ecg/ecg_models.dart';
-import '../../ecg/ecg_waveform_buffer.dart';
 import '../../data/journal_fields.dart';
 import '../../data/med_store.dart';
 import '../../ai/nightly_sweep.dart' show SweepFinding;
@@ -52,7 +48,6 @@ import '../screens/coach_workout.dart';
 import '../../coach/workout_plan.dart';
 import '../activity/poster.dart'
     show PosterCard, PosterFormat, PosterStatRow, kPosterMapH, kPosterMapW;
-import '../activity/setup.dart' show ActivitySetup;
 import '../activity/tiles.dart';
 import 'alarm.dart' show AlarmCountdown;
 import '../activity/share.dart' show ShareSheet, shareOrigin;
@@ -194,39 +189,6 @@ Map<String, Widget> componentCases() => {
       // shot because a 9:16 card is where the column's arithmetic has the
       // most room to go wrong, not because it is a different design.
       'share_card_story': _shareCard(photo: false, format: PosterFormat.story),
-      // WHOOP MG ECG: the touch illustration frozen at one phase, the live
-      // preview over a synthetic trace, the capture body mid-measurement, and
-      // one history row. The synthetic trace is a gallery fixture, labelled
-      // nowhere as a reading.
-      'ecg_illustration': const EcgTouchIllustration(
-          wrist: EcgWrist.right,
-          t: .3,
-          contact: true,
-          semanticLabel: 'Illustration: the band on your wrist, and the thumb '
-              'and index finger of your other hand touching its two metal sides.'),
-      'ecg_preview': EcgLivePreview(
-          buffer: _ecgDemoBuffer(),
-          scheduler: EcgPreviewScheduler(),
-          label: 'Live signal preview',
-          unit: 'µV'),
-      'ecg_capture_body': SizedBox(
-        height: 620,
-        child: EcgCaptureBody(
-          state: const EcgCaptureState(
-              phase: EcgCapturePhase.active, progress: 42, liveHr: 71),
-          wrist: EcgWrist.right,
-          phase: .3,
-          live: _ecgDemoBuffer(),
-          scheduler: EcgPreviewScheduler(),
-          onRetry: () {},
-          onTakeAnother: () {},
-          onDone: () {},
-          onView: () {},
-        ),
-      ),
-      'ecg_reading_row': Surface(
-          pad: EdgeInsets.zero,
-          child: EcgReadingRow(reading: _ecgDemoReading, onTap: () {})),
       'signal': const SignalCard(
           LucideIcons.heartPulse, C.dialStrain, 'Resting heart rate', '52',
           unit: 'bpm', sub: '4 BELOW YOUR BASELINE'),
@@ -1547,60 +1509,7 @@ Map<String, Widget> extraCases() => {
       // "alcohol" is a file in the repo that a reviewer meets out of context,
       // and the whole design of this card is that nobody meets that vocabulary
       // without asking for it.
-      'rough_night_invite': const RoughNightCard(night: _roughFull),
-      'rough_night_asking':
-          const RoughNightCard(night: _roughBare, ask: 'on'),
-      'rough_night_declined':
-          const RoughNightCard(night: _roughTwoSign, ask: 'never'),
     };
-
-/// The longest realistic night: every sign fired and every knowable known.
-const _roughFull = RoughNight(
-  day: '2026-08-15',
-  signs: 4,
-  illnessFlagged: true,
-  descriptor: 'a rougher night than usual for you — your body worked harder '
-      'overnight',
-  moved: [
-    'your resting heart rate ran higher',
-    'your HRV ran lower',
-    'your heart rate dropped less overnight than it usually does',
-    'your skin ran warmer',
-  ],
-  knows: [
-    'You trained until 9:40 PM, which often does this on its own.',
-    'Your resting heart rate flagged this night too — recent nights add up '
-        'to a rise above your own baseline, not a diagnosis.',
-    'You are in the luteal phase, which lifts resting heart rate and skin '
-        'temperature by itself.',
-    'Your skin ran warmer than your usual — a warm room does this too.',
-  ],
-);
-
-/// The other end: the app knows nothing about why, so it states the night and
-/// asks an open question. This is the common case.
-const _roughBare = RoughNight(
-  day: '2026-08-15',
-  signs: 2,
-  descriptor: 'a rougher night than usual for you — your body worked harder '
-      'overnight',
-  moved: ['your resting heart rate ran higher', 'your HRV ran lower'],
-  knows: [],
-);
-
-/// Two signs, one knowable. The card's floor — below two signs there is no
-/// card at all, which is why there is no "quiet" case here to shoot.
-const _roughTwoSign = RoughNight(
-  day: '2026-08-15',
-  signs: 2,
-  descriptor: 'a rougher night than usual for you — your body worked harder '
-      'overnight',
-  moved: [
-    'your HRV ran lower',
-    'your heart rate dropped less overnight than it usually does',
-  ],
-  knows: ['You trained until 10:15 PM, which often does this on its own.'],
-);
 
 /// The SECOND state of every card.
 ///
@@ -2962,7 +2871,7 @@ class _Flows extends StatelessWidget {
 /// One activity's flow, in the order the app walks it.
 ///
 /// Every row pushes the REAL screen — the same
-/// `ActivitySetup`, `liveFor`, `ActivitySummary` and `ShareSheet` the app
+/// `liveFor`, `ActivitySummary` and `ShareSheet` the app
 /// routes to — over [ActivityHost.none]. Nothing is persisted and nothing
 /// reads the database, which is the only reason a gallery can push them.
 class _FlowScreen extends StatelessWidget {
@@ -2979,8 +2888,6 @@ class _FlowScreen extends StatelessWidget {
     // root the same way the real one does — the Summary row below is the way
     // to see the end of a session without leaving.
     final stages = <(String, IconData, String, Widget)>[
-      ('Set up', LucideIcons.sliders, 'Goal, target and privacy',
-          ActivitySetup(a)),
       ('Live', LucideIcons.circleDot, 'Runs for real, with no band behind it',
           liveFor(a)),
       ('Summary', LucideIcons.flag, 'What this session becomes',
@@ -3143,39 +3050,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
 /// A synthetic, ECG-shaped trace for the preview case: a slow wave with a
 /// sharp spike each second. A fixture for the eye, never presented as data.
-EcgWaveformBuffer _ecgDemoBuffer() {
-  final b = EcgWaveformBuffer(capacity: 600);
-  b.push(Int16List.fromList(List.generate(600, (i) {
-    final wave = (120 * sin(i / 100 * 2 * pi)).round();
-    final spike = (i % 100) == 30 ? 650 : (i % 100) == 32 ? -220 : 0;
-    return wave + spike;
-  })));
-  return b;
-}
-
-const EcgReading _ecgDemoReading = EcgReading(
-  id: 'ecg_gallery',
-  deviceId: '',
-  wrist: EcgWrist.left,
-  startTs: 1787823754,
-  endTs: 1787823784,
-  strapTerminalTs: 1787823784,
-  strapTerminalSubsec: 0,
-  resultCode: 1,
-  category: EcgCategory.sinusRhythm,
-  avgHr: 77,
-  quality: 3,
-  unreadableMask: 0,
-  interruptions: 0,
-  sampleCount: 3000,
-  minUv: -531,
-  maxUv: 731,
-  rmsUv: 126.8,
-  missingSegments: 0,
-  status: EcgReadingStatus.completed,
-  notes: null,
-  createdAt: 1787823784000,
-);
 
 /// The tokens themselves (DESIGN.md §2): surfaces and
 /// accents with their measured contrast, the type ramp, radii and icon sizes.

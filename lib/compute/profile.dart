@@ -10,6 +10,33 @@
 
 import 'hr_max.dart' show manualMaxHrFromProfile, manualZoneBoundsFromProfile;
 
+/// The profile's birth date ('birth_date', 'YYYY-MM-DD'), when one is set.
+DateTime? birthDateOf(Map<String, dynamic>? m) {
+  final s = m?['birth_date'];
+  return s is String ? DateTime.tryParse(s) : null;
+}
+
+/// Whole years lived on [on] by someone born on [birth].
+int wholeYearsOn(DateTime birth, DateTime on) {
+  final had = on.month > birth.month ||
+      (on.month == birth.month && on.day >= birth.day);
+  return on.year - birth.year - (had ? 0 : 1);
+}
+
+/// The age on [on] to a fraction of a year: from the birth date when the
+/// profile has one, otherwise the whole years the user typed. Null with
+/// neither.
+double? exactAgeOn(Map<String, dynamic>? m, DateTime on) {
+  final birth = birthDateOf(m);
+  if (birth == null) return (m?['age'] as num?)?.toDouble();
+  final whole = wholeYearsOn(birth, on);
+  final last = DateTime(birth.year + whole, birth.month, birth.day);
+  final next = DateTime(birth.year + whole + 1, birth.month, birth.day);
+  final day = DateTime(on.year, on.month, on.day);
+  return whole +
+      day.difference(last).inHours / next.difference(last).inHours;
+}
+
 class Profile {
   final int? ageYears;
   final double? weightKg;

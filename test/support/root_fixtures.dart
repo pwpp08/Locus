@@ -5,6 +5,7 @@
 // Each entry is a screen handed its data, so nothing here touches a database.
 
 import 'package:flutter/material.dart';
+import 'package:openstrap_edge/compute/whoop_age.dart';
 import 'package:openstrap_edge/models/metric.dart';
 import 'package:openstrap_edge/state/app_state.dart';
 import 'package:openstrap_edge/state/locale_controller.dart';
@@ -16,6 +17,7 @@ import 'package:openstrap_edge/ui2/onboarding/welcome.dart';
 import 'package:openstrap_edge/ui2/pairing/device_picker.dart';
 import 'package:openstrap_edge/ui2/profile/profile.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
+import 'package:openstrap_edge/ui2/screens/locus_age.dart';
 import 'package:openstrap_edge/ui2/screens/screens.dart';
 import 'package:provider/provider.dart';
 
@@ -162,6 +164,7 @@ final Map<String, Widget Function()> rootCases = {
         },
       ),
   'health_monitor': () => const HealthMonitorScreen(),
+  'locus_age': () => LocusAgeScreen(loader: _AgeLoader(), today: '2026-08-16'),
   'today_first_week': () => const HomeScreen(data: homeFirstWeek, hour: 9),
   'readiness': () => const ReadinessDetail(
         data: ReadinessData(
@@ -218,3 +221,24 @@ final Map<String, Widget Function()> rootCases = {
             value: LocaleController.seed(null)),
       ], child: const ProfileHome()),
 };
+
+/// A Locus Age that is unlocked, with every contributor present.
+class _AgeLoader extends TrendLoader {
+  _AgeLoader() : super(null);
+
+  static const _parts = <String, WhoopAgePart>{
+    'sleep_hours': (value: 7.88, target: 8, years: -.2),
+    'consistency': (value: 85, target: 70, years: -2.4),
+    'steps': (value: 9400, target: 8000, years: -.6),
+    'zones_13': (value: 365, target: 150, years: -2.2),
+    'zones_45': (value: 42, target: 30, years: -.9),
+    'strength': (value: 64, target: 60, years: -.3),
+    'resting_hr': (value: 52, target: 60, years: -1.1),
+    'vo2max': (value: 51, target: 45, years: -1.5),
+    'lean_mass': (value: 84, target: 82, years: -.2),
+  };
+
+  @override
+  Future<WhoopAgeResult> whoopAge({String? asOf}) async => const WhoopAgeResult(
+      whoopAge: 20.8, pace: 1.1, age: 30.2, parts: _parts, recent: _parts);
+}

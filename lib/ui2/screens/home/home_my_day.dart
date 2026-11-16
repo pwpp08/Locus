@@ -50,7 +50,7 @@ class DailyOutlookRow extends StatelessWidget {
     this.name,
   });
 
-  static const height = S.x10 + S.x1;
+  static const height = S.x12;
   static const ground = LinearGradient(
     colors: [DC.outlookWarm, DC.outlookMid, DC.outlookSlate],
     stops: [0, .4, 1],
@@ -68,15 +68,12 @@ class DailyOutlookRow extends StatelessWidget {
         semanticLabel: title,
         child: Container(
           height: height,
-          padding: const EdgeInsets.fromLTRB(S.x2 + S.hair, 0, S.x2 + S.half, 0),
-          decoration: const BoxDecoration(
-            gradient: ground,
-            borderRadius: BorderRadius.all(Radius.circular(S.x2 + S.hair)),
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: S.x4),
+          decoration: const BoxDecoration(gradient: ground, borderRadius: R.rLg),
           child: Row(children: [
             Icon(evening ? LucideIcons.sunset : LucideIcons.sun,
                 size: I.md, color: ink),
-            const SizedBox(width: S.x2),
+            const SizedBox(width: S.x3),
             Expanded(
               child: Text(title,
                   maxLines: 1,
@@ -84,7 +81,7 @@ class DailyOutlookRow extends StatelessWidget {
                   style: F.dOutlook.copyWith(color: C.white)),
             ),
             const Icon(LucideIcons.chevronRight, size: I.md + S.hair + S.hair,
-                color: ink),
+                color: DC.outlookChevron),
           ]),
         ),
       ),

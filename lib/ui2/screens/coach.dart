@@ -849,8 +849,8 @@ class _CoachScreenState extends State<CoachScreen> {
       return ListView(
         padding: const EdgeInsets.fromLTRB(S.x4, S.x6, S.x4, S.x4),
         children: [
-          const Center(child: AiOrb(size: S.x16 + S.x6)),
-          const SizedBox(height: S.x5),
+          const Center(child: AiOrb(size: S.x12 + S.x4)),
+          const SizedBox(height: S.x4),
           Text(
             'How can I help?',
             textAlign: TextAlign.center,
@@ -865,10 +865,10 @@ class _CoachScreenState extends State<CoachScreen> {
             textAlign: TextAlign.center,
             style: F.cap.copyWith(color: p.ink3, height: 1.5),
           ),
-          const SizedBox(height: S.x6),
+          const SizedBox(height: S.x5),
           for (var i = 0; i < starters.length; i++)
             Padding(
-              padding: const EdgeInsets.only(bottom: S.x2),
+              padding: const EdgeInsets.only(bottom: S.x1 + S.half),
               child: _Starter(
                 _starterIcons[i % _starterIcons.length],
                 starters[i],
@@ -1087,24 +1087,25 @@ class _Starter extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
+    // One line, tap height: five of them fit under the greeting without
+    // pushing the composer's neighbourhood off the screen.
     return Pressable(
       onTap: onTap,
+      semanticLabel: text,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x3),
+        constraints: const BoxConstraints(minHeight: S.tap),
+        padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x2),
         decoration: BoxDecoration(
-            color: C.white.withValues(alpha: .07), borderRadius: R.rXl),
+            color: C.white.withValues(alpha: .07), borderRadius: R.rLg),
         child: Row(children: [
-          Container(
-            width: S.x8,
-            height: S.x8,
-            decoration: BoxDecoration(
-                color: p.wash(kCoachAccent), shape: BoxShape.circle),
-            child: Icon(icon, size: I.sm, color: p.on(kCoachAccent)),
-          ),
+          Icon(icon, size: I.sm, color: p.on(kCoachAccent)),
           const SizedBox(width: S.x3),
           Expanded(
-            child: Text(text, style: F.body.copyWith(color: p.ink, height: 1.35)),
+            child: Text(text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: F.cap.copyWith(color: p.ink)),
           ),
           const SizedBox(width: S.x2),
           Icon(LucideIcons.arrowUpRight, size: I.sm, color: p.ink3),

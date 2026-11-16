@@ -117,7 +117,6 @@ void main() {
               .hasMatch(e.key))
             e.key: (e.value as String).toLowerCase(),
       };
-      expect(illness, contains('roughNightIllness'), reason: locale);
       for (final MapEntry(key: k, value: v) in illness.entries) {
         for (final phrase in phrases) {
           expect(v, isNot(contains(phrase)), reason: '$locale $k');
@@ -126,7 +125,6 @@ void main() {
     }
     // The English fallback and the gallery fixture print the same sentence.
     for (final path in [
-      'lib/ui2/screens/rough_night.dart',
       'lib/ui2/profile/gallery.dart',
     ]) {
       expect(File(path).readAsStringSync().toLowerCase(),

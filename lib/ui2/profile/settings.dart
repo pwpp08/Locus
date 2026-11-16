@@ -18,6 +18,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../compute/profile.dart' show birthDateOf, wholeYearsOn;
+import '../../data/day_label.dart';
 import '../../health/health_export.dart' show HealthLinkState;
 import '../../health/health_import_state.dart';
 import '../../health/health_profile_import.dart';
@@ -1263,6 +1265,7 @@ class EditProfile extends StatelessWidget {
             'name',
             'sex',
             'age',
+            'birth_date',
             'height_cm',
             'weight_kg',
           ])
@@ -1310,6 +1313,23 @@ class _EditProfileViewState extends State<EditProfileView> {
       TextEditingController(text: '${widget.initial['name'] ?? ''}');
   late final _age =
       TextEditingController(text: _s(widget.initial['age']));
+  late final _birth = TextEditingController(text: () {
+    final b = birthDateOf(widget.initial);
+    return b == null ? '' : '${b.day}/${b.month}/${b.year}';
+  }());
+
+  /// "24/3/1997", "24.03.1997" or "1997-03-24" as a day, null when it is not
+  /// a real past date.
+  static DateTime? _parseBirth(String text) {
+    final n = RegExp(r'\d+').allMatches(text).map((m) => int.parse(m[0]!)).toList();
+    if (n.length != 3) return null;
+    final (y, m, d) = n[0] > 31 ? (n[0], n[1], n[2]) : (n[2], n[1], n[0]);
+    final at = DateTime(y, m, d);
+    final now = DateTime.now();
+    if (at.year != y || at.month != m || at.day != d) return null;
+    if (at.isAfter(now) || y < now.year - 120) return null;
+    return at;
+  }
   late final _height =
       TextEditingController(text: _u.heightField(widget.initial['height_cm'] as num?));
   late final _weight =
@@ -1382,6 +1402,7 @@ class _EditProfileViewState extends State<EditProfileView> {
   void dispose() {
     _name.dispose();
     _age.dispose();
+    _birth.dispose();
     _height.dispose();
     _weight.dispose();
     super.dispose();
@@ -1398,8 +1419,11 @@ class _EditProfileViewState extends State<EditProfileView> {
     final age = Typed.of(_age.text);
     final height = Typed.of(_height.text);
     final weight = Typed.of(_weight.text);
+    final birthText = _birth.text.trim();
+    final birth = _parseBirth(birthText);
     final bad = [
-      if (age.bad) (l?.settingsAgeFieldLabel ?? 'Age'),
+      if (birthText.isNotEmpty && birth == null) 'Birthday',
+      if (birth == null && age.bad) (l?.settingsAgeFieldLabel ?? 'Age'),
       if (height.bad) uiText(context, _u.heightLabel),
       if (weight.bad) uiText(context, _u.weightLabel),
     ];
@@ -1410,7 +1434,11 @@ class _EditProfileViewState extends State<EditProfileView> {
     widget.onSave({
       'name': _name.text.trim().isEmpty ? null : _name.text.trim(),
       'sex': _sex,
-      'age': age.value?.round(),
+      // The birth date decides the age when there is one.
+      'age': birth == null
+          ? age.value?.round()
+          : wholeYearsOn(birth, DateTime.now()),
+      'birth_date': birth == null ? null : dayLabelOf(birth),
       // Typed in the units on the label, stored in metric.
       'height_cm': height.value == null ? null : _u.heightToCm(_height.text),
       'weight_kg': weight.value == null ? null : _u.weightToKg(_weight.text),
@@ -1458,8 +1486,23 @@ class _EditProfileViewState extends State<EditProfileView> {
                   width: null,
                 ),
                 const SizedBox(height: S.x4),
-                _text(c, _age, l?.settingsAgeYearsFieldLabel ?? 'AGE (YEARS)',
-                    TextInputType.number),
+                // With a birthday the age is worked out from it, to the day.
+                _text(c, _birth, 'BIRTHDAY (DAY/MONTH/YEAR)',
+                    TextInputType.datetime),
+                // The typed age only while there is no birthday to read it from.
+                ListenableBuilder(
+                  listenable: _birth,
+                  builder: (c, _) => _parseBirth(_birth.text) != null
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.only(top: S.x4),
+                          child: _text(
+                              c,
+                              _age,
+                              l?.settingsAgeYearsFieldLabel ?? 'AGE (YEARS)',
+                              TextInputType.number),
+                        ),
+                ),
                   const SizedBox(height: S.x4),
                   _text(
                     c,

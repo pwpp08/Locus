@@ -48,8 +48,9 @@ class WhoopAgeResult {
   /// Years per year, −1.0 to 3.0. Null without enough of the last 30 days.
   final double? pace;
 
-  /// The real age the reading started from.
-  final int? age;
+  /// The real age the reading started from, to a fraction of a year when
+  /// the birth date is known.
+  final double? age;
 
   /// Each contributor that had data over the long window, by key (sleep_hours,
   /// consistency, steps, zones_13, zones_45, strength, resting_hr, vo2max,
@@ -76,7 +77,7 @@ class WhoopAgeResult {
 /// entry is a day with none of those minutes.
 WhoopAgeResult whoopAge({
   required String today,
-  required int? age,
+  required double? age,
   required String? sex,
   required Map<String, double> recovery,
   Map<String, double> sleepMin = const {},
@@ -156,7 +157,7 @@ WhoopAgeResult whoopAge({
           math.pow(1.09, (rhr - rhrTarget).clamp(-15.0, 30.0) / 10).toDouble());
     }
     final vo2 = mean(vo2max);
-    final vo2Target = whoopVo2Target(age, sex);
+    final vo2Target = whoopVo2Target(age.floor(), sex);
     if (vo2 != null) {
       // About 15% lower risk per MET (3.5 mL/kg/min) of fitness.
       add('vo2max', vo2, vo2Target,

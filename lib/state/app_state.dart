@@ -553,6 +553,11 @@ class AppState extends ChangeNotifier {
     if (raw != null) {
       try {
         user = (jsonDecode(raw) as Map).cast<String, dynamic>();
+        // The stored whole years follow the birth date, so a birthday that
+        // has passed since the last save is counted.
+        if (birthDateOf(user) case final birth?) {
+          user!['age'] = wholeYearsOn(birth, DateTime.now());
+        }
       } catch (_) {
         /* ignore corrupt blob */
       }

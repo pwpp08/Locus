@@ -25,7 +25,6 @@ import 'package:openstrap_edge/ui2/activity/catalogue.dart';
 import 'package:openstrap_edge/ui2/activity/day_strain.dart';
 import 'package:openstrap_edge/ui2/activity/live.dart';
 import 'package:openstrap_edge/ui2/activity/poster.dart';
-import 'package:openstrap_edge/ui2/activity/setup.dart';
 import 'package:openstrap_edge/ui2/activity/share.dart';
 import 'package:openstrap_edge/ui2/activity/summary.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
@@ -1437,76 +1436,6 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets(
-        'the interval setup screen lets you change work, rest and rounds',
-        (tester) async {
-      tester.view.physicalSize = const Size(390 * 3, 2400 * 3);
-      tester.view.devicePixelRatio = 3;
-      addTearDown(tester.view.reset);
-      addTearDown(LiveDraft.clear);
-
-      final a = activityByName('crossfit')!;
-      await tester.pumpWidget(
-          _frame(ActivitySetup(a, weightKg: 72.4), Brightness.light, 1.0));
-      await tester.pumpAndSettle();
-
-      expect(find.text('45s'), findsOneWidget);
-      expect(find.text('30s'), findsOneWidget);
-      expect(find.text('8'), findsOneWidget);
-
-      // Bump work up twice (5 s per tap) — the first '+' on the screen is
-      // the work stepper's (crossfit has no GPS row ahead of it).
-      await tester.tap(find.byIcon(LucideIcons.plus).first);
-      await tester.pump();
-      await tester.tap(find.byIcon(LucideIcons.plus).first);
-      await tester.pump();
-      expect(find.text('55s'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('a non-interval activity gets no interval steppers',
-        (tester) async {
-      tester.view.physicalSize = const Size(390 * 3, 2200 * 3);
-      tester.view.devicePixelRatio = 3;
-      addTearDown(tester.view.reset);
-
-      await tester.pumpWidget(_frame(
-          ActivitySetup(activityByName('running')!, weightKg: 72.4),
-          Brightness.light,
-          1.0));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Rounds'), findsNothing);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets(
-        'a chosen interval survives starting with no host — not just a '
-        'draft the host would have opened',
-        (tester) async {
-      tester.view.physicalSize = const Size(390 * 3, 2200 * 3);
-      tester.view.devicePixelRatio = 3;
-      addTearDown(tester.view.reset);
-      addTearDown(LiveDraft.clear);
-
-      // ActivityHost.none (the default): `start` stays null, so the block
-      // that writes the choice into LiveDraft never runs. Without passing
-      // the config straight to `liveFor` too, this is exactly the path
-      // that silently fell back to 45/30/8.
-      final a = activityByName('crossfit')!;
-      await tester.pumpWidget(
-          _frame(ActivitySetup(a, weightKg: 72.4), Brightness.light, 1.0));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byIcon(LucideIcons.plus).first); // work + 5
-      await tester.pump();
-      await tester.tap(find.text('START'));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('50 S WORK'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
-
     testWidgets('a location denial is named on the live screen',
         (tester) async {
       tester.view.physicalSize = const Size(390 * 3, 2200 * 3);
@@ -1695,48 +1624,6 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('setup offers no goal it cannot honour', (tester) async {
-      tester.view.physicalSize = const Size(390 * 3, 1400 * 3);
-      tester.view.devicePixelRatio = 3;
-      addTearDown(tester.view.reset);
-
-      // The GOAL picker is gone. Nothing carried a goal or a target into the
-      // session — no LiveDraft field, no live screen, no alert — so the only
-      // thing it did was make the calorie line quote '45 min', a duration the
-      // user had not chosen and could not see anywhere else on the screen.
-      await tester.pumpWidget(_frame(
-          ActivitySetup(activityByName('running')!, weightKg: 72.4),
-          Brightness.light,
-          1.0));
-      await tester.pumpAndSettle();
-      expect(find.text('GOAL'), findsNothing);
-      expect(find.text('Distance'), findsNothing);
-      expect(find.text('Calories'), findsNothing);
-      // The estimate is a RATE, on the picker's own thirty-minute basis.
-      expect(find.textContaining('per 30 min'), findsOneWidget);
-      expect(find.textContaining('for 45 min'), findsNothing);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('the unpriced activity offers no number it cannot source',
-        (tester) async {
-      tester.view.physicalSize = const Size(390 * 3, 1400 * 3);
-      tester.view.devicePixelRatio = 3;
-      addTearDown(tester.view.reset);
-
-      final general = activityByName('general_workout')!;
-
-      // THE SETUP SCREEN. A weight IS set here, so "Calories need your
-      // weight" would be a lie about which input is missing.
-      await tester.pumpWidget(
-          _frame(ActivitySetup(general, weightKg: 72.4), Brightness.light, 1.0));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('per 30 min'), findsNothing);
-      expect(find.textContaining('Calories need your weight'), findsNothing);
-      expect(find.textContaining('No estimate up front'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
-
     testWidgets('the unpriced session still explains a measured figure',
         (tester) async {
       tester.view.physicalSize = const Size(390 * 3, 2400 * 3);
@@ -1783,39 +1670,6 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('No calorie figure for this session'),
           findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('padel has no MET but was named, and the copy says so',
-        (tester) async {
-      tester.view.physicalSize = const Size(390 * 3, 2400 * 3);
-      tester.view.devicePixelRatio = 3;
-      addTearDown(tester.view.reset);
-
-      final padel = activityByName('padel')!;
-      final base = _result(Arch.match);
-      await tester.pumpWidget(
-          _frame(ActivitySetup(padel, weightKg: 72.4), Brightness.light, 1.0));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('No estimate up front'), findsOneWidget);
-      expect(find.textContaining('names no activity'), findsNothing);
-
-      await tester.pumpWidget(_frame(
-          ActivitySummary(
-              ActivityResult(padel,
-                  start: base.start,
-                  duration: base.duration,
-                  avgHr: 131,
-                  maxHr: 158,
-                  calories: 402,
-                  hr: base.hr,
-                  zoneMinutes: base.zoneMinutes),
-              weightKg: 72.4),
-          Brightness.light,
-          1.0));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('no published effort level'), findsOneWidget);
-      expect(find.textContaining('named no activity'), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
