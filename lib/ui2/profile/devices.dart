@@ -1601,7 +1601,7 @@ class SourceRow extends StatelessWidget {
                 Flexible(
                   child: Text(_localizedSourceState(c, s),
                       style: F.over.copyWith(
-                          color: s.connected ? p.on(C.optimal) : p.ink3)),
+                          color: s.connected ? p.ink : p.ink3)),
                 ),
               ]),
               // The band's percentage is in its stats card on the list, not twice.
@@ -2269,7 +2269,7 @@ class DeviceDetailView extends StatelessWidget {
                       child: Text(
                           localizedStatus?.title ?? _localizedSourceState(c, s),
                           style: F.cap.copyWith(
-                              color: s.connected ? p.on(C.optimal) : p.ink3))),
+                              color: s.connected ? p.ink : p.ink3))),
                 const SizedBox(height: S.x6),
                 if (fault != null) ...[
                   StatusCard(fault.title, fault.reason,

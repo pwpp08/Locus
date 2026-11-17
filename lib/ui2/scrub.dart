@@ -1735,14 +1735,16 @@ class _MonthsPainter extends CustomPainter {
             ..strokeCap = StrokeCap.round);
       // A sliver of a month at either end has no room for its figure.
       if (x1 - x0 < S.x10) return;
-      final tp = _text(text, F.num(F.cap).copyWith(color: tone, fontWeight: FontWeight.w700));
+      // The words never take the mint; the line keeps it.
+      final words = tone == C.optimal ? p.ink : tone;
+      final tp = _text(text, F.num(F.cap).copyWith(color: words, fontWeight: FontWeight.w700));
       final cx = ((x0 + x1) / 2 - tp.width / 2)
           .clamp(0.0, math.max(0.0, size.width - tp.width))
           .toDouble();
       tp.paint(canvas, Offset(cx, y - tp.height - S.x1));
       final note = m.note;
       if (note != null) {
-        final np = _text(note, F.num(F.cap).copyWith(color: tone, fontWeight: FontWeight.w700));
+        final np = _text(note, F.num(F.cap).copyWith(color: words, fontWeight: FontWeight.w700));
         np.paint(
             canvas,
             Offset(((x0 + x1) / 2 - np.width / 2)

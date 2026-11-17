@@ -573,7 +573,8 @@ class _Rings extends StatelessWidget {
                   delta,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: F.dTiny.copyWith(color: tone),
+                  style: F.dTiny
+                      .copyWith(color: tone == C.optimal ? DC.ink : tone),
                 ),
               ],
             ),

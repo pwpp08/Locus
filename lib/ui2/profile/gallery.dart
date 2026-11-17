@@ -475,6 +475,35 @@ Map<String, Widget> _coachPartCases() => {
       ]),
     ),
   ),
+  'coach_outlook': CoachGround(
+    child: Padding(
+      padding: const EdgeInsets.all(S.x4),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Center(
+          child: Text('DAILY OUTLOOK',
+              style: F.caps.copyWith(
+                  color: C.white,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.6)),
+        ),
+        const SizedBox(height: S.x5),
+        CoachAnswer(
+          'Hi Vince,\n\nHappy Wednesday! You slept **7:12**, close to your '
+          'usual **7:20**, and recovery is **58%**, a moderate day.\n\n'
+          'Yesterday you ran for **42 minutes**, mostly in zones 2 and 3, '
+          'which supports better sleep.\n\n'
+          'Key insights\n'
+          '- Your HRV is **61 ms**, below your 30-day average of **68 ms**.\n'
+          '- Resting heart rate is **52 bpm**, in line with your usual '
+          '**51 bpm**.\n'
+          '- Deep sleep came to **1:04**, a solid share of the night.\n\n'
+          'Today\n'
+          '- A 30-minute easy ride keeps you in your **9.0-12.5** target.',
+          onRegenerate: () {},
+        ),
+      ]),
+    ),
+  ),
   'coach_card': CoachGround(
     child: Padding(
       padding: const EdgeInsets.all(S.x4),

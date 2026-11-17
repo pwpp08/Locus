@@ -1769,7 +1769,9 @@ class _MetricDetailState extends State<MetricDetail> {
                 Text(
                   _signed(rows[i]['delta'] as num?, rows[i]['unit']?.toString()),
                   style: F.body.copyWith(
-                      color: p.on(rows[i]['helped'] == true ? C.optimal : C.strainDown),
+                      color: rows[i]['helped'] == true
+                          ? p.ink
+                          : p.on(C.strainDown),
                       fontWeight: FontWeight.w600),
                 ),
               ]),

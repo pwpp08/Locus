@@ -29,7 +29,9 @@ import 'coach_config.dart';
 import 'coach_db.dart';
 import 'coach_prompt.dart';
 import 'coach_figure_spec.dart';
+import 'coach_memory.dart';
 import 'coach_responses.dart';
+import 'coach_web.dart';
 
 // ── value types ──────────────────────────────────────────────────────────────
 
@@ -694,8 +696,19 @@ class CoachEngine {
     for (var i = 0; i < maxIters; i++) {
       onStatus(_shenanigans[_rand.nextInt(_shenanigans.length)]);
       _trimHistory();
+      // Read every round: a `remember` earlier in this turn holds for the
+      // rest of it.
+      final memory = CoachMemory.promptSection(await CoachMemory.all());
       final messages = <Map<String, dynamic>>[
-        {'role': 'system', 'content': '$kCoachSystemPrompt\n\nToday is ${_today()} (device-local date; all day-keyed data uses these local dates).'},
+        {
+          'role': 'system',
+          'content': [
+            kCoachSystemPrompt,
+            if (memory.isNotEmpty) memory,
+            'Today is ${_today()} (device-local date; all day-keyed data uses '
+                'these local dates).',
+          ].join('\n\n'),
+        },
         ..._history,
       ];
 
@@ -1218,6 +1231,27 @@ class CoachEngine {
               'the plan for that day. Do not log it as a workout and do not '
               'repeat the cards in prose.';
 
+        // the web — only the query leaves the phone
+        case 'web_search':
+          return await CoachWeb.search('${args['query'] ?? ''}',
+              config: config, client: _http);
+        case 'read_web_page':
+          return await CoachWeb.readPage('${args['url'] ?? ''}',
+              client: _http);
+
+        // memory — the person's own standing asks
+        case 'remember':
+          final kept = await CoachMemory.add('${args['note'] ?? ''}');
+          return kept == null
+              ? 'Nothing to remember: the note was empty.'
+              : 'Remembered: "$kept". It holds in every chat and outlook from '
+                  'now on; they can see and delete it under AI settings.';
+        case 'forget':
+          final gone = await CoachMemory.forget('${args['note'] ?? ''}');
+          return gone.isEmpty
+              ? 'No remembered note matches that.'
+              : 'Forgot: ${gone.map((g) => '"$g"').join(', ')}.';
+
         // render — checked and filled in by FigureBook; the result is saved
         case 'render':
           final figure = _figures.prepare(args);
@@ -1371,6 +1405,10 @@ class CoachEngine {
       case 'get_app_state': return 'Reading your settings…';
       case 'render': return 'Rendering ${args['type'] ?? 'figure'}…';
       case 'propose_workout': return 'Building your workout…';
+      case 'web_search': return 'Searching the web…';
+      case 'read_web_page': return 'Reading the page…';
+      case 'remember': return 'Remembering that…';
+      case 'forget': return 'Forgetting that…';
       default: return 'Working…';
     }
   }
@@ -1560,6 +1598,29 @@ class CoachEngine {
     _fn('start_workout', 'Start a live workout (asks the user to confirm).', {'type': {'type': 'string'}}),
     _fn('end_workout', 'End the active workout (asks the user to confirm).', {'workout_id': {'type': 'string'}}, ['workout_id']),
     _fn('set_step_goal', 'Set the daily step goal (asks the user to confirm).', {'goal': {'type': 'integer'}}, ['goal']),
+    _fn('web_search',
+        'Search the internet. Use it for anything that is not in their own '
+        'data: population norms and percentiles (VO2 max for an age and sex), '
+        'research, guidelines, sport rules, food facts, recent news. The '
+        'query leaves the phone: keep it generic, never their name or other '
+        'personal details. Returns findings with their sources.',
+        {'query': {'type': 'string', 'description': 'what to look up, in plain words'}},
+        ['query']),
+    _fn('read_web_page',
+        'Read one public web page as text, for a result whose snippet is not '
+        'enough (a table of norms, the numbers in a study).',
+        {'url': {'type': 'string'}}, ['url']),
+    _fn('remember',
+        'Keep a standing note about how they want you to work or about '
+        'themselves, for every later chat and the daily outlook: "no '
+        'emojis", "shorter answers", "training for a marathon in April". '
+        'Call it whenever they ask you to remember something or state a '
+        'lasting preference. One short sentence in the third person.',
+        {'note': {'type': 'string'}}, ['note']),
+    _fn('forget',
+        'Drop a note kept with remember, when they take it back.',
+        {'note': {'type': 'string', 'description': 'the note, or words from it'}},
+        ['note']),
   ];
 }
 

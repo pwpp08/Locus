@@ -3674,8 +3674,9 @@ class _DeltaChip extends StatelessWidget {
               text,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: F.num(F.over)
-                  .copyWith(color: tone, fontWeight: FontWeight.w700),
+              style: F.num(F.over).copyWith(
+                  color: better == true ? p.ink : tone,
+                  fontWeight: FontWeight.w700),
             ),
           ),
         ],

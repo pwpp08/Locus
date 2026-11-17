@@ -39,7 +39,9 @@ import '../../state/app_state.dart';
 import '../ui2.dart';
 import 'ai_briefing.dart';
 import 'coach_figures.dart';
+import 'coach_memory_screen.dart';
 import 'coach_parts.dart';
+import '../profile/profile.dart' show SetDropdown, SetRow, goto, settingsGroup;
 import 'coach_workout.dart';
 import '../../coach/workout_plan.dart';
 import 'home_screen.dart' show go, pad, repoOf;
@@ -290,9 +292,14 @@ class _CoachScreenState extends State<CoachScreen> {
     final text = b.oneLiner == 'Nothing stood out tonight.'
         ? uiText(context, b.oneLiner)
         : b.oneLiner;
+    // The outlook itself opens with its greeting; the one-liner above it is
+    // the home card's. An older, bullets-only one keeps its one-liner.
+    final body = b.breakdownMd.trim();
     engine.seedAnswer(
       'What is my outlook for today?',
-      [text, if (b.breakdownMd.isNotEmpty) b.breakdownMd].join('\n\n'),
+      body.startsWith('Hi')
+          ? body
+          : [text, if (body.isNotEmpty) body].join('\n\n'),
       title: 'Daily Outlook',
     );
     setState(() {
@@ -755,8 +762,21 @@ class _CoachScreenState extends State<CoachScreen> {
           ),
           const SizedBox(height: S.x2),
           Row(children: [
-            Flexible(child: CoachTag(_modelLabel(c, cfg))),
-            const Spacer(),
+            if (widget.outlook == null) ...[
+              Flexible(child: CoachTag(_modelLabel(c, cfg))),
+              const Spacer(),
+            ] else ...[
+              // Two buttons' width on the left too, so the title is centred.
+              const SizedBox(width: S.tap * 2 - S.x2),
+              Expanded(
+                child: Text('DAILY OUTLOOK',
+                    textAlign: TextAlign.center,
+                    style: F.caps.copyWith(
+                        color: C.white,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.6)),
+              ),
+            ],
             _historyButton(c),
             // Things to ask, as the reference keeps them beside History.
             Pressable(
@@ -1887,6 +1907,20 @@ class _CoachSetupState extends State<CoachSetup> {
                     color: kCoachAccent,
                     onTap: _save,
                   ),
+                  settingsGroup(c, 'Outlook and memory', [
+                    SetDropdown(
+                      LucideIcons.sun,
+                      'Outlook length',
+                      [for (final x in OutlookLength.values) x.label],
+                      OutlookLength.current.index,
+                      sub: 'How much the Daily Outlook says',
+                      onChanged: (i) => setState(
+                          () => OutlookLength.set(OutlookLength.values[i])),
+                    ),
+                    SetRow(LucideIcons.brain, C.slate, 'Memory',
+                        sub: 'What the AI was asked to remember',
+                        onTap: () => goto(c, const CoachMemoryScreen())),
+                  ]),
                 ],
               ),
             ),

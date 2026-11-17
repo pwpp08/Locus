@@ -303,7 +303,10 @@ void main() {
       // which period is requested.
       for (final period in BriefingPeriod.values) {
         final sys = briefingSystemPrompt(period).toLowerCase();
-        expect(sys, contains('do not open with a greeting'));
+        // The outlook says hello by name and weekday, which a late read
+        // cannot make wrong; never by the time of day.
+        expect(sys, contains('do not open with a'));
+        expect(sys, contains('time of day'));
         // No "currently <time-of-day>" framing — that's the exact pattern
         // that got baked into the cached text and read stale hours later.
         expect(sys, isNot(contains('currently')));

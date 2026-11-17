@@ -721,7 +721,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                     const SizedBox(width: S.x1),
                     Text('CONFIRMED',
                         style: F.over.copyWith(
-                            color: C.optimal, fontWeight: FontWeight.w800)),
+                            color: p.ink, fontWeight: FontWeight.w800)),
                     const SizedBox(width: S.x3),
                   ],
                   AppSwitch(

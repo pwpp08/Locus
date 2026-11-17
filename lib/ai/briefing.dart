@@ -144,6 +144,10 @@ class BriefingStore {
   static void write(Briefing b) =>
       Prefs.setString(_slotKey(b.period), jsonEncode(b.toJson()));
 
+  /// Forget the stored briefing for [period], so the next open writes one.
+  static void clear(BriefingPeriod period) =>
+      Prefs.setString(_slotKey(period), '');
+
   // ── journal "done for today" (suppresses tonight's pre-sleep nudge) ─────────
 
   static void markJournalDone([String? day]) =>
@@ -151,4 +155,31 @@ class BriefingStore {
 
   static bool journalDoneToday([String? day]) =>
       Prefs.getString(_kJournalDoneDay, '') == (day ?? todayLabel());
+}
+
+/// How long the morning outlook runs. Chosen under AI settings.
+enum OutlookLength {
+  short('Short'),
+  standard('Standard'),
+  detailed('Detailed');
+
+  final String label;
+  const OutlookLength(this.label);
+
+  static const _key = 'ai.outlook_length';
+
+  static OutlookLength get current {
+    final v = Prefs.getString(_key, OutlookLength.standard.name);
+    for (final l in values) {
+      if (l.name == v) return l;
+    }
+    return OutlookLength.standard;
+  }
+
+  /// Keep [l]; today's outlook is written again at that length next time.
+  static void set(OutlookLength l) {
+    if (l == current) return;
+    Prefs.setString(_key, l.name);
+    BriefingStore.clear(BriefingPeriod.morning);
+  }
 }

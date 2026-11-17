@@ -328,7 +328,7 @@ class ImpactHeader extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,
-            style: F.dLabel.copyWith(color: C.optimal)),
+            style: F.dLabel.copyWith(color: DC.ink)),
       ),
       const SizedBox(width: S.x2 + S.hair),
       chip(DC.helpChip, C.optimal, true),
@@ -738,7 +738,7 @@ class BehaviorDetailsScreen extends StatelessWidget {
                       borderRadius: R.rSm),
                   child: Text(v > 0 ? 'Positive' : 'Negative',
                       style: F.dTiny.copyWith(
-                          color: v > 0 ? C.optimal : C.poor,
+                          color: v > 0 ? DC.ink : C.poor,
                           fontWeight: FontWeight.w700)),
                 ),
             ]),

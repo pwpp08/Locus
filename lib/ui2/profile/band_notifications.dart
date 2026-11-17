@@ -302,7 +302,7 @@ class _AppRow extends StatelessWidget {
           const SizedBox(width: S.x2),
           Text(app.on ? (l?.bandNotifBuzzes ?? 'Buzzes') : (l?.stateOff ?? 'Off'),
               style: F.cap.copyWith(
-                  color: app.on ? p.on(C.optimal) : p.ink3,
+                  color: app.on ? p.ink : p.ink3,
                   fontWeight: FontWeight.w600)),
         ]),
       ),

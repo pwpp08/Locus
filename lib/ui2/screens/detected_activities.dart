@@ -67,7 +67,8 @@ Future<bool> identifyDetected(BuildContext c, ActivitySuggestion s) async {
     // The list works without its shortcut.
   }
   if (!c.mounted) return false;
-  final answer = await chooseDetectedActivity(c, recent: recent);
+  final answer = await chooseDetectedActivity(c,
+      recent: recent, guess: activityByName(s.sport));
   if (answer == null || !c.mounted) return false;
   return settleDetected(c, s, answer);
 }
@@ -138,8 +139,11 @@ class _IdentifyActivityScreenState extends State<IdentifyActivityScreen> {
         child: _s != null
             ? ActivityChooser(
                 sleep: false,
-                note: kDetectedNote,
+                note: activityByName(_s!.sport) == null
+                    ? kDetectedNote
+                    : detectedGuessNote(c, activityByName(_s!.sport)!),
                 recent: _recent,
+                guess: activityByName(_s!.sport),
                 onPick: (r) => _answer((activity: r.activity, discard: false)),
                 onDiscard: () => _answer((activity: null, discard: true)),
                 onBack: () => Navigator.of(c).maybePop(),

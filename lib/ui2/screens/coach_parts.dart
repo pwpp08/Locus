@@ -11,38 +11,35 @@ import 'package:gpt_markdown/gpt_markdown.dart';
 
 import '../ui2.dart';
 
-/// The coach's ground: navy at the top into near-black, a violet glow in the
-/// top-left corner. Always dark (the app is).
+/// The coach's ground: warm taupe under the header, through slate and navy,
+/// into the near-black floor. The fall is a fixed [C.coachDusk] deep, so a
+/// short sheet and a tall one start the same way. Always dark (the app is).
 class CoachGround extends StatelessWidget {
   final Widget child;
   const CoachGround({super.key, required this.child});
 
   @override
-  Widget build(BuildContext c) => DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: C.coachNight,
-            stops: C.coachNightStops,
-          ),
-        ),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              // A long, soft falloff: lit in the corner, gone by the middle.
-              center: const Alignment(-1.2, -1.0),
-              radius: 1.6,
-              colors: [
-                C.coachGlow.withValues(alpha: .42),
-                C.coachGlow.withValues(alpha: .14),
-                C.coachGlow.withValues(alpha: 0),
-              ],
-              stops: const [0, .45, 1],
+  Widget build(BuildContext c) => ColoredBox(
+        color: C.coachFloor,
+        child: Stack(children: [
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: C.coachDusk,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: C.coachNight,
+                  stops: C.coachNightStops,
+                ),
+              ),
             ),
           ),
-          child: child,
-        ),
+          child,
+        ]),
       );
 }
 
@@ -88,7 +85,7 @@ class CoachUserBubble extends StatelessWidget {
             borderRadius: R.rXxl,
           ),
           child: Text(text,
-              style: F.head.copyWith(
+              style: F.body.copyWith(
                   color: C.white,
                   fontWeight: FontWeight.w400,
                   height: 1.4)),
@@ -113,15 +110,24 @@ class CoachAnswer extends StatelessWidget {
   @override
   Widget build(BuildContext c) => Padding(
         padding: EdgeInsets.only(bottom: actions ? S.x3 : S.x5),
-        child: Column(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // The coach's mark beside its words, level with the first line.
+          const Padding(
+            padding: EdgeInsets.only(top: S.half),
+            child: AiOrb(size: kCoachAvatar),
+          ),
+          const SizedBox(width: S.x3),
+          Expanded(
+            child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             GptMarkdown(
-              text,
-              style: F.head.copyWith(
-                  color: C.white.withValues(alpha: .92),
+              // Paragraphs sit close, a line apart rather than a blank line.
+              tightParagraphs(text),
+              style: F.body.copyWith(
+                  color: C.white.withValues(alpha: .82),
                   fontWeight: FontWeight.w400,
-                  height: 1.6),
+                  height: 1.35),
             ),
             if (actions)
               // The glyphs sit on the text's left edge; their tap areas
@@ -143,8 +149,34 @@ class CoachAnswer extends StatelessWidget {
               ]),
               ),
           ],
-        ),
+            ),
+          ),
+        ]),
       );
+}
+
+/// The coach's mark beside each answer.
+const double kCoachAvatar = 20;
+
+/// [md] with each run of blank lines folded into one line break, outside
+/// code fences. Tables keep their blank line before them.
+String tightParagraphs(String md) {
+  final out = StringBuffer();
+  var fenced = false;
+  var blank = false;
+  for (final line in md.split('\n')) {
+    if (line.trimLeft().startsWith('```')) fenced = !fenced;
+    if (!fenced && line.trim().isEmpty) {
+      blank = true;
+      continue;
+    }
+    if (out.isNotEmpty) {
+      out.write(blank && line.trimLeft().startsWith('|') ? '\n\n' : '\n');
+    }
+    blank = false;
+    out.write(line);
+  }
+  return out.toString();
 }
 
 class _CopyButton extends StatefulWidget {

@@ -1076,7 +1076,8 @@ class _TrendCardState extends State<TrendCard> {
         ],
         Text(
           w.delta,
-          style: F.cap.copyWith(color: dir, fontWeight: FontWeight.w600),
+          style: F.cap.copyWith(
+              color: j == true ? p.ink : dir, fontWeight: FontWeight.w600),
         ),
       ],
     );
@@ -1933,8 +1934,7 @@ class MetricRow extends StatelessWidget {
     final trailing = status != null
         ? Text(
             status!.toUpperCase(),
-            style: F.caps.copyWith(
-                color: p.on(C.optimal), fontWeight: FontWeight.w800),
+            style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w800),
             textAlign: TextAlign.end,
           )
         : trend == null
@@ -2621,6 +2621,12 @@ class ScreenTitle extends StatelessWidget {
   }
 }
 
+
+/// Words never take the mint green ([C.optimal]): a mark (an icon, a bar, a
+/// triangle) may, the words beside it read in plain ink. [ink] is what the
+/// words would otherwise have been.
+Color textInk(P p, Color accent, Color ink) =>
+    accent == C.optimal ? p.ink : ink;
 /// A small labelled chip. Status, tag, category.
 class Pill extends StatelessWidget {
   final String text;
@@ -2646,7 +2652,8 @@ class Pill extends StatelessWidget {
           Flexible(
             child: Text(
               text,
-              style: F.cap.copyWith(color: ink, fontWeight: FontWeight.w700),
+              style: F.cap.copyWith(
+                  color: textInk(p, color, ink), fontWeight: FontWeight.w700),
               maxLines: wrap ? null : 1,
               overflow: wrap ? TextOverflow.visible : TextOverflow.ellipsis,
             ),
@@ -4057,15 +4064,22 @@ class AppSheet extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
+    // The keyboard: the sheet rises above it, read here in the sheet's own
+    // context so it follows the keyboard as it opens. What is inside sees no
+    // inset, so nothing pads for it a second time.
+    final keyboard = MediaQuery.viewInsetsOf(c).bottom;
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: p.card,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(R.xxl)),
       ),
-      padding: EdgeInsets.fromLTRB(
-          S.gutter, S.x3, S.gutter, S.x5 + MediaQuery.paddingOf(c).bottom),
-      child: Column(
+      padding: EdgeInsets.fromLTRB(S.gutter, S.x3, S.gutter,
+          S.x5 + (keyboard > 0 ? keyboard : MediaQuery.paddingOf(c).bottom)),
+      child: MediaQuery.removeViewInsets(
+        context: c,
+        removeBottom: true,
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -4087,6 +4101,7 @@ class AppSheet extends StatelessWidget {
           Flexible(child: SingleChildScrollView(child: child)),
           for (final a in actions) ...[const SizedBox(height: S.x3), a],
         ],
+        ),
       ),
     );
   }

@@ -17,9 +17,14 @@
 // to narrate the thing it measures out of whatever else it was handed, and this
 // file already documents that happening (see [readinessBand]).
 
+import 'dart:convert';
+
 import '../coach/coach_config.dart';
+import '../coach/coach_db.dart';
 import '../coach/coach_engine.dart';
+import '../coach/coach_memory.dart';
 import '../data/day_label.dart';
+import '../data/db.dart';
 import '../data/local_repository.dart';
 import '../models/metric.dart' show whyFromNote;
 import '../models/payloads.dart' show todayHeadlineOf;
@@ -167,6 +172,7 @@ Future<Map<String, dynamic>> collectBriefingInputs(
         withheld.add('wake_time');
       }
     }
+    out.addAll(await _outlookContext(repo, t, now ?? DateTime.now()));
     if (withheld.isNotEmpty) out[kWithheldKey] = withheld;
   } else {
     // The evening pass is the nightly SWEEP, not a recap. It used to hand over
@@ -181,6 +187,107 @@ Future<Map<String, dynamic>> collectBriefingInputs(
     );
   }
   return out;
+}
+
+/// Inputs that say who the outlook is for and which day, not what was
+/// measured.
+const kOutlookContextKeys = {'weekday', 'first_name'};
+
+const _weekdays = [
+  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+];
+
+/// What turns last night's numbers into an outlook: who it is for, what is
+/// usual for them, what they did yesterday and what today asks of them. Each
+/// piece is left out when it cannot be read; none is ever filled in.
+Future<Map<String, dynamic>> _outlookContext(
+  LocalRepository repo,
+  Map<String, dynamic> today,
+  DateTime now,
+) async {
+  final out = <String, dynamic>{};
+  final day = todayLabel(now);
+  out['weekday'] = _weekdays[now.weekday - 1];
+  try {
+    final name = (await repo.getProfile())['name'];
+    if (name is String && name.trim().isNotEmpty) {
+      out['first_name'] = name.trim().split(RegExp(r'\s+')).first;
+    }
+  } catch (_) {}
+
+  // Their own 30-day averages, before today, once there are a week of them.
+  Future<void> usual(String key, String series, int dp) async {
+    try {
+      final v = await LocalDb.trailingSeriesValues(series, 30, before: day);
+      if (v.length < 7) return;
+      _put(out, key, v.reduce((a, b) => a + b) / v.length, round: dp);
+    } catch (_) {}
+  }
+
+  await usual('usual_recovery_30d', 'readiness', 0);
+  await usual('usual_hrv_30d', 'rmssd', 0);
+  await usual('usual_resting_hr_30d', 'rhr', 0);
+  await usual('usual_sleep_min_30d', 'tst_min', 0);
+  await usual('usual_strain_30d', 'strain', 1);
+
+  // Yesterday: the day's strain and steps, and each workout.
+  final y = todayLabel(DateTime(now.year, now.month, now.day - 1, 12));
+  try {
+    List<Map<String, Object?>> rows = const [];
+    await CoachDb.runCoachSql(
+        "SELECT strain, steps FROM v_daily WHERE date='$y'",
+        onRows: (r) => rows = r);
+    if (rows.isNotEmpty) {
+      _put(out, 'yesterday_strain', _num(rows.first['strain']), round: 1);
+      _put(out, 'yesterday_steps', _num(rows.first['steps']), round: 0);
+    }
+  } catch (_) {}
+  try {
+    List<Map<String, Object?>> rows = const [];
+    await CoachDb.runCoachSql(
+        'SELECT type, duration_min, strain, zone_min_json FROM v_sessions '
+        "WHERE date='$y' ORDER BY start_ts",
+        onRows: (r) => rows = r);
+    final workouts = <String>[];
+    for (final r in rows.take(6)) {
+      final mins = _num(r['duration_min'])?.round();
+      final strain = _num(r['strain']);
+      final zones = _zoneText(r['zone_min_json']);
+      workouts.add([
+        '${r['type'] ?? 'workout'}',
+        if (mins != null) '$mins min',
+        if (strain != null) 'strain ${strain.toStringAsFixed(1)}',
+        if (zones != null) 'minutes in zones 1-5: $zones',
+      ].join(', '));
+    }
+    if (workouts.isNotEmpty) out['yesterday_workouts'] = workouts;
+  } catch (_) {}
+
+  // Today's strain target, as Home shows it.
+  final coach = _map(today['coach']);
+  final target = _map(coach?['strain_target']);
+  final lo = _num(target?['low']), hi = _num(target?['high']);
+  if (lo != null && hi != null && hi > lo) {
+    out['strain_target_today'] =
+        '${lo.toStringAsFixed(1)}-${hi.toStringAsFixed(1)}';
+  }
+  return out;
+}
+
+/// "2/10/15/5/0" from a session's zone minutes, or null.
+String? _zoneText(Object? raw) {
+  try {
+    final j = raw is String ? jsonDecode(raw) : raw;
+    final list = j is List
+        ? j
+        : j is Map
+            ? [for (var z = 1; z <= 5; z++) j['$z'] ?? j['z$z'] ?? 0]
+            : null;
+    if (list == null || list.length < 5) return null;
+    return list.take(5).map((m) => (_num(m) ?? 0).round()).join('/');
+  } catch (_) {
+    return null;
+  }
 }
 
 /// The metrics the sweep looks at, keyed by the name [LocalRepository.getChart]
@@ -350,40 +457,78 @@ String _sweepSystemPrompt() =>
         'Then 2-3 markdown bullet points (each starting with "- "), max 14 '
         'words each. One fact or one action per bullet, nothing else.';
 
-String briefingSystemPrompt(BriefingPeriod period) {
-  if (period == BriefingPeriod.evening) return _sweepSystemPrompt();
-  const scope =
-      'last night\'s sleep and recovery, and what they mean for the day ahead';
-  return 'You write a health briefing for a local-first fitness band app. '
-      'Summarize $scope.\n'
-      'HARD RULES:\n'
-      '- Do NOT open with a greeting or any reference to the time of day — '
-      'the app shows its own greeting separately, computed at the moment the '
-      'reader actually opens it, and this text may be read hours after it was '
-      'written. Start straight with the substance.\n'
-      '- Use ONLY the numbers provided. Never invent, estimate or mention a '
-      'metric that is not in the data. No medical advice or diagnosis.\n'
-      '- Anything under "withheld" was REFUSED by the measurement layer, not '
-      'merely forgotten. You may say it is unavailable and give the reason '
-      'shown, and nothing else: never a value, never a range, never a '
-      'direction, never a quality word for what it measures — and never '
-      'reasoned out of the numbers you WERE given. Calling recovery strong '
-      'while readiness is withheld IS stating the withheld number.\n'
-      '- If a "readiness" value is given, its parenthesized band label '
-      '(low / moderate / good) is AUTHORITATIVE for tone: a low or moderate '
-      'band must never be described as strong, solid or good recovery, even '
-      'if individual sub-metrics (HRV, RHR) look fine in isolation.\n'
-      '- The app calls the readiness score "recovery". Write "recovery", '
-      'never "readiness"; say "HRV", never RMSSD; "your usual", never '
-      '"baseline".\n'
-      '- Warm, direct, second person. No emojis. No headers.\n'
-      'OUTPUT FORMAT (exactly):\n'
-      'Line 1: one plain-text sentence, max 140 characters — the whole story '
-      'at a glance. No markdown.\n'
-      'Line 2: ---\n'
-      'Then 3-5 markdown bullet points (each starting with "- "), max 14 words '
-      'each, one glanceable fact or gentle nudge per bullet, grounded in the '
-      'numbers. No filler openers ("It\'s worth noting", "Additionally").';
+String briefingSystemPrompt(
+  BriefingPeriod period, {
+  OutlookLength length = OutlookLength.standard,
+  List<String> notes = const [],
+}) {
+  final memory = CoachMemory.promptSection(notes);
+  if (period == BriefingPeriod.evening) {
+    return [_sweepSystemPrompt(), if (memory.isNotEmpty) memory].join('\n\n');
+  }
+  final body = switch (length) {
+    OutlookLength.short =>
+      'About 90-130 words in all: the greeting lines, one short paragraph on '
+          'what last night means for today, then a "Key insights" line with two '
+          'bullets.',
+    OutlookLength.standard =>
+      'About 220-300 words in all: the greeting lines; a short paragraph on '
+          'what last night means for today; a paragraph on yesterday\'s '
+          'activity if any was given; then a "Key insights" line with three '
+          'bullets of one or two sentences each; then a "Today" line with one or '
+          'two bullets of concrete things to do.',
+    OutlookLength.detailed =>
+      'About 400-550 words in all: the greeting lines; a paragraph on what '
+          'last night means for today; a paragraph on yesterday\'s activity if '
+          'any was given; a "Key insights" line with four or five bullets of two '
+          'sentences each, sleep stages included where given; a "Today" line '
+          'with two or three bullets of concrete things to do, timed where '
+          'it helps; and one closing sentence on tonight\'s sleep.',
+  };
+  return [
+    'You write the Daily Outlook for a local-first fitness band app: a '
+        'morning read on last night\'s sleep and recovery, how they compare '
+        'with this person\'s usual, what yesterday\'s activity did, and what to '
+        'do with today.',
+    'HARD RULES:\n'
+        '- Do not open with a time-of-day greeting or any reference to the '
+        'time of day (no part of the day in a greeting, no "this afternoon"): '
+        'the text can be '
+        'read hours after it was written. Open with "Hi <first_name>," on its '
+        'own line ("Hi," when no first_name is given), then one short line '
+        'naming the weekday ("Happy Wednesday!"). Never mention weather: you '
+        'were not given any.\n'
+        '- Use ONLY the numbers provided. Never invent, estimate or mention a '
+        'metric that is not in the data. No medical advice or diagnosis.\n'
+        '- Anything under "withheld" was REFUSED by the measurement layer, not '
+        'merely forgotten. You may say it is unavailable and give the reason '
+        'shown, and nothing else: never a value, never a range, never a '
+        'direction, never a quality word for what it measures — and never '
+        'reasoned out of the numbers you WERE given. Calling recovery strong '
+        'while readiness is withheld IS stating the withheld number.\n'
+        '- If a "readiness" value is given, its parenthesized band label '
+        '(low / moderate / good) is AUTHORITATIVE for tone: a low or moderate '
+        'band must never be described as strong, solid or good recovery, even '
+        'if individual sub-metrics (HRV, RHR) look fine in isolation.\n'
+        '- Compare with their usual wherever a "usual_…_30d" value is given '
+        '("**95 ms**, below your 30-day average of **121 ms**"). Bold every '
+        'number.\n'
+        '- A strain_target_today is the range their recovery supports today; '
+        'a recommendation that adds training should land in it. Suggest a '
+        'specific activity and length, never a strain number of your own.\n'
+        '- The app calls the readiness score "recovery". Write "recovery", '
+        'never "readiness"; say "HRV", never RMSSD.\n'
+        '- Warm, direct, second person. No emojis unless their notes ask for '
+        'them. No "##" headings and no bold section names: a section name '
+        'is a plain line of its own.',
+    'OUTPUT FORMAT (exactly):\n'
+        'Line 1: one plain-text sentence, max 140 characters — the whole story '
+        'at a glance, for a card on the home screen. No markdown, no '
+        'greeting.\n'
+        'Line 2: ---\n'
+        'Then the outlook itself, in markdown. $body',
+    if (memory.isNotEmpty) memory,
+  ].join('\n');
 }
 
 String buildBriefingUserPrompt(
@@ -407,21 +552,22 @@ String buildBriefingUserPrompt(
   // metric as the word "null" or as the store's em-dash placeholder
   // (`local_repository_impl._scalarMetric` writes `value: v ?? '—'`), and
   // either one is a refused metric arriving in the prompt looking like data.
-  final measured = inputs.keys.where((k) =>
+  final present = inputs.keys.where((k) =>
       k != kWithheldKey && inputs[k] != null && inputs[k] != '—');
-  if (measured.isEmpty) {
+  // Who it is for and which day are not measurements: alone, they are
+  // still "nothing yet".
+  if (present.every(kOutlookContextKeys.contains)) {
     b.writeln('(no metrics available yet)');
-  } else {
-    for (final k in measured) {
-      final v = inputs[k];
-      if (k == 'readiness' && v is num) {
-        // Inject the band label the model must treat as authoritative (see
-        // the system prompt) — a bare "readiness: 16" otherwise reads as
-        // just another number and gets free-associated a positive tone.
-        b.writeln('$k: $v (${readinessBand(v)})');
-      } else {
-        b.writeln(v is List ? '$k: ${v.join(', ')}' : '$k: $v');
-      }
+  }
+  for (final k in present) {
+    final v = inputs[k];
+    if (k == 'readiness' && v is num) {
+      // Inject the band label the model must treat as authoritative (see
+      // the system prompt) — a bare "readiness: 16" otherwise reads as
+      // just another number and gets free-associated a positive tone.
+      b.writeln('$k: $v (${readinessBand(v)})');
+    } else {
+      b.writeln(v is List ? '$k: ${v.join('; ')}' : '$k: $v');
     }
   }
   // Last, under its own header, so the rule in the system prompt has something
@@ -521,7 +667,8 @@ class BriefingEngine {
         (({required String system, required String user}) =>
             CoachEngine.completeText(
                 config: config, system: system, user: user)))(
-      system: briefingSystemPrompt(period),
+      system: briefingSystemPrompt(period,
+          length: OutlookLength.current, notes: await CoachMemory.all()),
       user: buildBriefingUserPrompt(period, day, inputs, tod),
     );
     if (raw.trim().isEmpty) {

@@ -1732,13 +1732,13 @@ class _LiveStrengthState extends State<LiveStrength> {
             child: open == null
                 ? Text(label.toUpperCase(),
                     style: F.caps.copyWith(
-                        color: C.optimal, fontWeight: FontWeight.w800))
+                        color: C.white, fontWeight: FontWeight.w800))
                 : LiveTick((_, _) {
                     final s = DateTime.now().difference(open).inSeconds;
                     return Text(
                         '${label.toUpperCase()} · ${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}',
                         style: F.caps.copyWith(
-                            color: C.optimal, fontWeight: FontWeight.w800));
+                            color: C.white, fontWeight: FontWeight.w800));
                   }),
           ),
         ),

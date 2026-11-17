@@ -189,15 +189,23 @@ class C {
   static const coachEdgeA = Color(0xFF7E57C2);
   static const coachEdgeB = Color(0xFF3FA7B5);
 
-  /// The coach's ground, top to bottom: deep navy under the header into
-  /// near-black at the composer, with [coachGlow] lit at the top left.
+  /// The coach's ground, top to bottom over [coachDusk] points: a warm
+  /// taupe under the header through grey and slate into navy, settling on
+  /// [coachFloor] for the rest of the sheet.
   static const coachNight = [
-    Color(0xFF12141E),
-    Color(0xFF0B0C11),
-    Color(0xFF09090C),
+    Color(0xFF7E7161),
+    Color(0xFF575958),
+    Color(0xFF3C4751),
+    Color(0xFF243440),
+    Color(0xFF161F25),
+    coachFloor,
   ];
-  static const coachNightStops = [0.0, 0.4, 1.0];
-  static const coachGlow = Color(0xFF4A3A8F);
+  static const coachNightStops = [0.0, 0.3, 0.5, 0.68, 0.86, 1.0];
+  static const coachFloor = Color(0xFF101518);
+
+  /// How far down the coach's ground keeps changing before it is all
+  /// [coachFloor].
+  static const coachDusk = 420.0;
 
   /// The composer's field and the coach's cards: one step above the ground.
   static const coachField = Color(0xFF12141D);

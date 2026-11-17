@@ -473,7 +473,7 @@ class HomeSyncBar extends StatelessWidget {
   Widget build(BuildContext c) {
     final (word, tone) = switch (state) {
       SyncBarState.catchingUp => ('DATA CATCHING UP', C.amber),
-      SyncBarState.caughtUp => ('DATA CAUGHT UP', C.optimal),
+      SyncBarState.caughtUp => ('DATA CAUGHT UP', DC.ink),
       SyncBarState.behind => ('DATA NOT UP TO DATE', DC.ink2),
     };
     final caps = F.dLabel.copyWith(color: DC.pure);

@@ -537,8 +537,8 @@ class _StrengthWorkoutScreenState extends State<StrengthWorkoutScreen> {
                 child: Text('START WORKOUT',
                     style: F.body.copyWith(
                         color: _ex.isEmpty
-                            ? C.optimal.withValues(alpha: .4)
-                            : C.optimal,
+                            ? C.white.withValues(alpha: .4)
+                            : C.white,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.6)),
               ),

@@ -86,19 +86,27 @@ const kDetectedNote =
     "We picked up an activity but couldn't tell which one. Name it and we'll "
     'recognize it better next time.';
 
+/// What the note says when the detector has a guess.
+String detectedGuessNote(BuildContext c, Activity guess) =>
+    'This looks like ${guess.displayName(c).toLowerCase()}. Confirm it, or '
+    "pick what it was and we'll recognize it better next time.";
+
 /// The activity list for a detected workout: straight to the question, the
-/// last thing logged first. Null when it was closed.
+/// detector's [guess] first, then the last thing logged. Null when it was
+/// closed.
 Future<DetectedAnswer?> chooseDetectedActivity(
   BuildContext c, {
   Activity? recent,
+  Activity? guess,
 }) => AppSheet.open<DetectedAnswer>(
   c,
   builder: (sheet) => _SheetFrame(
     compact: true,
     child: ActivityChooser(
       sleep: false,
-      note: kDetectedNote,
+      note: guess == null ? kDetectedNote : detectedGuessNote(c, guess),
       recent: recent,
+      guess: guess,
       onPick: (r) =>
           Navigator.of(sheet).pop((activity: r.activity, discard: false)),
       onDiscard: () =>
@@ -690,6 +698,9 @@ class ActivityChooser extends StatefulWidget {
   final String? note;
   final Activity? recent;
 
+  /// The detector's own reading of the bout, above [recent].
+  final Activity? guess;
+
   /// With [note]: a bin in the corner, for what was not an activity at all.
   final VoidCallback? onDiscard;
 
@@ -701,6 +712,7 @@ class ActivityChooser extends StatefulWidget {
     this.close = false,
     this.note,
     this.recent,
+    this.guess,
     this.onDiscard,
   });
 
@@ -810,9 +822,23 @@ class _ActivityChooserState extends State<ActivityChooser> {
     final pinned = sleepTab ? const [] : sleeps;
     final empty = sleepTab ? sleeps.isEmpty : items.isEmpty && pinned.isEmpty;
     // The detected form's list opens with these, and they scroll with it.
-    final recent = widget.recent;
+    final guess = widget.guess;
+    final recent =
+        widget.recent?.typeKey == guess?.typeKey ? null : widget.recent;
     final head = <Widget>[
       if (_detected) ...[
+        if (guess != null && q.isEmpty) ...[
+          _detectedRule(p, 'BEST GUESS'),
+          const SizedBox(height: PH.ruleToPick),
+          _row(
+            c,
+            p,
+            guess.icon,
+            guess.displayName(c),
+            () => widget.onPick((activity: guess, sleep: null)),
+          ),
+          const SizedBox(height: PH.pickToRule),
+        ],
         if (recent != null && q.isEmpty) ...[
           _detectedRule(p, 'MOST RECENT'),
           const SizedBox(height: PH.ruleToPick),

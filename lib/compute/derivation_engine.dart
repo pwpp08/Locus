@@ -81,6 +81,7 @@ import 'step_cadence.dart';
 import 'strain_peak.dart' show peakStrain;
 import 'whoop_scores.dart'
     show kWhoopMuscularTypes, whoopLoadForStrain, whoopMuscularLoad, whoopStrainFromLoad;
+import 'activity_classifier.dart';
 import 'movement_bouts.dart';
 import 'profile.dart';
 import 'substrate.dart';
@@ -5632,6 +5633,7 @@ class DerivationEngine {
               r['start_ts'] as int,
               r['end_ts'] as int,
               cadenceSpm: (r['cadence_spm'] as num?)?.toDouble(),
+              maxHr: (r['max_hr'] as num?)?.toInt(),
             ),
       ];
 
@@ -10041,6 +10043,44 @@ class DerivationEngine {
           : double.parse(
               (taus.reduce((a, c) => a + c) / taus.length).toStringAsFixed(1));
 
+      // What each bout most likely was, for the suggestion the person
+      // answers: from cadence, the wrist, the heart's pattern and their own
+      // kept sessions (activity_classifier.dart). The day bundle above keeps
+      // the detector's own label; only the question changes.
+      final counterMin = stepsPerMinute(s.tsSec, s.stepCount);
+      final stepsMin =
+          counterMin.isNotEmpty ? counterMin : stepsPerMinuteFromSpans(stepSpans);
+      final ceiling = maxHr ?? ana.AutoWorkoutDetector.defaultMaxHR;
+      final kept = [
+        for (final h in habits)
+          KeptSession(
+            h.sport,
+            h.startSec,
+            h.endSec,
+            cadenceSpm: h.cadenceSpm,
+            hrrPeak: rhr == null || h.maxHr == null || ceiling <= rhr
+                ? null
+                : (h.maxHr! - rhr) / (ceiling - rhr),
+          ),
+      ];
+      String typed(ana.DetectedWorkout b) {
+        if (rhr == null) return b.sport;
+        final f = boutFeatures(
+          tsSec: s.tsSec,
+          hr: s.hr,
+          startSec: b.startSec,
+          endSec: b.endSec,
+          restingBpm: rhr,
+          maxBpm: ceiling,
+          ax: s.ax,
+          ay: s.ay,
+          az: s.az,
+          accelAt: s.accelPresentAt,
+          stepsPerMin: stepsMin,
+        );
+        return f == null ? b.sport : classifyBout(f, kept);
+      }
+
       // The DB-owning layer applies the activation cutoff and alert policy.
       final toPersist = <Map<String, dynamic>>[];
       // ONE definition of the row id. The notification checks the table by it
@@ -10057,7 +10097,7 @@ class DerivationEngine {
             'avg_bpm': b.avgBpm,
             'peak_bpm': b.peakBpm,
             'duration_min': b.durationMin,
-            'sport': b.sport,
+            'sport': typed(b),
             'dismissed': 0,
           });
         }

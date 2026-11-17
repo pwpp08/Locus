@@ -196,7 +196,8 @@ class ReadingVerdict extends StatelessWidget {
           DeltaTriangle(up: side == Side.above, color: ink, size: S.x3),
         Text(
           usualWord(l, side),
-          style: F.cap.copyWith(color: ink, fontWeight: FontWeight.w600),
+          style: F.cap.copyWith(
+              color: good == true ? p.ink : ink, fontWeight: FontWeight.w600),
         ),
         if (detail.isNotEmpty)
           Text('· $detail', style: F.cap.copyWith(color: p.ink3)),

@@ -126,7 +126,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                     child: Column(children: [
                       _Row('Installed',
                           svc.currentBuild.isEmpty ? '--' : svc.currentBuild),
-                      _Row('New', r.label, tone: C.optimal),
+                      _Row('New', r.label),
                       if (published != null)
                         _Row('Published',
                             formatDayTime(published, AppLocalizations.of(c))),
@@ -206,9 +206,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
 /// value flush right.
 class _Row extends StatelessWidget {
   final String label, value;
-  final Color tone;
   final bool last;
-  const _Row(this.label, this.value, {this.tone = DC.ink, this.last = false});
+  const _Row(this.label, this.value, {this.last = false});
 
   @override
   Widget build(BuildContext c) => Container(
@@ -224,7 +223,7 @@ class _Row extends StatelessWidget {
           Expanded(
             child: Text(value,
                 textAlign: TextAlign.right,
-                style: F.dText.copyWith(color: tone, fontWeight: FontWeight.w600)),
+                style: F.dText.copyWith(color: DC.ink, fontWeight: FontWeight.w600)),
           ),
         ]),
       );

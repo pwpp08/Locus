@@ -146,8 +146,121 @@ List<MovementBout> detectMovementBouts({
               az: az,
               excluded: excluded)
           case final r when r.endSec - r.startSec >= kMovementMinMinutes * 60)
-        r,
+        ...splitByGait(r, perMin),
   ];
+}
+
+/// The shortest stretch of one gait (minutes) that becomes a bout of its
+/// own when a walk turns into a run, or back.
+const int kGaitMinMinutes = 10;
+
+/// [b] as one bout per sustained gait. Each minute's cadence is read as
+/// walking or running, and the sequence is smoothed with a two-state hidden
+/// Markov model (Viterbi): changing gait is rare, so a single fast minute in
+/// a walk, or a walk break in a run, does not flip the label. A stretch of
+/// one gait at least [kGaitMinMinutes] long, with another on either side of
+/// it, is split off; otherwise the bout keeps one label, its majority.
+List<MovementBout> splitByGait(MovementBout b, Map<int, int> perMin) {
+  final m0 = b.startSec ~/ 60, m1 = (b.endSec - 1) ~/ 60;
+  final minutes = [
+    for (var m = m0; m <= m1; m++)
+      if (perMin[m] case final s? when s >= kWalkMinSpm) m,
+  ];
+  if (minutes.length < 2) return [b];
+  final run = gaitPath([for (final m in minutes) perMin[m]!.toDouble()]);
+  // Runs of one state, in minutes.
+  final segs = <(int from, int to, bool run)>[];
+  var from = 0;
+  for (var i = 1; i <= run.length; i++) {
+    if (i == run.length || run[i] != run[from]) {
+      segs.add((from, i - 1, run[from]));
+      from = i;
+    }
+  }
+  // Fold a short stretch into the one before it (or after, at the start).
+  final merged = <(int, int, bool)>[];
+  for (final s in segs) {
+    final len = minutes[s.$2] - minutes[s.$1] + 1;
+    if (merged.isNotEmpty && len < kGaitMinMinutes) {
+      final last = merged.removeLast();
+      merged.add((last.$1, s.$2, last.$3));
+    } else if (merged.isNotEmpty && merged.last.$3 == s.$3) {
+      final last = merged.removeLast();
+      merged.add((last.$1, s.$2, s.$3));
+    } else {
+      merged.add(s);
+    }
+  }
+  if (merged.length > 1) {
+    final firstLen = minutes[merged.first.$2] - minutes[merged.first.$1] + 1;
+    if (firstLen < kGaitMinMinutes) {
+      final a = merged.removeAt(0), c = merged.removeAt(0);
+      merged.insert(0, (a.$1, c.$2, c.$3));
+    }
+  }
+  String label(int i0, int i1) {
+    var runs = 0;
+    for (var i = i0; i <= i1; i++) {
+      if (run[i]) runs++;
+    }
+    return runs * 2 > i1 - i0 + 1 ? 'running' : 'walking';
+  }
+
+  if (merged.length == 1) {
+    return [
+      MovementBout(
+          startSec: b.startSec,
+          endSec: b.endSec,
+          steps: b.steps,
+          sport: label(0, run.length - 1)),
+    ];
+  }
+  final out = <MovementBout>[];
+  for (var k = 0; k < merged.length; k++) {
+    final (i0, i1, _) = merged[k];
+    final start = k == 0 ? b.startSec : minutes[i0] * 60;
+    final end = k == merged.length - 1 ? b.endSec : (minutes[i1] + 1) * 60;
+    var steps = 0;
+    for (var m = start ~/ 60; m * 60 < end; m++) {
+      steps += perMin[m] ?? 0;
+    }
+    out.add(MovementBout(
+        startSec: start, endSec: end, steps: steps, sport: label(i0, i1)));
+  }
+  return out;
+}
+
+/// The most likely walk (false) / run (true) sequence for per-minute
+/// cadences: a two-state Viterbi with Gaussian emissions (walking around
+/// 110 spm, running around 160) and a sticky transition.
+List<bool> gaitPath(List<double> spm) {
+  const stay = .95;
+  final logStay = math.log(stay), logMove = math.log(1 - stay);
+  double emit(double x, bool run) {
+    final mean = run ? 160.0 : 110.0, sd = run ? 15.0 : 20.0;
+    final z = (x - mean) / sd;
+    return -0.5 * z * z - math.log(sd);
+  }
+
+  final n = spm.length;
+  final score = List.generate(n, (_) => [0.0, 0.0]);
+  final back = List.generate(n, (_) => [0, 0]);
+  score[0] = [emit(spm[0], false), emit(spm[0], true)];
+  for (var i = 1; i < n; i++) {
+    for (var s = 0; s < 2; s++) {
+      final fromSame = score[i - 1][s] + logStay;
+      final fromOther = score[i - 1][1 - s] + logMove;
+      back[i][s] = fromSame >= fromOther ? s : 1 - s;
+      score[i][s] = math.max(fromSame, fromOther) + emit(spm[i], s == 1);
+    }
+  }
+  final path = List<bool>.filled(n, false);
+  var s = score[n - 1][1] > score[n - 1][0] ? 1 : 0;
+  for (var i = n - 1; i >= 0; i--) {
+    path[i] = s == 1;
+    s = back[i][s];
+  }
+  return path;
 }
 
 /// Seconds either side of a coarse edge searched for the real one: a slice.
@@ -319,10 +432,14 @@ List<MovementBout> _coarseBouts(
 
 /// One kept session, as the habits need it.
 class HabitSession {
-  const HabitSession(this.sport, this.startSec, this.endSec, {this.cadenceSpm});
+  const HabitSession(this.sport, this.startSec, this.endSec,
+      {this.cadenceSpm, this.maxHr});
   final String sport;
   final int startSec, endSec;
   final double? cadenceSpm;
+
+  /// The session's highest heart rate, when it was scored.
+  final int? maxHr;
 }
 
 /// When and how the user moves, from the sessions they kept.

@@ -176,15 +176,17 @@ class HomeMyDay extends StatelessWidget {
       ));
     }
     for (final s in detected) {
+      // The detector's guess, asked rather than told: "Running?".
+      final guess = activityByName(s.sport);
       items.add((
         start: s.startTs,
         widget: HomeActivityRow(
           color: C.blockSession,
-          icon: kUnknownActivityIcon,
+          icon: guess?.icon ?? kUnknownActivityIcon,
           // No strain yet: that is scored when it is named. Its length is
           // what is known.
           value: hMinutes(s.durationMin),
-          name: 'Activity',
+          name: guess == null ? 'Activity' : '${guess.name}?',
           start: s.startTs,
           end: s.endTs,
           day: day,

@@ -1295,9 +1295,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     final ok = await AppSheet.show<bool>(
       context,
       title: title,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-        child: Row(children: [
+      child: Row(children: [
           Expanded(
             child: AppField(
               controller: draft,
@@ -1312,7 +1310,6 @@ class _EditProfileViewState extends State<EditProfileView> {
             Text(unit, style: F.body.copyWith(color: P.of(context).ink2)),
           ],
         ]),
-      ),
       actions: [
         Builder(
           builder: (s) => BigButton('Done',
@@ -1403,7 +1400,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                   onTap: _save,
                   child: Text(l?.actionSave ?? 'Save',
                       style: F.body.copyWith(
-                          color: p.on(C.optimal), fontWeight: FontWeight.w600)),
+                          color: p.ink, fontWeight: FontWeight.w600)),
                 )),
           ),
           Expanded(
