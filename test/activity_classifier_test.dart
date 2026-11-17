@@ -59,16 +59,22 @@ void main() {
   });
 
   test('sets and rests read as weight training', () {
-    // Two minutes of work (heart up, wrist busy), two of rest.
+    // Two minutes of work (heart up, wrist busy), one of rest (wrist still):
+    // the wrist is still about a third of the time, as in a logged session.
     final b = _bout(
       tuesday6pm,
-      40,
-      (s) => (s ~/ 120).isEven ? 100 + (s % 120) ~/ 4 : 130 - (s % 120) ~/ 4,
-      (s) => (s ~/ 120).isEven ? .6 : .02,
+      45,
+      (s) => s % 180 < 120 ? 105 + (s % 180) ~/ 6 : 125 - (s % 180 - 120) ~/ 3,
+      (s) => s % 180 < 120 ? .4 : .02,
     );
     final f = _features(b);
-    expect(f.swingsPer10Min, greaterThan(1.5));
+    expect(f.stillShare, closeTo(1 / 3, .05));
     expect(genericSport(f), 'weight_training');
+  });
+
+  test('a wrist that never rests, without steps, stays unnamed', () {
+    final b = _bout(tuesday6pm, 30, (_) => 150, (_) => .5);
+    expect(genericSport(_features(b)), kUnknownSport);
   });
 
   test('an unclear bout stays unnamed', () {
@@ -155,6 +161,69 @@ void main() {
       final out = splitByGait(whole(33), perMin(spm));
       expect(out, hasLength(1));
       expect(out.single.sport, 'running');
+    });
+  });
+
+  group('edges', () {
+    // 10 min sitting (70), 4 min walking the bike out (105), a 15 min ride
+    // (150), then the recovery tail and rest.
+    final t0 = tuesday6pm;
+    final ts = <int>[], hr = <int>[];
+    final rideStart = t0 + 14 * 60, rideEnd = rideStart + 15 * 60;
+    for (var t = t0; t < rideEnd + 20 * 60; t++) {
+      ts.add(t);
+      int bpm;
+      if (t < t0 + 10 * 60) {
+        bpm = 70;
+      } else if (t < rideStart) {
+        bpm = 105;
+      } else if (t < rideEnd) {
+        bpm = 150;
+      } else {
+        // Recovery: halves the way to 80 every 45 s.
+        bpm = (80 + 70 * math.pow(.5, (t - rideEnd) / 45)).round();
+      }
+      hr.add(bpm);
+    }
+
+    test('a ride starts at the ride, not at the walk to the bike', () {
+      // The floor crossing a detector would make: in the walk, and in the
+      // recovery tail.
+      final (s, e) = refineWorkoutEdges(
+          tsSec: ts, hr: hr, startSec: rideStart - 180, endSec: rideEnd + 150);
+      expect((s - rideStart).abs(), lessThan(60));
+      expect((e - rideEnd).abs(), lessThan(60));
+    });
+
+    test('an edge never moves into a logged session', () {
+      final (s, _) = refineWorkoutEdges(
+          tsSec: ts,
+          hr: hr,
+          startSec: rideStart - 180,
+          endSec: rideEnd + 150,
+          excluded: [
+            [rideStart - 60, rideStart + 60],
+          ]);
+      expect(s, rideStart - 180);
+    });
+
+    test('sets and rests never start later than the detector said', () {
+      final (s, _) = refineWorkoutEdges(
+          tsSec: ts,
+          hr: hr,
+          startSec: rideStart - 180,
+          endSec: rideEnd + 150,
+          interval: true);
+      expect(s, lessThanOrEqualTo(rideStart - 180));
+    });
+
+    test('without heart rate around it, the bout is left as it was', () {
+      final (s, e) = refineWorkoutEdges(
+          tsSec: ts.sublist(14 * 60, 29 * 60),
+          hr: hr.sublist(14 * 60, 29 * 60),
+          startSec: rideStart,
+          endSec: rideEnd);
+      expect((s, e), (rideStart, rideEnd));
     });
   });
 }

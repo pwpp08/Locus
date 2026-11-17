@@ -10087,21 +10087,38 @@ class DerivationEngine {
       // and opens the screen on it, so a second copy of the format here would
       // drift into a prompt that silently never fires again.
       String sugId(int startSec) => '$date:$startSec';
+      // Each bout's edges, moved off the detector's floor crossings onto
+      // where the effort began and ended (activity_classifier.dart). The id
+      // stays on the detector's start, so a re-derive finds the same row.
+      final refined = <List<int>>[];
       if (bouts.isNotEmpty) {
         for (final b in bouts) {
+          final sport = typed(b);
+          final (start, end) = refineWorkoutEdges(
+            tsSec: s.tsSec,
+            hr: s.hr,
+            startSec: b.startSec,
+            endSec: b.endSec,
+            interval: kIntervalSports.contains(sport),
+            excluded: [
+              for (final sp in savedSpans) [sp.startSec, sp.endSec],
+              for (final o in bouts)
+                if (!identical(o, b)) [o.startSec, o.endSec],
+            ],
+          );
+          refined.add([start, end]);
           toPersist.add({
             'id': sugId(b.startSec),
             'date': date,
-            'start_ts': b.startSec,
-            'end_ts': b.endSec,
+            'start_ts': start,
+            'end_ts': end,
             'avg_bpm': b.avgBpm,
             'peak_bpm': b.peakBpm,
-            'duration_min': b.durationMin,
-            'sport': typed(b),
+            'duration_min': (end - start) ~/ 60,
+            'sport': sport,
             'dismissed': 0,
           });
         }
-
       }
       // Walks and runs off the band's step counter — the bouts an elevated
       // heart rate never flags. Outside every logged session and HR bout.
@@ -10116,6 +10133,7 @@ class DerivationEngine {
         excluded: [
           for (final sp in savedSpans) [sp.startSec, sp.endSec],
           for (final b in bouts) [b.startSec, b.endSec],
+          ...refined,
         ],
       )) {
         final sport = learned.name(w);

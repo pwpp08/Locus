@@ -3,17 +3,22 @@
 // The heart-rate detector (analytics' `autoDetectWorkouts`) finds WHEN a
 // workout happened and leaves WHAT it was to a seam that, by default, says
 // "detected". This file fills that in from what the 1 Hz bundle actually
-// carries, in two layers:
+// carries:
 //
 // 1. Generic rules, from published practice. Cadence off the step counter
 //    (the band's, or the phone's 5-minute slices) separates running from
 //    walking, the same 60 / 140 spm lines the walk pass uses. Without steps,
-//    the wrist and the heart separate the rest: a wrist held still under a
-//    steady raised heart rate is a handlebar or an oar (cycling); a heart
-//    rate that climbs and falls every few minutes under bursty wrist motion
-//    is sets and rests (weight training) or, harder, intervals (HIIT). The
-//    1 Hz gravity vector cannot see gait (Nyquist 0.5 Hz, under the
-//    1.4–2.5 Hz of a step), so the wrist only ever reads as an AMPLITUDE.
+//    the wrist separates the rest: still most of the time under a raised
+//    heart rate is a handlebar (cycling); still about a third of the time,
+//    busy between, is sets and rests (weight training, or HIIT when the
+//    heart runs high). The lines were measured on logged rides and a logged
+//    weights session. The 1 Hz gravity vector cannot see gait (Nyquist
+//    0.5 Hz, under the 1.4–2.5 Hz of a step), so the wrist only ever reads
+//    as an AMPLITUDE.
+// 3. Edges. The detector cuts where heart rate crosses a fixed floor, which
+//    starts a ride at the walk to the bike and ends it in the recovery tail;
+//    [refineWorkoutEdges] moves each edge to where the effort began and
+//    ended.
 // 2. The person's own kept sessions. A bout that fits one of their sports —
 //    the same time of the week, the same intensity, a similar length — is
 //    named after it ("Tennis", Tuesdays at six), which no generic rule can.
@@ -30,13 +35,9 @@ import 'dart:math' as math;
 /// The label for a bout we could not type.
 const String kUnknownSport = 'detected';
 
-/// Mean per-second turn of the gravity vector under which the wrist counts
-/// as still: the analytics detector's own motion-confirmation line.
-const double kStillWrist = 0.15;
-
-/// A swing in heart rate this large (bpm, peak to trough on 30-second means)
-/// is one set-and-rest.
-const double kSwingBpm = 10;
+/// A second whose gravity vector turned less than this counts as a still
+/// wrist.
+const double kStillSecond = 0.1;
 
 /// What a bout looked like, from the 1 Hz bundle.
 class BoutFeatures {
@@ -46,9 +47,8 @@ class BoutFeatures {
     required this.hrrMean,
     required this.hrrPeak,
     required this.hrrSd,
-    required this.swingsPer10Min,
-    this.motionMean,
-    this.motionCv,
+    this.motionMedian,
+    this.stillShare,
     this.cadenceSpm,
     this.cadenceCover = 0,
   });
@@ -59,12 +59,11 @@ class BoutFeatures {
   /// the highest 30-second mean, and the spread of the 30-second means.
   final double hrrMean, hrrPeak, hrrSd;
 
-  /// Heart-rate swings of [kSwingBpm] or more, per ten minutes.
-  final double swingsPer10Min;
-
-  /// Mean per-second gravity turn, and how much its 30-second means vary
-  /// (coefficient of variation). Null without enough wrist samples.
-  final double? motionMean, motionCv;
+  /// The wrist over the middle 80 % of the bout (the edges are the walk to
+  /// the bike, the bag onto the bench): the median per-second turn of the
+  /// gravity vector, and the share of seconds under [kStillSecond]. Null
+  /// without two minutes of wrist samples.
+  final double? motionMedian, stillShare;
 
   /// Steps a minute over the minutes whose steps are known, and the share of
   /// the bout's minutes that is.
@@ -97,25 +96,25 @@ BoutFeatures? boutFeatures({
 }) {
   final reserve = (maxBpm - restingBpm).toDouble();
   if (reserve <= 0 || endSec <= startSec) return null;
+  final trim = (endSec - startSec) ~/ 10;
+  final midLo = startSec + trim, midHi = endSec - trim;
 
-  // 30-second means of heart rate and wrist movement.
   final hrBins = <int, List<int>>{};
-  final moveBins = <int, List<double>>{};
   final moves = <double>[];
   final n = tsSec.length;
   for (var i = 0; i < n; i++) {
     final t = tsSec[i];
     if (t < startSec || t >= endSec) continue;
-    final bin = (t - startSec) ~/ 30;
-    if (i < hr.length && hr[i] > 0) (hrBins[bin] ??= []).add(hr[i]);
+    if (i < hr.length && hr[i] > 0) {
+      (hrBins[(t - startSec) ~/ 30] ??= []).add(hr[i]);
+    }
+    if (t < midLo || t >= midHi) continue;
     if (i == 0 || tsSec[i - 1] != t - 1) continue;
     if (accelAt != null && (!accelAt(i) || !accelAt(i - 1))) continue;
     if (i >= ax.length || i >= ay.length || i >= az.length) continue;
     final dx = ax[i] - ax[i - 1], dy = ay[i] - ay[i - 1], dz = az[i] - az[i - 1];
     final v = math.sqrt(dx * dx + dy * dy + dz * dz);
-    if (!v.isFinite) continue;
-    moves.add(v);
-    (moveBins[bin] ??= []).add(v);
+    if (v.isFinite) moves.add(v);
   }
   final hrMeans = <double>[
     for (final k in (hrBins.keys.toList()..sort()))
@@ -124,38 +123,12 @@ BoutFeatures? boutFeatures({
   ];
   if (hrMeans.length < 6) return null; // under three minutes of heart rate
   final hrr = [for (final b in hrMeans) ((b - restingBpm) / reserve)];
-  final hrrMean = hrr.reduce((a, b) => a + b) / hrr.length;
-  final hrrPeak = hrr.reduce(math.max);
-  final hrrSd = _sd(hrr);
 
-  // Swings: turning points of the 30-second means with hysteresis.
-  var swings = 0;
-  double? lo, hi;
-  var rising = true;
-  for (final b in hrMeans) {
-    lo = lo == null ? b : math.min(lo, b);
-    hi = hi == null ? b : math.max(hi, b);
-    if (rising && hi - b >= kSwingBpm) {
-      swings++;
-      rising = false;
-      lo = b;
-    } else if (!rising && b - lo >= kSwingBpm) {
-      rising = true;
-      hi = b;
-    }
-  }
-  final minutes = (endSec - startSec) / 60;
-
-  double? motionMean, motionCv;
+  double? motionMedian, stillShare;
   if (moves.length >= 120) {
-    motionMean = moves.reduce((a, b) => a + b) / moves.length;
-    final binMeans = [
-      for (final v in moveBins.values)
-        if (v.length >= 10) v.reduce((a, b) => a + b) / v.length,
-    ];
-    if (binMeans.length >= 4 && motionMean > 0) {
-      motionCv = _sd(binMeans) / motionMean;
-    }
+    moves.sort();
+    motionMedian = moves[moves.length ~/ 2];
+    stillShare = moves.where((v) => v < kStillSecond).length / moves.length;
   }
 
   // Cadence over the minutes whose steps are known.
@@ -172,12 +145,11 @@ BoutFeatures? boutFeatures({
   return BoutFeatures(
     startSec: startSec,
     endSec: endSec,
-    hrrMean: hrrMean,
-    hrrPeak: hrrPeak,
-    hrrSd: hrrSd,
-    swingsPer10Min: minutes <= 0 ? 0 : swings / minutes * 10,
-    motionMean: motionMean,
-    motionCv: motionCv,
+    hrrMean: hrr.reduce((a, b) => a + b) / hrr.length,
+    hrrPeak: hrr.reduce(math.max),
+    hrrSd: _sd(hrr),
+    motionMedian: motionMedian,
+    stillShare: stillShare,
     cadenceSpm: known == 0 ? null : steps / known,
     cadenceCover: total <= 0 ? 0 : known / total,
   );
@@ -194,6 +166,13 @@ double _sd(List<double> xs) {
 }
 
 /// The generic reading of [f], or [kUnknownSport].
+///
+/// The wrist lines come from logged sessions: on rides the wrist was still
+/// for 62-70 % of the seconds with a median turn near 0.06; through a weights
+/// session it was still for 31 % with a median near 0.18 (stillness between
+/// sets, movement through them). A wrist that never rests is a walk or a run
+/// the steps did not see, which the wrist alone cannot tell from intervals,
+/// so it stays unnamed.
 String genericSport(BoutFeatures f) {
   final cad = f.cadence;
   if (cad != null) {
@@ -202,17 +181,13 @@ String genericSport(BoutFeatures f) {
     if (cad >= 100) return f.hrrMean >= .5 ? 'running' : 'walking';
     if (cad >= 60) return 'walking';
   }
-  final m = f.motionMean;
-  if (m == null) return kUnknownSport;
-  // Steps were counted and there were next to none: not on foot.
-  final offFoot = cad != null && cad < 30;
-  final noSteps = cad == null || offFoot;
-  final cv = f.motionCv ?? 0;
-  if (noSteps && f.swingsPer10Min >= 1.5 && cv >= .5) {
-    return f.hrrMean >= .55 ? 'hiit' : 'weight_training';
-  }
-  if (noSteps && m < kStillWrist && f.hrrSd < .1 && f.minutes >= 15) {
-    return 'cycling';
+  final still = f.stillShare, med = f.motionMedian;
+  if (still == null || med == null) return kUnknownSport;
+  // Steps were counted and there were next to none, or none were counted.
+  if (cad != null && cad >= 30) return kUnknownSport;
+  if (still >= .55 && med < kStillSecond && f.minutes >= 10) return 'cycling';
+  if (still >= .15 && still <= .45 && med >= .12) {
+    return f.hrrMean >= .65 ? 'hiit' : 'weight_training';
   }
   return kUnknownSport;
 }
@@ -314,3 +289,125 @@ int _gap(int a, int b) {
   final d = (a - b).abs() % 1440;
   return math.min(d, 1440 - d);
 }
+
+/// How far either way of a detector edge the real one is looked for.
+const int kEdgeSearchSec = 8 * 60;
+
+/// Where on the climb from the level before a bout to the level inside it
+/// the bout starts: a steady effort (a ride, a run) rises sharply and starts
+/// [kSteadyStartShare] of the way up, so a walk to the bike is left out; sets
+/// and rests rise slowly and start lower, at [kIntervalStartShare]. The end
+/// is the last moment the heart held [kEndShare] of the way above the level
+/// after it, so the recovery tail is not counted. Fitted on logged rides and
+/// a logged weights session, where the detector's own floor-crossing edges
+/// were off by 1.9 minutes on average and these by half a minute.
+const double kSteadyStartShare = .5;
+const double kIntervalStartShare = .2;
+const double kEndShare = .6;
+
+/// The bout [startSec, endSec) with its edges put where the heart rate says
+/// the effort began and ended, or the input unchanged where it cannot say
+/// (no heart rate before or after it, or no clear rise). [interval] is a
+/// sets-and-rests sport. An edge never moves into an [excluded] span.
+(int, int) refineWorkoutEdges({
+  required List<int> tsSec,
+  required List<int> hr,
+  required int startSec,
+  required int endSec,
+  bool interval = false,
+  List<List<int>> excluded = const [],
+}) {
+  final at = <int, int>{};
+  for (var i = 0; i < tsSec.length && i < hr.length; i++) {
+    final t = tsSec[i];
+    if (hr[i] > 0 &&
+        t >= startSec - kEdgeSearchSec - 300 &&
+        t < endSec + kEdgeSearchSec + 300) {
+      at[t] = hr[i];
+    }
+  }
+  double? median(int a, int b) {
+    final v = [
+      for (var t = a; t < b; t++) ?at[t]?.toDouble(),
+    ];
+    if (v.length < 60) return null;
+    v.sort();
+    return v[v.length ~/ 2];
+  }
+
+  // Heart rate smoothed over 31 s, centred.
+  final smooth = <int, double>{};
+  double? sm(int t) => smooth[t] ??= () {
+        var sum = 0, k = 0;
+        for (var u = t - 15; u <= t + 15; u++) {
+          final v = at[u];
+          if (v != null) {
+            sum += v;
+            k++;
+          }
+        }
+        return k >= 15 ? sum / k : double.nan;
+      }();
+  bool above(int t, double line) {
+    final v = sm(t);
+    return v != null && !v.isNaN && v >= line;
+  }
+
+  bool free(int t) =>
+      !excluded.any((s) => s.length >= 2 && t >= s[0] && t < s[1]);
+
+  // Whether the heart stays above [line] from [from]: every ten seconds of
+  // two minutes, or, [loose], 70 % of three (the start of sets and rests,
+  // whose rests dip between the sets).
+  bool holds(int from, double line, {bool loose = false}) {
+    final len = loose ? 180 : 120;
+    var up = 0, all = 0;
+    for (var u = from; u < from + len; u += 10) {
+      all++;
+      if (above(u, line)) {
+        up++;
+      } else if (!loose) {
+        return false;
+      }
+    }
+    return up >= all * (loose ? .7 : 1);
+  }
+
+  final plateau = median(startSec, endSec);
+  if (plateau == null) return (startSec, endSec);
+  var start = startSec, end = endSec;
+
+  final before =
+      median(startSec - kEdgeSearchSec - 300, startSec - kEdgeSearchSec);
+  if (before != null && plateau - before >= 10) {
+    final line =
+        before + (interval ? kIntervalStartShare : kSteadyStartShare) *
+            (plateau - before);
+    // Sets and rests climb slowly: their start only ever moves earlier than
+    // the detector's floor crossing, never later.
+    final last = interval ? startSec : startSec + kEdgeSearchSec;
+    for (var t = startSec - kEdgeSearchSec; t < last; t++) {
+      if (!above(t, line) || !holds(t, line, loose: interval)) continue;
+      if (free(t)) start = t;
+      break;
+    }
+  }
+
+  final after = median(endSec + kEdgeSearchSec, endSec + kEdgeSearchSec + 300);
+  if (after != null && plateau - after >= 10) {
+    final line = after + kEndShare * (plateau - after);
+    for (var t = endSec + kEdgeSearchSec; t > endSec - kEdgeSearchSec; t--) {
+      if (!above(t, line) || !holds(t - 120, line)) continue;
+      if (free(t - 1)) end = t;
+      break;
+    }
+  }
+  if (end - start < 5 * 60) return (startSec, endSec);
+  return (start, end);
+}
+
+/// Sports whose heart rate climbs and falls with sets and rests.
+const Set<String> kIntervalSports = {
+  'weight_training', 'hiit', 'powerlifting', 'bodyweight', 'calisthenics',
+  'kettlebell', 'crossfit', 'circuit_training', 'functional',
+};
