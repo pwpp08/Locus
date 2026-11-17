@@ -12,6 +12,12 @@ means a WHOOP number moved. Fix the change, not the golden.
 
 ## History
 
+- v118, 2026-11-17: regenerated with the owner's approval. A strength
+  session's muscular load counts only its working minutes and caps at 75;
+  the fixtures hold no strength session, so only `algo_version` moves.
+  Generated on CI under UTC, +05:30 and -04:00 (temporary
+  `golden-regen-v118` branch).
+
 - v117, 2026-11-15: regenerated with the owner's approval. Energy under the
   40 % HRR gate now prices light movement (`compute/day_energy.dart`), so
   `calories`, `calories_total` and the active share move; sleep latency comes
