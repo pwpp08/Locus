@@ -181,7 +181,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="wtf.openstrap.openstrap_edge" android:host="login-callback" />
+                <data android:scheme="wtf.openstrap.locus" android:host="login-callback" />
             </intent-filter>
         </activity>
 

@@ -26,7 +26,7 @@ const String kCommunityUrl = 'https://oyxjhxrlgrexbsvyohzv.supabase.co';
 const String kCommunityKey = 'sb_publishable_m5WqPpPZTDNVszvJO_XTYw_lsSWYIIZ';
 
 /// Where Google sends the person back to after they sign in.
-const String kCommunityRedirect = 'wtf.openstrap.openstrap_edge://login-callback';
+const String kCommunityRedirect = 'wtf.openstrap.locus://login-callback';
 
 class CommunityProfile {
   final String id, name;
