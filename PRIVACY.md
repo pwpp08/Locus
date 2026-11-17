@@ -1,9 +1,10 @@
-# Privacy Policy — Edge / OpenStrap
+# Privacy Policy — Locus
 
-_Last updated: October 11, 2026_
+_Last updated: November 17, 2026_
 
-Edge ("the App") is an independent, open-source project. It is not affiliated
-with, sponsored by, or endorsed by WHOOP, Inc.
+Locus ("the App") is an independent, open-source project, built on the
+open-source OpenStrap Edge app. It is not affiliated with, sponsored by, or
+endorsed by WHOOP, Inc.
 
 **How the App is distributed**
 There is currently one distribution channel: GitHub Releases. There is no App
@@ -30,7 +31,7 @@ uploaded from that moment. The App will then tell you the date of the last
 upload that did happen, because switching a thing off does not un-send what was
 already sent.
 
-Edge is open source, and this feature sits behind a compile-time flag
+Locus is open source, and this feature sits behind a compile-time flag
 (`kHealthDataContributionEnabled`, see `lib/telemetry/health_uploader.dart`).
 An independent developer can enable it in their *own*, separately-built copy
 pointed at a backend of their own choosing. That is their software and their
@@ -155,6 +156,36 @@ You can decline or revoke location access at any time in your device settings.
 The App still records the workout — heart rate, duration, strain and the rest —
 it simply has no map for it.
 
+**Community (optional, and only once you sign in)**
+The App has an optional Community: teams, leaderboards, team chat and a team
+feed. Nothing in it touches the network until you open it and sign in, and
+everything else in the App works the same without it. It runs on Supabase,
+which stores the data below on our behalf.
+
+- **Signing in.** You can join anonymously (an account tied to this phone, with
+  no email) or with Google. If you use Google, Google tells Supabase your email
+  address, name and profile picture link, and your Google account ID; we use
+  them only to sign you in. We never see or store your Google password.
+- **Your profile.** A display name you choose and a colour.
+- **Your scores, only the ones you tick.** Under "What I share", each of
+  recovery, strain and sleep is off until you tick it. For a ticked one, one
+  number per day is uploaded (recovery %, day strain, minutes asleep) so your
+  teams' leaderboards can show it. Untick it and those numbers are deleted
+  from the server. No other health data, raw sensor data or location ever
+  goes to the Community.
+- **What you post.** Team chat messages, pictures you post to a team feed and
+  their captions, the teams you create or join, people you block, and reports
+  you send about content. Messages and posts are visible to the members of
+  that team; you can delete your own.
+- **Who sees it.** Your name, colour and shared scores are visible to people in
+  the teams you are in, including the open community team if you join it.
+- **Deleting it.** Community › Account › "Delete my account" removes your
+  account and everything above from the server. An anonymous account has no
+  sign-out, because it could never be signed back into; deleting it is the
+  way to leave.
+
+We do not use any of this for advertising, and we do not sell it.
+
 **Optional, user-initiated integrations**
 If you choose to enable them, the App can also send data to services *you*
 configure:
@@ -226,4 +257,5 @@ We may update this policy; material changes will be reflected here with an
 updated date.
 
 **Contact**
-Questions about this policy: abdulsaheel81@gmail.com.
+Questions about this policy, or a request to delete Community data:
+pappvince2008@gmail.com.
