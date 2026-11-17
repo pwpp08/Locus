@@ -217,6 +217,9 @@ class CoachImage {
 /// What stands in a stored message for a picture that was sent with it.
 const String kCoachImageNote = '[a picture was attached to this message]';
 
+/// How many pictured messages keep their pictures for follow-up questions.
+const int kCoachKeptImages = 2;
+
 /// Lightweight index entry for a saved chat session (for the history list).
 class CoachSessionMeta {
   final String id;
@@ -500,7 +503,8 @@ class CoachEngine {
       final f = await _sessionFile(_sessionId);
       await f.writeAsString(jsonEncode({
         'title': _title, 'createdAt': _createdAt, 'updatedAt': now,
-        'history': _history, 'transcript': transcript.map((e) => e.toJson()).toList(),
+        'history': [for (final m in _history) withoutImages(m)],
+        'transcript': transcript.map((e) => e.toJson()).toList(),
       }));
       await _updateIndex(_sessionId, _title, now, _preview());
     } catch (_) {}
@@ -612,14 +616,14 @@ class CoachEngine {
   /// [onStatus]; asks the user to confirm writes via [confirm] (returns true to
   /// proceed). Returns when the model produces its final answer (or hits the cap).
   ///
-  /// [images] go to the model with this message only. Once the turn is over
-  /// each is replaced in the kept history by [kCoachImageNote], so a picture
-  /// is neither stored on disk nor sent again with every later question.
+  /// [images] stay in memory for the conversation, so a follow-up question
+  /// can still look at the picture ("what about the second plate?"); only the
+  /// newest [kCoachKeptImages] pictured messages keep theirs. They are never
+  /// written to disk: a saved chat carries [kCoachImageNote] in their place.
   /// [shown] is what the user's own bubble reads when it should differ from
   /// [userText] (a long attached file is sent in full and shown by name).
-  ///
-  /// ponytail: a follow-up question cannot see the picture again; keep the
-  /// image for the session (in memory, never on disk) if that proves limiting.
+  /// [figures] are attached charts, drawn under the question; their numbers
+  /// are in [userText] and count as fetched for the model's own figures.
   Future<void> send(
     String userText, {
     required void Function(CoachItem) onItem,
@@ -628,6 +632,7 @@ class CoachEngine {
     void Function(String delta)? onDelta,
     List<CoachImage> images = const [],
     String? shown,
+    List<Map<String, dynamic>> figures = const [],
   }) async {
     _sending++;
     try {
@@ -637,9 +642,10 @@ class CoachEngine {
           confirm: confirm,
           onDelta: onDelta,
           images: images,
-          shown: shown);
+          shown: shown,
+          figures: figures);
     } finally {
-      _dropSentImages();
+      _dropOldImages();
       _sending--;
       if (_sending == 0 && _disposeRequested) dispose();
     }
@@ -653,6 +659,7 @@ class CoachEngine {
     void Function(String delta)? onDelta,
     List<CoachImage> images = const [],
     String? shown,
+    List<Map<String, dynamic>> figures = const [],
   }) async {
     void emit(CoachItem it) { transcript.add(it); onItem(it); }
     for (final image in images) {
@@ -665,6 +672,10 @@ class CoachEngine {
       }
     }
     emit(CoachItem.user(shown ?? userText));
+    for (final f in figures) {
+      emit(CoachItem.render(f));
+    }
+    if (figures.isNotEmpty) _figures.note(userText);
     _history.add({
       'role': 'user',
       'content': images.isEmpty
@@ -1050,13 +1061,22 @@ class CoachEngine {
     return n;
   }
 
-  /// Replaces every picture in the kept history with [kCoachImageNote].
-  void _dropSentImages() {
-    for (final m in _history) {
-      final content = m['content'];
-      if (m['role'] != 'user' || content is! List) continue;
-      if (attachedChars(content) == 0) continue;
-      m['content'] = '${contentText(content)}\n$kCoachImageNote';
+  /// [m] with its pictures replaced by [kCoachImageNote].
+  static Map<String, dynamic> withoutImages(Map<String, dynamic> m) {
+    final content = m['content'];
+    if (m['role'] != 'user' || content is! List) return m;
+    if (attachedChars(content) == 0) return m;
+    return {...m, 'content': '${contentText(content)}\n$kCoachImageNote'};
+  }
+
+  /// Keeps the pictures of the newest [kCoachKeptImages] messages that have
+  /// any; older ones become [kCoachImageNote].
+  void _dropOldImages() {
+    var kept = 0;
+    for (var i = _history.length - 1; i >= 0; i--) {
+      if (attachedChars(_history[i]['content']) == 0) continue;
+      if (kept++ < kCoachKeptImages) continue;
+      _history[i] = withoutImages(_history[i]);
     }
   }
 

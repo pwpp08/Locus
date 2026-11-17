@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'coach_text.dart';
+import 'coach_chart_picker.dart';
+import '../../coach/coach_chart_attachment.dart';
 // COACH — the door onto the agentic AI that was already built.
 //
 // `lib/coach` has had a working tool-calling loop for months: read-only SQL over
@@ -122,7 +124,7 @@ Future<void> openCoachSheet(
 }
 
 /// The doors behind the composer's (+).
-enum _Plus { newChat, image, file, camera }
+enum _Plus { newChat, chart, image, file, camera }
 
 /// The text files the coach can be handed, read as UTF-8.
 const _textFiles = ['txt', 'csv', 'tsv', 'md', 'json', 'log', 'xml', 'gpx'];
@@ -166,6 +168,7 @@ class _CoachScreenState extends State<CoachScreen> {
   /// What waits in the composer to go with the next message.
   final List<CoachImage> _images = [];
   ({String name, String text})? _file;
+  final List<CoachChartAttachment> _charts = [];
 
   /// The last question asked, for Retry on an error.
   String? _lastAsked;
@@ -304,6 +307,7 @@ class _CoachScreenState extends State<CoachScreen> {
     final at = box.localToGlobal(Offset.zero) & box.size;
     final pick = await showAnchoredMenu<_Plus>(context, at, [
       (_Plus.newChat, LucideIcons.messageSquarePlus, 'New conversation'),
+      (_Plus.chart, LucideIcons.chartLine, 'Attach chart'),
       (_Plus.image, LucideIcons.image, 'Upload image'),
       (_Plus.file, LucideIcons.fileText, 'Upload file'),
       (_Plus.camera, LucideIcons.camera, 'Take picture'),
@@ -312,6 +316,8 @@ class _CoachScreenState extends State<CoachScreen> {
     switch (pick) {
       case _Plus.newChat:
         _newChat();
+      case _Plus.chart:
+        await _pickChart();
       case _Plus.image:
         await _pickImage(ImageSource.gallery);
       case _Plus.camera:
@@ -321,6 +327,18 @@ class _CoachScreenState extends State<CoachScreen> {
       case null:
         break;
     }
+  }
+
+  /// A metric's chart from Trend View, to ask about.
+  Future<void> _pickChart() async {
+    final a = await pickCoachChart(context);
+    if (a == null || !mounted) return;
+    setState(() {
+      _charts.removeWhere(
+          (x) => x.metricId == a.metricId && x.from == a.from);
+      if (_charts.length >= kCoachMaxCharts) _charts.removeAt(0);
+      _charts.add(a);
+    });
   }
 
   void _attachError(String message) {
@@ -438,32 +456,41 @@ class _CoachScreenState extends State<CoachScreen> {
     final engine = _engine;
     final images = List<CoachImage>.of(_images);
     final file = _file;
-    final attached = images.isNotEmpty || file != null;
+    final charts = List<CoachChartAttachment>.of(_charts);
+    final attached = images.isNotEmpty || file != null || charts.isNotEmpty;
     if ((t.isEmpty && !attached) || _busy || engine == null) return;
     if (t.isEmpty) {
-      t = images.isNotEmpty
-          ? 'Have a look at this picture.'
-          : 'Have a look at this file.';
+      t = charts.isNotEmpty
+          ? (charts.length == 1
+              ? 'What do you see in this chart?'
+              : 'What do you see in these charts?')
+          : images.isNotEmpty
+              ? 'Have a look at this picture.'
+              : 'Have a look at this file.';
     }
     _lastAsked = t;
     // The bubble names what went with the question; the file itself goes to
     // the model in full, after it.
     final shown = display ??
-        (!attached
-        ? null
+        (images.isEmpty && file == null
+        ? (charts.isEmpty ? null : t)
         : [
             t,
             if (images.length == 1) '(a picture attached)',
             if (images.length > 1) '(${images.length} pictures attached)',
             if (file != null) '(attached: ${file.name})',
           ].join('\n'));
-    final sent =
-        file == null ? t : '$t\n\n--- ${file.name} ---\n${file.text}';
+    final sent = [
+      t,
+      for (final ch in charts) ch.toModelText(),
+      if (file != null) '--- ${file.name} ---\n${file.text}',
+    ].join('\n\n');
     _input.clear();
     setState(() {
       _busy = true;
       _images.clear();
       _file = null;
+      _charts.clear();
     });
     // Read before the await: `send` can outlive this screen.
     final app = context.read<AppState>();
@@ -475,6 +502,7 @@ class _CoachScreenState extends State<CoachScreen> {
         sent,
         images: images,
         shown: shown,
+        figures: [for (final ch in charts) ch.toFigure()],
         onDelta: (delta) {
           if (!mounted) return;
           setState(() {
@@ -937,7 +965,8 @@ class _CoachScreenState extends State<CoachScreen> {
   /// edge with the send arrow inside it.
   Widget _composer(BuildContext c, P p) {
     final l = AppLocalizations.of(c);
-    final attached = _images.isNotEmpty || _file != null;
+    final attached =
+        _images.isNotEmpty || _file != null || _charts.isNotEmpty;
     final canSend = !_busy && (_input.text.trim().isNotEmpty || attached);
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -949,7 +978,7 @@ class _CoachScreenState extends State<CoachScreen> {
             key: _plusKey,
             child: Pressable(
               onTap: _busy ? null : _plus,
-              semanticLabel: 'New conversation, a picture or a file',
+              semanticLabel: 'New conversation, a chart, a picture or a file',
               child: Container(
                 width: S.tap + S.x1,
                 height: S.tap + S.x1,
@@ -1042,6 +1071,34 @@ class _CoachScreenState extends State<CoachScreen> {
                 remove('Remove the picture',
                     () => setState(() => _images.removeAt(i))),
               ]),
+            for (var i = 0; i < _charts.length; i++)
+              Container(
+                padding: const EdgeInsets.only(left: S.x3),
+                decoration: BoxDecoration(color: p.card2, borderRadius: R.rMd),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  SizedBox(
+                    width: S.x8,
+                    height: S.x5,
+                    child: CustomPaint(
+                      painter: _SparkPainter(
+                        [for (final d in _charts[i].days) _charts[i].daily[d]],
+                        p.on(C.dialStrain),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: S.x2),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 180),
+                    child: Text(
+                        '${_charts[i].title} · ${_charts[i].rangeLabel}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: F.cap.copyWith(color: p.ink)),
+                  ),
+                  remove('Remove ${_charts[i].title}',
+                      () => setState(() => _charts.removeAt(i))),
+                ]),
+              ),
             if (_file case final f?)
               Container(
                 padding: const EdgeInsets.only(left: S.x3),
@@ -1064,6 +1121,52 @@ class _CoachScreenState extends State<CoachScreen> {
       ),
     );
   }
+}
+
+/// A chart chip's line: the values across the range, gaps left open.
+class _SparkPainter extends CustomPainter {
+  final List<double?> values;
+  final Color ink;
+  _SparkPainter(this.values, this.ink);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final xs = [for (final v in values) ?v];
+    if (xs.isEmpty) return;
+    var lo = xs.first, hi = xs.first;
+    for (final v in xs) {
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    }
+    final span = hi - lo == 0 ? 1.0 : hi - lo;
+    final step = values.length < 2 ? 0.0 : size.width / (values.length - 1);
+    final paint = Paint()
+      ..color = ink
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = S.half
+      ..strokeCap = StrokeCap.round;
+    final path = Path();
+    var open = false;
+    for (var i = 0; i < values.length; i++) {
+      final v = values[i];
+      if (v == null) {
+        open = false;
+        continue;
+      }
+      final o = Offset(i * step, size.height - (v - lo) / span * size.height);
+      if (open) {
+        path.lineTo(o.dx, o.dy);
+      } else {
+        path.moveTo(o.dx, o.dy);
+        open = true;
+      }
+    }
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_SparkPainter old) =>
+      old.values != values || old.ink != ink;
 }
 
 /// The media type for a picked picture whose picker did not say.

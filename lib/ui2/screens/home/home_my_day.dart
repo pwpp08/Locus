@@ -24,7 +24,8 @@ class HomeSectionHead extends StatelessWidget {
         Expanded(
           child: Semantics(
             header: true,
-            child: Text(title, style: F.t1.copyWith(color: p.ink)),
+            child: Text(title,
+                style: F.t2.copyWith(color: p.ink, fontWeight: FontWeight.w500)),
           ),
         ),
         ?trailing,
@@ -216,14 +217,14 @@ class HomeMyDay extends StatelessWidget {
     items.sort((a, b) => a.start.compareTo(b.start));
     final rows = [for (final it in items) it.widget];
     return Surface(
-      pad: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x4),
+      pad: const EdgeInsets.fromLTRB(S.x5, S.x2, S.x5, S.x4),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
           Expanded(
               child: Padding(
             padding: const EdgeInsets.only(left: S.x1),
             child: Text('ACTIVITIES',
-                style: F.caps.copyWith(color: p.ink, letterSpacing: .6)),
+                style: F.caps.copyWith(color: p.ink, letterSpacing: 1.2)),
           )),
           Pressable(
             onTap: onExpand,
@@ -235,6 +236,7 @@ class HomeMyDay extends StatelessWidget {
             ),
           ),
         ]),
+        const SizedBox(height: S.half),
         if (rows.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: S.x3),
@@ -243,7 +245,7 @@ class HomeMyDay extends StatelessWidget {
           )
         else
           for (var i = 0; i < rows.length; i++) ...[
-            if (i > 0) const SizedBox(height: S.x2),
+            if (i > 0) const SizedBox(height: S.x4),
             rows[i],
           ],
         const SizedBox(height: S.x4),
@@ -320,31 +322,35 @@ class HomeActivityRow extends StatelessWidget {
       onTap: onTap,
       semanticLabel: '$name, $value, ${_when(c, start)} to ${_when(c, end)}',
       child: Container(
-        padding: const EdgeInsets.fromLTRB(S.x2, S.x1 + S.half, S.x3, S.x1 + S.half),
+        padding: const EdgeInsets.fromLTRB(
+            S.x2 + S.half, S.x2 + S.half, S.x3, S.x2 + S.half),
         decoration: BoxDecoration(
           color: Color.alphaBlend(p.ink.withValues(alpha: .08), p.card),
-          borderRadius: R.rMd,
+          borderRadius: R.rXxl,
         ),
         child: Row(children: [
           Container(
-            constraints: const BoxConstraints(minWidth: 82.0),
-            height: 38.0,
-            padding: const EdgeInsets.symmetric(horizontal: S.x3),
-            decoration: BoxDecoration(color: color, borderRadius: R.rSm),
+            constraints: const BoxConstraints(minWidth: 118.0),
+            height: 47.0,
+            padding: const EdgeInsets.symmetric(horizontal: S.x4),
+            decoration: BoxDecoration(
+                color: color,
+                borderRadius:
+                    const BorderRadius.all(Radius.circular(R.md + S.hair))),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(icon, size: I.sm, color: C.white),
-              const SizedBox(width: S.x2),
+              Icon(icon, size: I.lg, color: C.white),
+              const SizedBox(width: S.x3),
               Text(value,
                   style: F.n17.copyWith(
                       color: C.white, fontWeight: FontWeight.w700)),
             ]),
           ),
-          const SizedBox(width: S.x4),
+          const SizedBox(width: S.x4 + S.half),
           Expanded(
             child: Text(name.toUpperCase(),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: F.caps.copyWith(color: p.ink, letterSpacing: .6)),
+                style: F.caps.copyWith(color: p.ink, letterSpacing: 1.6)),
           ),
           const SizedBox(width: S.x2),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -356,8 +362,8 @@ class HomeActivityRow extends StatelessWidget {
           ]),
           const SizedBox(width: S.x2 + S.half),
           SizedBox(
-            width: S.x2,
-            height: S.x8,
+            width: S.half,
+            height: 25.0,
             child: CustomPaint(painter: HomeSpanPainter(color)),
           ),
         ]),
@@ -372,16 +378,17 @@ class HomeSpanPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // A line the height of the times beside it, a white dot at each end.
     final x = size.width / 2;
     canvas.drawLine(
-        Offset(x, 2),
-        Offset(x, size.height - 2),
+        Offset(x, 1),
+        Offset(x, size.height - 1),
         Paint()
           ..color = color
-          ..strokeWidth = 2.5
+          ..strokeWidth = size.width
           ..strokeCap = StrokeCap.round);
-    for (final y in [2.0, size.height - 2]) {
-      canvas.drawCircle(Offset(x, y), 3, Paint()..color = C.white);
+    for (final y in [1.0, size.height - 1]) {
+      canvas.drawCircle(Offset(x, y), size.width * .5, Paint()..color = C.white);
     }
   }
 

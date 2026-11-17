@@ -95,6 +95,29 @@ void main() {
     expect(shown.single.title, contains('recovery'));
   });
 
+  test('a low ring off the first block of a night still going waits',
+      () async {
+    // The reported 01:57 "Low recovery": the stager closed the night at an
+    // awakening before 03:00 and the person slept on until 05:00.
+    await seed(glassBox: 70, readiness: 31);
+    final t = DateTime.parse(todayLabel());
+    final wake = DateTime(t.year, t.month, t.day, 1, 27);
+    await LocalDb.putDayResult(
+      dayId: todayLabel(),
+      algoVersion: kAlgoVersion,
+      payloadJson: jsonEncode({
+        'sleep': {
+          'window': {
+            'value': {'offset_ms': wake.millisecondsSinceEpoch},
+          },
+        },
+      }),
+      windowJson: '{}',
+    );
+    await DerivationEngine().runNotificationsForTest();
+    expect(shown, isEmpty);
+  });
+
   test('the morning pin wins over a drifted series value', () async {
     // Pin 40 (ring shows 40, yellow); a later re-derive drifted the
     // series to 24. Must not buzz.

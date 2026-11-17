@@ -55,6 +55,11 @@ class Vo2Result {
   /// The weekly estimate on each local day of that week.
   final Map<String, double> byDay;
 
+  /// Only the days an estimate was made: each week's update (its Monday) and
+  /// each day with a qualifying outdoor run. What a chart plots, so a held
+  /// weekly figure does not read as a daily measurement.
+  final Map<String, double> measured;
+
   /// Where the latest figure came from, and why there is none.
   final Vo2Source? source;
   final String? why;
@@ -64,6 +69,7 @@ class Vo2Result {
 
   const Vo2Result(
       {this.byDay = const {},
+      this.measured = const {},
       this.source,
       this.why,
       this.recoveries = 0});
@@ -278,18 +284,32 @@ Vo2Result estimateVo2max({
   }
 
   final out = <String, double>{};
+  final measured = <String, double>{};
   for (final w in weeks) {
     final v = raw[w];
     if (v == null) continue;
     final x = (v + offset).clamp(10.0, 90.0);
+    if (w.compareTo(today) <= 0) measured[w] = x;
     for (var i = 0; i < 7; i++) {
       final d = _shift(w, i);
       if (d.compareTo(today) <= 0) out[d] = x;
     }
   }
+  // A run is a reading of its own, on its own day.
+  for (final r in runs) {
+    if (r.day.compareTo(today) > 0 || r.day.compareTo(firstDay) < 0) continue;
+    final a = _asOf(r.day,
+        profile: profile,
+        recovery: recovery,
+        moderate: moderate,
+        vigorous: vigorous,
+        runs: runs);
+    if (a.v != null) measured[r.day] = (a.v! + offset).clamp(10.0, 90.0);
+  }
   final latestWeek = weekStart(today);
   return Vo2Result(
     byDay: out,
+    measured: measured,
     source: raw.isEmpty
         ? null
         : (anchored ? Vo2Source.lab : src[(raw.keys.toList()..sort()).last]),

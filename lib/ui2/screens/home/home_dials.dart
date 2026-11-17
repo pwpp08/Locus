@@ -206,7 +206,7 @@ class HomeScoreDial extends StatelessWidget {
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: S.x16 * 2 + S.x4),
           child: FractionallySizedBox(
-            widthFactor: 0.85,
+            widthFactor: 0.94,
             child: AspectRatio(
               key: ringKey,
               aspectRatio: 1,
@@ -217,7 +217,7 @@ class HomeScoreDial extends StatelessWidget {
                   child: ring,
                 ),
                 child: LayoutBuilder(builder: (c, box) {
-                  final stroke = box.maxWidth * .058;
+                  final stroke = box.maxWidth * .067;
                   final target = r.kind == HomeRingKind.strain ? strainBand(d) : null;
                   return Stack(alignment: Alignment.center, children: [
                     CustomPaint(

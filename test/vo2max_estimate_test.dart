@@ -89,6 +89,18 @@ void main() {
     expect(week.first, isNotNull);
   });
 
+  test('the chart gets a point only where an estimate was made', () {
+    final r = run(42, vig: 10, runs: [(day: _day('2026-08-24', 2), v: 47.0)]);
+    // Mondays, plus the run's own day; never the days a figure only holds.
+    for (final d in r.measured.keys) {
+      final isMonday = DateTime.parse(d).weekday == DateTime.monday;
+      expect(isMonday || d == _day('2026-08-24', 2), isTrue, reason: d);
+    }
+    expect(r.measured[_day('2026-08-24', 2)], 47.0);
+    expect(r.measured.containsKey(_day('2026-08-24', 3)), isFalse);
+    expect(r.byDay.length, greaterThan(r.measured.length));
+  });
+
   test('a recent outdoor run stands in, as the middle of the last five', () {
     final r = run(35, runs: [
       (day: _day(start, 18), v: 44.0),

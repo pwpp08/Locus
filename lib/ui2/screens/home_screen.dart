@@ -680,7 +680,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           ),
           const Align(
               alignment: AlignmentDirectional.centerStart,
-              child: ProfileAvatar(accent: C.dialStrain, size: S.x12 * 0.8)),
+              child: ProfileAvatar(accent: C.dialStrain, size: S.x12 * 0.7)),
           const Align(
               alignment: AlignmentDirectional.centerEnd,
               child: _DeviceStatus()),

@@ -27,8 +27,9 @@ class AiButtonPrefs {
   ];
   static const visibilityLabels = ['Solid', 'Soft', 'Faint'];
 
-  /// The button's side for each of [sizeLabels].
-  static const sides = [40.0, 48.0, 60.0];
+  /// The button's side for each of [sizeLabels]: its frame, the round orb
+  /// inside half of it.
+  static const sides = [48.0, 56.0, 64.0];
 
   /// Its opacity for each of [visibilityLabels].
   static const opacities = [1.0, .7, .4];

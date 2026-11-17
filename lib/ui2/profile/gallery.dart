@@ -1680,6 +1680,7 @@ Map<String, Widget> _stateCases() => {
           color: C.dialStrain),
       'nav_bar_no_sub': const NavBar('Component gallery'),
       'ai_orb': const AiOrb(),
+      'ai_button': const AiOrb(size: 56, framed: true),
       'community_avatar': const CommunityAvatar('Ana Lopez', 210),
       'coach_mark': const Row(mainAxisSize: MainAxisSize.min, children: [
         CoachMark(size: I.sm, color: C.white),

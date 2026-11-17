@@ -350,11 +350,33 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
     if (mounted) setState(() {});
   }
 
+  /// The switch speaks for every alarm of the next wake day, not only the
+  /// planner's own: off turns the planner's alarm off and skips that morning
+  /// on My Schedule; on rings a skipped morning after all, else sets one.
   Future<void> _toggleAlarm(bool on, int? wake) async {
     final mgr = _mgr;
     if (mgr == null) return;
+    final now = DateTime.now();
+    final key = AlarmItem.dayKey(wakeDayOf(now));
     if (!on) {
       await mgr.toggleAlarm(kPlannerAlarmId, false);
+      for (final a in [...mgr.alarms]) {
+        if (a.id == kPlannerAlarmId || !a.enabled || a.days.isEmpty) continue;
+        if (a.days.contains(wakeDayOf(now).weekday) && a.skipDay != key) {
+          await mgr.skipNext(a.id, now);
+        }
+      }
+      if (mounted) setState(() {});
+      return;
+    }
+    final skipped = [
+      for (final a in mgr.alarms)
+        if (a.enabled && a.skipDay == key) a.id
+    ];
+    if (skipped.isNotEmpty) {
+      for (final id in skipped) {
+        await mgr.clearSkip(id);
+      }
       if (mounted) setState(() {});
       return;
     }
@@ -654,7 +676,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                   inBedLabel: hMm(inBed),
                   recFrom: plan.optimalBedMin,
                   recTo: usualWake,
-                  alarmOn: planAlarm != null,
+                  alarmOn: armedAt != null,
                   onWake: () => _pickWake(wake),
                   onInBed: () => showSleepRecommendation(c, plan),
                 ),
@@ -703,7 +725,7 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
                     const SizedBox(width: S.x3),
                   ],
                   AppSwitch(
-                    planAlarm != null,
+                    armedAt != null,
                     (v) => _toggleAlarm(v, wake),
                     semanticLabel: 'Alarm',
                   ),

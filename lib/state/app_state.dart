@@ -169,40 +169,6 @@ PairedDevice? healedPairing(PairedDevice? current, String? reportedSerial) {
   return PairedDevice(current.remoteId, clean, generation: current.generation);
 }
 
-/// Whether [dayId]'s night is settled enough to announce its recovery: today's
-/// row goes through the same [overnightSettled] gate Home uses (#448), older
-/// rows are past it.
-@visibleForTesting
-bool recoveryNightSettled({
-  required String dayId,
-  required Map<String, dynamic>? payload,
-  required int dataEdgeSec,
-  required int nowSec,
-}) {
-  if (dayId != todayLabel()) return true;
-  // A no-sleep window's `value` is the string '—', not a Map.
-  final sleep = payload?['sleep'];
-  final window = sleep is Map ? sleep['window'] : null;
-  final value = window is Map ? window['value'] : null;
-  final offsetMs = value is Map ? value['offset_ms'] : null;
-  // A wake before 03:00 is the first block of a night still going (a long
-  // awakening splits it, and the first block settles 30 min later): the
-  // 02:17 "slept 3h 28m" note for a night that ran to 08:30. Home already
-  // shows such a night as in progress.
-  if (offsetMs is num &&
-      DateTime.fromMillisecondsSinceEpoch(offsetMs.toInt()).hour <
-          kMinPinWakeHour &&
-      !userWindow(payload?['sleep_source'])) {
-    return false;
-  }
-  return overnightSettled(
-    sleepOffsetSec: offsetMs is num ? offsetMs ~/ 1000 : null,
-    dataEdgeSec: dataEdgeSec,
-    nowSec: nowSec,
-    userWake: userWindow(payload?['sleep_source']),
-  );
-}
-
 class AppState extends ChangeNotifier {
   late final BleEngine engine;
 

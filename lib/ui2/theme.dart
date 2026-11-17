@@ -209,6 +209,13 @@ class C {
   static const coachGoA = Color(0xFF8B5CF6);
   static const coachGoB = Color(0xFF52C6F5);
 
+  /// The AI button: a violet-to-blue ring round a dark core, in a frame one
+  /// step above the ground.
+  static const aiRingA = Color(0xFF7D83F3);
+  static const aiRingB = Color(0xFF6CB4EF);
+  static const aiCore = Color(0xFF1A2127);
+  static const aiFrame = Color(0xFF181F25);
+
   /// The sleep recommendation's panel: a pale mint ground on the white sheet,
   /// inked in [char]. A ground, not an accent, so it is not in [all].
   static const mint = Color(0xFFDFF8EF);

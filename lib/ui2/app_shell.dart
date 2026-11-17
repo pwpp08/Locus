@@ -24,11 +24,13 @@
 // a section or a pushed screen inside the domain that owns it — Sleep and
 // Strain are the deep dives behind their dials on Home.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import '../community/community_service.dart';
 import '../state/ai_button_prefs.dart';
 import 'lucide.dart';
-import 'marks.dart';
+import 'logo.dart' show LocusMarkPainter;
 
 import '../l10n/app_localizations.dart';
 import '../state/prefs.dart';
@@ -308,7 +310,7 @@ class _AppShellState extends State<AppShell> {
             onLongPress:
                 widget.onAiHold == null ? null : () => widget.onAiHold!(c),
             semanticLabel: 'Ask the AI coach',
-            child: AiOrb(size: AiButtonPrefs.side),
+            child: AiOrb(size: AiButtonPrefs.side, framed: true),
           ),
         );
         final placed = Align(
@@ -438,30 +440,86 @@ class _RimLight extends GradientTransform {
         ..translateByDouble(-bounds.left, -bounds.top, 0, 1);
 }
 
-/// The coach's orb: a dark disc in a lavender-to-teal ring, with the
-/// [CoachMark] inside. The same orb floats on screens that offer the coach.
+/// The coach's orb: a dark core in a violet-to-blue ring that glows into it,
+/// with the Locus mark inside. [framed], it sits in a rounded square, the
+/// floating AI button; [size] is then the square's side.
 class AiOrb extends StatelessWidget {
   final double size;
-  const AiOrb({super.key, this.size = S.x12});
+  final bool framed;
+  const AiOrb({super.key, this.size = S.x12, this.framed = false});
 
   @override
   Widget build(BuildContext c) {
-    final p = P.of(c);
+    final d = framed ? size * .45 : size;
+    final ring = math.max(S.hair, d / 28);
+    final orb = Container(
+      width: d,
+      height: d,
+      padding: EdgeInsets.all(ring),
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment(-1, -.4),
+          end: Alignment(1, .4),
+          colors: [C.aiRingA, C.aiRingB],
+        ),
+      ),
+      child: DecoratedBox(
+        // The ring's light, inside its edge: violet at the left, blue at the
+        // right, the middle dark.
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: const Alignment(-1, -.4),
+            end: const Alignment(1, .4),
+            colors: [
+              Color.alphaBlend(C.aiRingA.withValues(alpha: .35), C.aiCore),
+              Color.alphaBlend(C.aiRingB.withValues(alpha: .45), C.aiCore),
+            ],
+          ),
+        ),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [C.aiCore, C.aiCore, C.aiCore.withValues(alpha: 0)],
+              stops: const [0, .55, 1],
+            ),
+          ),
+          child: Center(
+            child: SizedBox.square(
+              dimension: d * .6,
+              child: const CustomPaint(painter: LocusMarkPainter()),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (!framed) return orb;
+    // The frame: lit at the top left, a little teal at the right.
+    final radius = BorderRadius.circular(size * .31);
     return Container(
       width: size,
       height: size,
-      padding: const EdgeInsets.all(S.half),
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: SweepGradient(
-            colors: [C.coachEdgeA, C.coachEdgeB, C.coachEdgeA]),
+      padding: EdgeInsets.all(math.max(S.hair, size / 64)),
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            C.aiRingA.withValues(alpha: .4),
+            C.aiFrame,
+            C.aiRingB.withValues(alpha: .14),
+          ],
+          stops: const [0, .45, 1],
+        ),
       ),
       child: Container(
-        decoration: BoxDecoration(shape: BoxShape.circle, color: p.card),
-        child: Center(
-          child: CoachMark(
-              size: size == S.x12 ? I.md : size * .42, color: p.ink),
-        ),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+            color: C.aiFrame.withValues(alpha: .88), borderRadius: radius),
+        child: orb,
       ),
     );
   }

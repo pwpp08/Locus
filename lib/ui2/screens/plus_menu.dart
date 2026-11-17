@@ -48,7 +48,7 @@ class PlusButton extends StatelessWidget {
   const PlusButton({super.key, required this.onTap, this.open = false});
 
   /// The button's side.
-  static const size = S.x10 + S.x1;
+  static const size = S.x10 + S.half;
 
   @override
   Widget build(BuildContext c) {
@@ -67,8 +67,8 @@ class PlusButton extends StatelessWidget {
           color: open ? C.char : p.ink,
           borderRadius: R.rMd,
         ),
-        child: Icon(open ? LucideIcons.xBold : LucideIcons.plus,
-            size: open ? I.lg : I.md, color: open ? C.white : p.bg),
+        child: Icon(open ? LucideIcons.xBold : LucideIcons.plusBold,
+            size: I.lg, color: open ? C.white : p.bg),
       ),
     );
   }

@@ -1049,7 +1049,7 @@ class TrendLoader {
             e.key: e.value < 0 ? 0.0 : e.value,
         };
       case 'vo2max':
-        return (await vo2max()).byDay;
+        return (await vo2max()).measured;
       case 'pace_of_aging':
         return paceOfAging();
       case 'zones_13':
