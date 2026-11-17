@@ -853,11 +853,33 @@ class WorkoutController {
     }
   }
 
-  Future<void> stopWorkout() async {
+  /// When the open session went quiet, if it has been quiet long enough to
+  /// look forgotten (see [WorkoutIdleWatch.quietSince]); null otherwise.
+  DateTime? workoutQuietSince() {
+    final w = activeWorkout;
+    if (w == null) return null;
+    final t = w.idleWatch.quietSince(DateTime.now());
+    return t != null && t.isAfter(w.startTime) ? t : null;
+  }
+
+  /// [endAt] moves the end back to when the user actually stopped — the
+  /// answer to "you stopped moving at 15:58, end it there?". Only an instant
+  /// inside the session is honoured.
+  Future<void> stopWorkout({DateTime? endAt}) async {
     if (activeWorkout == null) return;
     // Step coverage is judged at the moment of stop: the teardown awaited
     // below can take long enough to look like an accel gap that never happened.
-    final stopMs = DateTime.now().millisecondsSinceEpoch;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final start = activeWorkout!.startTime;
+    final trimAt = endAt != null &&
+            endAt.isAfter(start) &&
+            endAt.millisecondsSinceEpoch < nowMs
+        ? endAt
+        : null;
+    final stopMs = trimAt?.millisecondsSinceEpoch ?? nowMs;
+    if (trimAt != null) {
+      activeWorkout!.trimTo(trimAt.difference(start).inMinutes);
+    }
     _workoutTimer?.cancel();
     _workoutTimer = null;
     // Stop GPS route recording and AWAIT the buffered-tail flush before the
@@ -1346,7 +1368,26 @@ class LiveWorkoutState {
   /// profile lacks the anchors Keytel needs, no resting HR has arrived to set
   /// the bout gate, or no heart rate ever landed. Absent beats fabricated, and
   /// absent also beats a confident zero.
-  int? get caloriesOrNull => _caloriesScored ? calories.round() : null;
+  int? get caloriesOrNull =>
+      _caloriesScored && !trimmed ? calories.round() : null;
+
+  /// Set when the end was moved back ([trimTo]). The calorie tally is a bpm
+  /// histogram with no time axis, so it cannot be cut at the new end: the
+  /// session is saved without calories and the substrate re-score of the
+  /// trimmed window fills them in.
+  bool trimmed = false;
+
+  /// Cut the scored series at [minutes] into the session and re-score strain
+  /// over what is left.
+  void trimTo(int minutes) {
+    final keep = minutes.clamp(0, _perMinute.length);
+    _perMinute.removeRange(keep, _perMinute.length);
+    _minuteBucket = -1;
+    _minuteSum = 0;
+    _minuteCount = 0;
+    _scoreStrain();
+    trimmed = true;
+  }
 
   /// Re-cost the bout so far. The only writer of [calories].
   ///

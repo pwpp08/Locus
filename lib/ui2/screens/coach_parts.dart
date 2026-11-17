@@ -121,7 +121,7 @@ class CoachAnswer extends StatelessWidget {
               style: F.head.copyWith(
                   color: C.white.withValues(alpha: .92),
                   fontWeight: FontWeight.w400,
-                  height: 1.45),
+                  height: 1.6),
             ),
             if (actions)
               // The glyphs sit on the text's left edge; their tap areas
@@ -277,7 +277,8 @@ class CoachReplyChips extends StatelessWidget {
                     color: C.white, borderRadius: R.rPill),
                 child: Text(replies[i],
                     maxLines: 1,
-                    style: F.body.copyWith(color: C.char)),
+                    style: F.body.copyWith(
+                        color: C.char, fontWeight: FontWeight.w600)),
               ),
             ),
           ),

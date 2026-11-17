@@ -33,6 +33,7 @@ import '../lucide.dart';
 import '../../gps/gps_source.dart' show GpsPermissionStatus;
 import '../../l10n/app_localizations.dart';
 import '../../l10n/display_text.dart';
+import '../../state/clock_format.dart';
 import '../../state/prefs.dart';
 import '../../state/units_controller.dart';
 import '../screens/home_screen.dart' show unitsOf;
@@ -190,6 +191,14 @@ class ActivityHost {
   /// Whether the band is connected right now.
   final bool bandConnected;
 
+  /// When the session went quiet, if it has been quiet long enough to look
+  /// forgotten; null while it is active. Stop then offers to end it there.
+  final DateTime? Function()? quietSince;
+
+  /// Moves the end of the session [onFinish] is about to close back to this
+  /// instant. Called just before [onFinish], only when the user chose it.
+  final void Function(DateTime endAt)? endAt;
+
   const ActivityHost({
     this.feed,
     this.onStart,
@@ -197,6 +206,8 @@ class ActivityHost {
     this.onSets,
     this.history = const {},
     this.bandConnected = false,
+    this.quietSince,
+    this.endAt,
   });
 
   /// No app behind the screens: they still render, nothing is persisted.
@@ -400,7 +411,7 @@ Widget liveFor(
   final feed = host.feed;
   final history = host.history;
   final onFinish = host.onFinish;
-  return switch (archOf(a)) {
+  final screen = switch (archOf(a)) {
     Arch.strength => LiveStrength(a,
         feed: feed,
         weightKg: weightKg,
@@ -425,6 +436,45 @@ Widget liveFor(
     _ => LiveMeasured(a,
         feed: feed, weightKg: weightKg, private: p, onFinish: onFinish),
   };
+  // No app behind it (tests, previews): nothing to ask on stop.
+  return host.quietSince == null
+      ? screen
+      : _HostScope(host: host, child: screen);
+}
+
+/// The host, reachable from the shell's stop without threading it through
+/// every archetype's constructor.
+class _HostScope extends InheritedWidget {
+  final ActivityHost host;
+  const _HostScope({required this.host, required super.child});
+
+  @override
+  bool updateShouldNotify(_HostScope old) => old.host != host;
+}
+
+/// "You stopped moving at 15:58" — end there, or keep the whole session.
+/// True ends it at [at], false keeps it, null backs out of stopping.
+Future<bool?> _askTrim(BuildContext c, DateTime at) {
+  final clock = formatClockMinute(at.hour * 60 + at.minute);
+  return AppSheet.show<bool>(
+    c,
+    title: 'You stopped moving at $clock',
+    child: Text(
+      'Your heart rate has been at rest since then. End the session there, '
+      'so the quiet time does not count as training?',
+      style: F.cap.copyWith(color: P.of(c).ink2, height: 1.5),
+    ),
+    actions: [
+      Builder(
+        builder: (s) => BigButton('End at $clock',
+            icon: LucideIcons.clock, onTap: () => Navigator.of(s).pop(true)),
+      ),
+      Builder(
+        builder: (s) => BigButton('Keep the whole session',
+            soft: true, onTap: () => Navigator.of(s).pop(false)),
+      ),
+    ],
+  );
 }
 
 // ══════════════ THE SHELL ══════════════
@@ -542,8 +592,26 @@ class LiveShellState extends State<LiveShell> {
     // log twice; the second tap must do nothing at all.
     if (_finishing) return;
     _finishing = true;
+    // A session that went quiet long ago was probably forgotten: ask whether
+    // to end it where the user stopped, before anything is torn down.
+    final host = context.getInheritedWidgetOfExactType<_HostScope>()?.host;
+    final quiet = host?.quietSince?.call();
+    var endElapsed = elapsed;
+    if (quiet != null && host?.endAt != null) {
+      final trim = await _askTrim(context, quiet);
+      if (!mounted) return;
+      if (trim == null) {
+        _finishing = false;
+        return;
+      }
+      if (trim) {
+        final cut = DateTime.now().difference(quiet).inSeconds;
+        endElapsed = math.max(0, elapsed - cut);
+        host!.endAt!(quiet);
+      }
+    }
     _t?.cancel();
-    final draft = widget.result(elapsed);
+    final draft = widget.result(endElapsed);
     // The app writes the session, flushes the GPS tail and hands back what it
     // could add. A failure here must still land the user on their summary —
     // losing the screen is worse than losing the enrichment.

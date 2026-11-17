@@ -203,17 +203,9 @@ class _HeartRateSettingsScreenState extends State<HeartRateSettingsScreen> {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: S.x4),
                 children: [
-                  const SizedBox(height: S.x2),
-                  Text(
-                    'Heart Rate Zones',
-                    style: F.t1.copyWith(color: p.ink, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: S.x2),
-                  Text(
-                    'Calculated using the scientifically validated heart rate reserve formula, your heart rate (HR) zones are personalized using your baseline resting HR and maximum HR.',
-                    style: F.body.copyWith(color: p.ink3, height: 1.4),
-                  ),
-                  const SizedBox(height: S.x5),
+                  // No heading or intro: the page fits one screen without
+                  // them, and the two fields' info buttons say the rest.
+                  const SizedBox(height: S.x4),
                   // Resting HR & Max HR input cards
                   Row(
                     children: [

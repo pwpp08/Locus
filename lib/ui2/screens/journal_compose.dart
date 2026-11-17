@@ -391,6 +391,22 @@ class _JournalComposeState extends State<JournalCompose> {
     }
   }
 
+  /// Closing keeps what was answered: half a day logged is still logged.
+  /// Only DONE and a day switch used to write, so X or a back swipe threw
+  /// away every answer on the page.
+  Future<void> _close() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await _persist();
+    } catch (_) {
+      // Leaving must not be blocked by a failed write.
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+    if (mounted) Navigator.of(context).pop(true);
+  }
+
   Future<void> _done() async {
     if (_saving) return;
     setState(() => _saving = true);
@@ -501,7 +517,12 @@ class _JournalComposeState extends State<JournalCompose> {
     final l = AppLocalizations.of(c);
     final top = MediaQuery.paddingOf(c).top;
     final at = _days.indexOf(_date);
-    return Scaffold(
+    return PopScope(
+      canPop: widget.embedded,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_close());
+      },
+      child: Scaffold(
         backgroundColor: JC.foot,
         body: DecoratedBox(
           decoration: const BoxDecoration(
@@ -517,7 +538,7 @@ class _JournalComposeState extends State<JournalCompose> {
               SizedBox(height: top),
               _Header(
                 title: uiText(c, 'JOURNAL'),
-                onClose: widget.embedded ? null : () => Navigator.of(c).pop(),
+                onClose: widget.embedded ? null : () => unawaited(_close()),
                 onEdit: _loading ? null : () => unawaited(_edit()),
                 onBell: () => unawaited(showJournalReminderSheet(c)),
               ),
@@ -637,7 +658,8 @@ class _JournalComposeState extends State<JournalCompose> {
             ],
           ),
         ),
-      );
+      ),
+    );
   }
 }
 

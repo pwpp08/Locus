@@ -174,13 +174,20 @@ class _Welcome extends StatefulWidget {
 }
 
 class _WelcomeState extends State<_Welcome> {
-  bool _google = false, _busy = false;
+  bool _anon = false, _google = false, _busy = false, _checked = false;
+  bool _offline = false;
 
   @override
   void initState() {
     super.initState();
-    _svc.googleAvailable().then((g) {
-      if (mounted) setState(() => _google = g);
+    _svc.signInMethods().then((m) {
+      if (!mounted) return;
+      setState(() {
+        _checked = true;
+        _offline = m == null;
+        _anon = m?.anonymous ?? false;
+        _google = m?.google ?? false;
+      });
     });
   }
 
@@ -226,6 +233,15 @@ class _WelcomeState extends State<_Welcome> {
             'Nothing leaves this phone until you tick it. Untick it and it is '
                 'taken back down.'),
         const SizedBox(height: S.x4),
+        if (_checked && !_anon && !_google)
+          Text(
+            _offline
+                ? 'Cannot reach the community right now. Check your connection.'
+                : 'Sign-in is not switched on for the community yet.',
+            textAlign: TextAlign.center,
+            style: F.body.copyWith(color: p.ink2),
+          ),
+        if (_anon)
         BigButton('Join',
             icon: LucideIcons.logIn,
             busy: _busy,
@@ -242,7 +258,7 @@ class _WelcomeState extends State<_Welcome> {
                     }
                   }),
         if (_google) ...[
-          const SizedBox(height: S.x3),
+          if (_anon) const SizedBox(height: S.x3),
           BigButton('Continue with Google', soft: true, onTap: () async {
             try {
               await _svc.signInWithGoogle();

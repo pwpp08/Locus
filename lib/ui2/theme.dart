@@ -732,6 +732,13 @@ class AC {
   static const segGrey = Color(0xFF959597);
   static const segGreyFill = Color(0xFF2A2B2D);
 
+  /// The Locus Age trend line while it sits above the real age: the
+  /// reference's dim olive. Younger it is drawn in [tealText].
+  static const ageOlderLine = Color(0xFF7D7457);
+
+  /// The ground under the trend's end value.
+  static const chipDark = Color(0xFF14231F);
+
   /// A contributor row closed, and open: the open one sits darker.
   static const row = Color(0xFF272C2F);
   static const rowOpen = Color(0xFF1D1E20);

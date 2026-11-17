@@ -49,6 +49,17 @@ void main() {
     expect(taps, ['outlook']);
   });
 
+  testWidgets('once the outlook is read the strip says Locus Coach',
+      (t) async {
+    await pump(
+      t,
+      DailyOutlookRow(
+          name: 'Greg', evening: false, read: true, onOutlook: () {}),
+    );
+    expect(find.text('Locus Coach'), findsOneWidget);
+    expect(find.textContaining('Daily Outlook'), findsNothing);
+  });
+
   testWidgets('the strip carries the first name, at the reference proportions',
       (t) async {
     await pump(

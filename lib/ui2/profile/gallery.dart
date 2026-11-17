@@ -71,6 +71,8 @@ import '../../compute/training_status.dart';
 import '../screens/training_status_card.dart' show TrainingStatusView;
 import '../screens/reports.dart' show ScoreRing;
 import '../screens/home/card_pictures.dart';
+import '../screens/locus_age.dart' show LocusAgeTrends;
+import '../../compute/whoop_age.dart' show WhoopAgeResult;
 import '../../compute/stress_monitor.dart' show StressBaseline;
 
 /// A deterministic series — a gallery cannot depend on random data.
@@ -1244,6 +1246,19 @@ Map<String, Widget> extraCases() => {
           'Step goal reached',
           'You walked 11,240 steps yesterday, past your goal of 10,000.',
         ),
+      ]),
+      // Locus Age and Pace of Aging over half a year of finished weeks: older
+      // than the calendar at first, then catching up.
+      'locus_age_trends': LocusAgeTrends(weeks: [
+        for (var i = 0; i < 26; i++)
+          (
+            end: dayLabelOf(DateTime(2026, 5, 2 + 7 * i)),
+            r: WhoopAgeResult(
+              whoopAge: 39.4 - (i > 12 ? (i - 12) * .2 : 0) + sin(i * .9) * .25,
+              age: 36.3 + i * 7 / 365.25,
+              pace: (i < 6 ? .2 * i : 1.0 - (i - 6) * .08) + sin(i * 1.7) * .15,
+            ),
+          ),
       ]),
       // The daily cards' pictures, every one.
       'card_pictures': Wrap(

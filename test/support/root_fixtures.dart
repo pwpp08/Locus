@@ -16,6 +16,8 @@ import 'package:openstrap_edge/ui2/onboarding/profile_setup.dart';
 import 'package:openstrap_edge/ui2/onboarding/welcome.dart';
 import 'package:openstrap_edge/ui2/pairing/device_picker.dart';
 import 'package:openstrap_edge/ui2/profile/profile.dart';
+import 'package:openstrap_edge/ui2/profile/settings.dart' show EditProfileView;
+import 'package:openstrap_edge/ui2/screens/heart_rate_settings.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 import 'package:openstrap_edge/ui2/screens/locus_age.dart';
 import 'package:openstrap_edge/ui2/screens/screens.dart';
@@ -217,6 +219,18 @@ final Map<String, Widget Function()> rootCases = {
       ),
   'pairing': () => PairingView(phase: PairPhase.idle, onPair: () {}),
   'about_you': () => ProfileSetupView(onSave: (_) async {}),
+  'heart_rate_settings': () => ChangeNotifierProvider<AppState>.value(
+      value: _app, child: const HeartRateSettingsScreen()),
+  'edit_profile': () => EditProfileView(
+        initial: const {
+          'name': 'Vince',
+          'sex': 'm',
+          'birth_date': '2008-08-19',
+          'height_cm': 185.0,
+          'weight_kg': 69.4,
+        },
+        onSave: (_) async {},
+      ),
   'profile': () => MultiProvider(providers: [
         ChangeNotifierProvider<AppState>.value(value: _app),
         ChangeNotifierProvider<LocaleController>.value(

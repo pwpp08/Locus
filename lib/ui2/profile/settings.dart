@@ -21,8 +21,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../compute/profile.dart' show birthDateOf, wholeYearsOn;
 import '../../data/day_label.dart';
 import '../../health/health_export.dart' show HealthLinkState;
-import '../../health/health_import_state.dart';
-import '../../health/health_profile_import.dart';
 import '../../l10n/app_localizations.dart';
 import '../../platform/tasker_bridge.dart';
 import '../../notify/notification_prefs.dart';
@@ -623,31 +621,6 @@ Widget settingsPage(BuildContext c, String title, List<Widget> children) =>
 
 // ══════════════════ MY PROFILE · DEVICE · HEALTH ══════════════════
 
-/// Everything about you: who you are and what you weigh.
-class MyProfileSettings extends StatelessWidget {
-  const MyProfileSettings({super.key});
-
-  @override
-  Widget build(BuildContext c) {
-    final app = c.watch<AppState>();
-    final wKg = (app.user?['weight_kg'] as num?)?.toDouble();
-    final weight = wKg == null ? '' : c.watch<UnitsController>().weight(wKg);
-    final l = AppLocalizations.of(c);
-    return settingsPage(c, 'My profile', [
-      settingsGroup(c, '', [
-        SetRow(LucideIcons.userRound, C.dialStrain,
-            l?.profileEditProfile ?? 'Edit profile',
-            sub: 'Your name and the body details the scores use',
-            onTap: () => goto(c, const EditProfile())),
-        SetRow(LucideIcons.scale, C.dialStrain, 'Weight',
-            sub: 'Your weight over time, and a new reading',
-            value: weight,
-            onTap: () => goto(c, const WeightTrendScreen())),
-      ]),
-    ]);
-  }
-}
-
 /// Everything that is your data: what comes in (a WHOOP export), what goes
 /// out (the health store, export and backup, the cloud copy) and how much
 /// room it takes.
@@ -1195,66 +1168,6 @@ class EditProfile extends StatelessWidget {
       // form did not convert on the way in, so typing back the 172 lb the app
       // had just printed stored 172 kg.
       units: c.watch<UnitsController>(),
-      // The read lives on the form it fills. It used to be three taps away on
-      // a settings screen, which is a long way to go to keep a weight current
-      // — and the weight is the one the calorie and BMR estimates read.
-      //
-      // The merge policy (weight and height win, age and sex only fill a gap)
-      // stays in `mergeHealthProfile` and is not re-decided here. The fields
-      // come back so the form shows what arrived rather than claiming it.
-      onImport: () async {
-        final importer = HealthProfileImporter();
-        final l = AppLocalizations.of(c);
-        // Asked HERE, on the tap, and for these four types only. Nothing at
-        // launch and nothing in onboarding: a permission sheet for data the
-        // user has not asked us to read is how the whole set gets denied at
-        // once.
-        if (!await importer.requestPermission()) {
-          return (
-            l?.settingsImportNoPermission(storeName) ??
-                '$storeName did not grant those fields. Nothing was read.',
-            true,
-            null,
-          );
-        }
-        final snap = await importer.read();
-        if (snap.isEmpty) {
-          return (
-            isAppleHealth
-                ? (l?.settingsImportEmptyWithBirthday(storeName) ??
-                    'Nothing came back. $storeName holds no height, weight, '
-                        'birthday or sex for you — type them in here instead.')
-                : (l?.settingsImportEmpty(storeName) ??
-                    'Nothing came back. $storeName holds no height, weight'
-                        ' or sex for you — type them in here instead.'),
-            false,
-            null,
-          );
-        }
-        await markImported(HealthImport.profile);
-        if (!c.mounted) return ('', false, null);
-        final app = c.read<AppState>();
-        final changes = healthProfileChanges(app.user, snap);
-        final merged = mergeHealthProfile(app.user, snap);
-        // Nothing to write is not a write of the same thing: `updateProfile`
-        // persists the profile and notifies every listener.
-        if (changes.isEmpty) {
-          return (
-            l?.settingsImportNoChange(snap.found.join(', ')) ??
-                'Read ${snap.found.join(', ')}. Your profile already says the '
-                    'same thing, so nothing changed.',
-            false,
-            merged,
-          );
-        }
-        await app.updateProfile(merged);
-        return (
-          l?.settingsImportUpdated(changes.join(', '), storeName) ??
-              'Updated ${changes.join(', ')} from $storeName.',
-          false,
-          merged
-        );
-      },
       onSave: (fields) async {
         // A field the user CLEARED must be removed, not merged over — the
         // profile map is a merge, so writing only what is present would keep
@@ -1285,22 +1198,11 @@ class EditProfileView extends StatefulWidget {
   /// also what the storage is — the conversion only exists for imperial.
   final UnitsController? units;
 
-  /// Read these fields from the phone's health store.
-  ///
-  /// Returns the line to show, whether it failed, and the profile as it now
-  /// stands so the form can display what arrived. Null means no button — the
-  /// gallery and the golden sweep get the form without a control that would
-  /// raise a real health-store prompt from a screenshot.
-  final Future<(String note, bool failed, Map<String, dynamic>? fields)>
-          Function()?
-      onImport;
-
   const EditProfileView(
       {super.key,
       required this.onSave,
       this.initial = const {},
-      this.units,
-      this.onImport});
+      this.units});
 
   @override
   State<EditProfileView> createState() => _EditProfileViewState();
@@ -1320,67 +1222,8 @@ class _EditProfileViewState extends State<EditProfileView> {
       TextEditingController(text: _u.weightField(widget.initial['weight_kg'] as num?));
   late String? _sex = (widget.initial['sex'] as String?)?.toLowerCase();
 
-  /// The stored keys, in the switcher's order. Unset selects nothing.
-  static const _sexKeys = ['m', 'f', 'other'];
-
-  /// When the store last gave us something. Null is "never", which is also
-  /// what an unreadable preference reads as — the first-run word on the button
-  /// is the safe one either way.
-  DateTime? _lastImport;
-  bool _importing = false;
-  String? _importNote;
-  bool _importFailed = false;
 
   static String _s(Object? v) => v == null ? '' : '$v';
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.onImport == null) return;
-    lastImportAt(HealthImport.profile).then((at) {
-      if (mounted) setState(() => _lastImport = at);
-    });
-  }
-
-  /// Read, then show what arrived in the fields it fills.
-  ///
-  /// The controllers are rewritten rather than the screen rebuilt from
-  /// `AppState`: this form owns its text while it is open, and a value that
-  /// changed underneath it without the field moving is a value the user never
-  /// sees.
-  Future<void> _import() async {
-    final job = widget.onImport;
-    if (job == null || _importing) return;
-    setState(() {
-      _importing = true;
-      _importNote = null;
-    });
-    try {
-      final (note, failed, fields) = await job();
-      if (!mounted) return;
-      if (fields != null) {
-        _age.text = _s(fields['age']);
-        _height.text = _u.heightField(fields['height_cm'] as num?);
-        _weight.text = _u.weightField(fields['weight_kg'] as num?);
-        _sex = (fields['sex'] as String?)?.toLowerCase() ?? _sex;
-      }
-      setState(() {
-        _importNote = note;
-        _importFailed = failed;
-        if (!failed && fields != null) _lastImport = DateTime.now();
-      });
-    } catch (e) {
-      if (mounted) {
-        final l = AppLocalizations.of(context);
-        setState(() {
-          _importNote = l?.settingsImportFailed('$e') ?? 'Failed: $e';
-          _importFailed = true;
-        });
-      }
-    } finally {
-      if (mounted) setState(() => _importing = false);
-    }
-  }
 
   @override
   void dispose() {
@@ -1426,10 +1269,128 @@ class _EditProfileViewState extends State<EditProfileView> {
     });
   }
 
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  String _sexWord(AppLocalizations? l) => switch (_sex) {
+        'm' => l?.settingsSexMale ?? 'Male',
+        'f' => l?.settingsSexFemale ?? 'Female',
+        'other' => 'Other',
+        _ => '',
+      };
+
+  String _birthWord() {
+    final b = _birth;
+    if (b == null) return '';
+    final years = wholeYearsOn(b, DateTime.now());
+    return '${b.day} ${_months[b.month - 1]} ${b.year} · $years';
+  }
+
+  /// One value, typed in a sheet: the field, and Done.
+  Future<void> _editText(String title, TextEditingController ctl,
+      TextInputType kind, {String? unit}) async {
+    final draft = TextEditingController(text: ctl.text);
+    final ok = await AppSheet.show<bool>(
+      context,
+      title: title,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        child: Row(children: [
+          Expanded(
+            child: AppField(
+              controller: draft,
+              keyboardType: kind,
+              autofocus: true,
+              textStyle: F.head,
+              hint: AppLocalizations.of(context)?.settingsNotSetHint ?? 'Not set',
+            ),
+          ),
+          if (unit != null) ...[
+            const SizedBox(width: S.x3),
+            Text(unit, style: F.body.copyWith(color: P.of(context).ink2)),
+          ],
+        ]),
+      ),
+      actions: [
+        Builder(
+          builder: (s) => BigButton('Done',
+              onTap: () => Navigator.of(s).pop(true)),
+        ),
+      ],
+    );
+    if (ok == true && mounted) setState(() => ctl.text = draft.text.trim());
+    draft.dispose();
+  }
+
+  Future<void> _editSex() async {
+    final l = AppLocalizations.of(context);
+    final pick = await AppSheet.show<String>(
+      context,
+      title: l?.settingsSexFieldLabel ?? 'Sex',
+      child: Builder(
+        builder: (s) => Column(mainAxisSize: MainAxisSize.min, children: [
+          for (final (k, word) in [
+            ('m', l?.settingsSexMale ?? 'Male'),
+            ('f', l?.settingsSexFemale ?? 'Female'),
+            ('other', 'Other'),
+          ])
+            _Line(
+              word,
+              value: null,
+              trailing: _sex == k
+                  ? Icon(LucideIcons.check, size: I.md, color: P.of(s).ink)
+                  : null,
+              onTap: () => Navigator.of(s).pop(k),
+            ),
+        ]),
+      ),
+    );
+    if (pick != null && mounted) setState(() => _sex = pick);
+  }
+
+  Future<void> _editBirthday() async {
+    final d = await pickBirthday(context, initial: _birth);
+    if (d != null && mounted) setState(() => _birth = d);
+  }
+
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
+    String unitOf(String label) {
+      final m = RegExp(r'\(([^)]+)\)').firstMatch(label);
+      return m == null ? '' : m.group(1)!;
+    }
+
+    final hUnit = unitOf(_u.heightLabel);
+    final wUnit = unitOf(_u.weightLabel);
+    String withUnit(String v, String unit) =>
+        v.isEmpty ? '' : (unit.isEmpty ? v : '$v $unit');
+    final rows = <Widget>[
+      _Line('Name',
+          value: _name.text.trim(),
+          onTap: () => _editText('Name', _name, TextInputType.name)),
+      _Line('Sex',
+          value: _sexWord(l), onTap: _editSex),
+      _Line('Birthday', value: _birthWord(), onTap: _editBirthday),
+      if (_birth == null)
+        _Line('Age',
+            value: _age.text.trim(),
+            onTap: () =>
+                _editText('Age', _age, TextInputType.number, unit: 'years')),
+      _Line('Height',
+          value: withUnit(_height.text.trim(), hUnit),
+          onTap: () => _editText('Height', _height,
+              const TextInputType.numberWithOptions(decimal: true),
+              unit: hUnit.isEmpty ? null : hUnit)),
+      _Line('Weight',
+          value: withUnit(_weight.text.trim(), wUnit),
+          onTap: () => _editText('Weight', _weight,
+              const TextInputType.numberWithOptions(decimal: true),
+              unit: wUnit.isEmpty ? null : wUnit)),
+    ];
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
@@ -1447,131 +1408,86 @@ class _EditProfileViewState extends State<EditProfileView> {
           ),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
+              padding: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x4, S.x10),
               children: [
-                _text(c, _name, l?.settingsNameFieldLabel ?? 'NAME',
-                    TextInputType.name),
-                const SizedBox(height: S.x4),
-                Text(l?.settingsSexFieldLabel ?? 'SEX',
-                    style: F.over.copyWith(color: p.ink3)),
-                const SizedBox(height: S.x2),
-                // The switcher every other choice in settings uses.
-                RangeSegments(
-                  [
-                    (l?.settingsSexMale ?? 'Male').toUpperCase(),
-                    (l?.settingsSexFemale ?? 'Female').toUpperCase(),
-                    'OTHER',
-                  ],
-                  _sexKeys.indexOf(_sex ?? ''),
-                  (i) => setState(() => _sex = _sexKeys[i]),
-                  width: null,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: S.x4),
+                  decoration: moreCard(p),
+                  child: Column(children: [
+                    for (var i = 0; i < rows.length; i++) ...[
+                      if (i > 0) Divider(height: S.hair, color: p.line),
+                      rows[i],
+                    ],
+                  ]),
                 ),
-                const SizedBox(height: S.x4),
-                // With a birthday the age is worked out from it, to the day.
-                Text('BIRTHDAY', style: F.over.copyWith(color: p.ink3)),
-                BirthdayRow(
-                  value: _birth,
-                  onChanged: (d) => setState(() => _birth = d),
+                const SizedBox(height: S.x3),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: S.x4),
+                  decoration: moreCard(p),
+                  child: _Line('Weight over time',
+                      value: null,
+                      onTap: () => goto(c, const WeightTrendScreen())),
                 ),
-                // The typed age only while there is no birthday to read it from.
-                if (_birth == null) ...[
-                  const SizedBox(height: S.x4),
-                  _text(c, _age, l?.settingsAgeYearsFieldLabel ?? 'AGE (YEARS)',
-                      TextInputType.number),
-                ],
-                  const SizedBox(height: S.x4),
-                  _text(
-                    c,
-                    _height,
-                    l?.localeName.startsWith('ru') == true
-                        ? uiText(c, _u.heightLabel)
-                        : uiText(c, _u.heightLabel).toUpperCase(),
-                    TextInputType.number,
+                const SizedBox(height: S.x3),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: S.x1),
+                  child: Text(
+                    'Your strain, calories, heart rate zones and Locus Age '
+                    'are worked out from these.',
+                    style: F.cap.copyWith(color: p.ink3, height: 1.4),
                   ),
-                  const SizedBox(height: S.x4),
-                  _text(
-                    c,
-                    _weight,
-                    l?.localeName.startsWith('ru') == true
-                        ? uiText(c, _u.weightLabel)
-                        : uiText(c, _u.weightLabel).toUpperCase(),
-                    TextInputType.number,
-                  ),
-                  ..._importBlock(p, c),
-                  const SizedBox(height: S.x6),
-                StatusCard(
-                  l?.settingsFourFieldsTitle ?? 'These four change your numbers',
-                  l?.settingsFourFieldsBody ??
-                      'They feed heart-rate zones, calorie estimates and training '
-                          'load. Clear one and only the metrics that need it stay '
-                          'unavailable.',
-                  icon: LucideIcons.info,
                 ),
-                ],
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ]),
       ),
     );
   }
+}
 
-  /// The health-store read, on the form it fills. Empty when the caller passed
-  /// no [EditProfileView.onImport] — the gallery and the golden sweep must not
-  /// carry a control that raises a real permission sheet.
-  List<Widget> _importBlock(P p, BuildContext c) {
-    if (widget.onImport == null) return const [];
-    final l = AppLocalizations.of(c);
-    return [
-      const SizedBox(height: S.x6),
-      Surface(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(
-            isAppleHealth
-                ? (l?.settingsImportBlockAppleHealth(storeName) ??
-                    'Height, weight, birthday and sex from $storeName. Height and weight update every time; age and sex only fill an empty field.')
-                : (l?.settingsImportBlockOther(storeName) ??
-                    'Height and weight, straight out of $storeName. It has no '
-                        'birthday and no sex to read — no app can — so set those '
-                        'two above yourself.'),
-            style: F.cap.copyWith(color: p.ink3, height: 1.5),
+/// One line of Edit profile: what it is on the left, its value on the right,
+/// a chevron, and the whole line a tap.
+class _Line extends StatelessWidget {
+  final String label;
+
+  /// Null shows no value at all; empty says "Not set".
+  final String? value;
+  final Widget? trailing;
+  final VoidCallback onTap;
+  const _Line(this.label,
+      {required this.value, required this.onTap, this.trailing});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    return Pressable(
+      onTap: onTap,
+      semanticLabel:
+          value == null || value!.isEmpty ? label : '$label, $value',
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: S.x12 + S.x2),
+        child: Row(children: [
+          Text(label, style: F.body.copyWith(color: p.ink)),
+          const SizedBox(width: S.x4),
+          Expanded(
+            child: value == null
+                ? const SizedBox.shrink()
+                : Text(
+                    value!.isEmpty ? 'Not set' : value!,
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: F.num(F.body)
+                        .copyWith(color: value!.isEmpty ? p.ink3 : p.ink2),
+                  ),
           ),
-          const SizedBox(height: S.x4),
-          BigButton(
-            importLabel(_lastImport),
-            icon: LucideIcons.scale,
-            color: C.dialStrain,
-            soft: true,
-            onTap: _importing ? null : _import,
-          ),
-          if (_importNote != null && _importNote!.isNotEmpty) ...[
-            const SizedBox(height: S.x3),
-            if (_importFailed)
-              ErrorLine(_importNote!)
-            else
-              Text(
-                _importNote!,
-                style: F.cap.copyWith(color: p.ink2, height: 1.5),
-              ),
-          ],
+          const SizedBox(width: S.x2),
+          trailing ??
+              Icon(LucideIcons.chevronRight, size: I.sm, color: p.ink3),
         ]),
       ),
-    ];
-  }
-
-  Widget _text(BuildContext c, TextEditingController ctl, String label,
-      TextInputType kind) {
-    final p = P.of(c);
-    final l = AppLocalizations.of(c);
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: F.over.copyWith(color: p.ink3)),
-      AppField(
-        controller: ctl,
-        keyboardType: kind,
-        textStyle: F.head,
-        hint: l?.settingsNotSetHint ?? 'Not set',
-      ),
-    ]);
+    );
   }
 }
 

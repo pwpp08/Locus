@@ -780,12 +780,8 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: S.x4),
-            child: Column(
-              children: [
-                _TrendCard.pace(_weeks),
-                const SizedBox(height: S.x3),
-                _TrendCard.age(_weeks),
-              ],
+            child: LocusAgeTrends(
+              weeks: [for (final w in _weeks) (end: w.end, r: w.r)],
             ),
           ),
         ],
@@ -1496,31 +1492,65 @@ class _BandPainter extends CustomPainter {
       old.at != at || old.at30 != at30 || old.thick != thick || old.segs != segs;
 }
 
+/// The two trend cards under the page, Locus Age over Pace of Aging, as the
+/// reference stacks them. [weeks] are the finished weeks, oldest first.
+class LocusAgeTrends extends StatelessWidget {
+  final List<({String end, WhoopAgeResult r})> weeks;
+  const LocusAgeTrends({super.key, required this.weeks});
+
+  @override
+  Widget build(BuildContext c) {
+    final w = [
+      for (final x in weeks)
+        if (x.r.whoopAge != null) _Week(x.end, '', x.r),
+    ];
+    return Column(
+      children: [
+        if (w.isNotEmpty) ...[
+          _TrendCard.age(w),
+          const SizedBox(height: S.x3),
+        ],
+        _TrendCard.pace(w),
+      ],
+    );
+  }
+}
+
 class _TrendCard extends StatelessWidget {
   final String title;
-  final List<double> values;
-  final double? reference;
+
+  /// One point per finished week, oldest first, with the week's last day.
+  final List<({String day, double v})> points;
+
+  /// The chronological age each week (it rises with the calendar); null
+  /// draws none. [flat] is a level reference instead (1.0x for the pace).
+  final List<double>? reference;
+  final double? flat;
   final double lo, hi, step;
   final String Function(double) label;
   final Color colour;
-  final bool legend;
+  final bool age;
 
   const _TrendCard._({
     required this.title,
-    required this.values,
-    required this.reference,
+    required this.points,
+    this.reference,
+    this.flat,
     required this.lo,
     required this.hi,
     required this.step,
     required this.label,
     required this.colour,
-    this.legend = false,
+    this.age = false,
   });
 
   factory _TrendCard.pace(List<_Week> weeks) => _TrendCard._(
     title: 'PACE OF AGING TREND',
-    values: [for (final w in weeks) if (w.r.pace != null) w.r.pace!],
-    reference: 1,
+    points: [
+      for (final w in weeks)
+        if (w.r.pace != null) (day: w.end, v: w.r.pace!),
+    ],
+    flat: 1,
     lo: -1,
     hi: 3,
     step: 1,
@@ -1530,8 +1560,8 @@ class _TrendCard extends StatelessWidget {
 
   factory _TrendCard.age(List<_Week> weeks) {
     final ages = [for (final w in weeks) w.r.whoopAge!];
-    final real = weeks.last.r.age?.toDouble();
-    final all = [...ages, ?real];
+    final real = [for (final w in weeks) ?w.r.age];
+    final all = [...ages, ...real];
     var lo = (all.reduce(math.min) / 5).floorToDouble() * 5;
     var hi = (all.reduce(math.max) / 5).ceilToDouble() * 5;
     if (hi - lo < 10) {
@@ -1540,14 +1570,14 @@ class _TrendCard extends StatelessWidget {
     }
     return _TrendCard._(
       title: 'LOCUS AGE TREND',
-      values: ages,
-      reference: real,
+      points: [for (final w in weeks) (day: w.end, v: w.r.whoopAge!)],
+      reference: real.length == weeks.length ? real : null,
       lo: lo,
       hi: hi,
       step: 5,
       label: (v) => v.toStringAsFixed(1),
       colour: AC.tealText,
-      legend: true,
+      age: true,
     );
   }
 
@@ -1559,84 +1589,114 @@ class _TrendCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: F.dLabel.copyWith(color: DC.ink)),
-        if (legend) ...[
-          const SizedBox(height: S.x3),
-          Wrap(
-            spacing: S.x4,
-            runSpacing: S.x1,
-            children: [
-              _key(colour, 'YOUR LOCUS AGE'),
-              _key(DC.ink, 'CHRONOLOGICAL AGE'),
-            ],
+        if (age) ...[
+          const SizedBox(height: S.x4),
+          Center(
+            child: Wrap(
+              spacing: S.x5,
+              runSpacing: S.x1,
+              children: [
+                _key(
+                  const BoxDecoration(
+                    borderRadius: BorderRadius.all(Radius.circular(S.half)),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [AC.segAmber, AC.segGreen],
+                    ),
+                  ),
+                  'YOUR LOCUS AGE',
+                ),
+                _key(
+                  const BoxDecoration(color: DC.ink, borderRadius: BorderRadius.all(Radius.circular(S.half))),
+                  'CHRONOLOGICAL AGE',
+                ),
+              ],
+            ),
           ),
         ],
         const SizedBox(height: S.x3),
-        if (values.length < 2)
+        if (points.length < 2)
           Text(
             'Two finished weeks draw this line.',
             style: AC.body.copyWith(color: DC.ink3),
           )
         else
           CustomPaint(
-            size: const Size(double.infinity, S.x16 * 2.8),
+            size: const Size(double.infinity, S.x16 * 3),
             painter: _TrendPainter(
-              values: values,
+              points: points,
               reference: reference,
+              flat: flat,
               lo: lo,
               hi: hi,
               step: step,
               label: label,
               colour: colour,
+              stepped: age,
             ),
           ),
       ],
     ),
   );
 
-  Widget _key(Color k, String text) => Row(
+  Widget _key(BoxDecoration swatch, String text) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Container(
-        width: S.x2 + S.x1,
-        height: S.x2 + S.x1,
-        decoration: BoxDecoration(color: k, borderRadius: R.rSm),
-      ),
-      const SizedBox(width: S.x1 + S.half),
-      Text(text, style: AC.barLabel.copyWith(color: DC.ink2)),
+      Container(width: S.x3, height: S.x3, decoration: swatch),
+      const SizedBox(width: S.x2),
+      Flexible(child: Text(text, style: AC.barLabel.copyWith(color: DC.ink))),
     ],
   );
 }
 
+/// A trend over the finished weeks, as the reference draws it: grid and
+/// values down the left, month names along the bottom, the reference (real
+/// age, or 1.0x) in white, the reading in its colour (stepped week to week
+/// for the age, a plain line for the pace) and the ends labelled.
 class _TrendPainter extends CustomPainter {
-  final List<double> values;
-  final double? reference;
+  final List<({String day, double v})> points;
+  final List<double>? reference;
+  final double? flat;
   final double lo, hi, step;
   final String Function(double) label;
   final Color colour;
+  final bool stepped;
 
   const _TrendPainter({
-    required this.values,
+    required this.points,
     required this.reference,
+    required this.flat,
     required this.lo,
     required this.hi,
     required this.step,
     required this.label,
     required this.colour,
+    required this.stepped,
   });
 
-  TextPainter _text(String s, Color c) => TextPainter(
-    text: TextSpan(text: s, style: AC.barLabel.copyWith(color: c)),
+  TextPainter _text(String s, Color c, {bool bold = false}) => TextPainter(
+    text: TextSpan(
+      text: s,
+      style: AC.barLabel.copyWith(
+        color: c,
+        fontWeight: bold ? FontWeight.w700 : null,
+      ),
+    ),
     textDirection: TextDirection.ltr,
   )..layout();
 
   @override
   void paint(Canvas canvas, Size size) {
-    const left = S.x10, right = S.x8, pad = S.x2;
-    final h = size.height - pad * 2;
-    double y(double v) => pad + h * (1 - (v - lo) / (hi - lo));
+    const left = S.x10 + S.x2, right = S.x8, top = S.x2, foot = S.x6;
+    final h = size.height - top - foot;
+    double y(double v) => top + h * (1 - (v - lo) / (hi - lo));
     final w = size.width - left - right;
-    double x(int i) =>
-        left + (values.length < 2 ? w : w * i / (values.length - 1));
+    final days = [for (final p in points) DateTime.parse(p.day)];
+    final t0 = days.first.millisecondsSinceEpoch.toDouble();
+    final span = math.max(1.0, days.last.millisecondsSinceEpoch - t0);
+    double xAt(DateTime d) => left + w * (d.millisecondsSinceEpoch - t0) / span;
+    double x(int i) => xAt(days[i]);
 
     for (var v = lo; v <= hi + .001; v += step) {
       canvas.drawLine(
@@ -1650,55 +1710,115 @@ class _TrendPainter extends CustomPainter {
       t.paint(canvas, Offset(0, y(v) - t.height / 2));
       t.dispose();
     }
+
+    // The months along the bottom, each at its first day.
+    var m = DateTime(days.first.year, days.first.month + 1);
+    while (!m.isAfter(days.last)) {
+      final t = _text(monthShortName(m.month, null), DC.ink3);
+      final mx = xAt(m);
+      if (mx - t.width / 2 >= left - S.x1 && mx + t.width / 2 <= size.width) {
+        t.paint(canvas, Offset(mx - t.width / 2, size.height - t.height));
+      }
+      t.dispose();
+      m = DateTime(m.year, m.month + 1);
+    }
+
+    final white = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = S.half / 1.5
+      ..color = DC.ink;
     final ref = reference;
-    if (ref != null) {
-      canvas.drawLine(
-        Offset(left, y(ref)),
-        Offset(left + w, y(ref)),
+    final f = flat;
+    Offset? refEnd;
+    if (ref != null && ref.length == points.length) {
+      final path = Path()..moveTo(x(0), y(ref.first));
+      for (var i = 1; i < ref.length; i++) {
+        path.lineTo(x(i), y(ref[i]));
+      }
+      canvas.drawPath(path, white);
+      refEnd = Offset(x(ref.length - 1), y(ref.last));
+    } else if (f != null) {
+      canvas.drawLine(Offset(x(0), y(f)), Offset(left + w, y(f)), white);
+    }
+
+    // Older than the real age is the reference's dim olive, younger teal.
+    bool older(int i) => ref != null && points[i].v > ref[i] + .05;
+    final line = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = S.half / 1.25
+      ..strokeJoin = StrokeJoin.round;
+    for (var i = 1; i < points.length; i++) {
+      final a = Offset(x(i - 1), y(points[i - 1].v));
+      final b = Offset(x(i), y(points[i].v));
+      line.color = stepped && older(i - 1) ? AC.ageOlderLine : colour;
+      final path = Path()..moveTo(a.dx, a.dy);
+      if (stepped) {
+        path
+          ..lineTo(b.dx, a.dy)
+          ..lineTo(b.dx, b.dy);
+      } else {
+        path.lineTo(b.dx, b.dy);
+      }
+      canvas.drawPath(path, line);
+    }
+
+    final last = points.length - 1;
+    final end = Offset(x(last), y(points.last.v));
+    final endColour = stepped && older(last) ? AC.ageOlderLine : colour;
+
+    void dot(Offset at, Color c) {
+      canvas.drawCircle(at, S.x1 + S.half, Paint()..color = AC.page);
+      canvas.drawCircle(
+        at,
+        S.x1 + S.half,
         Paint()
-          ..color = DC.ink
-          ..strokeWidth = S.half / 1.5,
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = S.half
+          ..color = c,
       );
     }
-    final line = Path()..moveTo(x(0), y(values.first));
-    for (var i = 1; i < values.length; i++) {
-      line.lineTo(x(i), y(values[i]));
+
+    void chip(
+      String s,
+      Color ink,
+      Color ground,
+      Offset at, {
+      required bool above,
+    }) {
+      final t = _text(s, ink, bold: true);
+      final o = Offset(
+        (at.dx - t.width / 2).clamp(left, size.width - t.width - S.half),
+        above ? at.dy - t.height - S.x3 : at.dy + S.x3,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          (o & t.size).inflate(S.half + S.hair),
+          const Radius.circular(S.x1),
+        ),
+        Paint()..color = ground,
+      );
+      t.paint(canvas, o);
+      t.dispose();
     }
-    canvas.drawPath(
-      line,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = S.half / 1.25
-        ..strokeJoin = StrokeJoin.round
-        ..color = colour,
-    );
-    final end = Offset(x(values.length - 1), y(values.last));
-    canvas.drawCircle(end, S.x1, Paint()..color = AC.page);
-    canvas.drawCircle(
-      end,
-      S.x1,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = S.half / 1.25
-        ..color = colour,
-    );
-    final t = _text(label(values.last), DC.ink);
-    final chip = Offset(
-      (end.dx - t.width / 2).clamp(left, size.width - t.width),
-      (end.dy - t.height - S.x2).clamp(0.0, size.height - t.height),
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        (chip & t.size).inflate(S.half),
-        const Radius.circular(R.sm),
-      ),
-      Paint()..color = AC.chip,
-    );
-    t.paint(canvas, chip);
-    t.dispose();
+
+    final re = refEnd;
+    if (re != null) {
+      dot(re, DC.ink);
+      chip(label(ref!.last), DC.ink, AC.page, re, above: re.dy <= end.dy);
+      chip(
+        label(points.last.v),
+        endColour,
+        AC.chipDark,
+        end,
+        above: re.dy > end.dy,
+      );
+    } else {
+      chip(label(points.last.v), endColour, AC.page, end, above: true);
+    }
+    dot(end, endColour);
   }
 
   @override
   bool shouldRepaint(_TrendPainter old) =>
-      old.values != values || old.reference != reference || old.lo != lo;
+      old.points != points || old.reference != reference || old.lo != lo;
 }

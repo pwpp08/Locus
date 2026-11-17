@@ -1864,7 +1864,12 @@ import 'vendor_sleep.dart';
 // before. (3) Each accepted nap is staged by the night's stager over its
 // window (compute/nap_staging.dart) and stored as `naps.value[].staging`.
 // Days derived before 117 keep their stored values.
-const int kAlgoVersion = 117;
+// 117 → 118 (edge-only): a strength session's muscular load counts only its
+// working minutes (heart rate over the strain floor; the zone split on the
+// day path) and caps at 75 of them. A session left running for hours pinned
+// day and session Strain at 21 on idle time. Days derived before 118 keep
+// their stored values.
+const int kAlgoVersion = 118;
 /// The sibling SHAs this version was derived against, asserted against
 /// pubspec.yaml in test/db_serve_version_and_reads_test.dart.
 ///
@@ -7617,13 +7622,33 @@ class DerivationEngine {
           start != null &&
           end != null &&
           end > start) {
-        muscle += whoopMuscularLoad((end - start) / 60);
+        // The zone minutes are the session's measured working minutes; the
+        // wall clock only stands in when it has no split, and the load caps
+        // either way (a forgotten stop is not seven hours of lifting).
+        muscle += whoopMuscularLoad(_zoneMinutesOf(s) ?? (end - start) / 60);
       }
     }
     final day = muscle == 0
         ? strain
         : whoopStrainFromLoad(whoopLoadForStrain(strain) + muscle);
     return math.max(day, best);
+  }
+
+  /// The sum of a session row's zone minutes, or null with no split.
+  static double? _zoneMinutesOf(Map<String, dynamic> s) {
+    final raw = s['zone_min_json'];
+    if (raw is! String || raw.isEmpty) return null;
+    try {
+      final j = jsonDecode(raw);
+      if (j is! List || j.isEmpty) return null;
+      var sum = 0.0;
+      for (final v in j) {
+        if (v is num) sum += v;
+      }
+      return sum > 0 ? sum : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   static void _applyWakeDayFeatures(

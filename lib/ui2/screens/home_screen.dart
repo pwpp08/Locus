@@ -909,13 +909,27 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           });
         }),
       ),
+      // The day's outlook, once: after it has been opened the strip is the
+      // way into the coach.
       if (isToday)
-        Builder(builder: (c) {
+        StatefulBuilder(builder: (c, set) {
           final period = currentBriefingPeriod(DateTime.now());
+          final today = todayLabel();
+          final read =
+              Prefs.getString(DailyOutlookRow.readPref, '') == today;
           return DailyOutlookRow(
             name: d.name,
             evening: period == BriefingPeriod.evening,
-            onOutlook: () => openCoachSheet(c, outlook: period),
+            read: read,
+            onOutlook: () {
+              if (read) {
+                openCoachSheet(c);
+                return;
+              }
+              Prefs.setString(DailyOutlookRow.readPref, today);
+              set(() {});
+              openCoachSheet(c, outlook: period);
+            },
           );
         }),
       // The workout committed in the coach for today, ready to start.

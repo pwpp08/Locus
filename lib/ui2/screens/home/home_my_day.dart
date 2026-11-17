@@ -43,12 +43,20 @@ class DailyOutlookRow extends StatelessWidget {
 
   /// The user's name from their profile; only its first word is used.
   final String? name;
+
+  /// Today's outlook has been read: the strip is now the way into the coach
+  /// and says so.
+  final bool read;
   const DailyOutlookRow({
     super.key,
     required this.evening,
     required this.onOutlook,
     this.name,
+    this.read = false,
   });
+
+  /// The day whose outlook was last opened, as a day label.
+  static const readPref = 'outlook.read_day';
 
   static const height = S.x12;
   static const ground = LinearGradient(
@@ -59,7 +67,11 @@ class DailyOutlookRow extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final first = name?.trim().split(RegExp(r'\s+')).first ?? '';
-    final title = first.isEmpty ? 'Daily Outlook' : "$first's Daily Outlook";
+    final title = read
+        ? 'Locus Coach'
+        : first.isEmpty
+            ? 'Daily Outlook'
+            : "$first's Daily Outlook";
     const ink = DC.outlookGlyph;
     return Padding(
       padding: const EdgeInsets.only(bottom: S.x3),

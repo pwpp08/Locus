@@ -108,6 +108,12 @@ class WorkoutIdleWatch {
     return _ask(now);
   }
 
+  /// When the session went quiet, if it has been quiet for at least
+  /// [nudgeAfter] by [now]; null while it is still active. Stop offers to end
+  /// the session here instead of at the tap.
+  DateTime? quietSince(DateTime now) =>
+      now.difference(_lastActive) >= nudgeAfter ? _lastActive : null;
+
   /// The nudge actually reached the shade — stop asking, permanently. Only a
   /// PRESENTED notification confirms; a drop (quiet hours, muted category)
   /// leaves the retry loop running so the ask survives the night.

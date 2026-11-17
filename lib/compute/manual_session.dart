@@ -36,7 +36,12 @@ import 'hr_max.dart' show smoothedMaxHr;
 import 'profile.dart';
 import 'strain_peak.dart' show peakStrain;
 import 'whoop_scores.dart'
-    show kWhoopMuscularTypes, whoopLoadForStrain, whoopMuscularLoad, whoopStrainFromLoad;
+    show
+        kWhoopMuscularTypes,
+        whoopActiveMinutes,
+        whoopLoadForStrain,
+        whoopMuscularLoad,
+        whoopStrainFromLoad;
 
 /// Shortest window we accept. Below a minute the 1 Hz substrate cannot say
 /// anything useful and the entry is almost certainly a mis-tap.
@@ -322,8 +327,11 @@ double? strainFromPerMinuteHr(
   // WHOOP adds muscular load to a strength-type session by its length
   // (whoop_scores.dart), on top of what heart rate saw.
   if (heart == null || !kWhoopMuscularTypes.contains(type)) return heart;
+  // Only the minutes the heart says were worked: a session left running
+  // through an afternoon on the sofa earns no muscular load for it.
   return whoopStrainFromLoad(whoopLoadForStrain(heart) +
-      whoopMuscularLoad(perMinuteHr.length.toDouble()));
+      whoopMuscularLoad(whoopActiveMinutes(perMinuteHr,
+          restingHr: restingHr, maxHr: hrMax)));
 }
 
 /// Score a manual window from its 1 Hz HR.

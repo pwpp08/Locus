@@ -628,7 +628,7 @@ class _ProfileHomeState extends State<ProfileHome> {
     builder: (c, snap) => ProfileHomeView(
       tab: widget.tab,
       stats: snap.data,
-      onProfile: () => _open(c, const MyProfileSettings()),
+      onProfile: () => _open(c, const EditProfile()),
       onReports: () => _open(c, const ReportsScreen()),
       onCommunity: () => _open(c, const CommunityScreen()),
       onDevice: () => _open(c, const DeviceSettings()),

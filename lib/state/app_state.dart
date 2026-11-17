@@ -5615,7 +5615,11 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> stopWorkout() => _workoutController.stopWorkout();
+  Future<void> stopWorkout({DateTime? endAt}) =>
+      _workoutController.stopWorkout(endAt: endAt);
+
+  /// When the open workout went quiet, if it looks forgotten; else null.
+  DateTime? workoutQuietSince() => _workoutController.workoutQuietSince();
 
   Future<void> deleteWorkout(String id) => _workoutController.deleteWorkout(id);
 

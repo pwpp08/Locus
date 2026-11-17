@@ -122,7 +122,7 @@ Future<void> openCoachSheet(
 }
 
 /// The doors behind the composer's (+).
-enum _Plus { newChat, image, file, camera, suggest }
+enum _Plus { newChat, image, file, camera }
 
 /// The text files the coach can be handed, read as UTF-8.
 const _textFiles = ['txt', 'csv', 'tsv', 'md', 'json', 'log', 'xml', 'gpx'];
@@ -296,19 +296,17 @@ class _CoachScreenState extends State<CoachScreen> {
     });
   }
 
-  /// The composer's (+): a new conversation, a picture or a file to send, or
-  /// something to try asking.
+  /// The composer's (+): a new conversation, or a picture or a file to send.
+  /// Things to try asking sit behind the lightbulb in the header.
   Future<void> _plus() async {
     final box = _plusKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return;
     final at = box.localToGlobal(Offset.zero) & box.size;
-    final l = AppLocalizations.of(context);
     final pick = await showAnchoredMenu<_Plus>(context, at, [
       (_Plus.newChat, LucideIcons.messageSquarePlus, 'New conversation'),
       (_Plus.image, LucideIcons.image, 'Upload image'),
       (_Plus.file, LucideIcons.fileText, 'Upload file'),
       (_Plus.camera, LucideIcons.camera, 'Take picture'),
-      (_Plus.suggest, LucideIcons.lightbulb, l?.coachTryAsking ?? 'Try asking'),
     ]);
     if (!mounted) return;
     switch (pick) {
@@ -320,8 +318,6 @@ class _CoachScreenState extends State<CoachScreen> {
         await _pickImage(ImageSource.camera);
       case _Plus.file:
         await _pickFile();
-      case _Plus.suggest:
-        await _suggest();
       case null:
         break;
     }
@@ -731,6 +727,16 @@ class _CoachScreenState extends State<CoachScreen> {
             Flexible(child: CoachTag(_modelLabel(c, cfg))),
             const Spacer(),
             _historyButton(c),
+            // Things to ask, as the reference keeps them beside History.
+            Pressable(
+              onTap: _busy ? null : () => unawaited(_suggest()),
+              semanticLabel:
+                  AppLocalizations.of(c)?.coachTryAsking ?? 'Try asking',
+              child: const SizedBox.square(
+                dimension: S.tap,
+                child: Icon(LucideIcons.lightbulb, size: I.lg, color: C.white),
+              ),
+            ),
           ]),
         ]),
       );

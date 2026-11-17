@@ -193,17 +193,23 @@ class CommunityService extends ChangeNotifier {
   /// An anonymous account cannot be signed back into once signed out.
   bool get anonymous => user?.isAnonymous ?? false;
 
-  /// Whether Google sign-in is switched on in the project. The button only
-  /// shows when it is, so it never leads to "provider is not enabled".
-  Future<bool> googleAvailable() async {
+  /// Which ways in are switched on in the project. Each button only shows
+  /// when its way is, so neither leads to "anonymous sign-ins are disabled"
+  /// or "provider is not enabled". Null when the project cannot be reached.
+  Future<({bool anonymous, bool google})?> signInMethods() async {
     try {
       final r = await http.get(Uri.parse('$kCommunityUrl/auth/v1/settings'),
           headers: {'apikey': kCommunityKey}).timeout(const Duration(seconds: 8));
-      if (r.statusCode != 200) return false;
+      if (r.statusCode != 200) return null;
       final j = jsonDecode(r.body);
-      return j is Map && j['external'] is Map && j['external']['google'] == true;
+      final ext = j is Map ? j['external'] : null;
+      if (ext is! Map) return null;
+      return (
+        anonymous: ext['anonymous_users'] == true,
+        google: ext['google'] == true,
+      );
     } catch (_) {
-      return false;
+      return null;
     }
   }
 

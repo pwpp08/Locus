@@ -48,13 +48,16 @@ ActivityHost activityHost(AppState app,
   // the sets lost — used to read a null id, return the draft untouched, throw
   // nothing, and be reported to the user as saved.
   String? sessionId;
+  DateTime? endAt;
   return ActivityHost(
     feed: () => _feedOf(app),
     onStart: (a) => _startSession(app, a),
     onFinish: (draft) {
       sessionId ??= app.activeWorkout?.workoutId;
-      return _finishSession(app, draft, sessionId);
+      return _finishSession(app, draft, sessionId, endAt: endAt);
     },
+    quietSince: app.workoutQuietSince,
+    endAt: (t) => endAt = t,
     onSets: (sets) => _bankSets(app, sets),
     history: history,
     bandConnected: app.isConnected,
@@ -181,9 +184,9 @@ Future<void> _bankSets(AppState app, List<LoggedSet> sets) async {
 /// [id] is passed rather than read here so a retry still has one — see
 /// [activityHost].
 Future<ActivityResult> _finishSession(
-    AppState app, ActivityResult draft, String? id) async {
+    AppState app, ActivityResult draft, String? id, {DateTime? endAt}) async {
   // Idempotent: on a retry the session is already stopped and this is a no-op.
-  await app.stopWorkout();
+  await app.stopWorkout(endAt: endAt);
   if (id == null) return draft;
   // The row exists from here on, so the summary can carry its id — which is
   // what TS-09's rating is written against. A draft that never reached the

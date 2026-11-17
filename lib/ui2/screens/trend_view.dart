@@ -243,6 +243,17 @@ const kTrendCatalogue = <TrendMetric>[
     line: true,
   ),
   TrendMetric(
+    'pace_of_aging',
+    'Pace of Aging',
+    TrendGroup.recovery,
+    LucideIcons.hourglass,
+    TrendFmt.decimal1,
+    unit: 'x',
+    higherBetter: false,
+    signed: true,
+    line: true,
+  ),
+  TrendMetric(
     'recovery',
     'Recovery',
     TrendGroup.recovery,
@@ -473,6 +484,9 @@ double? _mean(Iterable<double> xs) {
   return n == 0 ? null : sum / n;
 }
 
+/// How far back the Pace of Aging trend is read, day by day.
+const int kPaceTrendDays = 182;
+
 String _dayOfEpoch(int t) =>
     dayLabelOf(DateTime.fromMillisecondsSinceEpoch(t * 1000));
 
@@ -581,6 +595,21 @@ class TrendLoader {
       return const WhoopAgeResult(why: 'read_failed');
     }
   }
+
+  /// Pace of Aging for each of the last [kPaceTrendDays] days: each day's
+  /// reading over the 30 days before it, the same figure the Locus Age page
+  /// shows for that day. Days it cannot read are left out. Read once.
+  Future<Map<String, double>> paceOfAging() => _pace ??= () async {
+    final today = todayLabel();
+    final out = <String, double>{};
+    for (var i = kPaceTrendDays - 1; i >= 0; i--) {
+      final day = shiftDay(today, -i);
+      final v = (await whoopAge(asOf: day)).pace;
+      if (v != null) out[day] = v;
+    }
+    return out;
+  }();
+  Future<Map<String, double>>? _pace;
 
   /// One stored series ([LocalRepository.getChart]'s key) per local day, read
   /// once however many cards ask.
@@ -1021,6 +1050,8 @@ class TrendLoader {
         };
       case 'vo2max':
         return (await vo2max()).byDay;
+      case 'pace_of_aging':
+        return paceOfAging();
       case 'zones_13':
         return _zones(const [1, 2, 3]);
       case 'zones_45':
@@ -3828,6 +3859,11 @@ String _aboutName(TrendMetric m) => switch (m.id) {
 String? trendAbout(String id) => _about[id];
 
 const _about = <String, String>{
+  'pace_of_aging':
+      'Pace of Aging is how fast your Locus Age would move if the last 30 '
+      'days were your normal: 1.0x is a year per year, under it slower, over '
+      'it faster. It runs from −1.0x to 3.0x, and each day is read over the '
+      '30 days before it.',
   'vo2max':
       'VO₂ max is the most oxygen your body can use in hard, sustained effort, '
       'in millilitres per kilo of body weight a minute. It is the size of '

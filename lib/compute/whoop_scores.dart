@@ -160,8 +160,36 @@ double whoopLoadForStrain(double strain) =>
 /// article "WHOOP Strain"). FIT: 0.0773 × minutes² of load on top of the
 /// heart-rate load matched WHOOP's Activity Strain for 36 weightlifting
 /// sessions of 22-57 min to 0.18 Strain (heart rate alone: 1.1 off).
-double whoopMuscularLoad(double minutes) =>
-    minutes <= 0 ? 0.0 : 0.0773 * minutes * minutes;
+///
+/// The fit is quadratic and was only ever checked up to an hour, so the
+/// minutes are capped at [kWhoopMuscularMaxMin]: a session left running for
+/// seven hours added 13 000 load on its own and pinned Strain at 21. Callers
+/// that have heart rate pass the ACTIVE minutes ([whoopActiveMinutes]), not
+/// the wall clock, so sitting still with the session open adds nothing.
+double whoopMuscularLoad(double minutes) {
+  final m = math.min(minutes, kWhoopMuscularMaxMin);
+  return m <= 0 ? 0.0 : 0.0773 * m * m;
+}
+
+/// The most minutes of muscular load one session can earn: a little past the
+/// longest session the fit was checked against.
+const double kWhoopMuscularMaxMin = 75;
+
+/// Minutes in [perMinuteHr] whose reserve fraction is above the strain floor,
+/// the minutes a strength session was actually working.
+double whoopActiveMinutes(
+  List<double> perMinuteHr, {
+  required double restingHr,
+  required double maxHr,
+}) {
+  final span = maxHr - restingHr;
+  if (span <= 0) return 0;
+  var n = 0;
+  for (final hr in perMinuteHr) {
+    if ((hr - restingHr) / span > kWhoopStrainFloorHrr) n++;
+  }
+  return n.toDouble();
+}
 
 /// Activity types WHOOP adds muscular load to without logged sets (support
 /// article: weightlifting, functional fitness, HIIT, powerlifting; yoga,
