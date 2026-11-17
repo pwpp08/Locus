@@ -84,6 +84,25 @@ void main() {
     expect(t.takeException(), isNull);
   });
 
+  testWidgets('the sheet is only as tall as what it holds', (t) async {
+    t.view.physicalSize = const Size(390 * 3, 844 * 3);
+    t.view.devicePixelRatio = 3;
+    addTearDown(t.view.reset);
+    await t.pumpWidget(ChangeNotifierProvider<CoachConfig>(
+      create: (_) => CoachConfig(),
+      child: MaterialApp(
+        theme: buildTheme(),
+        home: const Scaffold(
+            body: Align(
+                alignment: Alignment.bottomCenter, child: CoachScreen())),
+      ),
+    ));
+    await t.pump();
+    final screen = t.view.physicalSize.height / t.view.devicePixelRatio;
+    expect(t.getSize(find.byType(CoachScreen)).height, lessThan(screen * .6));
+    expect(t.takeException(), isNull);
+  });
+
   testWidgets('a menu on a left-hand button opens rightward and hands back',
       (t) async {
     String? got;

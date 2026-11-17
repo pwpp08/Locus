@@ -172,7 +172,7 @@ class DayPager extends StatelessWidget {
       required this.onDay,
       required this.onCalendar});
 
-  static const _h = S.x8 + S.x1 + S.half;
+  static const _h = S.x8;
   static final _r = BorderRadius.circular(S.x2 + S.half);
 
   @override
@@ -207,12 +207,12 @@ class DayPager extends StatelessWidget {
           child: Pressable(
             onTap: to == null ? null : () => onDay(to),
             child: SizedBox(
-              width: S.x10,
+              width: S.x8 + S.x1,
               height: S.tap,
               child: Center(
                 child: BoldChevron(
                     left: i == LucideIcons.chevronLeft,
-                    height: S.x4,
+                    height: S.x3,
                     color: to == null ? p.ink.withValues(alpha: .22) : p.ink),
               ),
             ),
@@ -220,7 +220,7 @@ class DayPager extends StatelessWidget {
         );
 
     return SizedBox(
-      width: S.x16 * 3 + S.x2,
+      width: S.x16 * 2 + S.x8 + S.x1 * 2,
       height: S.tap,
       child: Stack(alignment: Alignment.center, children: [
         Container(
@@ -253,7 +253,7 @@ class DayPager extends StatelessWidget {
                         fit: BoxFit.scaleDown,
                         child: Text(label,
                             maxLines: 1,
-                            style: F.caps.copyWith(
+                            style: F.over.copyWith(
                                 color: p.ink,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 1,

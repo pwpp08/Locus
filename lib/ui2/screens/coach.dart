@@ -123,6 +123,9 @@ Future<void> openCoachSheet(
   );
 }
 
+/// The most of the screen the coach sheet grows to.
+const double kCoachMaxHeight = .92;
+
 /// The doors behind the composer's (+).
 enum _Plus { newChat, chart, image, file, camera }
 
@@ -778,11 +781,13 @@ class _CoachScreenState extends State<CoachScreen> {
     final cfg = c.watch<CoachConfig>();
     final ready = cfg.configured && _engine != null;
     final replies = ready && !_busy ? _replies() : const <String>[];
-    final column = Column(children: [
+    // The sheet is as tall as what it holds, up to [kCoachMaxHeight] of the
+    // screen: short while empty, growing with the conversation.
+    final column = Column(mainAxisSize: MainAxisSize.min, children: [
       _sheetHeader(c, cfg),
-      Expanded(
+      Flexible(
         child: Stack(children: [
-          Positioned.fill(child: _body(c, p, cfg)),
+          _body(c, p, cfg),
           if (_farFromEnd)
             Positioned(
               left: 0,
@@ -798,8 +803,9 @@ class _CoachScreenState extends State<CoachScreen> {
       ],
       if (ready) _composer(c, p),
     ]);
-    return FractionallySizedBox(
-      heightFactor: .92,
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(c).height * kCoachMaxHeight),
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(R.xxl)),
         child: CoachGround(
@@ -830,6 +836,7 @@ class _CoachScreenState extends State<CoachScreen> {
     // it again.
     if (cfg.keyUnreadable) {
       return ListView(
+        shrinkWrap: true,
         padding: pad,
         children: [
           const SizedBox(height: S.x4),
@@ -850,6 +857,7 @@ class _CoachScreenState extends State<CoachScreen> {
     }
     if (!cfg.configured) {
       return ListView(
+        shrinkWrap: true,
         padding: pad,
         children: [
           const SizedBox(height: S.x4),
@@ -866,6 +874,7 @@ class _CoachScreenState extends State<CoachScreen> {
     }
     if (_engine == null) {
       return ListView(
+        shrinkWrap: true,
         padding: pad,
         children: [
           const SizedBox(height: S.x4),
@@ -879,9 +888,10 @@ class _CoachScreenState extends State<CoachScreen> {
       );
     }
     if (_items.isEmpty && !_busy) {
-      final starters = _starters(c);
+      // Things to ask are behind the lightbulb, so the empty sheet stays short.
       return ListView(
-        padding: const EdgeInsets.fromLTRB(S.x4, S.x6, S.x4, S.x4),
+        shrinkWrap: true,
+        padding: const EdgeInsets.fromLTRB(S.x4, S.x6, S.x4, S.x6),
         children: [
           const Center(child: AiOrb(size: S.x12 + S.x4)),
           const SizedBox(height: S.x4),
@@ -899,16 +909,6 @@ class _CoachScreenState extends State<CoachScreen> {
             textAlign: TextAlign.center,
             style: F.cap.copyWith(color: p.ink3, height: 1.5),
           ),
-          const SizedBox(height: S.x5),
-          for (var i = 0; i < starters.length; i++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: S.x1 + S.half),
-              child: _Starter(
-                _starterIcons[i % _starterIcons.length],
-                starters[i],
-                onTap: () => _send(starters[i]),
-              ),
-            ),
         ],
       );
     }
@@ -925,6 +925,7 @@ class _CoachScreenState extends State<CoachScreen> {
         stops: const [0, .88, 1],
       ).createShader(r),
       child: ListView.builder(
+      shrinkWrap: true,
       controller: _scroll,
       padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x10),
       itemCount: _items.length + (waiting ? 1 : 0),
