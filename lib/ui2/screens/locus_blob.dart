@@ -194,11 +194,16 @@ class LocusBlobPainter extends CustomPainter {
   final double radius;
   final Color top, bottom;
 
+  /// The soft light around the outline. The Health tab's small blob has a
+  /// clean edge, as its reference does.
+  final bool glow;
+
   LocusBlobPainter({
     required this.sim,
     required this.radius,
     required this.top,
     required this.bottom,
+    this.glow = true,
     super.repaint,
   });
 
@@ -230,13 +235,15 @@ class LocusBlobPainter extends CustomPainter {
       [top, bottom],
     );
 
-    canvas.drawPath(
-      path,
-      Paint()
-        ..shader = tone
-        ..colorFilter = const ColorFilter.mode(AC.blobGlow, BlendMode.dstIn)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * .09),
-    );
+    if (glow) {
+      canvas.drawPath(
+        path,
+        Paint()
+          ..shader = tone
+          ..colorFilter = const ColorFilter.mode(AC.blobGlow, BlendMode.dstIn)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * .09),
+      );
+    }
 
     canvas.save();
     canvas.clipPath(path);

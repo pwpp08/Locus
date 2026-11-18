@@ -230,6 +230,19 @@ String _capital(String s) => s[0].toUpperCase() + s.substring(1);
   );
 }
 
+/// The blob's top and bottom colours and its text tone for a reading: older,
+/// a little younger, much younger, or still locked.
+(Color, Color, Color) locusTones(WhoopAgeResult r) {
+  final age = r.whoopAge, base = r.age;
+  if (age == null || base == null) {
+    return (AC.lockedTop, AC.lockedBottom, DC.ink3);
+  }
+  final delta = age - base;
+  if (delta > -.05) return (AC.olderTop, AC.olderBottom, AC.olderText);
+  if (delta > -4) return (AC.tealTop, AC.tealBottom, AC.tealText);
+  return (AC.greenTop, AC.greenBottom, AC.greenText);
+}
+
 // ─────────────────────────────── screen ─────────────────────────────────
 
 class _Week {
@@ -403,17 +416,7 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
     }
   }
 
-  (Color, Color, Color) _tones() {
-    final r = _shown;
-    final age = r.whoopAge, base = r.age;
-    if (age == null || base == null) {
-      return (AC.lockedTop, AC.lockedBottom, DC.ink3);
-    }
-    final delta = age - base;
-    if (delta > -.05) return (AC.olderTop, AC.olderBottom, AC.olderText);
-    if (delta > -4) return (AC.tealTop, AC.tealBottom, AC.tealText);
-    return (AC.greenTop, AC.greenBottom, AC.greenText);
-  }
+  (Color, Color, Color) _tones() => locusTones(_shown);
 
   String _deltaWords() {
     final r = _shown;
@@ -1279,19 +1282,9 @@ class _Contributor extends StatelessWidget {
                     children: [
                       Align(
                         alignment: Alignment(at * 2 - 1, 0),
-                        child: open
-                            ? Column(
-                                children: [
-                                  Text(
-                                    '6 Month avg.',
-                                    style: AC.barLabelMid.copyWith(
-                                      color: DC.ink,
-                                    ),
-                                  ),
-                                  valueLine(now, valueStyle, unitStyle),
-                                ],
-                              )
-                            : valueLine(now, valueStyle, unitStyle),
+                        // The legend over the section names the two
+                        // markers, so each carries only its value.
+                        child: valueLine(now, valueStyle, unitStyle),
                       ),
                       const SizedBox(height: S.half),
                       Stack(
@@ -1357,15 +1350,7 @@ class _Contributor extends StatelessWidget {
                       if (open && thirty != null && at30 != null)
                         Align(
                           alignment: Alignment(at30 * 2 - 1, 0),
-                          child: Column(
-                            children: [
-                              valueLine(thirty, valueStyle, unitStyle),
-                              Text(
-                                '30 Day avg.',
-                                style: AC.barLabelMid.copyWith(color: DC.ink),
-                              ),
-                            ],
-                          ),
+                          child: valueLine(thirty, valueStyle, unitStyle),
                         ),
                     ],
                   ),

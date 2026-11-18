@@ -1059,6 +1059,11 @@ class DS {
   /// The battery bar's empty track.
   static const track = Color(0xFF2D3236);
 
+  /// The sync cloud's outline while a lap of light runs round it, and the
+  /// lap's length in seconds (the reference's, timed off its recording).
+  static const cloudIdle = Color(0xFF7C8084);
+  static const cloudLap = 2.0;
+
   /// The banner at the foot: its card, the disc behind its glyph, its line.
   static const card = Color(0xFF28292B);
   static const disc = Color(0xFF3C3D41);
@@ -1187,6 +1192,126 @@ class HM {
       fontWeight: FontWeight.w700,
       letterSpacing: .4,
       fontFeatures: [FontFeature.tabularFigures()]);
+}
+
+/// ── THE HEALTH TAB ── its four cards, measured off the reference (1079 px
+/// across = 390 dp, 2.77 px to the dp). Each card is HM's veil over HM's page;
+/// the strip at a card's foot is a shade of black over the card.
+class HT {
+  static const radius = 13.0;
+  static const padX = 15.5, padTop = 12.0, padBottom = 15.0;
+
+  /// The page, sampled off the reference: slate under the title, darkening
+  /// to near-black by the cards, at fixed depths (dp) rather than a share of
+  /// the screen, so a tall phone shades exactly as the reference does.
+  static const page = [
+    Color(0xFF252F35), Color(0xFF172024), Color(0xFF12171C), Color(0xFF101618),
+  ];
+  static const pageDepths = [0.0, 225.0, 440.0, 620.0];
+  static const foot = Color(0xFF101618);
+
+  /// The bright mint of a tick, an arrow and the strip's check box.
+  static const mint = Color(0xFF08ECA0);
+
+  /// The strip under the Health Monitor's and Locus Age's columns.
+  static const strip = Color(0x4D000000);
+  static const stripH = 30.4, stripRadius = 6.0;
+
+  /// The rules between the vitals and the chart's grid.
+  static const divider = Color(0x10FFFFFF);
+  static const grid = Color(0x1AFFFFFF);
+
+  /// A good pill and a vital's square inside its range; a bad one's wash.
+  static const good = Color(0xFF264B42);
+  static const bad = DC.hurtChip;
+
+  /// Gaps, top to bottom, in each card (see the measurements in health_tab).
+  static const vitalIcon = 22.0, vitalSquare = 19.0, checkBox = 15.0;
+  static const check = 12.0;
+  static const rSquare = BorderRadius.all(Radius.circular(3));
+  static const pillH = 16.6;
+  static const chartH = 94.0;
+  static const blob = 108.6;
+
+  /// TODAY'S HIGH STRESS, PACE OF AGING.
+  static const kicker = TextStyle(
+      fontFamily: F.family,
+      fontSize: 11.5,
+      height: 1.2,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.5);
+
+  /// RESP, SPO₂, RHR …
+  static const vital = TextStyle(
+      fontFamily: F.family,
+      fontSize: 12,
+      height: 1.2,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 1.5);
+
+  /// "5/5 metrics within range".
+  static const stripText = TextStyle(
+      fontFamily: F.family,
+      fontSize: 14.5,
+      height: 1.2,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0);
+
+  /// "2.6 Years Younger vs. Actual Age".
+  static const stripSmall = TextStyle(
+      fontFamily: F.family,
+      fontSize: 11.5,
+      height: 1.2,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0);
+
+  /// "vs. typical day".
+  static const pill = TextStyle(
+      fontFamily: F.family,
+      fontSize: 12,
+      height: 1.2,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0);
+
+  /// 0:24 and 0.8x.
+  static const big = TextStyle(
+      fontFamily: F.numerals,
+      fontFamilyFallback: [F.family],
+      fontSize: 23,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0,
+      fontFeatures: [FontFeature.tabularFigures()]);
+  static const pace = TextStyle(
+      fontFamily: F.numerals,
+      fontFamilyFallback: [F.family],
+      fontSize: 20,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0);
+
+  /// "hrs" after the stress time.
+  static const unit = TextStyle(
+      fontFamily: F.family,
+      fontSize: 16,
+      height: 1,
+      fontWeight: FontWeight.w500,
+      letterSpacing: 0);
+
+  /// The age in the blob, and LOCUS AGE under it.
+  static const blobNum = TextStyle(
+      fontFamily: F.numerals,
+      fontFamilyFallback: [F.family],
+      fontSize: 24,
+      height: 1,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0);
+  static const blobLabel = TextStyle(
+      fontFamily: F.family,
+      fontSize: 8,
+      height: 1.2,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 1.2);
 }
 
 /// ── THE JOURNAL ── (`journal_compose.dart`, `select_behaviors_sheet.dart`)

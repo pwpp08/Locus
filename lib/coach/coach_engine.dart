@@ -23,6 +23,7 @@ import '../data/db.dart';
 import '../data/local_repository.dart';
 import '../models/payloads.dart' show todayHeadlineOf;
 import 'coach_actions.dart';
+import 'coach_health.dart';
 import 'workout_plan.dart';
 import 'coach_chat_completions.dart';
 import 'coach_config.dart';
@@ -1196,6 +1197,8 @@ class CoachEngine {
         // gate for a text-level one; a typed read tool costs nothing.
         case 'get_today':
           return _figures.note(jsonEncode(todayHeadlineOf(await api.getToday())));
+        case 'get_health':
+          return _figures.note(jsonEncode(await coachHealth(api)));
         case 'get_nutrition':
           return _figures.note(await CoachActions.nutritionDay(
               await LocalDb.instance, args['date']));
@@ -1400,6 +1403,7 @@ class CoachEngine {
     switch (name) {
       case 'run_sql': return 'Querying your data…';
       case 'get_today': return 'Reading today…';
+      case 'get_health': return 'Reading your health…';
       case 'get_nutrition': return 'Reading your food log…';
       case 'get_medications': return 'Reading your medications…';
       case 'get_app_state': return 'Reading your settings…';
@@ -1500,6 +1504,17 @@ class CoachEngine {
         'today readiness is NULL until the night is final. recovery_state: final | '
         'provisional (still finishing, may move) | night_in_progress (asleep, '
         'no score yet) | none.', {}),
+    _fn('get_health',
+        'Everything on the Health tab, as the app computes it: Locus Age, '
+        'actual age, years older or younger, Pace of Aging (this week and the '
+        'last finished week) and every contributor (six-month and 30-day '
+        'averages, target, years); VO2 max; the Health Monitor overnight '
+        'vitals (respiratory rate, resting HR, HRV, skin temperature, and '
+        'SpO2 when a ring or watch reports one) with their usual ranges and '
+        'verdicts; and stress today (score now, '
+        'minutes low/medium/high, a typical day). Not in run_sql — use this '
+        'for any question about age, aging, fitness, VO2 max, vitals or '
+        'stress.', {}),
     _fn('get_medications',
         'Read the medication/supplement schedule and today\'s doses '
         '(taken/skipped/missed/upcoming). Not in run_sql — use this.', {}),

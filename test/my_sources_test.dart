@@ -68,7 +68,9 @@ void main() {
     expect(find.textContaining('charges logged'), findsNothing);
     expect(find.text('HEART RATE'), findsNothing);
     expect(find.text('RIGHT NOW'), findsNothing);
-    expect(find.text('CALIBRATION'), findsOneWidget);
+    // The calibration sits in the facts strip as the band's MODEL.
+    expect(find.text('MODEL'), findsOneWidget);
+    expect(find.text('calibration'), findsOneWidget);
     expect(find.textContaining('own constants'), findsNothing);
   });
 }

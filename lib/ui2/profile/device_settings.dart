@@ -17,9 +17,12 @@
 //     documents, not ours to publish.
 
 import 'dart:convert' show jsonDecode;
+import 'dart:math' as math;
+import 'dart:ui' show PathMetric;
 
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:provider/provider.dart';
 
 import '../../data/db.dart' show LocalDb;
@@ -27,6 +30,7 @@ import '../../l10n/app_localizations.dart';
 import '../../l10n/date_text.dart' show localizedDate;
 import '../../state/app_state.dart';
 import '../../state/clock_format.dart' show formatClockOf;
+import '../screens/battery_detail_screen.dart' show BatteryDetailScreen;
 import '../screens/home/home_header.dart' show deviceBatteryOf;
 import '../screens/start_activity.dart' show HeartPainter;
 import '../screens/watch_compare_screen.dart' show WatchCompareScreen;
@@ -50,6 +54,15 @@ const kBandArt = 'assets/images/band.webp';
 
 /// Its width over its height (900 × 1021).
 const kBandAspect = 900 / 1021;
+
+/// The band render itself, filling the box it is given.
+class BandArt extends StatelessWidget {
+  const BandArt({super.key});
+
+  @override
+  Widget build(BuildContext c) =>
+      Image.asset(kBandArt, fit: BoxFit.contain, excludeFromSemantics: true);
+}
 
 class DeviceSettings extends StatefulWidget {
   const DeviceSettings({super.key});
@@ -147,6 +160,7 @@ class _DeviceSettingsState extends State<DeviceSettings> {
       onBuzzes: () => goto(c, const BandNotifications()),
       onDoubleTap: () => goto(c, const BandGestures()),
       onCompare: () => goto(c, const WatchCompareScreen()),
+      onBattery: () => goto(c, const BatteryDetailScreen()),
     );
   }
 }
@@ -180,7 +194,8 @@ class DeviceSettingsView extends StatefulWidget {
       onOtherDevices,
       onBuzzes,
       onDoubleTap,
-      onCompare;
+      onCompare,
+      onBattery;
 
   /// 0 STATUS, 1 ADVANCED.
   final int initialTab;
@@ -208,6 +223,7 @@ class DeviceSettingsView extends StatefulWidget {
     this.onBuzzes,
     this.onDoubleTap,
     this.onCompare,
+    this.onBattery,
     this.initialTab = 0,
   });
 
@@ -393,7 +409,10 @@ class _DeviceSettingsViewState extends State<DeviceSettingsView> {
             ],
           ),
           const SizedBox(width: S.x3),
-          Icon(LucideIcons.cloudUpload, size: I.xl, color: p.ink),
+          _SyncCloud(
+            syncing: w.syncing,
+            done: !w.syncing && w.syncedTo != null,
+          ),
         ],
       ),
     );
@@ -443,17 +462,17 @@ class _DeviceSettingsViewState extends State<DeviceSettingsView> {
               top: h * .235,
               width: bandW,
               height: bandH,
-              child: ExcludeSemantics(
-                child: Image.asset(kBandArt, fit: BoxFit.contain),
-              ),
+              child: const ExcludeSemantics(child: BandArt()),
             ),
             Positioned(
               right: S.x10,
               bottom: h * .185,
-              child: Semantics(
-                label: pct == null
-                    ? 'Battery unknown'
-                    : 'Battery ${pct.round()}%',
+              // The whole reading opens the battery's own page.
+              child: Pressable(
+                semanticLabel: pct == null
+                    ? 'Battery unknown. Open battery'
+                    : 'Battery ${pct.round()}%. Open battery',
+                onTap: w.onBattery,
                 child: ExcludeSemantics(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -775,4 +794,159 @@ class _TabLabel extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The sync mark beside SYNCED TO, after the reference's: a cloud outline
+/// with an arrow up in it. While the band catches up a bright stretch runs
+/// round the outline, a lap every [DS.cloudLap] seconds; once it has caught
+/// up the run stops and a green tick takes the arrow's place.
+class _SyncCloud extends StatefulWidget {
+  final bool syncing, done;
+  const _SyncCloud({required this.syncing, required this.done});
+
+  @override
+  State<_SyncCloud> createState() => _SyncCloudState();
+}
+
+class _SyncCloudState extends State<_SyncCloud>
+    with SingleTickerProviderStateMixin {
+  late final Ticker _ticker = createTicker((t) => _phase.value =
+      (t.inMicroseconds / Duration.microsecondsPerSecond / DS.cloudLap) % 1);
+  final _phase = ValueNotifier<double>(0);
+
+  void _sync() {
+    final run = widget.syncing && Motion.enabled(context);
+    if (run && !_ticker.isActive) {
+      _ticker.start();
+    } else if (!run && _ticker.isActive) {
+      _ticker.stop();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_SyncCloud old) {
+    super.didUpdateWidget(old);
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    _phase.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext c) => Semantics(
+        label: widget.syncing
+            ? 'Syncing'
+            : widget.done
+                ? 'Synced'
+                : 'Not synced yet',
+        child: CustomPaint(
+          size: const Size.square(I.xl),
+          painter: _CloudPaint(
+            phase: _phase,
+            running: widget.syncing,
+            done: widget.done,
+          ),
+        ),
+      );
+}
+
+class _CloudPaint extends CustomPainter {
+  final ValueNotifier<double> phase;
+  final bool running, done;
+  _CloudPaint({required this.phase, required this.running, required this.done})
+      : super(repaint: phase);
+
+  /// A cloud drawn symmetric about the middle of its 24-unit square: a big
+  /// crown between two equal shoulders over a flat foot, so the arrow and
+  /// the tick can sit dead centre in it.
+  static final Path _cloud = Path.combine(
+    PathOperation.union,
+    Path.combine(
+      PathOperation.union,
+      Path()
+        ..addOval(Rect.fromCircle(center: const Offset(6.6, 14.3), radius: 3.9))
+        ..addOval(Rect.fromCircle(center: const Offset(17.4, 14.3), radius: 3.9)),
+      Path()..addOval(Rect.fromCircle(center: const Offset(12, 10.6), radius: 5.6)),
+    ),
+    Path()..addRect(const Rect.fromLTRB(6.6, 13, 17.4, 18.2)),
+  );
+
+  /// The middle of the cloud's body, where the arrow and tick are centred.
+  static const _mid = Offset(12, 13.2);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 24);
+    final line = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(
+        _cloud, Paint.from(line)..color = running ? DS.cloudIdle : DC.pure);
+    if (running) {
+      // The bright stretch: a fifth of the outline, its tail fading.
+      final m = _cloud.computeMetrics().first;
+      final len = m.length, run = len * .22;
+      final head = phase.value * len;
+      const steps = 8;
+      for (var i = 0; i < steps; i++) {
+        final a = head - run + run * i / steps;
+        final b = head - run + run * (i + 1) / steps;
+        final seg = Paint.from(line)
+          ..strokeWidth = 1.9
+          ..color = DC.pure.withValues(alpha: (i + 1) / steps);
+        _stroke(canvas, m, a, b, len, seg);
+      }
+    }
+    canvas.translate(_mid.dx, _mid.dy);
+    if (done) {
+      canvas.drawPath(
+          Path()
+            ..moveTo(-3.1, .1)
+            ..lineTo(-.9, 2.2)
+            ..lineTo(3.1, -2.1),
+          Paint.from(line)
+            ..strokeWidth = 1.8
+            ..color = DS.connected);
+    } else {
+      final arrow = Paint.from(line)..color = DC.pure;
+      canvas.drawLine(const Offset(0, 3), const Offset(0, -3), arrow);
+      canvas.drawPath(
+          Path()
+            ..moveTo(-2.5, -.5)
+            ..lineTo(0, -3)
+            ..lineTo(2.5, -.5),
+          arrow);
+    }
+    canvas.restore();
+  }
+
+  /// Strokes [from]..[to] along [m], wrapping past the start.
+  static void _stroke(
+      Canvas c, PathMetric m, double from, double to, double len, Paint p) {
+    if (from < 0 && to <= 0) {
+      c.drawPath(m.extractPath(from + len, to + len), p);
+    } else if (from < 0) {
+      c.drawPath(m.extractPath(from + len, len), p);
+      c.drawPath(m.extractPath(0, to), p);
+    } else {
+      c.drawPath(m.extractPath(from, math.min(to, len)), p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_CloudPaint old) =>
+      old.running != running || old.done != done;
 }

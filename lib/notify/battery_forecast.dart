@@ -384,13 +384,13 @@ class BatteryForecaster {
     return math.max(0, empty.difference(now).inMinutes) ~/ 60;
   }
 
-  /// Generates contextual notification: "~23h left on your WHOOP - recharge tonight."
+  /// Generates contextual notification: "~23h left on your band - recharge tonight."
   static String smartRechargeWarning({
     required double currentPct,
     required double drainPerHour,
   }) {
     final hours = drainPerHour > 0 ? (currentPct / drainPerHour).round() : 24;
-    return '~$hours' 'h left on your WHOOP - recharge tonight.';
+    return '~$hours' 'h left on your band - recharge tonight.';
   }
 
   /// Generates contextual notification:

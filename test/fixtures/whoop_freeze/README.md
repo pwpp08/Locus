@@ -12,6 +12,14 @@ means a WHOOP number moved. Fix the change, not the golden.
 
 ## History
 
+- 2026-11-17 (algo stays 118): regenerated at the owner's request to repair
+  the red run after a4b6e4bd. A detected activity's suggestion now starts and
+  ends where the heart rate actually rose and settled (`refineWorkoutEdges`),
+  so each `activity_suggestions` entry's `start_ts`, `end_ts`,
+  `detection_*` and `duration_min` moved by seconds; its id still keys on
+  the detector's start. No stored day value moved. Generated on CI under
+  UTC, +05:30 and -04:00 (temporary `golden-regen-edges` branch).
+
 - v118, 2026-11-17: regenerated with the owner's approval. A strength
   session's muscular load counts only its working minutes and caps at 75;
   the fixtures hold no strength session, so only `algo_version` moves.

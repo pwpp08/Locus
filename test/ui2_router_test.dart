@@ -616,7 +616,7 @@ void main() {
         theme: buildTheme(),
         home: DeviceDetailView(band('gen5')),
       ));
-      expect(find.text('CALIBRATION'), findsOneWidget);
+      expect(find.text('MODEL'), findsOneWidget);
       expect(find.text('WHOOP 5'), findsOneWidget);
     });
   });

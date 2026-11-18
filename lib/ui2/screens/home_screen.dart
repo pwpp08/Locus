@@ -45,7 +45,7 @@ import '../activity/catalogue.dart' show activityByName;
 import 'day_heart.dart';
 import 'detected_activities.dart';
 import 'health_monitor.dart'
-    show HealthGlance, HealthMonitorScreen, healthGlanceOf;
+    show HealthGlance, healthGlanceOf;
 import '../../compute/energy_reserve.dart';
 import 'home/home_energy.dart';
 import 'home/home_card_deck.dart';
@@ -55,7 +55,6 @@ import 'home/home_dashboard_editor.dart';
 import 'home/home_data.dart';
 import 'home/home_dials.dart';
 import 'home/home_header.dart';
-import 'home/home_monitors.dart';
 import 'home/home_my_day.dart';
 import 'home/home_rings.dart';
 import 'home/home_tonights_sleep.dart';
@@ -99,7 +98,6 @@ typedef _Dials = HomeDials;
 typedef _SectionHead = HomeSectionHead;
 typedef _MyDay = HomeMyDay;
 typedef _TonightsSleep = HomeTonightsSleep;
-typedef _Monitors = HomeMonitors;
 typedef _DeviceStatus = HomeDeviceStatus;
 
 // ═══════════════════ shared plumbing ═══════════════════
@@ -841,14 +839,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
               scroll: _scroll,
               note: quietDay ? 'No sleep yet today.' : null),
           if (isToday) ...[
+            // The Health and Stress Monitor cards live on the Health tab.
             DailyCardDeck(cards: _cards, day: todayLabel()),
-            _Monitors(
-              health: _health,
-              stress: _stress,
-              healthCalibrating: cal.health ? null : cal.milestones[4],
-              onHealth: () => go(c, const HealthMonitorScreen()),
-              onStress: () => go(c, const StressMonitorScreen()),
-            ),
           ],
         ] else
           Builder(builder: (c) {

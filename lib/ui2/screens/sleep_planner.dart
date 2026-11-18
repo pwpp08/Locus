@@ -414,13 +414,13 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
     final usualWake = plan.usualWakeMin;
     final usualBed = plan.usualBedMin;
     var bed = plannedBedMin(plan, wake);
-    // Past the suggested bedtime and still before the wake time: it is now.
+    // Anywhere inside the window, past the suggested bedtime and still before
+    // the wake time: it is now, however long the window is.
     final nowMin = now.hour * 60 + now.minute;
     var isNow = false;
     if (bed != null && wake != null) {
-      final late = (nowMin - bed) % 1440;
       final left = (wake - nowMin) % 1440;
-      if (late > 0 && late < 360 && left > 0 && left < (wake - bed) % 1440) {
+      if (left > 0 && left < (wake - bed) % 1440) {
         isNow = true;
         bed = nowMin;
       }
@@ -453,13 +453,17 @@ class _SleepPlannerScreenState extends State<SleepPlannerScreen> {
               : 'Try getting to bed by ${_said(bed)}, your usual time, to '
                   'stay consistent.$needPart';
     } else {
+      // Late in the evening there may no longer be time for the whole need:
+      // promise only the share the hours left can still cover.
+      final share = covers == null || covers >= 100
+          ? 'achieve 100% Sleep Need'
+          : 'get $covers% of your Sleep Need';
       headline = plan.needMin == null || bed == null || wake == null
           ? 'Sleep Planner needs a few nights to learn your sleep need.'
           : isNow
-              ? 'Try getting to bed now to achieve 100% Sleep Need by '
-                  '${_said(wake)}.'
-              : 'Try getting to bed by ${_said(bed)} to achieve 100% Sleep '
-                  'Need by ${_said(wake)}.';
+              ? 'Try getting to bed now to $share by ${_said(wake)}.'
+              : 'Try getting to bed by ${_said(bed)} to $share by '
+                  '${_said(wake)}.';
     }
 
     Widget dockButton(String label, String value, VoidCallback onTap) => Expanded(

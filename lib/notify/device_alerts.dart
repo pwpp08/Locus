@@ -32,6 +32,8 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/day_label.dart';
+import '../data/db.dart' show LocalDb;
+import 'battery_forecast.dart';
 import 'charge_alert_policy.dart';
 import 'notification_center.dart';
 import 'notification_event.dart';
@@ -173,9 +175,52 @@ class DeviceAlerts {
   /// smaller time scale.
   Future<void> _queue = Future<void>.value();
 
-  DeviceAlerts({DeviceAlertSink? sink, DeviceAlertStore? store})
-      : _notes = sink ?? const _NotificationCenterSink(),
-        _store = store ?? const _PrefsDeviceAlertStore();
+  DeviceAlerts({
+    DeviceAlertSink? sink,
+    DeviceAlertStore? store,
+    Future<double?> Function()? drainPerHour,
+  })  : _notes = sink ?? const _NotificationCenterSink(),
+        _store = store ?? const _PrefsDeviceAlertStore(),
+        _drainPerHour = drainPerHour ?? _loggedDrainPerHour;
+
+  /// The band's measured discharge rate (percentage points an hour), or null
+  /// when the forecaster abstains. The low alert's hours come from this, the
+  /// same rate the band page shows, never from a fixed guess.
+  final Future<double?> Function() _drainPerHour;
+
+  static Future<double?> _loggedDrainPerHour() async {
+    final rows = await LocalDb.recentBandBatterySamples(limit: 400);
+    final now = DateTime.now();
+    final f = const BatteryForecaster().forecast(
+      samples: [
+        for (final r in rows)
+          if (r['battery_pct'] != null && r['ts'] != null)
+            BatterySample(
+              tsSec: (r['ts'] as num).toInt(),
+              pct: (r['battery_pct'] as num).toDouble(),
+              charging: (r['charging'] as num?)?.toInt() == 1,
+            ),
+      ],
+      now: now,
+      wakeAt: now.add(const Duration(hours: 12)),
+    );
+    return f.drainPctPerHour;
+  }
+
+  /// The low alert's line: hours at the measured rate when there is one,
+  /// else just the charge. Device-neutral: a ring or watch reads it too.
+  @visibleForTesting
+  static String lowBatteryBody(double pct, double? drainPerHour) {
+    final at = '${pct.round()}%';
+    if (drainPerHour == null || drainPerHour <= 0) {
+      return 'Your band is at $at. Charge it before bed.';
+    }
+    final hours = pct / drainPerHour;
+    final h = hours.round();
+    return hours < 1
+        ? 'Your band is at $at and runs out within the hour. Charge it now.'
+        : '~${h}h left on your band ($at) - recharge tonight.';
+  }
 
   /// Completes when all queued alert work has settled. Tests only.
   @visibleForTesting
@@ -409,6 +454,12 @@ class DeviceAlerts {
       await _io(() => _notes.cancel(NotificationService.idFullyCharged));
     }
     if (fireLow) {
+      double? drain;
+      try {
+        drain = await _drainPerHour();
+      } catch (_) {
+        // No rate: the line says the charge alone.
+      }
       final dropped = await _showWasDropped(() => _notes.show(_event(
             osId: NotificationService.idLowBattery,
             // One drain per key: the hysteresis above already means a re-arm
@@ -416,9 +467,7 @@ class DeviceAlerts {
             // percentage is a stable identity for THIS drain.
             kind: 'band_low:${batteryPct.round()}',
             title: 'Low battery',
-            body: batteryPct <= 10
-                ? 'At ~2.1% per hour your strap is going to die in ~${(batteryPct / 2.1).round()} hours. Charge before bed.'
-                : '~${(batteryPct / 2.1).round()}h left on your WHOOP (${batteryPct.round()}%) - recharge tonight.',
+            body: lowBatteryBody(batteryPct, drain),
           )));
       if (dropped) {
         // The shared gate refused it — quiet hours, the device category off, no

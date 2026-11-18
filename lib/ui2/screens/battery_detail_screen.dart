@@ -1,5 +1,6 @@
-// The band's battery: where it stands now, the last day or week as a line, and
-// how fast it is draining. Every figure is read off the stored battery samples;
+// The band's battery, on the Device settings page's ground: where it stands
+// now beside the same charge bar, how fast it drains, and the last day or
+// week as a line. Every figure is read off the stored battery samples;
 // with too few of them the drain is not estimated, not guessed.
 
 import 'dart:math' as math;
@@ -14,7 +15,7 @@ import '../../state/app_state.dart';
 import '../../state/clock_format.dart';
 import '../ui2.dart';
 import 'home/home_data.dart' show weekdayShortName;
-import 'metric_detail.dart' show detailScaffold;
+import '../profile/profile.dart' show setRowTitle;
 
 enum BatteryTimeRange { day, week }
 
@@ -22,7 +23,9 @@ enum BatteryTimeRange { day, week }
 const _lowPct = 20;
 
 class BatteryDetailScreen extends StatefulWidget {
-  const BatteryDetailScreen({super.key});
+  /// Injected by renders and tests; production reads `band_battery`.
+  final List<BatterySample>? samples;
+  const BatteryDetailScreen({super.key, this.samples});
 
   @override
   State<BatteryDetailScreen> createState() => _BatteryDetailScreenState();
@@ -46,19 +49,19 @@ class _BatteryDetailScreenState extends State<BatteryDetailScreen> {
     setState(() => _loading = true);
     final now = DateTime.now();
     final nowSec = now.millisecondsSinceEpoch ~/ 1000;
-    final rows = await LocalDb.bandBatteryRange(
-      startSec: nowSec - 7 * 86400,
-      endSec: nowSec,
-    );
-    final samples = <BatterySample>[
-      for (final r in rows)
-        if (r['battery_pct'] is num && r['ts'] is num)
-          BatterySample(
-            tsSec: (r['ts'] as num).toInt(),
-            pct: (r['battery_pct'] as num).toDouble(),
-            charging: (r['charging'] as num?)?.toInt() == 1,
-          ),
-    ];
+    final samples = widget.samples ??
+        <BatterySample>[
+          for (final r in await LocalDb.bandBatteryRange(
+            startSec: nowSec - 7 * 86400,
+            endSec: nowSec,
+          ))
+            if (r['battery_pct'] is num && r['ts'] is num)
+              BatterySample(
+                tsSec: (r['ts'] as num).toInt(),
+                pct: (r['battery_pct'] as num).toDouble(),
+                charging: (r['charging'] as num?)?.toInt() == 1,
+              ),
+        ];
     final f = const BatteryForecaster().forecast(
       samples: samples,
       now: now,
@@ -125,230 +128,364 @@ class _BatteryDetailScreenState extends State<BatteryDetailScreen> {
   Widget build(BuildContext c) {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
-    final app = context.watch<AppState>();
+    AppState? app;
+    try {
+      app = context.watch<AppState>();
+    } catch (_) {
+      // No AppState (renders): the stored samples say it all.
+    }
     final f = _forecast;
     final now =
-        app.device.batteryPct ??
+        app?.device.batteryPct ??
         (_samples.isNotEmpty ? _samples.last.pct : null);
-    final charging = app.device.charging == true;
+    final charging = app?.device.charging == true;
     final low = now != null && !charging && now <= _lowPct;
     final empty = f?.predictedEmptyAt;
     final hoursLeft = empty == null
         ? null
         : math.max(0, empty.difference(DateTime.now()).inMinutes / 60);
     final status = charging
-        ? 'Charging'
+        ? 'CHARGING'
         : hoursLeft == null
-        ? null
+        ? 'NOT ENOUGH READINGS TO FORECAST'
         : hoursLeft < 1
-        ? 'Less than an hour left'
-        : 'About ${hoursLeft.round()} h left';
-    final fill = charging
+        ? 'LESS THAN AN HOUR LEFT'
+        : hoursLeft < 36
+        ? 'ABOUT ${hoursLeft.round()} H LEFT'
+        : 'ABOUT ${(hoursLeft / 24).round()} DAYS LEFT';
+    final tone = now == null
+        ? p.ink3
+        : charging || now >= 50
         ? C.recGreen
-        : low
-        ? C.strainDown
-        : p.ink;
+        : now >= _lowPct
+        ? C.recYellow
+        : C.recRed;
 
     final slots = _slots;
     final at = _at;
     final shown = at == null ? now : slots.pct[at];
+    final usable = f != null && f.isUsable;
 
-    return detailScaffold(c, 'Band battery', [
-      const SizedBox(height: S.x2),
-      Surface(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ScrubReadout(
-              caption: 'Battery now',
-              value: now == null ? '--' : '${now.round()}',
-              unit: now == null ? null : '%',
-            ),
-            const SizedBox(height: S.x4),
-            ClipRRect(
-              borderRadius: R.rPill,
-              child: SizedBox(
-                height: S.x2,
-                child: Stack(
+    Widget card(Widget child, {EdgeInsets pad = const EdgeInsets.all(S.x4)}) =>
+        Container(
+          padding: pad,
+          decoration: const BoxDecoration(color: DS.card, borderRadius: R.rXl),
+          child: child,
+        );
+
+    return Scaffold(
+      backgroundColor: DS.foot,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: DS.page,
+            stops: DS.pageStops,
+          ),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              SizedBox(
+                height: S.x12 + S.x2,
+                child: Row(
                   children: [
-                    Positioned.fill(child: ColoredBox(color: p.track)),
-                    FractionallySizedBox(
-                      widthFactor: ((now ?? 0) / 100).clamp(0.0, 1.0),
-                      child: ColoredBox(color: fill),
+                    Pressable(
+                      semanticLabel: 'Back',
+                      onTap: () => Navigator.of(c).maybePop(),
+                      child: SizedBox.square(
+                        dimension: S.tap + S.x4,
+                        child: Icon(
+                          LucideIcons.chevronLeft,
+                          size: I.xl,
+                          color: p.ink,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'BAND BATTERY',
+                        textAlign: TextAlign.center,
+                        style: setRowTitle(p).copyWith(letterSpacing: 1),
+                      ),
+                    ),
+                    const SizedBox(width: S.tap + S.x4),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    S.x4,
+                    S.x4,
+                    S.x4,
+                    S.x10 + MediaQuery.viewPaddingOf(c).bottom,
+                  ),
+                  children: [
+                    // ── now: the charge, its bar, and how long it lasts ──
+                    Semantics(
+                      label: now == null
+                          ? 'Battery unknown'
+                          : 'Battery ${now.round()} percent. ${status.toLowerCase()}',
+                      excludeSemantics: true,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'BATTERY NOW',
+                                style: DS.kicker.copyWith(color: DS.syncLabel),
+                              ),
+                              const SizedBox(height: S.x2),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  if (charging) ...[
+                                    Icon(LucideIcons.zap, size: I.md, color: tone),
+                                    const SizedBox(width: S.x1),
+                                  ],
+                                  Text(
+                                    now == null ? '--' : '${now.round()}',
+                                    style: HM.value.copyWith(color: p.ink),
+                                  ),
+                                  const SizedBox(width: S.x1 + S.half),
+                                  Text(
+                                    '%',
+                                    style: F.n17.copyWith(color: p.ink),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: S.x2),
+                              Text(
+                                status,
+                                style: DS.kicker.copyWith(
+                                  color: low ? C.recRed : DS.sub,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: S.x5),
+                          // The charge as the Device settings bar, filled
+                          // from the foot.
+                          Container(
+                            width: S.x1 + S.half,
+                            height: S.x16 + S.x4,
+                            decoration: const BoxDecoration(
+                              color: DS.track,
+                              borderRadius: R.rPill,
+                            ),
+                            alignment: Alignment.bottomCenter,
+                            child: FractionallySizedBox(
+                              heightFactor: ((now ?? 0) / 100).clamp(0.0, 1.0),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: tone,
+                                  borderRadius: R.rPill,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: S.x8),
+                    // ── how fast it drains ──
+                    card(
+                      IntrinsicHeight(
+                        child: Row(
+                          children: [
+                            _Fact(
+                              'DRAIN',
+                              usable
+                                  ? '${f.drainPctPerHour!.toStringAsFixed(1)}%'
+                                  : '--',
+                              'an hour',
+                            ),
+                            const VerticalDivider(color: DS.track, width: 1),
+                            _Fact(
+                              'PER DAY',
+                              usable
+                                  ? '${(f.drainPctPerHour! * 24).round()}%'
+                                  : '--',
+                              'at this rate',
+                            ),
+                            const VerticalDivider(color: DS.track, width: 1),
+                            _Fact(
+                              'RUNS OUT',
+                              empty != null && !charging
+                                  ? formatClockOf(empty)
+                                  : '--',
+                              empty != null && !charging
+                                  ? weekdayShortName(empty.weekday, l)
+                                  : charging
+                                  ? 'charging'
+                                  : '',
+                            ),
+                          ],
+                        ),
+                      ),
+                      pad: const EdgeInsets.symmetric(vertical: S.x4),
+                    ),
+                    if (!usable) ...[
+                      const SizedBox(height: S.x2),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: S.x1),
+                        child: Text(
+                          'The drain is read once the band has been off the '
+                          'charger for a couple of hours with a few readings.',
+                          style: F.cap.copyWith(color: DS.sub, height: 1.4),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: S.x6),
+                    RangeSegments(
+                      const ['DAY', 'WEEK'],
+                      _range.index,
+                      (i) => setState(() {
+                        _range = BatteryTimeRange.values[i];
+                        _at = null;
+                      }),
+                      width: null,
+                    ),
+                    const SizedBox(height: S.x4),
+                    // ── the history ──
+                    card(
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ScrubReadout(
+                            caption: at == null
+                                ? (_range == BatteryTimeRange.day
+                                      ? 'Last 24 hours'
+                                      : 'Last 7 days')
+                                : _range == BatteryTimeRange.day
+                                ? formatClockOf(_slotTime(at))
+                                : '${weekdayShortName(_slotTime(at).weekday, l)} '
+                                      '${formatClockOf(_slotTime(at))}',
+                            value: shown == null ? '--' : '${shown.round()}',
+                            unit: shown == null ? null : '%',
+                            big: false,
+                          ),
+                          const SizedBox(height: S.x3),
+                          if (_loading)
+                            const SizedBox(
+                              height: S.x16 * 3,
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          else if (slots.pct.every((v) => v == null))
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: S.x8),
+                              child: Center(
+                                child: NoData(
+                                  message:
+                                      'No battery readings yet. The band reports '
+                                      'its battery each time it syncs.',
+                                ),
+                              ),
+                            )
+                          else
+                            ScrubLine(
+                              values: slots.pct,
+                              xLabels: _xLabels(l),
+                              lo: 0,
+                              hi: 100,
+                              ticks: const [0, 50, 100],
+                              tickText: (t) => '${t.round()}%',
+                              color: C.dialStrain,
+                              markers: false,
+                              slots: false,
+                              // An hour without a reading breaks the line.
+                              gap: _range == BatteryTimeRange.day ? 4 : 2,
+                              height: S.x16 * 3,
+                              label: 'Battery level',
+                              describe: (i) => slots.pct[i] == null
+                                  ? '${formatClockOf(_slotTime(i))}, no reading'
+                                  : '${formatClockOf(_slotTime(i))}, '
+                                        '${slots.pct[i]!.round()} percent',
+                              paintOver: (cv, plot, xOf, yOf) {
+                                // The line itself turns green over a slot
+                                // the band spent on the charger.
+                                final paint = Paint()
+                                  ..color = C.recGreen
+                                  ..strokeWidth = S.half + S.hair
+                                  ..strokeCap = StrokeCap.round;
+                                for (var i = 1; i < _slotCount; i++) {
+                                  final a = slots.pct[i - 1], b = slots.pct[i];
+                                  if (!slots.charging[i] || a == null || b == null) {
+                                    continue;
+                                  }
+                                  cv.drawLine(Offset(xOf(i - 1), yOf(a)),
+                                      Offset(xOf(i), yOf(b)), paint);
+                                }
+                              },
+                              onScrub: (i) => setState(() => _at = i),
+                            ),
+                          if (slots.charging.contains(true)) ...[
+                            const SizedBox(height: S.x2),
+                            Row(
+                              children: [
+                                Container(
+                                  width: S.x4,
+                                  height: S.half + S.hair,
+                                  decoration: const BoxDecoration(
+                                    color: C.recGreen,
+                                    borderRadius: R.rPill,
+                                  ),
+                                ),
+                                const SizedBox(width: S.x2),
+                                Text(
+                                  'CHARGING',
+                                  style: DS.kicker.copyWith(color: DS.sub),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-            if (status != null) ...[
-              const SizedBox(height: S.x3),
-              Text(
-                status,
-                style: F.cap.copyWith(
-                  color: low ? p.on(C.strainDown) : p.ink2,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
             ],
-          ],
+          ),
         ),
       ),
-      const SizedBox(height: S.x6),
-      RangeSegments(
-        const ['DAY', 'WEEK'],
-        _range.index,
-        (i) => setState(() {
-          _range = BatteryTimeRange.values[i];
-          _at = null;
-        }),
-        width: null,
-      ),
-      const SizedBox(height: S.x4),
-      Surface(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ScrubReadout(
-              caption: at == null
-                  ? (_range == BatteryTimeRange.day
-                        ? 'Last 24 hours'
-                        : 'Last 7 days')
-                  : _range == BatteryTimeRange.day
-                  ? formatClockOf(_slotTime(at))
-                  : '${weekdayShortName(_slotTime(at).weekday, l)} '
-                        '${formatClockOf(_slotTime(at))}',
-              value: shown == null ? '--' : '${shown.round()}',
-              unit: shown == null ? null : '%',
-              big: false,
-            ),
-            const SizedBox(height: S.x3),
-            if (_loading)
-              const SizedBox(
-                height: S.x16 * 3,
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (slots.pct.every((v) => v == null))
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: S.x8),
-                child: Center(
-                  child: NoData(
-                    message:
-                        'No battery readings yet. The band reports '
-                        'its battery each time it syncs.',
-                  ),
-                ),
-              )
-            else
-              ScrubLine(
-                values: slots.pct,
-                xLabels: _xLabels(l),
-                lo: 0,
-                hi: 100,
-                ticks: const [0, 50, 100],
-                tickText: (t) => '${t.round()}%',
-                color: C.dialStrain,
-                markers: false,
-                slots: false,
-                // An hour without a reading breaks the line.
-                gap: _range == BatteryTimeRange.day ? 4 : 2,
-                height: S.x16 * 3,
-                label: 'Battery level',
-                describe: (i) => slots.pct[i] == null
-                    ? '${formatClockOf(_slotTime(i))}, no reading'
-                    : '${formatClockOf(_slotTime(i))}, '
-                          '${slots.pct[i]!.round()} percent',
-                paintUnder: (cv, plot, xOf, yOf) {
-                  // Charging stretches, shaded as the activities are on Strain.
-                  final paint = Paint()
-                    ..color = C.recGreen.withValues(alpha: .16);
-                  for (var i = 0; i < _slotCount; i++) {
-                    if (!slots.charging[i]) continue;
-                    final x0 = xOf(i);
-                    final x1 = i + 1 < _slotCount ? xOf(i + 1) : plot.right;
-                    cv.drawRect(
-                      Rect.fromLTRB(x0, plot.top, x1, plot.bottom),
-                      paint,
-                    );
-                  }
-                },
-                onScrub: (i) => setState(() => _at = i),
-              ),
-            if (slots.charging.contains(true)) ...[
-              const SizedBox(height: S.x2),
-              Row(
-                children: [
-                  Container(
-                    width: S.x3,
-                    height: S.x3,
-                    decoration: BoxDecoration(
-                      color: C.recGreen.withValues(alpha: .4),
-                      borderRadius: R.rSm,
-                    ),
-                  ),
-                  const SizedBox(width: S.x2),
-                  Text(
-                    'CHARGING',
-                    style: F.over.copyWith(
-                      color: p.ink2,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-      const SizedBox(height: S.x4),
-      Surface(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('DRAIN', style: F.caps.copyWith(color: p.ink)),
-            const SizedBox(height: S.x3),
-            if (f == null || !f.isUsable)
-              Text(
-                'Not enough readings off the charger yet to say how fast the '
-                'battery drains. It needs a few over at least two hours.',
-                style: F.body.copyWith(color: p.ink2, height: 1.4),
-              )
-            else ...[
-              _row(
-                p,
-                'Draining at',
-                '${f.drainPctPerHour!.toStringAsFixed(1)}% an hour',
-              ),
-              Divider(color: p.line),
-              _row(p, 'About a day', '${(f.drainPctPerHour! * 24).round()}%'),
-              if (empty != null && !charging) ...[
-                Divider(color: p.line),
-                _row(
-                  p,
-                  'Runs out',
-                  '${weekdayShortName(empty.weekday, l)} '
-                      '${formatClockOf(empty)}',
-                ),
-              ],
-            ],
-          ],
-        ),
-      ),
-    ]);
+    );
   }
+}
 
-  Widget _row(P p, String label, String value) => ConstrainedBox(
-    constraints: const BoxConstraints(minHeight: S.tap),
-    child: Row(
+/// One drain fact: a tracked label, the figure, a word under it.
+class _Fact extends StatelessWidget {
+  final String label, value, sub;
+  const _Fact(this.label, this.value, this.sub);
+
+  @override
+  Widget build(BuildContext c) => Expanded(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(
-          child: Text(label, style: F.body.copyWith(color: p.ink2)),
+        Text(label, style: DS.kicker.copyWith(color: DS.sub)),
+        const SizedBox(height: S.x2),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            maxLines: 1,
+            style: F.n24.copyWith(color: P.of(c).ink),
+          ),
         ),
-        const SizedBox(width: S.x3),
+        const SizedBox(height: S.x1),
         Text(
-          value,
-          style: F.num(
-            F.body,
-          ).copyWith(color: p.ink, fontWeight: FontWeight.w700),
+          sub,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: F.over.copyWith(color: DS.sub),
         ),
       ],
     ),

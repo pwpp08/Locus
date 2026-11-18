@@ -58,6 +58,10 @@ import '../onboarding/welcome.dart'
 // barrel test), so their components are imported by path.
 import '../screens/screens.dart';
 import '../screens/calibration.dart';
+import '../screens/health_tab.dart'
+    show HealthMonitorCard, JournalCard, LocusAgeCard, StressCard;
+import '../../compute/whoop_age.dart' show WhoopAgeResult;
+import 'device_settings.dart' show BandArt;
 import '../onboarding/what_to_expect.dart' show NightWheel;
 import '../ui2.dart';
 import 'devices.dart';
@@ -72,7 +76,6 @@ import '../screens/training_status_card.dart' show TrainingStatusView;
 import '../screens/reports.dart' show ScoreRing;
 import '../screens/home/card_pictures.dart';
 import '../screens/locus_age.dart' show LocusAgeTrends;
-import '../../compute/whoop_age.dart' show WhoopAgeResult;
 import '../../compute/stress_monitor.dart' show StressBaseline;
 
 /// A deterministic series — a gallery cannot depend on random data.
@@ -789,6 +792,32 @@ Map<String, Widget> _nutritionAndWellnessCases() {
       onHealth: () {},
       onStress: () {},
     ),
+    // The Health tab's four cards: a younger age slowing down, four vitals
+    // in range, a quiet stress day under a typical one, and a week of logs.
+    'health_locus_age': const LocusAgeCard(
+      now: WhoopAgeResult(whoopAge: 29.7, age: 32.3, pace: .8),
+      lastWeek: WhoopAgeResult(whoopAge: 29.9, age: 32.3, pace: 1.0),
+    ),
+    'health_locus_age_locked': const LocusAgeCard(),
+    'health_monitor_card': const HealthMonitorCard(vitals: [
+      (key: 'resp_rate', short: 'RESP', present: true, side: Side.inside),
+      (key: 'spo2', short: 'SPO₂', present: true, side: Side.inside),
+      (key: 'resting_hr', short: 'RHR', present: true, side: Side.above),
+      (key: 'hrv', short: 'HRV', present: true, side: Side.inside),
+      (key: 'skin_temp', short: 'TEMP', present: false, side: null),
+    ]),
+    'health_stress_card': StressCard(
+      data: StressMonitorData(
+        day: '2026-08-16',
+        scores: [for (var i = 0; i <= 1094; i++) i < 420 ? null : 1 + (i % 50) / 40],
+        baseline: _stressBase,
+        minutes: (low: 400, medium: 250, high: 24),
+        typical: (low: 380, medium: 260, high: 41),
+      ),
+    ),
+    'health_journal_card': const JournalCard(week: [3, 5, 0, 4, 6, 2, 4]),
+    'health_heart_rate': const HealthHeartRate(previewBpm: 81),
+    'band_art': const SizedBox(height: S.x16 * 2, child: BandArt()),
     'training_status': const TrainingStatusView(TrainingStatusResult(
         status: TrainingStatus.productive, ratio: 1.18, hrvZ: .4, days: 28)),
     // Load up and HRV under its range: the sentence names both.

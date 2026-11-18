@@ -109,6 +109,16 @@ int tsAged(int ageSec) =>
     (DateTime.now().millisecondsSinceEpoch ~/ 1000) - ageSec;
 
 void main() {
+  test('the low line uses the measured rate, never a fixed one', () {
+    expect(DeviceAlerts.lowBatteryBody(30, 0.8),
+        '~38h left on your band (30%) - recharge tonight.');
+    expect(DeviceAlerts.lowBatteryBody(30, null),
+        'Your band is at 30%. Charge it before bed.');
+    expect(DeviceAlerts.lowBatteryBody(2, 4),
+        'Your band is at 2% and runs out within the hour. Charge it now.');
+  });
+
+
   group('ChargeAlertPolicy', () {
     const now = 1800000000;
 
@@ -229,7 +239,7 @@ void main() {
       store = _FakeStore();
     });
 
-    DeviceAlerts alerts() => DeviceAlerts(sink: sink, store: store);
+    DeviceAlerts alerts() => DeviceAlerts(sink: sink, store: store, drainPerHour: _noRate);
 
     test('a live plug-in notifies exactly once', () async {
       final a = alerts();
@@ -376,7 +386,7 @@ void main() {
       // plugin used to skip the writes below it, so the session re-announced
       // after a restart.
       final failing = _ThrowingSink();
-      final a = DeviceAlerts(sink: failing, store: store);
+      final a = DeviceAlerts(sink: failing, store: store, drainPerHour: _noRate);
       a.onDeviceState(charging: true, chargingTs: tsAged(3));
       await a.settled;
       expect(failing.attempts, 1);
@@ -384,7 +394,7 @@ void main() {
       expect(store.values[DeviceAlerts.debugLastChargeTsKey], isNotNull);
 
       // A restart therefore knows the session was already announced.
-      final restarted = DeviceAlerts(sink: sink, store: store);
+      final restarted = DeviceAlerts(sink: sink, store: store, drainPerHour: _noRate);
       restarted.onDeviceState(charging: true, chargingTs: tsAged(3));
       await restarted.settled;
       expect(sink.countOf(NotificationService.idCharging), 0);
@@ -420,7 +430,7 @@ void main() {
       // Persistence is dead, so only the in-process latches stand between the
       // strap's re-sends and a repeat. They must be committed before the I/O
       // that throws (AGENTS.md 4.3).
-      final a = DeviceAlerts(sink: sink, store: _ThrowingStore());
+      final a = DeviceAlerts(sink: sink, store: _ThrowingStore(), drainPerHour: _noRate);
       final ts = tsAged(3);
       for (var i = 0; i < 4; i++) {
         a.onDeviceState(charging: true, chargingTs: ts);
@@ -432,7 +442,7 @@ void main() {
     test('a broken store degrades to working alerts, not silence', () async {
       // The restore future is memoised, so a failure that escaped would be
       // re-thrown on every later update and kill alerts for the whole process.
-      final a = DeviceAlerts(sink: sink, store: _ThrowingStore());
+      final a = DeviceAlerts(sink: sink, store: _ThrowingStore(), drainPerHour: _noRate);
       a.onDeviceState(charging: true, chargingTs: tsAged(2));
       await a.settled;
       expect(sink.countOf(NotificationService.idCharging), 1);
@@ -466,7 +476,7 @@ void main() {
       store = _FakeStore();
     });
 
-    DeviceAlerts alerts() => DeviceAlerts(sink: sink, store: store);
+    DeviceAlerts alerts() => DeviceAlerts(sink: sink, store: store, drainPerHour: _noRate);
 
     test('fires once per drain', () async {
       final a = alerts();
@@ -522,7 +532,7 @@ void main() {
       // sink meant _lowArmed stayed true and the alert was retried on every
       // single update — an alert storm behind a swallowed error.
       final failing = _ThrowingSink();
-      final a = DeviceAlerts(sink: failing, store: store);
+      final a = DeviceAlerts(sink: failing, store: store, drainPerHour: _noRate);
       for (var i = 0; i < 3; i++) {
         a.onDeviceState(batteryPct: 12);
         await a.settled;
@@ -539,7 +549,7 @@ void main() {
       // here meant the user was never told the band was flat for the whole
       // drain, since re-arming needs 25% or a charger.
       final dropping = _DroppingSink();
-      final a = DeviceAlerts(sink: dropping, store: store);
+      final a = DeviceAlerts(sink: dropping, store: store, drainPerHour: _noRate);
       for (var i = 0; i < 3; i++) {
         a.onDeviceState(batteryPct: 12);
         await a.settled;
@@ -551,12 +561,12 @@ void main() {
 
     test('a drop then a delivery still fires exactly once', () async {
       final dropping = _DroppingSink();
-      final first = DeviceAlerts(sink: dropping, store: store);
+      final first = DeviceAlerts(sink: dropping, store: store, drainPerHour: _noRate);
       first.onDeviceState(batteryPct: 12);
       await first.settled;
 
       // Quiet hours ended: the same drain now gets its one alert.
-      final second = DeviceAlerts(sink: sink, store: store);
+      final second = DeviceAlerts(sink: sink, store: store, drainPerHour: _noRate);
       second.onDeviceState(batteryPct: 11);
       await second.settled;
       second.onDeviceState(batteryPct: 10);
@@ -626,7 +636,7 @@ void main() {
       store = _FakeStore();
     });
 
-    DeviceAlerts alerts() => DeviceAlerts(sink: sink, store: store);
+    DeviceAlerts alerts() => DeviceAlerts(sink: sink, store: store, drainPerHour: _noRate);
     int full() => sink.countOf(NotificationService.idFullyCharged);
 
     test('says so once when the band reaches 100% on the charger', () async {
@@ -686,13 +696,13 @@ void main() {
 
     test('a DROPPED alert does not spend the one chance a charge gets', () async {
       final dropping = _DroppingSink();
-      var a = DeviceAlerts(sink: dropping, store: store);
+      var a = DeviceAlerts(sink: dropping, store: store, drainPerHour: _noRate);
       a.onDeviceState(batteryPct: 100, charging: true, chargingTs: tsAged(2));
       await a.settled;
       // The "Charging" card and the "Fully charged" one, both refused.
       expect(dropping.attempts, 2);
       // Quiet hours end; the next update gets to say it.
-      a = DeviceAlerts(sink: sink, store: store);
+      a = DeviceAlerts(sink: sink, store: store, drainPerHour: _noRate);
       a.onDeviceState(batteryPct: 100, charging: true, chargingTs: tsAged(2));
       await a.settled;
       expect(full(), 1);
@@ -724,7 +734,7 @@ void main() {
 
     test('every alert carries a category, a route and its fixed os id',
         () async {
-      final a = DeviceAlerts(sink: sink, store: store);
+      final a = DeviceAlerts(sink: sink, store: store, drainPerHour: _noRate);
       a.onDeviceState(batteryPct: 90, charging: true, chargingTs: tsAged(2));
       await a.settled;
       a.onDeviceState(batteryPct: 12, charging: false, chargingTs: tsAged(2));
@@ -745,7 +755,7 @@ void main() {
 
     test('the dedupe key is the real event identity, not just the day',
         () async {
-      final a = DeviceAlerts(sink: sink, store: store);
+      final a = DeviceAlerts(sink: sink, store: store, drainPerHour: _noRate);
       a.onDeviceState(batteryPct: 90, charging: true, chargingTs: tsAged(2));
       await a.settled;
       // Charger off, then a genuinely NEW plug-in the same day. A key that was
@@ -760,3 +770,6 @@ void main() {
     });
   });
 }
+
+/// No logged discharge: the alert's line falls back to the charge alone.
+Future<double?> _noRate() async => null;

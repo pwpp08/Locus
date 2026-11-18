@@ -2231,233 +2231,325 @@ class DeviceDetailView extends StatelessWidget {
     final last = s.lastData;
     final fault =
         localizedStatus?.isFault == true ? localizedStatus : null;
-    final calibration = _calibrationRow(c, s);
+    final calibration = calibrationDisclosure(s)?.$1;
+    final battery = s.batteryPct;
+    final left =
+        s.charging ? (l?.devicesCharging ?? 'Charging') : _timeLeft(forecast);
+    Widget rows(List<Widget> items) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: S.x4),
+          decoration: const BoxDecoration(color: DS.card, borderRadius: R.rXl),
+          child: Column(children: [
+            for (final (i, w) in items.indexed) ...[
+              if (i > 0) const Divider(color: DS.track, height: 1),
+              w,
+            ],
+          ]),
+        );
+    Widget kicker(String t) => Padding(
+          padding: const EdgeInsets.fromLTRB(S.x1, S.x6, 0, S.x2),
+          child: Text(t, style: DS.kicker.copyWith(color: DS.tabOff)),
+        );
+
+    // The band's own rows; battery, last data and calibration are the facts
+    // strip's.
+    final bandRows = <Widget>[
+      // The name is the band's own advertising name, written to the strap —
+      // not a phone-side label. So it is only editable on a live link, and the
+      // row says so rather than opening an editor whose save cannot land.
+      SetRow(LucideIcons.tag, C.dialStrain, l?.devicesName ?? 'Name',
+          value: s.displayName(c),
+          sub: onRename == null
+              ? (l?.devicesConnectToRename ??
+                  'Connect to the band to change it')
+              : '',
+          chevron: onRename != null,
+          onTap: onRename),
+      if (onWearing != null)
+        SetRow(LucideIcons.personStanding, C.stressLow,
+            l?.devicesWornOn ?? 'Worn on',
+            value: wornOnUnknown
+                ? (l?.devicesWornUnknown ?? 'Unknown')
+                : wornName(c, wornOn ?? Wearing.wrist),
+            sub: l?.devicesWornOnSub ??
+                'Where the band sits. Used to calibrate steps.',
+            onTap: onWearing),
+      if (s.batteryPackPct case final pack?)
+        SetRow(LucideIcons.batteryCharging, C.optimal,
+            l?.devicesBatteryPack ?? 'Battery pack',
+            value: '${pack.round()}%',
+            sub: l?.devicesBatteryPackSub ??
+                'Reported by the band about every 10 minutes',
+            chevron: false),
+      // WHO HAS CHECKED, not how good the numbers are.
+      if (s.experimental)
+        SetRow(LucideIcons.flaskConical, C.strainDown,
+            l?.devicesSupport ?? 'Support',
+            value: l?.devicesExperimental ?? 'Experimental',
+            sub: l?.devicesBandExperimentalSub ??
+                'This band is decoded but nobody here has worn one. Its '
+                    'numbers have not been checked against the hardware, only '
+                    'against the protocol.',
+            chevron: false),
+      if (onFind != null)
+        SetRow(LucideIcons.bellRing, C.strainDown,
+            l?.devicesBuzzTheBand ?? 'Buzz the band',
+            sub: l?.devicesFindItByFeel ?? 'Find it by feel',
+            chevron: false,
+            onTap: onFind),
+    ];
+
+    // A PAIRED SENSOR'S OWN CARD: what is captured, what is calculated from
+    // it, and that its scores stay experimental until checked on hardware.
+    final sensorRows = <Widget>[
+      SetRow(LucideIcons.flaskConical, C.strainDown,
+          l?.devicesSupport ?? 'Support',
+          value: l?.devicesExperimental ?? 'Experimental',
+          sub: l?.devicesSensorExperimentalSub ??
+              'Decoded from the protocol, never checked against the hardware '
+                  '— nobody here owns one.',
+          chevron: false),
+      SetRow(LucideIcons.database, C.stressLow,
+          l?.devicesWhatItDoes ?? 'What it does',
+          sub: s.tier == null
+              ? (l?.devicesWhatItDoesStored ??
+                  'Everything it sends is saved under its name. Scores from it '
+                      'are experimental and off until it has been checked '
+                      'against the hardware.')
+              : (l?.devicesWhatItDoesBeats ??
+                  'Heartbeat timing is saved under its name, during workouts '
+                      'and a few minutes after. Scoring workouts from it is '
+                      'experimental and off for now.'),
+          chevron: false),
+      // A wearable with a column in the metric x device table, developer
+      // mode only, as the wearable flags are (R6).
+      if (columnFor(s.family) != null && Prefs.getBool(Prefs.devMode, false))
+        SetRow(LucideIcons.chartColumn, C.optimal,
+            l?.wearableDayTitle ?? "Today's numbers",
+            sub: l?.wearableDayRowSub ??
+                'What we measure from it, beside its own values',
+            onTap: () => goto(
+                c,
+                WearableDayScreen(
+                    deviceId: s.deviceId!, adapterId: s.family!))),
+      // MANUAL, and only for a sensor that holds history. Only Oura genuinely
+      // fetches held history off a cursor; every other `onSync` is a bounded
+      // listen window, so it says "listen", never "fetch".
+      if (onSync != null)
+        SetRow(LucideIcons.downloadCloud, C.dialStrain,
+            l?.devicesSyncNow ?? 'Sync now',
+            sub: s.family == 'oura'
+                ? (l?.devicesSyncNowSub ?? 'Fetch whatever it has been holding')
+                : (l?.devicesSyncNowSubListen ??
+                    'Listen for whatever it sends right now'),
+            onTap: onSync),
+    ];
+
+    final statusWord = (fault?.title ??
+            localizedStatus?.title ??
+            _localizedSourceState(c, s))
+        .toUpperCase();
+
     return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(
-        child: Column(children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: S.x4),
-            child: NavBar(''),
+      backgroundColor: DS.foot,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: DS.page,
+            stops: DS.pageStops,
           ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
-              children: [
-                Center(
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    alignment: Alignment.center,
-                    decoration:
-                        BoxDecoration(color: p.card2, borderRadius: R.rXxl),
-                    child: Icon(s.icon, size: I.hero, color: p.ink2),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Column(children: [
+            SizedBox(
+              height: S.x12 + S.x2,
+              child: Row(children: [
+                Pressable(
+                  semanticLabel: 'Back',
+                  onTap: () => Navigator.of(c).maybePop(),
+                  child: SizedBox.square(
+                    dimension: S.tap + S.x4,
+                    child:
+                        Icon(LucideIcons.chevronLeft, size: I.xl, color: p.ink),
                   ),
                 ),
-                  const SizedBox(height: S.x5),
-                  Center(
-                    child: Text(
-                      s.displayName(c),
-                      style: F.t2.copyWith(color: p.ink),
-                    ),
+                Expanded(
+                  child: Text(
+                    s.isBand ? 'YOUR BAND' : 'DEVICE',
+                    textAlign: TextAlign.center,
+                    style: setRowTitle(p).copyWith(letterSpacing: 1),
                   ),
-                  const SizedBox(height: S.x2),
-                  // A fault names itself in the card below; repeating its title
-                  // here would say the same thing twice in two type sizes.
-                if (fault == null)
-                  Center(
-                      child: Text(
-                          localizedStatus?.title ?? _localizedSourceState(c, s),
-                          style: F.cap.copyWith(
-                              color: s.connected ? p.ink : p.ink3))),
-                const SizedBox(height: S.x6),
-                if (fault != null) ...[
-                  StatusCard(fault.title, fault.reason,
-                      fix: fault.fix ?? '', icon: LucideIcons.bluetoothOff),
-                  const SizedBox(height: S.x5),
-                ],
-                if (s.tier case final t?) ...[
-                  TierRow(t, filled: true),
-                  const SizedBox(height: S.x5),
-                ],
-                // A PAIRED SENSOR'S OWN CARD, not the band block below. It has
-                // no advertising name it owns, no battery this app reads and
-                // nothing to buzz — and it has the one thing a user needs
-                // before they trust the row at all: what is captured, and what
-                // is calculated from it. Today the answer to the second is
-                // "nothing unless its experimental flag is on" (R6), and that
-                // has to be on the screen rather than inferred from a metric
-                // quietly still abstaining.
-                if (!s.isBand && s.deviceId != null) ...[
-                  Surface(
-                    pad: const EdgeInsets.symmetric(horizontal: S.x4),
-                    child: Column(children: [
-                      SetRow(LucideIcons.flaskConical, C.strainDown,
-                          l?.devicesSupport ?? 'Support',
-                          value: l?.devicesExperimental ?? 'Experimental',
-                          sub: l?.devicesSensorExperimentalSub ??
-                              'Decoded from the protocol, never checked '
-                                  'against the hardware — nobody here owns one.',
-                          chevron: false),
-                      Divider(color: p.line, height: 1),
-                      SetRow(LucideIcons.database, C.stressLow,
-                          l?.devicesWhatItDoes ?? 'What it does',
-                          sub: s.tier == null
-                              ? (l?.devicesWhatItDoesStored ??
-                                  'Everything it sends is saved under its name. Scores from it are experimental and off until it’s been checked against the hardware.')
-                              : (l?.devicesWhatItDoesBeats ??
-                                  'Heartbeat timing is saved under its name, during workouts and a few minutes after. Scoring workouts from it is experimental and off for now.'),
-                          chevron: false),
-                      Divider(color: p.line, height: 1),
-                      SetRow(LucideIcons.refreshCw, C.dialStrain,
-                          l?.devicesLastData ?? 'Last data',
-                          value: last == null ? '' : formatDayTime(last, l),
-                          sub: last == null
-                              ? (l?.devicesNothingBankedYet ?? 'Nothing banked yet')
-                              : '',
-                          chevron: false),
-                      // A wearable with a column in the metric x device
-                      // table: what we measure from it, and its own values.
-                      // Developer mode only, as the wearable flags are (R6).
-                      if (columnFor(s.family) != null &&
-                          Prefs.getBool(Prefs.devMode, false)) ...[
-                        Divider(color: p.line, height: 1),
-                        SetRow(LucideIcons.chartColumn, C.optimal,
-                            l?.wearableDayTitle ?? "Today's numbers",
-                            sub: l?.wearableDayRowSub ??
-                                'What we measure from it, beside its own '
-                                    'values',
-                            onTap: () => goto(
-                                c,
-                                WearableDayScreen(
-                                    deviceId: s.deviceId!,
-                                    adapterId: s.family!))),
-                      ],
-                      // MANUAL, and only for a sensor that holds history.
-                      // A strap has no flash and nothing to fetch; a ring
-                      // does, and putting it on a schedule would have it
-                      // contending for the radio with the band's own link
-                      // for no reason a user asked for.
-                      if (onSync != null) ...[
-                        Divider(color: p.line, height: 1),
-                        SetRow(LucideIcons.downloadCloud, C.dialStrain,
-                            l?.devicesSyncNow ?? 'Sync now',
-                            // Only Oura genuinely fetches held history off a
-                            // cursor; every other `onSync` wired today is a
-                            // bounded listen window with no request and no
-                            // stored-history drain — see e.g.
-                            // `SessionLink.sync()`.
-                            // Claiming a "fetch" for those would be a promise
-                            // the connect does not keep.
-                            sub: s.family == 'oura'
-                                ? (l?.devicesSyncNowSub ??
-                                    'Fetch whatever it has been holding')
-                                : (l?.devicesSyncNowSubListen ??
-                                    'Listen for whatever it sends right now'),
-                              onTap: onSync,
-                            ),
-                          ],
-                        ],
+                ),
+                const SizedBox(width: S.tap + S.x4),
+              ]),
+            ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.fromLTRB(S.x4, S.x2, S.x4,
+                    S.x10 + MediaQuery.viewPaddingOf(c).bottom),
+                children: [
+                  // ── its state, its name and what kind it is ──
+                  if (!s.isBand) ...[
+                    Center(
+                      child: Container(
+                        width: S.x16 + S.x8,
+                        height: S.x16 + S.x8,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                            color: DS.disc, shape: BoxShape.circle),
+                        child: Icon(s.icon, size: I.xl, color: p.ink),
                       ),
                     ),
+                    const SizedBox(height: S.x5),
+                  ] else
+                    const SizedBox(height: S.x4),
+                  Center(
+                    child: Text(statusWord,
+                        style: DS.kicker.copyWith(
+                            color: s.connected && fault == null
+                                ? DS.connected
+                                : DS.tabOff)),
+                  ),
+                  const SizedBox(height: S.x1 + S.half),
+                  Center(
+                    child: Text(
+                      s.displayName(c).toUpperCase(),
+                      textAlign: TextAlign.center,
+                      style: F.head.copyWith(
+                          color: p.ink,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.6),
+                    ),
+                  ),
+                  if (s.tier case final t?) ...[
+                    const SizedBox(height: S.x1 + S.half),
+                    Center(
+                      child: Text(
+                        sourceTierLabel(c, t).toUpperCase(),
+                        textAlign: TextAlign.center,
+                        style: DS.kicker.copyWith(color: DS.sub),
+                      ),
+                    ),
+                  ],
+                  if (fault != null) ...[
+                    const SizedBox(height: S.x5),
+                    StatusCard(fault.title, fault.reason,
+                        fix: fault.fix ?? '', icon: LucideIcons.bluetoothOff),
+                  ],
+                  // ── the facts: battery, last data, calibration ──
+                  if (s.isBand) ...[
+                    const SizedBox(height: S.x6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: S.x4),
+                      decoration: const BoxDecoration(
+                          color: DS.card, borderRadius: R.rXl),
+                      child: IntrinsicHeight(
+                        child: Row(children: [
+                          _Fact(
+                            label: l?.devicesBattery ?? 'Battery',
+                            value: battery == null
+                                ? '--'
+                                : '${battery.round()}%',
+                            sub: battery == null
+                                ? (l?.devicesBatteryNotReported ??
+                                    'Not reported')
+                                : left ?? '',
+                            onTap: () => goto(c, const BatteryDetailScreen()),
+                          ),
+                          const VerticalDivider(color: DS.track, width: 1),
+                          _Fact(
+                            label: l?.devicesLastData ?? 'Last data',
+                            value: last == null ? '--' : formatClockOf(last),
+                            sub: last == null
+                                ? (l?.devicesNothingBankedYet ??
+                                    'Nothing banked yet')
+                                : formatDay(last),
+                          ),
+                          if (calibration != null) ...[
+                            const VerticalDivider(color: DS.track, width: 1),
+                            _Fact(
+                              label: 'Model',
+                              value: calibration,
+                              sub: (l?.devicesCalibration ?? 'Calibration')
+                                  .toLowerCase(),
+                            ),
+                          ],
+                        ]),
+                      ),
+                    ),
+                    kicker('THE BAND'),
+                    rows(bandRows),
+                  ],
+                  if (!s.isBand && s.deviceId != null) ...[
+                    kicker('THIS SENSOR'),
+                    rows(sensorRows),
                     const SizedBox(height: S.x5),
                     if (s.family case final family?)
                       DeviceUseSwitch(
                           deviceId: s.deviceId!, adapterId: family),
                   ],
-                  // Band rows only. The phone has no radio link and no battery
-                  // this app can read, so "Not reported since the last
-                  // connection" named a connection it does not have — on the
-                  // exact screen someone lands on when phone steps are silently
-                  // failing, where the answer is the permission, not a battery.
-                  if (s.isBand)
-                    Surface(
-                      pad: const EdgeInsets.symmetric(horizontal: S.x4),
-                      child: Column(
-                        children: [
-                          // The name is the band's own advertising name, written
-                          // to the strap — not a phone-side label. So it is only
-                          // editable on a live link, and the row says so rather
-                          // than opening an editor whose save cannot land.
-                          SetRow(
-                            LucideIcons.tag,
-                            C.dialStrain,
-                            l?.devicesName ?? 'Name',
-                            value: s.displayName(c),
-                          sub: onRename == null
-                              ? (l?.devicesConnectToRename ??
-                                  'Connect to the band to change it')
-                              : '',
-                          chevron: onRename != null,
-                          onTap: onRename),
-                      Divider(color: p.line, height: 1),
-                      if (onWearing != null) ...[
-                        SetRow(LucideIcons.personStanding, C.stressLow,
-                            l?.devicesWornOn ?? 'Worn on',
-                            value: wornOnUnknown
-                                ? (l?.devicesWornUnknown ?? 'Unknown')
-                                : wornName(c, wornOn ?? Wearing.wrist),
-                            sub: l?.devicesWornOnSub ??
-                                'Where the band sits. Used to calibrate '
-                                'steps.',
-                            onTap: onWearing),
-                        Divider(color: p.line, height: 1),
-                      ],
-                      _batteryRow(c, s, forecast),
-                      Divider(color: p.line, height: 1),
-                      if (s.batteryPackPct case final pack?) ...[
-                        SetRow(LucideIcons.batteryCharging, C.optimal,
-                            l?.devicesBatteryPack ?? 'Battery pack',
-                            value: '${pack.round()}%',
-                            sub: l?.devicesBatteryPackSub ??
-                                'Reported by the band about every 10 minutes',
-                            chevron: false),
-                        Divider(color: p.line, height: 1),
-                      ],
-                      _lastDataRow(c, s),
-                      if (calibration != null) ...[
-                        Divider(color: p.line, height: 1),
-                        calibration,
-                      ],
-                      // WHO HAS CHECKED, not how good the numbers are. Said
-                      // here rather than only as a word on the list row,
-                      // because "experimental" without the reason reads as a
-                      // disclaimer instead of a fact about this band.
-                      if (s.experimental) ...[
-                        Divider(color: p.line, height: 1),
-                        SetRow(LucideIcons.flaskConical, C.strainDown,
-                            l?.devicesSupport ?? 'Support',
-                            value: l?.devicesExperimental ?? 'Experimental',
-                            sub: l?.devicesBandExperimentalSub ??
-                                'This band is decoded but nobody here has worn '
-                                    'one. Its numbers have not been checked against '
-                                    'the hardware, only against the protocol.',
-                            chevron: false),
-                      ],
-                      if (onFind != null) ...[
-                        Divider(color: p.line, height: 1),
-                        SetRow(LucideIcons.bellRing, C.strainDown,
-                            l?.devicesBuzzTheBand ?? 'Buzz the band',
-                            sub: l?.devicesFindItByFeel ?? 'Find it by feel',
-                            chevron: false,
-                            onTap: onFind),
-                      ],
+                  if (onForget != null) ...[
+                    const SizedBox(height: S.x6),
+                    rows([
+                      SetRow(LucideIcons.trash2, C.dialStrain,
+                          l?.devicesForgetThisBand ?? 'Forget this band',
+                          danger: true, chevron: false, onTap: onForget),
                     ]),
-                  ),
-                const SizedBox(height: S.x5),
-                if (onForget != null)
-                  Surface(
-                    pad: const EdgeInsets.symmetric(horizontal: S.x4),
-                    child: SetRow(LucideIcons.trash2, C.dialStrain,
-                        l?.devicesForgetThisBand ?? 'Forget this band',
-                        danger: true, chevron: false, onTap: onForget),
-                  ),
+                  ],
                 ],
               ),
             ),
-          ],
+          ]),
         ),
       ),
+    );
+  }
+}
+
+/// One of the band page's facts: a tracked label, the figure, and a line
+/// under it. Tappable when [onTap] is given (the battery opens its page).
+class _Fact extends StatelessWidget {
+  final String label, value, sub;
+  final VoidCallback? onTap;
+  const _Fact(
+      {required this.label, required this.value, required this.sub, this.onTap});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final body = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: S.x2),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(label.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: DS.kicker.copyWith(color: DS.sub)),
+        const SizedBox(height: S.x2),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(value,
+              maxLines: 1,
+              style: F
+                  .num(F.head)
+                  .copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+        ),
+        if (sub.isNotEmpty) ...[
+          const SizedBox(height: S.x1),
+          Text(sub,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: F.over.copyWith(color: DS.sub)),
+        ],
+      ]),
+    );
+    return Expanded(
+      child: onTap == null
+          ? body
+          : Pressable(
+              semanticLabel: '$label $value. $sub', onTap: onTap, child: body),
     );
   }
 }

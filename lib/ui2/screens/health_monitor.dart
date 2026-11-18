@@ -8,9 +8,12 @@
 // is a held-over night rather than today's ([overnightMetric]), so a tile never
 // shows last week's reading as this morning's.
 //
-// No blood oxygen tile: none of the bands Locus pairs with serves one (the
-// WHOOP SpO2 byte is recorded for research only), so it could only ever say
-// "No data".
+// Blood oxygen is a fifth tile only for a wearable that reports its own
+// nightly SpO2 (a ring or a watch: `capabilities` of its column). A WHOOP
+// serves none (its red/IR byte is recorded for research only), so on a band
+// the tile would only ever say "No data" and is left out. The device's value
+// is held against the clinical 95–100 %, not a personal range: there is no
+// history of it to draw one from.
 //
 // The number is the live beat while the band streams, and the heart beats
 // with it. Without one it is the last heart rate the day actually recorded,
@@ -23,10 +26,13 @@ import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../compute/inputs/canonical.dart'
+    show MetricClass, activeWearable, capabilities, columnFor, dayCells;
 import '../../compute/whoop_scores.dart'
     show kWhoopMonitorMinNights, whoopMonitorReading;
 import '../../data/day_label.dart';
 import '../../data/journal_fields.dart' show formatMinuteOfDay;
+import '../../data/local_repository.dart' show LocalRepository;
 import '../../models/metric.dart';
 import '../../state/app_state.dart';
 import '../ui2.dart';
@@ -111,8 +117,9 @@ class _MonitorData {
   final int? nights;
   const _MonitorData({this.vitals = const [], this.nights});
 
-  static Future<_MonitorData> load(BuildContext c) async {
-    final repo = repoOf(c);
+  static Future<_MonitorData> load(BuildContext c) => loadFrom(repoOf(c));
+
+  static Future<_MonitorData> loadFrom(LocalRepository? repo) async {
     if (repo == null) return const _MonitorData();
     final today = await repo.getToday();
     // WHOOP's Health Monitor: only a reading far out on the harmful side is
@@ -155,6 +162,7 @@ class _MonitorData {
     final skinR = await rangeOf('skin_temp', skinZ?.toDouble(), harmfulUp: true);
 
     final e = _emptyVitals;
+    final spo2 = await _deviceSpo2();
     var nights = 0;
     try {
       nights = math.max(0, seriesOf(await repo.getChart('resting_hr')).length - 1);
@@ -198,9 +206,87 @@ class _MonitorData {
             places: 1,
             signed: true,
             rangeElsewhere: skinC != null),
+        ?spo2,
       ],
     );
   }
+
+  /// The active wearable's own SpO2 for today, as a tile, or null when the
+  /// wearable cannot report one (every band, and no wearable at all).
+  static Future<_Vital?> _deviceSpo2() async {
+    try {
+      final w = await activeWearable();
+      final col = columnFor(w?.$2);
+      if (col == null || capabilities(col)['spo2'] == MetricClass.unavailable) {
+        return null;
+      }
+      final cell = (await dayCells(todayLabel()))?['spo2'];
+      final v = cell?['value'];
+      final x = v is num && v > 0 && v <= 100 ? v.toDouble() : null;
+      const lo = 95.0, hi = 100.0;
+      final r = x == null ? null : (lo: lo, hi: hi, flagged: x < lo);
+      return _Vital('spo2', 'SpO₂', (c) => _Glyph(_drop, c),
+          present: x != null,
+          value: x == null ? '' : x.toStringAsFixed(0),
+          unit: '%',
+          side: r == null ? null : (r.flagged ? Side.below : Side.inside),
+          range: r,
+          raw: x);
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+/// The overnight vitals as plain values, for the coach: each one's reading,
+/// its unit, the usual range it was read against and the verdict, exactly as
+/// the Health Monitor screen shows them. Absent stays null.
+Future<List<Map<String, Object?>>> healthMonitorReadings(
+    LocalRepository repo) async {
+  final d = await _MonitorData.loadFrom(repo);
+  return [
+    for (final v in d.vitals)
+      {
+        'metric': v.key,
+        'value': v.present ? v.raw : null,
+        'shown': v.present ? '${v.value} ${v.unit}'.trim() : null,
+        'usual_low': v.range?.lo,
+        'usual_high': v.range?.hi,
+        'range_unit': v.rangeElsewhere ? 'SD from baseline' : v.unit,
+        'verdict': switch (v.side) {
+          Side.inside => 'within range',
+          Side.above => 'out of range (high)',
+          Side.below => 'out of range (low)',
+          null => v.present ? 'no usual range yet' : 'no data',
+        },
+      },
+  ];
+}
+
+/// One vital on the Health tab's card: its key and short name, and whether
+/// it reads inside its usual range (null [side]: no reading or no range).
+typedef VitalGlance = ({String key, String short, bool present, Side? side});
+
+/// The vitals as the Health tab's card shows them, in the screen's order.
+/// Empty without a repository; each vital still listed without data.
+Future<List<VitalGlance>> vitalsGlanceOf(LocalRepository? repo) async {
+  final d = await _MonitorData.loadFrom(repo);
+  final vitals = d.vitals.isEmpty ? _emptyVitals : d.vitals;
+  // The reference's order: breathing, oxygen, then the heart, then skin.
+  const order = ['resp_rate', 'spo2', 'resting_hr', 'hrv', 'skin_temp'];
+  const short = {
+    'resp_rate': 'RESP',
+    'spo2': 'SPO₂',
+    'resting_hr': 'RHR',
+    'hrv': 'HRV',
+    'skin_temp': 'TEMP',
+  };
+  final sorted = [...vitals]
+    ..sort((a, b) => order.indexOf(a.key).compareTo(order.indexOf(b.key)));
+  return [
+    for (final v in sorted)
+      (key: v.key, short: short[v.key] ?? v.label, present: v.present, side: v.side),
+  ];
 }
 
 /// What Home's card says: how many of the vitals that have a reading and a
@@ -360,6 +446,58 @@ class _HealthMonitorScreenState extends State<HealthMonitorScreen> {
         ),
       );
   }
+}
+
+/// The Health tab's top: the live heart rate over its grid, exactly as the
+/// Health Monitor draws it. Owns the live stream while it is on screen.
+class HealthHeartRate extends StatefulWidget {
+  /// A recorded rate to show without a stream (renders and tests).
+  final int? previewBpm;
+  const HealthHeartRate({super.key, this.previewBpm});
+
+  @override
+  State<HealthHeartRate> createState() => _HealthHeartRateState();
+}
+
+class _HealthHeartRateState extends State<HealthHeartRate> {
+  AppState? _owner;
+  _Recorded? _recorded;
+  List<int>? _zones;
+
+  @override
+  void initState() {
+    super.initState();
+    try {
+      _owner = context.read<AppState>()..retainLiveHrView();
+    } catch (_) {
+      // No AppState (renders): no stream to own.
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final r = await _lastRecorded(context).catchError((_) => null);
+      if (!mounted) return;
+      if (r != null) setState(() => _recorded = r);
+      final z = await _zoneEdges(context);
+      if (mounted && z != null) setState(() => _zones = z);
+    });
+  }
+
+  @override
+  void dispose() {
+    _owner?.releaseLiveHrView();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext c) => _Hero(
+      recorded: _recorded ??
+          switch (widget.previewBpm) {
+            final b? => (
+                bpm: b,
+                at: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              ),
+            null => null,
+          },
+      zones: _zones);
 }
 
 /// The back chevron and the title, centred in tracked capitals.
@@ -1051,6 +1189,33 @@ void _pulse(Canvas c, Paint p) {
         ..blendMode = BlendMode.clear);
   c.restore();
 }
+
+/// A drop, a small bubble at its shoulder: blood oxygen.
+void _drop(Canvas c, Paint p) {
+  c.drawPath(
+      Path()
+        ..moveTo(10, 3.2)
+        ..cubicTo(10, 3.2, 3.6, 10.6, 3.6, 15)
+        ..cubicTo(3.6, 18.6, 6.5, 21.4, 10, 21.4)
+        ..cubicTo(13.5, 21.4, 16.4, 18.6, 16.4, 15)
+        ..cubicTo(16.4, 10.6, 10, 3.2, 10, 3.2)
+        ..close(),
+      p);
+  c.drawCircle(const Offset(18.6, 5.6), 2.2, p);
+}
+
+/// Each vital's glyph by key, for the Health tab's card.
+Widget vitalGlyph(String key, Color color, {double size = I.md}) =>
+    _Glyph(
+        switch (key) {
+          'resp_rate' => _lungs,
+          'spo2' => _drop,
+          'resting_hr' => _restingHeart,
+          'hrv' => _pulse,
+          _ => _thermometer,
+        },
+        color,
+        size: size);
 
 /// A tube into a bulb, the column of mercury down its middle.
 void _thermometer(Canvas c, Paint p) {

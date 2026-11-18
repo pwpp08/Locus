@@ -331,7 +331,7 @@ const _notComponents = {
   'CoachMemoryScreen',
   // The Health tab and Locus Age read the database and run a ticker forever;
   // the storage and import pages are Scaffold routes over the app state.
-  'HealthTab', 'LocusAgeScreen', 'TouchWatcher', 'StorageScreen',
+  'HealthTab', 'HealthTabView', 'LocusAgeScreen', 'TouchWatcher', 'StorageScreen',
   'WhoopImportScreen',
   'DataHighlightsScreen',
   // The two comparison cards need a TrendLoader (database reads) or a whole

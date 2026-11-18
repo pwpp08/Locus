@@ -89,8 +89,9 @@ void main() {
     // Today's own readiness ring is showing (its number is real Text, not
     // canvas-painted), and so is the stepper.
     expect(find.text('70'), findsOneWidget);
-    expect(find.text('HEALTH MONITOR'), findsOneWidget);
-    expect(find.text('STRESS MONITOR'), findsOneWidget);
+    // The monitors live on the Health tab now, not under the rings.
+    expect(find.text('HEALTH MONITOR'), findsNothing);
+    expect(find.text('STRESS MONITOR'), findsNothing);
     expect(find.bySemanticsLabel('Previous day'), findsOneWidget);
     // The newest day: forward is a dead arrow.
     expect(find.bySemanticsLabel('Next day'), findsOneWidget);
