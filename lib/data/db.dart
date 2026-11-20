@@ -9202,7 +9202,11 @@ class LocalDb {
       {String? before}) async {
     final db = await instance;
     return db.rawQuery(
-      'SELECT r.day_id AS day_id, r.window_json AS window_json '
+      'SELECT r.day_id AS day_id, r.window_json AS window_json, '
+      // Legacy v9 rows keep window_json = '{}' and carry the offset in the
+      // payload; ship the payload only for those.
+      "CASE WHEN r.window_json LIKE '%offset_ms%' THEN NULL "
+      'ELSE r.payload_json END AS payload_json '
       'FROM day_result r '
       '$_servedDayJoin '
       'WHERE r.skipped = 0 '
