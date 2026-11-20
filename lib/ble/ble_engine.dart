@@ -3096,6 +3096,12 @@ class BleEngine {
         seedCounter: await cursorReader?.call('counter_hw'),
       );
       _firmwareDecoder = FirmwareAwareR24Decoder();
+      // The cursor reads above can park through a link drop; its teardown has
+      // already run, so arming timers or a drain now would orphan them.
+      if (_sessionIsStale(session)) {
+        _log('link died during connect setup — not arming the session.');
+        return false;
+      }
 
       // Heartbeat: keep the link alive (~10s LINK_VALID). Owned by the session, so a
       // disconnect cancels it — no zombie timer firing into a dead characteristic.
@@ -6221,6 +6227,7 @@ class BleEngine {
     final f = _foreignDrain;
     if (f == null) return;
     if (_foreignThresholdFlush == null &&
+        !_foreignBankFailing &&
         f.bufferedTotal >= _foreignFlushThreshold) {
       final run = _flushForeignBuffer(reason: 'threshold');
       _foreignThresholdFlush = run;
@@ -6234,6 +6241,11 @@ class BleEngine {
   }
 
   Future<void>? _foreignThresholdFlush;
+
+  /// The last foreign bank failed: the size trigger stands down and the
+  /// quiet timer / markers retry, instead of every frame re-running a doomed
+  /// whole-buffer commit. Cleared by the next successful bank.
+  bool _foreignBankFailing = false;
 
   /// Bank buffered foreign rows within [_foreignFlushQuiet] of the first one
   /// that is not banked yet. Armed once, not re-armed per record: at flood
@@ -6259,6 +6271,7 @@ class BleEngine {
   Future<void> _bankForeign(DrainController f, {required String reason}) async {
     if (f.bufferedTotal == 0) return;
     final n = await f.flushCounted();
+    if (identical(f, _foreignDrain)) _foreignBankFailing = n == null;
     if (n != null) {
       _foreignRecordsBanked += n;
     } else {
@@ -7291,7 +7304,7 @@ class BleEngine {
         return;
       } else if (gateEnforced) {
         _burstMismatchStreak = 0;
-      } else if (shortfall != 0) {
+      } else if (shortfall > 0) {
         // gen4: advisory only — record the mismatch for observability, keep
         // ACKing exactly as the proven flow always has.
         _burstMismatchTotal++;
@@ -7355,6 +7368,9 @@ class BleEngine {
       final hadDurableRows = d.bufferedRecords > 0 ||
           d.bufferedProgressArchives > 0 ||
           d.bufferedEcgRaw > 0;
+      // The ACK write triggers the next HISTORY_START, whose rearm() resets
+      // d.burstStats in place; merge from a copy taken before any await.
+      final burstSnapshot = d.burstStats.snapshot();
       _log(
         '[SYNC] HistoryEnd batch=${m.batchId} records=${d.records} '
         'expected=${m.expectedPacketCount} '
@@ -7395,8 +7411,6 @@ class BleEngine {
         );
         return;
       }
-      _successfulBursts++;
-      _mergeValidatedBurst(d);
       // SAFE-TRIM INVARIANT: persist decoded+raw AND the continuation cursor
       // DURABLY (one transaction) BEFORE the ACK. The band trims its flash only
       // once the ACK is link-layer confirmed, so a crash before the ACK
@@ -7524,6 +7538,10 @@ class BleEngine {
         return;
       }
       _chunkFailures.recordSuccess(tokenHex);
+      // Counted only once banked AND acked: a burst whose commit or ACK fails
+      // is re-delivered and would otherwise be counted (and gap-merged) twice.
+      _successfulBursts++;
+      _mergeValidatedBurst(burstSnapshot);
       // A trimmed chunk proves the strap IS draining, so the abort→retry
       // budget is about a stall that has since cleared, not this session.
       session.historicalRetries = 0;
@@ -7931,18 +7949,18 @@ class BleEngine {
   /// window backfilled from flash. Stays in `listening` — no mode change.
   Future<void> requestHistorySync() async {
     _historyRequests++;
-    await LocalDb.upsertSyncLedgerEntry(
-      status: 'requested',
-      metaPatch: {
-        'request_reason': 'manual',
-        'request_refresh_range': true,
-        'request_sent_at': DateTime.now().millisecondsSinceEpoch,
-        'history_requests': _historyRequests,
-        'history_completions': _historyCompletions,
-        'strap_history_oldest_ts': _strapHistoryOldestTs,
-        'strap_history_newest_ts': _strapHistoryNewestTs,
-      },
-    );
+    await _bestEffortLedgerWrite(() => LocalDb.upsertSyncLedgerEntry(
+          status: 'requested',
+          metaPatch: {
+            'request_reason': 'manual',
+            'request_refresh_range': true,
+            'request_sent_at': DateTime.now().millisecondsSinceEpoch,
+            'history_requests': _historyRequests,
+            'history_completions': _historyCompletions,
+            'strap_history_oldest_ts': _strapHistoryOldestTs,
+            'strap_history_newest_ts': _strapHistoryNewestTs,
+          },
+        ));
     await _triggerBackfill(BackfillTrigger.manual);
   }
 
@@ -9070,6 +9088,7 @@ class BleEngine {
     final foreign = _foreignDrain;
     _foreignDrain = null;
     _foreignThresholdFlush = null;
+    _foreignBankFailing = false;
     if (foreign != null) {
       // Including another client's records the drainer has not reached yet —
       // in the batch it holds and in the queue, both dropped with the link.
@@ -9178,8 +9197,8 @@ class BleEngine {
     );
   }
 
-  void _mergeValidatedBurst(DrainController d) {
-    final burstCounts = d.burstStats.dataPacketCountsByRevision;
+  void _mergeValidatedBurst(BurstStats burst) {
+    final burstCounts = burst.dataPacketCountsByRevision;
     final mergedCounts = <int, int>{
       ..._sessionPacketCounts.dataPacketCountsByRevision,
     };
@@ -9189,27 +9208,27 @@ class BleEngine {
     _sessionPacketCounts = _SessionPacketCounts(
       dataPacketCountsByRevision: mergedCounts,
       revision16Count:
-          _sessionPacketCounts.revision16Count + d.burstStats.revision16Count,
+          _sessionPacketCounts.revision16Count + burst.revision16Count,
       consoleLogPacketCount:
           _sessionPacketCounts.consoleLogPacketCount +
-          d.burstStats.consoleCount,
+          burst.consoleCount,
       unknownRevisionCount:
-          _sessionPacketCounts.unknownRevisionCount + d.burstStats.unknownCount,
+          _sessionPacketCounts.unknownRevisionCount + burst.unknownCount,
       revision19Count:
-          _sessionPacketCounts.revision19Count + d.burstStats.revision19Count,
+          _sessionPacketCounts.revision19Count + burst.revision19Count,
       revision22Count:
-          _sessionPacketCounts.revision22Count + d.burstStats.revision22Count,
+          _sessionPacketCounts.revision22Count + burst.revision22Count,
       revision25Count:
-          _sessionPacketCounts.revision25Count + d.burstStats.revision25Count,
+          _sessionPacketCounts.revision25Count + burst.revision25Count,
       revision26Count:
-          _sessionPacketCounts.revision26Count + d.burstStats.revision26Count,
+          _sessionPacketCounts.revision26Count + burst.revision26Count,
     );
 
     var crossBurst = _sessionGapSummary.crossBurst;
-    var missing = _sessionGapSummary.missing + d.burstStats.intraBurstMissing;
+    var missing = _sessionGapSummary.missing + burst.intraBurstMissing;
     var backward =
-        _sessionGapSummary.backward + d.burstStats.intraBurstBackward;
-    for (final entry in d.burstStats.sequenceByRevision.entries) {
+        _sessionGapSummary.backward + burst.intraBurstBackward;
+    for (final entry in burst.sequenceByRevision.entries) {
       final rev = entry.key;
       final seq = entry.value;
       final last = _lastSequenceByRevision[rev];
@@ -9231,7 +9250,7 @@ class BleEngine {
     }
     _sessionGapSummary = _SessionGapSummary(
       intraBurst:
-          _sessionGapSummary.intraBurst + d.burstStats.intraBurstGapCount,
+          _sessionGapSummary.intraBurst + burst.intraBurstGapCount,
       crossBurst: crossBurst,
       missing: missing,
       backward: backward,
@@ -10111,6 +10130,27 @@ class BurstStats {
   void onConsole() => _consoleCount++;
 
   void onUnknown() => _unknownCount++;
+
+  BurstStats snapshot() {
+    final c = BurstStats()
+      .._eventCount = _eventCount
+      .._consoleCount = _consoleCount
+      .._unknownCount = _unknownCount
+      .._revision16Count = _revision16Count
+      .._revision19Count = _revision19Count
+      .._revision22Count = _revision22Count
+      .._revision25Count = _revision25Count
+      .._revision26Count = _revision26Count;
+    c._dataPacketCountsByRevision.addAll(_dataPacketCountsByRevision);
+    _sequenceByRevision.forEach((k, v) {
+      c._sequenceByRevision[k] = SequenceState(firstSequence: v.firstSequence)
+        ..lastSequence = v.lastSequence
+        ..gapCount = v.gapCount
+        ..missingCount = v.missingCount
+        ..backwardCount = v.backwardCount;
+    });
+    return c;
+  }
 
   void reset() {
     _dataPacketCountsByRevision.clear();
