@@ -592,6 +592,16 @@ class NotificationService {
     } catch (_) {}
   }
 
+  /// Whether a card with [id] is still showing. False when it cannot tell.
+  Future<bool> isShowing(int id) async {
+    try {
+      final active = await _plugin.getActiveNotifications();
+      return active.any((n) => n.id == id);
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Drop every notification this app has scheduled or posted.
   ///
   /// Part of "Delete everything": a scheduled alarm or wind-down reminder that

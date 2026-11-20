@@ -97,13 +97,41 @@ List<(int, double)>? projectEnergy(EnergyReserve e, int toTs) {
   if (rate == null || e.points.isEmpty) return null;
   final (from, start) = e.points.last;
   if (from >= toTs) return null;
-  double at(int t) => (start + rate * (t - from) / 60)
-      .clamp(kEnergyFloor, kEnergyCeiling)
-      .toDouble();
-  return [
-    for (var t = from; t < toTs; t += 300) (t, at(t)),
-    (toTs, at(toTs)),
-  ];
+  if (rate >= 0) {
+    double at(int t) => (start + rate * (t - from) / 60)
+        .clamp(kEnergyFloor, kEnergyCeiling)
+        .toDouble();
+    return [
+      for (var t = from; t < toTs; t += 300) (t, at(t)),
+      (toTs, at(toTs)),
+    ];
+  }
+  // A drain slows as the tank empties, minute by minute as the day did.
+  final out = <(int, double)>[(from, start)];
+  var level = start;
+  for (var t = from; t < toTs; t += 60) {
+    final mins = math.min(60, toTs - t) / 60;
+    level = (level + rate * energyDrainTaper(level) * mins)
+        .clamp(kEnergyFloor, kEnergyCeiling)
+        .toDouble();
+    final at = math.min(t + 60, toTs);
+    if (at == toTs || (at - from) % 300 == 0) out.add((at, level));
+  }
+  return out;
+}
+
+/// Under this level a drain slows, down to [kEnergyTaperMin] of its pace at
+/// the floor: a low tank empties slowly, so an ordinary afternoon does not
+/// pin it at 5 for the rest of the day.
+const double kEnergyTaperFrom = 35;
+const double kEnergyTaperMin = .25;
+
+/// The share of a drain that still applies at [level].
+double energyDrainTaper(double level) {
+  if (level >= kEnergyTaperFrom) return 1;
+  final f = ((level - kEnergyFloor) / (kEnergyTaperFrom - kEnergyFloor))
+      .clamp(0.0, 1.0);
+  return kEnergyTaperMin + (1 - kEnergyTaperMin) * f;
 }
 
 /// Points lost per minute at heart-rate reserve [hrr] while awake, when the
@@ -134,7 +162,7 @@ double energyRatePerMin({
   if (g <= kEnergyRestLine) {
     return kEnergyRestChargeMax * (kEnergyRestLine - g) / kEnergyRestLine;
   }
-  return -(.03 + .09 * (g - kEnergyRestLine) / (100 - kEnergyRestLine));
+  return -(.025 + .065 * (g - kEnergyRestLine) / (100 - kEnergyRestLine));
 }
 
 /// The reserve from last night's onset to the last reading, or to [until].
@@ -187,7 +215,9 @@ EnergyReserve? energyReserve({
   }
 
   double step(double level, double rate, double mins) =>
-      (level + rate * mins).clamp(kEnergyFloor, kEnergyCeiling).toDouble();
+      (level + (rate < 0 ? rate * energyDrainTaper(level) : rate) * mins)
+          .clamp(kEnergyFloor, kEnergyCeiling)
+          .toDouble();
 
   // ── the night ──
   final points = <(int, double)>[];

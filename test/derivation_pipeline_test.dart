@@ -340,6 +340,22 @@ void main() {
             bundleFor(stages: stages, sleepSource: 'manual'))['sol_sec'],
         900,
       );
+      // Drowsy minutes staged as sleep before you really dropped off do not
+      // end the latency: onset is the first ten unbroken minutes of sleep.
+      expect(
+        accountingOf(bundleFor(
+          stages: <String>[
+            ...List<String>.filled(300, 'wake'),
+            ...List<String>.filled(120, 'light'),
+            ...List<String>.filled(240, 'wake'),
+            ...List<String>.filled(300, 'light'),
+            ...List<String>.filled(60, 'wake'),
+            ...List<String>.filled(3600, 'light'),
+          ],
+          sleepSource: 'manual',
+        ))['sol_sec'],
+        1020,
+      );
       // …and never when the leading edge went unwatched.
       expect(
         accountingOf(bundleFor(

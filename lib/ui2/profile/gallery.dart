@@ -1783,13 +1783,14 @@ Map<String, Widget> _stateCases() => {
       'wordmark_fill': Builder(
           builder: (c) => WordmarkFill(
               fill: .55, base: P.of(c).ink3.withValues(alpha: .45), ink: P.of(c).ink)),
-      // The pull-down: a sliver, so it needs a scroll view to sit in.
-      'locus_pull_refresh': SizedBox(
+      // The pull: a sliver, so it needs a scroll view to sit in. It draws
+      // nothing; the page answers it.
+      'pull_to_refresh': SizedBox(
         height: S.x16 * 2,
         child: CustomScrollView(
           physics: kPullPhysics,
           slivers: [
-            LocusPullRefresh(onRefresh: () async {}),
+            PullToRefresh(onRefresh: () async {}),
             const SliverToBoxAdapter(child: Text('Pull down')),
           ],
         ),

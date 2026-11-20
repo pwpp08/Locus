@@ -139,15 +139,16 @@ void main() {
   });
 
   group('strain target', () {
-    test("WHOOP's example: recovery 70% → 8.3–16.3, optimal 12.3", () {
+    test("WHOOP's optimal at recovery 70% (12.3), in a zone half its ±4",
+        () {
       final t = whoopStrainTarget(70)!;
       expect(t.optimal, closeTo(12.3, 1e-9));
-      expect(t.lo, closeTo(8.3, 1e-9));
-      expect(t.hi, closeTo(16.3, 1e-9));
+      expect(t.lo, closeTo(10.3, 1e-9));
+      expect(t.hi, closeTo(14.3, 1e-9));
     });
     test('stays on the 0–21 scale and abstains without recovery', () {
-      expect(whoopStrainTarget(0)!.lo, 2);
-      expect(whoopStrainTarget(100)!.hi, 19);
+      expect(whoopStrainTarget(0)!.lo, 4);
+      expect(whoopStrainTarget(100)!.hi, 17);
       expect(whoopStrainTarget(null), isNull);
     });
   });

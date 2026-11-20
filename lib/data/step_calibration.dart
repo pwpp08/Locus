@@ -29,6 +29,11 @@ const double kStepFactorMax = 2.0;
 /// Pseudo-days of factor 1.0 blended into the fit.
 const double kStepFactorPriorWeight = 3.0;
 
+/// The `step_calibration` family the phone-vs-watch factor is kept under
+/// (`health/watch_step_reference.dart` learns it; the step reader applies it
+/// to the phone's spans).
+const String kPhoneStepRefFamily = 'phone_vs_watch';
+
 /// Bump when the fit changes so old factors are ignored.
 const int kStepCalibrationVersion = 1;
 

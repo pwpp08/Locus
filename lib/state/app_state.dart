@@ -82,6 +82,7 @@ import 'smart_wake.dart';
 import 'alarm_mode.dart';
 import '../models/alarm_item.dart' show AlarmItem;
 import 'prefs.dart';
+import '../health/watch_step_reference.dart';
 import '../ble/adapters/signals.dart' show InputSignal;
 import '../ui2/profile/devices.dart' show liveSources, rankSources;
 import '../data/db.dart';
@@ -936,6 +937,13 @@ class AppState extends ChangeNotifier {
   }) async {
     try {
       final r = await _phonePedometer.syncRecent(days: days);
+      // Once a day, re-learn how the phone's count compares with the other
+      // watch's in Health Connect; the step reader applies it.
+      final today = todayLabel();
+      if (Prefs.getString(Prefs.stepRefDay, '') != today) {
+        Prefs.setString(Prefs.stepRefDay, today);
+        unawaited(refreshPhoneStepReference());
+      }
       phoneStepsLastSyncedDays = r.daysRead;
       phoneStepsLastTotal = r.totalSteps;
       await _refreshPhoneStepsToday();
@@ -2449,6 +2457,7 @@ class AppState extends ChangeNotifier {
         wait: false,
       );
       Prefs.setString(Prefs.restPending, '');
+      Prefs.setString(Prefs.awakeMarkedDay, day);
       unawaited(syncNow());
       return true;
     }
@@ -2467,6 +2476,7 @@ class AppState extends ChangeNotifier {
       source: 'confirmed',
       wait: false,
     );
+    Prefs.setString(Prefs.awakeMarkedDay, day);
     unawaited(syncNow());
     return true;
   }

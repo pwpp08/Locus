@@ -800,7 +800,9 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           HomeSyncBanner(
             key: const ValueKey('sync-banner'),
             state: syncBarStateOf(
-                syncing: syncingNowOf(c), at: at, now: DateTime.now()),
+                syncing: _pulling || syncingNowOf(c),
+                at: at,
+                now: DateTime.now()),
             syncedTo: syncedToText(at, todayLabel(widget.now), l),
             onTap: switch (syncOf(c)) {
               final sync? => () => _tapSync(sync),
@@ -1258,7 +1260,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     ];
   }
 
-  /// The page: the pull-down mark first ([LocusPullRefresh]), then the list.
+  /// The page: the pull ([PullToRefresh]) first, then the list.
   Widget _scrolling({
     ScrollController? controller,
     required EdgeInsets padding,
@@ -1268,7 +1270,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         controller: controller,
         physics: kPullPhysics,
         slivers: [
-          LocusPullRefresh(onRefresh: _pullToSync),
+          PullToRefresh(onRefresh: _pullToSync),
           SliverPadding(
             padding: padding,
             sliver: SliverList(delegate: SliverChildListDelegate(children)),
@@ -1276,24 +1278,35 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         ],
       );
 
+  /// A pull: the black data bar comes up as catching up at once, the band is
+  /// synced and the day re-read, and the bar stays until both are done (then
+  /// says caught up and folds away).
   Future<void> _pullToSync() async {
     AppState? app;
     try {
       app = context.read<AppState>();
     } catch (_) {}
     final isToday = _day == null || _day == todayLabel();
-    if (app != null && app.isPaired && isToday && widget.data == null) {
-      _tapSync(() {});
-      // The sync runs on in the background (its own indicator says so, and the
-      // page re-reads when it lands). The pull waits only for the quick read
-      // below, so the word always goes back up when its animation is done
-      // instead of hanging down for as long as a slow band takes.
-      unawaited(app
-          .syncNow()
-          .timeout(const Duration(seconds: 90))
-          .then<void>((_) {}, onError: (Object _) {}));
+    final syncs = app != null && app.isPaired && isToday && widget.data == null;
+    if (syncs) setState(() => _pulling = true);
+    try {
+      await Future.wait([
+        if (syncs)
+          app
+              .syncNow()
+              .timeout(const Duration(seconds: 90))
+              .then<void>((_) {}, onError: (Object _) {}),
+        _load(),
+      ]);
+      // The sync's derive lands after it reports done: read once more.
+      if (syncs) await _load();
+    } finally {
+      if (mounted && _pulling) setState(() => _pulling = false);
     }
-    await _load();
   }
+
+  /// A pull's sync is running: the data bar shows it whatever the band link
+  /// reports.
+  bool _pulling = false;
 }
 

@@ -368,15 +368,20 @@ const double kWhoopMonitorFlagSd = 2.0;
 /// the strain already taken), not from past training load; its one published
 /// example is recovery 70% → 8.3–16.3, optimal 12.3. Nothing else is
 /// published, so the optimal is a straight line through that point that
-/// spans most of the 0–21 scale (6 at 0%, 15 at 100%) and the range is ±4.
+/// spans most of the 0–21 scale (6 at 0%, 15 at 100%). The range is ±2: the
+/// published ±4 read as "anything goes" (a 70% morning's 8.3–16.3 spans
+/// rest day to hard session), so it is half that.
 // ponytail: a line through WHOOP's one example. Refit if more readouts turn
 // up; WHOOP's intent setting (rest / maintain / perform) would be a ±2 shift.
+/// Half the target zone's width, on the 0–21 scale.
+const double kStrainTargetHalfWidth = 2;
+
 ({double lo, double hi, double optimal})? whoopStrainTarget(double? recovery) {
   if (recovery == null || !recovery.isFinite) return null;
   final optimal = 6 + 0.09 * recovery.clamp(0.0, 100.0);
   return (
-    lo: math.max(0.0, optimal - 4),
-    hi: math.min(21.0, optimal + 4),
+    lo: math.max(0.0, optimal - kStrainTargetHalfWidth),
+    hi: math.min(21.0, optimal + kStrainTargetHalfWidth),
     optimal: optimal,
   );
 }

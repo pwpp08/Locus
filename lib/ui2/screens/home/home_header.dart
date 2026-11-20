@@ -219,20 +219,29 @@ class DayPager extends StatelessWidget {
           ),
         );
 
-    return SizedBox(
-      width: S.x16 * 2 + S.x8 + S.x1 * 2,
-      height: S.tap,
+    // As wide as it has always been, and wider when a long date (or a
+    // language's longer names, or larger text) needs the room, up to what
+    // clears the avatar and the device status either side; past that the
+    // label shrinks.
+    const base = S.x16 * 2 + S.x8 + S.x1 * 2;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+          minWidth: base, maxWidth: base + S.x8, minHeight: S.tap, maxHeight: S.tap),
       child: Stack(alignment: Alignment.center, children: [
-        Container(
-          height: _h,
-          decoration: BoxDecoration(
-            color: Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
-            borderRadius: _r,
+        Positioned.fill(
+          child: Center(
+            child: Container(
+              height: _h,
+              decoration: BoxDecoration(
+                color: Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
+                borderRadius: _r,
+              ),
+            ),
           ),
         ),
-        Row(children: [
+        Row(mainAxisSize: MainAxisSize.min, children: [
           arrow(LucideIcons.chevronLeft, older, 'Previous day'),
-          Expanded(
+          Flexible(
             child: Semantics(
               label: 'Open the calendar',
               button: true,
@@ -244,6 +253,9 @@ class DayPager extends StatelessWidget {
                   child: Center(
                     child: Container(
                       height: _h,
+                      constraints: const BoxConstraints(
+                          minWidth: base - (S.x8 + S.x1) * 2),
+                      padding: const EdgeInsets.symmetric(horizontal: S.x3),
                       decoration: BoxDecoration(
                         color: Color.alphaBlend(p.ink.withValues(alpha: .15), p.bg),
                         borderRadius: _r,

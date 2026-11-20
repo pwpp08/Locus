@@ -2,7 +2,7 @@
  "day_result": [
   {
    "day_id": "2026-07-13",
-   "algo_version": 118,
+   "algo_version": 119,
    "payload_json": {
     "date": "2026-07-13",
     "day_confidence": 0.6,
@@ -25154,7 +25154,7 @@
   },
   {
    "day_id": "2026-07-14",
-   "algo_version": 118,
+   "algo_version": 119,
    "payload_json": {
     "date": "2026-07-14",
     "day_confidence": 0.6,
@@ -50120,7 +50120,7 @@
   },
   {
    "day_id": "2026-07-15",
-   "algo_version": 118,
+   "algo_version": 119,
    "payload_json": {
     "date": "2026-07-15",
     "day_confidence": 0.6,
@@ -74116,7 +74116,7 @@
  "metric_series_version": [
   {
    "date": "2026-07-13",
-   "algo_version": 118,
+   "algo_version": 119,
    "source": "band",
    "device_family": "gen5",
    "coverage_devices": "",
@@ -74124,7 +74124,7 @@
   },
   {
    "date": "2026-07-14",
-   "algo_version": 118,
+   "algo_version": 119,
    "source": "band",
    "device_family": "gen5",
    "coverage_devices": "",
@@ -74132,7 +74132,7 @@
   },
   {
    "date": "2026-07-15",
-   "algo_version": 118,
+   "algo_version": 119,
    "source": "band",
    "device_family": "gen5",
    "coverage_devices": "",
@@ -74142,7 +74142,7 @@
  "wake_day_features": [
   {
    "day_id": "2026-07-13",
-   "algo_version": 118,
+   "algo_version": 119,
    "payload_json": {
     "day_id": "2026-07-13",
     "active_min": 90,
@@ -75350,7 +75350,7 @@
   },
   {
    "day_id": "2026-07-14",
-   "algo_version": 118,
+   "algo_version": 119,
    "payload_json": {
     "day_id": "2026-07-14",
     "active_min": 240,
@@ -76558,7 +76558,7 @@
   },
   {
    "day_id": "2026-07-15",
-   "algo_version": 118,
+   "algo_version": 119,
    "payload_json": {
     "day_id": "2026-07-15",
     "active_min": 40,

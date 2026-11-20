@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../l10n/app_localizations.dart';
+import '../../../data/day_label.dart';
 import '../../../state/app_state.dart';
+import '../../../state/prefs.dart';
 import '../../../l10n/presentation_text.dart';
 import '../../charts.dart' show DashedRing, Ring;
 import '../../grammar.dart' show Pressable;
@@ -139,7 +141,10 @@ class _AwakePill extends StatefulWidget {
 }
 
 class _AwakePillState extends State<_AwakePill> {
-  bool _sent = false;
+  // Held across Home's reloads: the pill is rebuilt whenever the day
+  // refreshes, and a fresh state offered the button again before recovery
+  // was ready, so it had to be pressed twice.
+  late bool _sent = Prefs.getString(Prefs.awakeMarkedDay, '') == todayLabel();
 
   Future<void> _tap() async {
     setState(() => _sent = true);

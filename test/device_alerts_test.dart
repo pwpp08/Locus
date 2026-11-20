@@ -44,6 +44,12 @@ class _FakeSink implements DeviceAlertSink {
   @override
   Future<void> cancel(int id) async => cancelled.add(id);
 
+  /// Whether the shade still holds the card; off unless a test says so.
+  bool showing = false;
+
+  @override
+  Future<bool> isShowing(int id) async => showing;
+
   int countOf(int id) => shown.where((s) => s.id == id).length;
 }
 
@@ -72,6 +78,9 @@ class _ThrowingSink implements DeviceAlertSink {
 
   @override
   Future<void> cancel(int id) async {}
+
+  @override
+  Future<bool> isShowing(int id) async => false;
 }
 
 /// A sink that always reports the alert was DROPPED by the shared gate —
@@ -90,6 +99,9 @@ class _DroppingSink implements DeviceAlertSink {
 
   @override
   Future<void> cancel(int id) async {}
+
+  @override
+  Future<bool> isShowing(int id) async => false;
 }
 
 /// A store whose reads always fail — e.g. SharedPreferences unavailable during a
@@ -252,6 +264,26 @@ void main() {
       a.onDeviceState(batteryPct: 41, charging: true, chargingTs: tsAged(2));
       await a.settled;
       expect(sink.countOf(NotificationService.idCharging), 1);
+    });
+
+    test('the card follows the charge a whole percent at a time, while it '
+        'is still up', () async {
+      final a = alerts();
+      sink.showing = true;
+      a.onDeviceState(batteryPct: 40, charging: true, chargingTs: tsAged(2));
+      await a.settled;
+      a.onDeviceState(batteryPct: 40.4, charging: true, chargingTs: tsAged(2));
+      a.onDeviceState(batteryPct: 41, charging: true, chargingTs: tsAged(2));
+      a.onDeviceState(batteryPct: 41.2, charging: true, chargingTs: tsAged(2));
+      a.onDeviceState(batteryPct: 42, charging: true, chargingTs: tsAged(2));
+      await a.settled;
+      expect(sink.countOf(NotificationService.idCharging), 3);
+      expect(sink.events.last.body, 'Your band is at 42%.');
+      // Swiped away: it is not put back.
+      sink.showing = false;
+      a.onDeviceState(batteryPct: 43, charging: true, chargingTs: tsAged(2));
+      await a.settled;
+      expect(sink.countOf(NotificationService.idCharging), 3);
     });
 
     test('an hours-old replayed chargingOn never notifies', () async {

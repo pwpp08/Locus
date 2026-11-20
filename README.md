@@ -1,18 +1,51 @@
 # Locus
 
-Locus is a local-first health app for wearables, under the AGPL-3.0 licence. 
+A health app for your wearable that keeps everything on your phone. No
+account, no subscription, no cloud: the band's raw data is synced over
+Bluetooth, stored in a local database and turned into scores on the device.
 
-A health app for your wearables. No subscription, no fees, private by default.
+Licensed under AGPL-3.0.
 
-| <img src="screenshots/today.png" width="160" alt="Today"> | <img src="screenshots/health.png" width="160" alt="Health"> | <img src="screenshots/sleep.png" width="160" alt="Sleep"> | <img src="screenshots/heart-rate.png" width="160" alt="Resting heart rate"> | <img src="screenshots/workout.png" width="160" alt="Workout"> |
-|:--:|:--:|:--:|:--:|:--:|
-| Today | Health | Sleep | Heart rate | Workout |
+## What it does
+
+- **Recovery, sleep and strain** every day, scored against your own baselines
+  rather than population averages, with the reasons behind each number.
+- **Sleep** staging, sleep need and debt, latency, consistency and a sleep
+  planner that tells you when to go to bed for tomorrow's wake time.
+- **Smart alarm** on the band: a silent buzz at a set time, or once you have
+  slept what you need.
+- **Health**: live heart rate, Locus Age and your pace of aging, an overnight
+  health monitor (respiratory rate, resting heart rate, HRV, skin temperature,
+  and SpO2 on wearables that measure it), a stress monitor and a journal that
+  finds what actually moves your numbers.
+- **Energy reserve** through the day, charged by rest and drained by stress
+  and effort.
+- **Activity**: auto-detected workouts, live tracking with GPS routes, a
+  strength trainer, heart-rate zones and VO2max.
+- **AI coach** with your own API key: it reads your data on the phone and
+  answers with your numbers, plans workouts and logs things for you.
+- **Community** (opt-in): teams and a leaderboard.
+- **Your data, elsewhere**: writes to Apple Health and Health Connect, exports
+  the whole database, and keeps scheduled local backups.
+
+The full list is in [docs/FEATURES.md](docs/FEATURES.md).
 
 ## Devices
 
-**Supported:** WHOOP 4.0, 5.0, MG.
+| Device | Support |
+|:--|:--|
+| WHOOP 4.0, 5.0, MG | Full: every score is computed from these |
+| Bluetooth heart-rate straps | Workouts |
+| Oura, Garmin, Coros, Ultrahuman, Colmi, Mi Band | Experimental: pair and store their data; scores from them are switched on once checked on real hardware |
+| Galaxy Watch, Fitbit and other watches | Side by side through Health Connect / Apple Health |
 
-Full feature list: [docs/FEATURES.md](docs/FEATURES.md).
+The phone's own step counter fills in steps on bands without one.
+
+## Getting started
+
+Download the APK from the latest
+[release](https://github.com/pwpp08/Locus/releases), or build from source with
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Guides
 
@@ -25,21 +58,22 @@ Full feature list: [docs/FEATURES.md](docs/FEATURES.md).
 
 ## Contributing
 
-Bug reports from real devices are the most useful thing you can send. PRs are welcome;
-read [CONTRIBUTING.md](CONTRIBUTING.md) first, which covers which repo a change belongs
-in. Security issues go through
-[SECURITY.md](SECURITY.md).
+Bug reports from real devices are the most useful thing you can send. Pull
+requests are welcome: read [CONTRIBUTING.md](CONTRIBUTING.md) first. Security
+issues go through [SECURITY.md](SECURITY.md).
 
 ## Privacy
 
-Everything stays on your phone unless you opt in. Details in [PRIVACY.md](PRIVACY.md).
+Everything stays on your phone unless you opt in. Details in
+[PRIVACY.md](PRIVACY.md).
 
 ## Disclaimer
 
-OpenStrap is independent and not affiliated with or endorsed by WHOOP, Oura, Garmin or
-any device maker. Product names are trademarks of their owners and are used only to
-describe compatibility.
+Locus is independent and not affiliated with or endorsed by WHOOP, Oura,
+Garmin, Samsung or any other device maker. Product names are trademarks of
+their owners and are used only to describe compatibility. Locus is not a
+medical device; its numbers are estimates.
 
 ## License
 
-AGPL-3.0.
+AGPL-3.0. See [LICENSE](LICENSE).

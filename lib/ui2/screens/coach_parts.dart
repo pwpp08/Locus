@@ -124,10 +124,12 @@ class CoachAnswer extends StatelessWidget {
             GptMarkdown(
               // Paragraphs sit close, a line apart rather than a blank line.
               tightParagraphs(text),
+              // The prose sits a step back so the bold figures lead the eye.
               style: F.body.copyWith(
-                  color: C.white.withValues(alpha: .82),
+                  color: C.white.withValues(alpha: .74),
                   fontWeight: FontWeight.w400,
-                  height: 1.35),
+                  height: 1.4),
+              inlineComponents: kCoachInlineMarkdown,
             ),
             if (actions)
               // The glyphs sit on the text's left edge; their tap areas
@@ -153,6 +155,31 @@ class CoachAnswer extends StatelessWidget {
           ),
         ]),
       );
+}
+
+/// Markdown's inline syntaxes with bold made the answer's anchor: full white
+/// and heavier than the dimmed prose round it, so a glance down the reply
+/// lands on the figures and the verdicts.
+final List<MarkdownComponent> kCoachInlineMarkdown = [
+  for (final m in MarkdownComponent.inlineComponents)
+    m is BoldMd ? CoachBoldMd() : m,
+];
+
+/// `**bold**` in the coach's voice: white, w700.
+class CoachBoldMd extends BoldMd {
+  @override
+  InlineSpan span(BuildContext context, String text, GptMarkdownConfig config) {
+    final match = exp.firstMatch(text.trim());
+    final conf = config.copyWith(
+      style: (config.style ?? const TextStyle())
+          .copyWith(color: C.white, fontWeight: FontWeight.w700),
+    );
+    return TextSpan(
+      children: MarkdownComponent.generate(
+          context, '${match?[1]}', conf, false),
+      style: conf.style,
+    );
+  }
 }
 
 /// The coach's mark beside each answer.

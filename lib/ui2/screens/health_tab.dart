@@ -17,6 +17,7 @@ import 'package:flutter/scheduler.dart';
 import '../../compute/stress_monitor.dart' show kStressBaselineDays;
 import '../../compute/whoop_age.dart' show WhoopAgeResult;
 import '../../data/day_label.dart';
+import '../../data/db.dart' show LocalDb;
 import '../../data/local_repository.dart';
 import '../ui2.dart';
 import 'health_monitor.dart'
@@ -97,6 +98,15 @@ class _HealthTabState extends State<HealthTab> with RevisionReload {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => reload());
+    // A journal entry is no derive: the card's count updates the moment it
+    // is saved.
+    LocalDb.journalRevision.addListener(reload);
+  }
+
+  @override
+  void dispose() {
+    LocalDb.journalRevision.removeListener(reload);
+    super.dispose();
   }
 
   @override

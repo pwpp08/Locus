@@ -123,6 +123,23 @@ void main() {
       expect(from(10).wokeLevel, lessThan(from(40).wokeLevel));
     });
 
+    test('a low tank drains slower, so it does not sit at the floor all '
+        'afternoon', () {
+      expect(energyDrainTaper(80), 1);
+      expect(energyDrainTaper(kEnergyTaperFrom), 1);
+      expect(energyDrainTaper(20), inExclusiveRange(kEnergyTaperMin, 1));
+      expect(energyDrainTaper(kEnergyFloor), kEnergyTaperMin);
+      // An ordinary stressed afternoon from 40: it takes far longer to empty
+      // than at the untapered pace.
+      final rate = energyRatePerMin(asleep: false, stress: 1.5);
+      var level = 40.0, mins = 0;
+      while (level > kEnergyFloor + 1 && mins < 2000) {
+        level += rate * energyDrainTaper(level);
+        mins++;
+      }
+      expect(mins, greaterThan((40 - kEnergyFloor - 1) / -rate * 1.5));
+    });
+
     test('never under 5 nor over 100', () {
       final r = energyReserve(
         hr: day(185, mins: 600),

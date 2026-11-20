@@ -17,7 +17,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show ValueNotifier, visibleForTesting;
 import 'package:openstrap_protocol/openstrap_protocol.dart' as proto;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -3758,6 +3758,10 @@ class LocalDb {
   /// is documented emitting 22-27 false steps/min during dishes, reaching and
   /// driving while missing slow walking — O'Connell 2017,
   /// doi:10.1371/journal.pone.0169616).
+  ///
+  /// The phone's spans are scaled by the factor learned against the user's
+  /// other watch ([kPhoneStepRefFamily]), when one was learned: the phone
+  /// counts a steady share more or less than a watch that is better at it.
   static Future<ResolvedDaySteps> resolvedStepsForDay(String day) async {
     final db = await instance;
     final rows = await db.query(
@@ -3766,12 +3770,16 @@ class LocalDb {
       where: 'day = ?',
       whereArgs: [day],
     );
+    final ref = await stepCalibrationProfile(kPhoneStepRefFamily, Wearing.wrist);
+    final phoneFactor = ref != null && ref.isCalibrated ? ref.factor : 1.0;
     return resolveDaySteps([
       for (final r in rows)
         CoverageSpan(
           startTs: (r['start_ts'] as num).toInt(),
           endTs: (r['end_ts'] as num).toInt(),
-          steps: (r['steps'] as num).toInt(),
+          steps: r['source'] == kStepSourcePhone
+              ? ((r['steps'] as num) * phoneFactor).round()
+              : (r['steps'] as num).toInt(),
           // Anything not explicitly 'phone' is band — pre-v27 rows default to
           // it, and relabelling them would suppress a real band count.
           fromBand: r['source'] != kStepSourcePhone,
@@ -12013,6 +12021,11 @@ class LocalDb {
   // ── journal I/O ─────────────────────────────────────────────────────────────
 
   /// Upsert one day's journal (tags JSON + note). Idempotent on date.
+  /// Ticks on every journal write, from any writer (the editor, the coach,
+  /// the weight sheet, an import), so a screen showing the journal can
+  /// re-read at once instead of on the next derive.
+  static final ValueNotifier<int> journalRevision = ValueNotifier(0);
+
   static Future<void> putJournal(
     String date,
     String tagsJson,
@@ -12025,6 +12038,7 @@ class LocalDb {
       'note': note,
       'updated_at': DateTime.now().millisecondsSinceEpoch,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
+    journalRevision.value++;
   }
 
   /// Recent journal rows, newest first. [sinceDaysEpoch] (a YYYY-MM-DD label) is
@@ -12071,6 +12085,7 @@ class LocalDb {
         }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
     });
+    journalRevision.value++;
   }
 
   /// One day's numeric fields, or an empty map when nothing was recorded.

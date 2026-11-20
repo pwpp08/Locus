@@ -2316,6 +2316,29 @@ bool _isSleepStage(String s) => s == 'light' || s == 'deep' || s == 'rem';
 /// this we cannot see and anything we do count is a floor, never a total.
 const int kAwakeningMinSec = 300;
 
+/// Sleep onset, for latency, is the start of the first run of this much
+/// unbroken sleep ("latency to persistent sleep", the PSG convention): a
+/// wrist stager marks a few drowsy minutes as light sleep while you are still
+/// settling, and timing onset off the first of them read latency as near
+/// zero on most nights.
+const int kPersistentSleepSec = 600;
+
+/// The first index from [from] that starts [kPersistentSleepSec] of unbroken
+/// sleep in [stages]; [from] when no run that long exists (a short night
+/// still has an onset).
+int _persistentSleepStart(List<String> stages, int from) {
+  var run = 0;
+  for (var i = from; i < stages.length; i++) {
+    if (_isSleepStage(stages[i])) {
+      run++;
+      if (run >= kPersistentSleepSec) return i - run + 1;
+    } else {
+      run = 0;
+    }
+  }
+  return from;
+}
+
 /// Run decomposition over the same per-second labels [_hypnogramSegments] uses,
 /// so both readers share one definition of where a run ends.
 ///
@@ -2326,7 +2349,8 @@ const int kAwakeningMinSec = 300;
 ///   * `longest_sleep_sec` — the longest unbroken sleep run. Runs TERMINATE at
 ///     `unobserved`, never merge across it: bridging a three-hour hole prints a
 ///     fabricated five-hour stretch.
-///   * `sol_sec` — seconds from getting into bed to the first sleep second. On
+///   * `sol_sec` — seconds from getting into bed to persistent sleep (the
+///     first [kPersistentSleepSec] of unbroken sleep). On
 ///     a window whose start the user set ('manual'), bed is that start. On the auto path the
 ///     window is built by `_classifyStill` over gravity, gated on HR-in-band,
 ///     so it cannot begin before you are already lying still with a sleep-ish
@@ -2374,17 +2398,19 @@ Map<String, dynamic> _sleepRuns(DayBundleInput d) {
   // 'confirmed' one keeps the detector's onset (I'm awake, or a proposal
   // accepted), so it is measured from the lie-down like an automatic one.
   final forced = d.sleepSource == 'manual';
+  // Onset is persistent sleep, not the first drowsy second staged as sleep.
+  final onset = _persistentSleepStart(stages, firstSleep);
   final leadingObserved = !stages
-      .sublist(0, firstSleep)
+      .sublist(0, onset)
       .any((s) => s == 'unobserved');
   final bed = d.bedTsSec;
   final int? sol;
   if (!leadingObserved) {
     sol = null;
   } else if (forced) {
-    sol = firstSleep;
+    sol = onset;
   } else if (bed != null && d.sleepOnsetSec > 0 && bed <= d.sleepOnsetSec) {
-    final s = d.sleepOnsetSec + firstSleep - bed;
+    final s = d.sleepOnsetSec + onset - bed;
     sol = s <= kMaxLatencySec ? s : null;
   } else {
     sol = null;

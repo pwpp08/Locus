@@ -1870,7 +1870,13 @@ import 'vendor_sleep.dart';
 // day path) and caps at 75 of them. A session left running for hours pinned
 // day and session Strain at 21 on idle time. Days derived before 118 keep
 // their stored values.
-const int kAlgoVersion = 118;
+// 118 → 119 (edge-only): the strain target zone is half as wide, optimal ±2
+// instead of ±4 (whoopStrainTarget); the optimal itself is unchanged. Sleep
+// latency runs to persistent sleep, the first ten unbroken minutes of it
+// (onehz_pipeline `kPersistentSleepSec`), not to the first second staged as
+// sleep, which read near zero on most nights. Days derived before 119 keep
+// their stored values.
+const int kAlgoVersion = 119;
 /// The sibling SHAs this version was derived against, asserted against
 /// pubspec.yaml in test/db_serve_version_and_reads_test.dart.
 ///

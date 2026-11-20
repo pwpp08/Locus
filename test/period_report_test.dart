@@ -49,8 +49,9 @@ void main() {
     expect(r.worst!.day, '2026-11-04');
     // Today's strain does not count against its target yet.
     expect(r.targetOf, 3);
-    // 80 → 13.2 ± 4: 14 is in; 40 → 9.6 ± 4: 9 is in; 20 → 7.8 ± 4: 4 is in.
-    expect(r.targetDays, 3);
+    // 80 → 13.2 ± 2: 14 is in; 40 → 9.6 ± 2: 9 is in; 20 → 7.8 ± 2: 4 is
+    // under it.
+    expect(r.targetDays, 2);
     // Two weeks of strain are not enough for a fitness.
     expect(r.fitness, isNull);
     expect(r.balanceRatio, isNull);

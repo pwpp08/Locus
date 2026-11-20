@@ -51,6 +51,11 @@ abstract class DeviceAlertSink {
   /// spend that latch on a false.
   Future<bool> show(NotificationEvent e);
   Future<void> cancel(int id);
+
+  /// Whether a card with [id] is still in the shade. A charging card is only
+  /// updated while it is: re-posting one the user swiped away would put it
+  /// back, with a sound.
+  Future<bool> isShowing(int id);
 }
 
 class _NotificationCenterSink implements DeviceAlertSink {
@@ -65,6 +70,9 @@ class _NotificationCenterSink implements DeviceAlertSink {
 
   @override
   Future<void> cancel(int id) => NotificationService.instance.cancel(id);
+
+  @override
+  Future<bool> isShowing(int id) => NotificationService.instance.isShowing(id);
 }
 
 /// Narrow persistence seam for the alert edge state (see the header note on why
@@ -151,6 +159,10 @@ class DeviceAlerts {
   bool _lowArmed = true; // may we raise a low-battery alert?
   bool _fullArmed = true; // may we say "fully charged"?
   bool? _wasCharging; // previous charging state (null = not seen yet)
+
+  /// The percentage the Charging card shows, while this process put one up;
+  /// null once it is cleared. Each whole percent gained updates it.
+  int? _cardPct;
   bool _cancelledForOff = false; // already cleared the card for this off-state
   int? _lastAnnouncedEventTs; // strap ts of the last announced charge session
   int? _lastAnnouncedWallSec; // wall time of that announcement
@@ -411,13 +423,45 @@ class DeviceAlerts {
     // then-show means a throwing store swallows the alert entirely. Neither is
     // acceptable, and neither step reads the other's result — so all of them are
     // attempted independently.
-    if (cancelChargingCard) {
-      await _io(() => _notes.cancel(NotificationService.idCharging));
-    }
     final today = _localDay(nowSec);
     final showCharging = announce && _chargeShownDay != today;
     final shownBefore = _chargeShownDay;
     if (showCharging) _chargeShownDay = today;
+    // On the charger with the card up: a whole percent gained updates it
+    // (silently: device cards only alert once while showing). 100% is the
+    // fully-charged card's.
+    final pct = batteryPct?.round();
+    final updateCard = !showCharging &&
+        charging == true &&
+        _cardPct != null &&
+        pct != null &&
+        pct > _cardPct! &&
+        pct < _fullPct;
+    if (cancelChargingCard) {
+      _cardPct = null;
+    } else if (showCharging) {
+      _cardPct = pct ?? -1;
+    } else if (updateCard) {
+      _cardPct = pct;
+    }
+
+    if (cancelChargingCard) {
+      await _io(() => _notes.cancel(NotificationService.idCharging));
+    }
+    if (updateCard) {
+      var showing = false;
+      try {
+        showing = await _notes.isShowing(NotificationService.idCharging);
+      } catch (_) {}
+      if (showing) {
+        await _io(() => _notes.show(_event(
+              osId: NotificationService.idCharging,
+              kind: 'band_charging_pct:${chargingTs ?? 0}:$pct',
+              title: 'Charging',
+              body: 'Your band is at $pct%.',
+            )));
+      }
+    }
     if (announce) {
       if (showCharging) {
         // A card the shared gate dropped (quiet hours, category off) does not

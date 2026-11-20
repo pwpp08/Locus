@@ -111,6 +111,13 @@ class Prefs {
   /// 'nap|(epoch ms)'. Empty when none is running.
   static const String restPending = 'rest.pending';
 
+  /// The day "I'm awake" was pressed for, so Home keeps showing "Scoring
+  /// your night" until recovery lands instead of offering the button again.
+  static const String awakeMarkedDay = 'awake.marked_day';
+
+  /// The day the phone-vs-watch step factor was last re-learned.
+  static const String stepRefDay = 'steps.ref_day';
+
   /// The running hand-started sleep or nap: whether it is a sleep, and the
   /// epoch second it started. Null when none is running.
   static ({bool sleep, int sinceSec})? get restRecording =>
