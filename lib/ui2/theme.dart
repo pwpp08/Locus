@@ -1118,11 +1118,20 @@ class MEM {
 
   static const sub = Color(0xFFA9ACB1);
 
-  /// The person's mark: a grey ring lit violet, round a grey disc.
-  static const markRing = Color(0xFF4A4D57);
-  static const markDisc = Color(0xFF3A3D45);
-  static const markGlyph = Color(0xFF8D9097);
-  static const markShade = Color(0x66000000);
+  /// The person's mark, a grey puck read off the reference: its edge (lit
+  /// top right, shaded bottom left), its face, the recess in the face, the
+  /// two lights round the recess, and the raised head and shoulders.
+  static const markSideA = Color(0xFF4C5355);
+  static const markSideB = Color(0xFF2F3336);
+  static const markFaceA = Color(0xFF6B6F71);
+  static const markFaceB = Color(0xFF50565A);
+  static const markWellA = Color(0xFF4D5152);
+  static const markWellB = Color(0xFF424647);
+  static const markViolet = Color(0xFF8088F2);
+  static const markBlue = Color(0xFF7FB4EE);
+  static const markFigA = Color(0xFF64696A);
+  static const markFigB = Color(0xFF545959);
+  static const markFigShade = Color(0xFF3E4243);
 
   /// The two-line headline, the line under it, a row's words, the chip and
   /// the date.

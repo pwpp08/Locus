@@ -28,6 +28,7 @@ import '../../compute/whoop_age.dart' show WhoopAgeResult;
 import '../../state/prefs.dart';
 import '../activity/catalogue.dart' show Track, activityByName;
 import 'compare_metrics.dart';
+import 'dial_parts.dart' show kDialGround;
 import '../../state/clock_format.dart';
 import '../ui2.dart';
 import 'home_screen.dart'
@@ -2258,9 +2259,12 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       );
     }
 
+    // The dial screens' ground: slate at the top falling to near black.
     return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(
+      backgroundColor: DC.bgFoot,
+      body: DecoratedBox(
+        decoration: kDialGround,
+        child: SafeArea(
         child: ListView(
           key: ValueKey(m.id),
           controller: _page,
@@ -2508,6 +2512,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
             ],
           ],
         ),
+      ),
       ),
     );
   }

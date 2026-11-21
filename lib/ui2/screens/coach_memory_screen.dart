@@ -3,6 +3,8 @@
 // line headline with the person's mark beside it, a card to add a note, doors
 // to the chat history and a summary, then tabs over the notes as cards.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../coach/coach_memory.dart';
@@ -337,29 +339,116 @@ class _CoachMemoryScreenState extends State<CoachMemoryScreen> {
       );
 }
 
-/// The person's mark beside the headline: a figure in a lit ring.
+/// The person's mark beside the headline: a grey puck seen a little from
+/// above, its face sunk into a well lit violet over the top and blue down the
+/// right, a head and shoulders standing in the well.
 class _Mark extends StatelessWidget {
   const _Mark();
 
   @override
-  Widget build(BuildContext c) => Container(
-        width: S.x12 + S.x1,
-        height: S.x12 + S.x1,
-        padding: const EdgeInsets.all(S.half),
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: SweepGradient(colors: [
-            MEM.markRing, MEM.markRing, MEM.violet, MEM.markRing,
-          ], stops: [0, .35, .6, 1]),
-          boxShadow: [BoxShadow(color: MEM.markShade, blurRadius: S.x3)],
-        ),
-        child: Container(
-          decoration: const BoxDecoration(
-              shape: BoxShape.circle, color: MEM.markDisc),
-          child: const Icon(LucideIcons.userRound,
-              size: I.lg, color: MEM.markGlyph),
+  Widget build(BuildContext c) => const ExcludeSemantics(
+        child: CustomPaint(
+          size: Size.square(S.x12 + S.x1),
+          painter: _MarkPainter(),
         ),
       );
+}
+
+class _MarkPainter extends CustomPainter {
+  const _MarkPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final u = size.width;
+    Offset at(double x, double y) => Offset(x * u, y * u);
+
+    // The edge: the face pushed down and right, joined to it.
+    final face = at(.457, .457), back = at(.543, .543), r = .457 * u;
+    final sideShader = LinearGradient(
+      begin: Alignment.topRight,
+      end: Alignment.bottomLeft,
+      colors: const [MEM.markSideA, MEM.markSideB],
+    ).createShader(Offset.zero & size);
+    canvas.drawLine(
+        face,
+        back,
+        Paint()
+          ..shader = sideShader
+          ..strokeWidth = 2 * r
+          ..strokeCap = StrokeCap.round);
+
+    // The face.
+    canvas.drawCircle(
+        face,
+        r,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
+            colors: [MEM.markFaceA, MEM.markFaceB],
+          ).createShader(Rect.fromCircle(center: face, radius: r)));
+
+    // The well, and everything in it clipped to it.
+    final well = at(.457, .479), wr = .368 * u;
+    final wellRect = Rect.fromCircle(center: well, radius: wr);
+    canvas.drawCircle(
+        well,
+        wr,
+        Paint()
+          ..shader = const LinearGradient(
+            colors: [MEM.markWellA, MEM.markWellB],
+          ).createShader(wellRect));
+
+    // The two lights, each fading in and out along its arc.
+    void light(Color col, double from, double sweep) {
+      final rad = math.pi / 180;
+      canvas.drawArc(
+          wellRect.deflate(.012 * u),
+          from * rad,
+          sweep * rad,
+          false,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = .024 * u
+            ..strokeCap = StrokeCap.round
+            // Turned to the arc's start, so an arc through 0° keeps its fade.
+            ..shader = SweepGradient(
+              endAngle: sweep * rad,
+              colors: [col.withValues(alpha: 0), col, col, col.withValues(alpha: 0)],
+              stops: const [0, .15, .85, 1],
+              transform: GradientRotation(from * rad),
+            ).createShader(wellRect));
+    }
+
+    light(MEM.markViolet, 130, 175);
+    light(MEM.markBlue, 315, 140);
+
+    canvas.save();
+    canvas.clipPath(Path()..addOval(wellRect));
+    final fig = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [MEM.markFigA, MEM.markFigB],
+      ).createShader(Offset.zero & size);
+    final shade = Paint()..color = MEM.markFigShade;
+    final head = RRect.fromRectAndRadius(
+        Rect.fromLTWH(.315 * u, .265 * u, .264 * u, .291 * u),
+        Radius.circular(.105 * u));
+    final body = RRect.fromRectAndRadius(
+        Rect.fromLTWH(.145 * u, .612 * u, .562 * u, .45 * u),
+        Radius.circular(.085 * u));
+    final lift = at(.018, .018);
+    canvas
+      ..drawRRect(head.shift(lift), shade)
+      ..drawRRect(body.shift(lift), shade)
+      ..drawRRect(head, fig)
+      ..drawRRect(body, fig)
+      ..restore();
+  }
+
+  @override
+  bool shouldRepaint(_MarkPainter old) => false;
 }
 
 /// A door off the memory page: a glyph, its name, a violet arrow.

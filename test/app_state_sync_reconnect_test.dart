@@ -52,9 +52,11 @@ void main() {
         'markReconnecting',
         'backoff:1',
         'connect:$kRemoteId:gen4',
+        // The battery straight after the connect, ahead of the slower set-up,
+        // so Home's level is fresh within a second of a reconnect.
+        'getBattery',
         'prompt:false',
         'reconcile',
-        'getBattery',
         'getStrapName',
         // The loop breaks right after kicking the burst (unawaited), so its
         // finally runs before the burst's first engine call.
