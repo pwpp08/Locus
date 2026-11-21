@@ -764,6 +764,9 @@ class SyncController {
             await IosBleRestore.setOwnsBand(true);
           }
           EdgeTracking.start(); // ensure the Android foreground service is up too
+          // The battery first: one short exchange, and its level is on Home,
+          // while the alarm and live-stream set-up below can take seconds.
+          await engine.getBattery();
           // Arm the strap's high-frequency sync window when a wake alarm is
           // near (denser flushes ahead of the alarm).
           await _refreshHighFreqWakeWindow();
@@ -779,7 +782,6 @@ class SyncController {
           // frames can land inside the await and would then be wiped.
           _resetLivePedometer();
           await engine.reconcileLiveStreams();
-          await engine.getBattery();
           await engine.getStrapName();
           // the link can drop inside the awaits above. _onEngineState ignored
           // that drop because _reconnecting is still set, so nobody else arms

@@ -35,10 +35,13 @@ import '../../ai/briefing.dart';
 import '../../ai/briefing_engine.dart';
 import '../../coach/coach_config.dart';
 import '../../coach/coach_engine.dart';
+import '../../coach/coach_memory.dart';
+import '../../coach/coach_style.dart';
 import '../../state/app_state.dart';
 import '../ui2.dart';
 import 'ai_briefing.dart';
 import 'coach_figures.dart';
+import 'coach_history_sheet.dart';
 import 'coach_memory_screen.dart';
 import 'coach_parts.dart';
 import '../profile/profile.dart' show SetDropdown, SetRow, goto, settingsGroup;
@@ -111,6 +114,7 @@ Future<void> openCoachSheet(
   BuildContext c, {
   String? initialMessage,
   BriefingPeriod? outlook,
+  String? sessionId,
 }) {
   if (!coachReadyNow(c)) {
     go(c, const CoachSetup());
@@ -120,8 +124,10 @@ Future<void> openCoachSheet(
     c,
     bare: true,
     scroll: true,
-    builder: (_) =>
-        CoachScreen(initialMessage: initialMessage, outlook: outlook),
+    builder: (_) => CoachScreen(
+        initialMessage: initialMessage,
+        outlook: outlook,
+        sessionId: sessionId),
   );
 }
 
@@ -151,10 +157,14 @@ class CoachScreen extends StatefulWidget {
   /// there is none yet) is the coach's first turn, and the user can reply.
   final BriefingPeriod? outlook;
 
+  /// Open on this past chat (from the history) instead of a new one.
+  final String? sessionId;
+
   const CoachScreen({
     super.key,
     this.initialMessage,
     this.outlook,
+    this.sessionId,
   });
 
   @override
@@ -240,6 +250,7 @@ class _CoachScreenState extends State<CoachScreen> {
       _engine = engine;
       _items.clear();
     });
+    if (widget.sessionId case final id?) await _openSession(id);
     if (widget.outlook case final period?) {
       await _openOutlook(engine, period);
     }
@@ -645,93 +656,19 @@ class _CoachScreenState extends State<CoachScreen> {
     });
   }
 
+  /// The history icon: past chats by day, as the reference's sheet.
   Future<void> _menu() async {
     final engine = _engine;
-    final p = P.of(context);
-    final l = AppLocalizations.of(context);
-    await AppSheet.open<void>(context,
-      builder: (sheet) => SafeArea(
-        child: StatefulBuilder(
-          builder: (sheet, setSheet) => ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x4),
-            children: [
-              _MenuRow(
-                LucideIcons.plus,
-                l?.coachNewChat ?? 'New chat',
-                onTap: () {
-                  Navigator.of(sheet).pop();
-                  _newChat();
-                },
-              ),
-              // NO "AI settings" ROW. Choosing the model is a setting and
-              // settings live in Profile — [CoachSetup] is pushed from there
-              // now. Two doors onto one form is how a setting ends up with two
-              // different states in a user's head, and this screen is where
-              // you talk to the thing, not where you configure it. The only
-              // way into the form from here is the not-set-up card in [_body],
-              // which is a recovery state rather than a settings entry.
-              _MenuRow(
-                LucideIcons.fileText,
-                l?.coachBriefingMenuTitle ?? 'Briefing, and what was sent',
-                sub: l?.coachBriefingMenuSub ?? 'The exact snapshot that left this device',
-                onTap: () {
-                  Navigator.of(sheet).pop();
-                  go(
-                    context,
-                    AiBriefingScreen(
-                      period: currentBriefingPeriod(DateTime.now()),
-                    ),
-                  );
-                },
-              ),
-              if (engine != null) ...[
-                const SizedBox(height: S.x4),
-                Text(
-                  l?.coachPastChats ?? 'PAST CHATS',
-                  style: F.over.copyWith(color: p.ink3),
-                ),
-                const SizedBox(height: S.x2),
-                FutureBuilder<List<CoachSessionMeta>>(
-                  future: engine.listSessions(),
-                  builder: (_, snap) {
-                    final list = snap.data ?? const <CoachSessionMeta>[];
-                    if (list.isEmpty) {
-                      return Text(
-                        l?.coachNoChatsYet ??
-                            'Nothing yet — this is your first conversation.',
-                        style: F.cap.copyWith(color: p.ink3),
-                      );
-                    }
-                    return Column(
-                      children: [
-                        for (final s in list.take(20))
-                          _MenuRow(
-                            LucideIcons.messageSquare,
-                            s.title.isEmpty ? (l?.coachUntitledChat ?? 'Untitled chat') : s.title,
-                            sub: s.preview,
-                            onTap: () {
-                              Navigator.of(sheet).pop();
-                              _openSession(s.id);
-                            },
-                            onRemove: () async {
-                              final wasOpen = s.id == engine.sessionId;
-                              await engine.deleteSession(s.id);
-                              setSheet(() {});
-                              if (wasOpen && mounted) setState(_items.clear);
-                            },
-                          ),
-                      ],
-                    );
-                  },
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-      dragHandle: true,
-      scroll: true,
+    if (engine == null) return;
+    await openCoachHistory(
+      context,
+      storageKey: engine.storageKey,
+      onOpen: (id) => unawaited(_openSession(id)),
+      onDeleted: (id) {
+        if (id != engine.sessionId || !mounted) return;
+        engine.newSession();
+        setState(_items.clear);
+      },
     );
   }
 
@@ -1409,65 +1346,6 @@ class _Bubble extends StatelessWidget {
   }
 }
 
-class _MenuRow extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String sub;
-  final VoidCallback? onTap;
-  final VoidCallback? onRemove;
-  const _MenuRow(
-    this.icon,
-    this.title, {
-    this.sub = '',
-    this.onTap,
-    this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    return Pressable(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: S.x3),
-        child: Row(
-          children: [
-            Icon(icon, size: I.sm, color: p.ink3),
-            const SizedBox(width: S.x3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: F.body.copyWith(color: p.ink),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (sub.isNotEmpty)
-                    Text(
-                      sub,
-                      style: F.cap.copyWith(color: p.ink3),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ),
-            if (onRemove != null)
-              Pressable(
-                semanticLabel:
-                    AppLocalizations.of(c)?.coachDeleteChat(title) ?? 'Delete $title',
-                onTap: onRemove,
-                child: Icon(LucideIcons.trash2, size: I.sm, color: p.ink3),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ═══════════════════════ setup ═══════════════════════
 
 /// Words in a model id that mark it as not a general chat model, or not a
@@ -1700,6 +1578,26 @@ class _CoachSetupState extends State<CoachSetup> {
     if (mounted && nav.canPop()) nav.pop();
   }
 
+  /// AI settings → My memory. Its doors open the coach over it: a past chat,
+  /// or a fresh one asking for a summary of what it knows.
+  void _openMemory(BuildContext c) {
+    final key = (c.read<AppState>().user?['id'] ?? 'local').toString();
+    goto(
+      c,
+      CoachMemoryScreen(
+        storageKey: key,
+        onOpenChat: (id) => openCoachSheet(c, sessionId: id),
+        onSnapshot: () => openCoachSheet(c,
+            initialMessage: 'Give me a snapshot of what you know about me: '
+                'my goals, how I like to be coached, and my routine.'),
+        onSent: () => go(
+            c,
+            AiBriefingScreen(
+                period: currentBriefingPeriod(DateTime.now()))),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
@@ -1907,6 +1805,31 @@ class _CoachSetupState extends State<CoachSetup> {
                     color: kCoachAccent,
                     onTap: _save,
                   ),
+                  settingsGroup(c, 'Answer style', [
+                    SetDropdown(
+                      LucideIcons.ruler,
+                      'Answer length',
+                      [for (final x in CoachLength.values) x.label],
+                      CoachStyle.length.index,
+                      sub: 'How much each chat answer says',
+                      onChanged: (i) => setState(
+                          () => CoachStyle.length = CoachLength.values[i]),
+                    ),
+                    SetDropdown(
+                      LucideIcons.messageSquare,
+                      'Tone',
+                      [for (final x in CoachTone.values) x.label],
+                      CoachStyle.tone.index,
+                      sub: 'How the AI talks to you',
+                      onChanged: (i) => setState(
+                          () => CoachStyle.tone = CoachTone.values[i]),
+                    ),
+                    SetRow(LucideIcons.smile, C.slate, 'Emojis',
+                        sub: 'Let answers use a few emojis',
+                        switchValue: CoachStyle.emojis,
+                        onTap: () => setState(
+                            () => CoachStyle.emojis = !CoachStyle.emojis)),
+                  ]),
                   settingsGroup(c, 'Outlook and memory', [
                     SetDropdown(
                       LucideIcons.sun,
@@ -1918,8 +1841,14 @@ class _CoachSetupState extends State<CoachSetup> {
                           () => OutlookLength.set(OutlookLength.values[i])),
                     ),
                     SetRow(LucideIcons.brain, C.slate, 'Memory',
-                        sub: 'What the AI was asked to remember',
-                        onTap: () => goto(c, const CoachMemoryScreen())),
+                        sub: 'Let the AI remember details from your chats '
+                            'to tailor its advice',
+                        switchValue: CoachMemory.enabled,
+                        onTap: () => setState(
+                            () => CoachMemory.enabled = !CoachMemory.enabled)),
+                    SetRow(LucideIcons.bookOpen, C.slate, 'My memory',
+                        sub: 'What it knows about you, and past chats',
+                        onTap: () => _openMemory(c)),
                   ]),
                 ],
               ),

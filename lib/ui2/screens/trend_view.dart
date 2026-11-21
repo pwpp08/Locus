@@ -40,6 +40,7 @@ import 'home_screen.dart'
         thousands,
         weekdayShortName;
 import 'sleep_planner.dart' show hMm;
+import 'stress_monitor.dart' show StressSource;
 
 enum TrendGroup { strain, recovery, sleep }
 
@@ -117,6 +118,11 @@ class TrendMetric {
   /// Non-null: this app does not produce the metric, and this is why.
   final String? absent;
 
+  /// A stacked chart whose layers are shares of a whole: drawn on a 0–100 %
+  /// scale while the headline figure keeps the metric's own unit (total-day
+  /// stress: hours of high stress over columns of low, medium and high).
+  final bool stackPercent;
+
   const TrendMetric(
     this.id,
     this.title,
@@ -134,6 +140,7 @@ class TrendMetric {
     this.intraday = TrendIntraday.none,
     this.cumulative = false,
     this.absent,
+    this.stackPercent = false,
   });
 }
 
@@ -190,6 +197,19 @@ const kTrendCatalogue = <TrendMetric>[
     higherBetter: true,
     weekly: true,
     kind: TrendKind.stacked,
+  ),
+  // The headline is the time in high stress; the columns split each day
+  // into its low, medium and high shares.
+  TrendMetric(
+    'day_stress',
+    'Total day stress',
+    TrendGroup.recovery,
+    LucideIcons.gauge,
+    TrendFmt.hmm,
+    unit: 'hr',
+    higherBetter: false,
+    kind: TrendKind.stacked,
+    stackPercent: true,
   ),
   TrendMetric(
     'strength_time',
@@ -1016,10 +1036,44 @@ class TrendLoader {
         ];
       case 'hvn_hours':
         return [await _chart('sleep_need_min'), await _chart('tst_min')];
+      case 'day_stress':
+        final m = await _stressMinutes();
+        double pct(int part, ({int low, int medium, int high}) x) =>
+            part / (x.low + x.medium + x.high) * 100;
+        return [
+          {for (final e in m.entries) e.key: pct(e.value.low, e.value)},
+          {for (final e in m.entries) e.key: pct(e.value.medium, e.value)},
+          {for (final e in m.entries) e.key: pct(e.value.high, e.value)},
+        ];
       default:
         return const [];
     }
   }
+
+  Future<Map<String, ({int low, int medium, int high})>>? _stress;
+
+  /// Every day's minutes at each stress level, for total-day stress: scored
+  /// once, from the first day with data to today.
+  // ponytail: scores every day since the first, ~15 timelines per day of
+  // lookback on first open; cache per day in the database if it gets slow.
+  Future<Map<String, ({int low, int medium, int high})>> _stressMinutes() =>
+      _stress ??= () async {
+        final r = repo;
+        if (r == null) return const <String, ({int low, int medium, int high})>{};
+        final today = todayLabel();
+        final first = await firstDay() ?? today;
+        final days = <String>[];
+        for (var d = first;
+            d.compareTo(today) <= 0 && days.length < 400;
+            d = shiftDay(d, 1)) {
+          days.add(d);
+        }
+        try {
+          return await StressSource(r).minutesByDay(days);
+        } catch (_) {
+          return const <String, ({int low, int medium, int high})>{};
+        }
+      }();
 
   Future<List<Map<String, double>>> _zoneLayers(List<int> which) async {
     final stack = await zoneStack(which);
@@ -1058,6 +1112,12 @@ class TrendLoader {
         return _zones(const [4, 5]);
       case 'zones_all':
         return _zones(const [1, 2, 3, 4, 5]);
+      case 'day_stress':
+        // Time in high stress, in minutes as every hmm metric is kept.
+        return {
+          for (final e in (await _stressMinutes()).entries)
+            e.key: e.value.high.toDouble(),
+        };
       case 'strength_time':
         return _strengthBy(false);
       case 'volume_load':
@@ -1980,6 +2040,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     'zones_13' => const ['Zone 1', 'Zone 2', 'Zone 3'],
     'zones_45' => const ['Zone 4', 'Zone 5'],
     'zones_all' => const ['Zone 1', 'Zone 2', 'Zone 3', 'Zone 4', 'Zone 5'],
+    'day_stress' => const ['Low', 'Medium', 'High'],
     _ => const ['REM', 'SWS (Deep)'],
   };
 
@@ -1987,6 +2048,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     'zones_13' => _zoneColours.sublist(0, 3),
     'zones_45' => _zoneColours.sublist(3, 5),
     'zones_all' => _zoneColours,
+    'day_stress' => const [C.stressLow, C.stressMedium, C.stressHigh],
     // REM under deep, as the layers come.
     _ => const [C.trendRem, C.trendSws],
   };
@@ -2087,6 +2149,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     } else {
       caption = m.weekly
           ? (_range == TrendRange.week ? 'Weekly total' : 'Avg. weekly total')
+          : m.id == 'day_stress'
+          ? 'Avg. high stress'
           : 'Average';
       value = trendFormat(m, avg);
     }
@@ -2170,8 +2234,12 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
         rows: [
           for (var k = layerBars.length - 1; k >= 0; k--)
             (
-              value: trendFormat(m, layerBars[k][i].v),
-              unit: m.unit ?? '',
+              value: m.stackPercent
+                  ? (layerBars[k][i].v == null
+                      ? '--'
+                      : '${layerBars[k][i].v!.round()}')
+                  : trendFormat(m, layerBars[k][i].v),
+              unit: m.stackPercent ? '%' : m.unit ?? '',
               name: names[k],
               color: colours[k],
               chip: null,
@@ -2302,6 +2370,12 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                   _legend(p, [
                     (label: 'SLEEP', color: C.dialSleep.withValues(alpha: .4)),
                   ]),
+                if (!isDay && m.id == 'day_stress')
+                  _legend(p, const [
+                    (label: 'HIGH', color: C.stressHigh),
+                    (label: 'MEDIUM', color: C.stressMedium),
+                    (label: 'LOW', color: C.stressLow),
+                  ], small: true),
                 if (!isDay &&
                     (m.id == 'restorative_hours' || m.id == 'restorative_pct'))
                   _legend(p, const [
@@ -2386,7 +2460,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
                     layerBars != null &&
                     m.kind == TrendKind.stacked &&
                     m.id != 'restorative_hours' &&
-                    m.id != 'restorative_pct') ...[
+                    m.id != 'restorative_pct' &&
+                    m.id != 'day_stress') ...[
                   const SizedBox(height: S.x4),
                   Row(
                     children: [
@@ -2437,22 +2512,31 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     );
   }
 
-  Widget _legend(P p, List<({String label, Color color})> items) => Padding(
+  /// [small]: left-aligned small squares and tracked caps, as the stress
+  /// trend's reference draws its key.
+  Widget _legend(P p, List<({String label, Color color})> items,
+          {bool small = false}) =>
+      Padding(
     padding: const EdgeInsets.only(top: S.x5),
     child: Align(
-      alignment: Alignment.centerRight,
+      alignment: small ? Alignment.centerLeft : Alignment.centerRight,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (final (i, it) in items.indexed) ...[
-            if (i > 0) const SizedBox(width: S.x5),
+            if (i > 0) SizedBox(width: small ? S.x4 : S.x5),
             Container(
-              width: S.x4,
-              height: S.x4,
-              decoration: BoxDecoration(color: it.color, borderRadius: R.rSm),
+              width: small ? S.x2 + S.half / 2 : S.x4,
+              height: small ? S.x2 + S.half / 2 : S.x4,
+              decoration: BoxDecoration(
+                  color: it.color,
+                  borderRadius: small ? null : R.rSm),
             ),
-            const SizedBox(width: S.x3),
-            Text(it.label, style: F.caps.copyWith(color: p.ink)),
+            SizedBox(width: small ? S.x2 : S.x3),
+            Text(it.label,
+                style: small
+                    ? F.over.copyWith(color: p.ink, letterSpacing: 1.5)
+                    : F.caps.copyWith(color: p.ink)),
           ],
         ],
       ),
@@ -2756,21 +2840,28 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
         totals.add(ps.fold<double>(0, (a, b) => a + b));
       }
     }
-    final axis = trendAxis(m, [for (final t in totals) ?t], line: false);
+    // Shares of a whole sit on a fixed 0–100 % scale, in quarters, with no
+    // figure over the columns (each is 100 %) and no average line (the
+    // average is the headline's hours, not a share).
+    final pct = m.stackPercent;
+    final axis = pct
+        ? (lo: 0.0, hi: 100.0, ticks: const [0.0, 25.0, 50.0, 75.0, 100.0])
+        : trendAxis(m, [for (final t in totals) ?t], line: false);
     return ScrubColumns(
       values: totals,
       stacks: stacks,
       segmentColors: _layerColours(m),
       xLabels: xs,
-      valueLabels: week
+      valueLabels: week && !pct
           ? [for (final t in totals) t == null ? '' : trendFormat(m, t)]
           : const [],
       lo: axis.lo,
       hi: axis.hi,
       ticks: axis.ticks,
-      tickText: (t) => _tickText(m, t),
-      avg: avg,
-      marks: marks?.call(totals) ?? const [],
+      tickText: pct ? (t) => '${t.round()}%' : (t) => _tickText(m, t),
+      avg: pct ? null : avg,
+      marks: pct ? const [] : marks?.call(totals) ?? const [],
+      barFill: pct && n > 8 ? .84 : null,
       highlight: highlight,
       labelColor: ink,
       color: _colorOf(m),
@@ -3132,6 +3223,25 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
           '${m.unit == null ? '' : ' ${m.unit}'}.';
     }
     final word = _range.word;
+    if (m.id == 'day_stress') {
+      if (avg == null) return 'Not enough of a day scored for stress this $word.';
+      final span = switch (_range) {
+        TrendRange.week => 'this week',
+        TrendRange.month => 'this month',
+        _ => 'over these 6 months',
+      };
+      final days = switch (_range) {
+        TrendRange.week => '7-day',
+        TrendRange.month => '30-day',
+        _ => '6-month',
+      };
+      final was = prev == null
+          ? ''
+          : ', ${trendFormat(m, avg) == trendFormat(m, prev) ? 'the same as' : avg > prev ? 'above' : 'below'} '
+              'your previous $days average (${trendFormat(m, prev)})';
+      return 'You spent ${trendFormat(m, avg)} hours a day on average in high '
+          'stress $span$was. Sleep and activities count towards it.';
+    }
     if (m.kind == TrendKind.dual &&
         layerBars != null &&
         layerBars.length == 2) {

@@ -40,14 +40,13 @@ const kDialOrder = [
   if (r.measured) {
     switch (r.kind) {
       case HomeRingKind.sleep:
-        final slept = d.sleepMin.value;
+        // The ring shows the sleep score only. A night whose score is not
+        // worked out yet shows "--", never the time asleep in its place.
         final perf = d.sleepPerformance.value;
-        if (slept != null && perf != null) {
+        if (perf != null) {
           value = '${perf.round()}';
           suffix = '%';
           frac = perf / 100;
-        } else if (slept != null) {
-          value = hMinutes(slept);
         }
         arc = C.dialSleep;
       case HomeRingKind.recovery:

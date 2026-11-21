@@ -360,6 +360,10 @@ class ScrubColumns extends StatelessWidget {
   /// A bar's own width, when it should not follow the slot's.
   final double? barWidth;
 
+  /// The share of its slot a bar fills, in place of the usual (a stack of
+  /// shares reads as one band, its columns nearly touching).
+  final double? barFill;
+
   const ScrubColumns({
     super.key,
     required this.values,
@@ -382,6 +386,7 @@ class ScrubColumns extends StatelessWidget {
     this.height = 200,
     this.gutter = S.x10,
     this.barWidth,
+    this.barFill,
     this.label = 'Chart',
     this.describe,
   });
@@ -422,6 +427,7 @@ class ScrubColumns extends StatelessWidget {
           colorOf: colorOf,
           highlight: highlight,
           barWidth: barWidth,
+          barFill: barFill,
           at: at,
           inset: inset,
         ),
@@ -446,7 +452,7 @@ class _ColumnsPainter extends CustomPainter {
   final Color color;
   final Color Function(int i, double v)? colorOf;
   final int? highlight, at;
-  final double? barWidth;
+  final double? barWidth, barFill;
   final EdgeInsets inset;
 
   _ColumnsPainter({
@@ -468,6 +474,7 @@ class _ColumnsPainter extends CustomPainter {
     required this.colorOf,
     required this.highlight,
     required this.barWidth,
+    this.barFill,
     required this.at,
     required this.inset,
   });
@@ -491,7 +498,8 @@ class _ColumnsPainter extends CustomPainter {
     final slot = r.width / n;
     // A week's bars are wide, a month's narrow, and both sit centred in
     // their slot.
-    final bw = barWidth ?? slot * (n <= 4 ? .62 : n <= 8 ? .38 : .56);
+    final bw =
+        barWidth ?? slot * (barFill ?? (n <= 4 ? .62 : n <= 8 ? .38 : .56));
 
     // Gridlines and their values, in the gutter.
     final grid = Paint()

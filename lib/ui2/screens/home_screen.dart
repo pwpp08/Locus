@@ -668,13 +668,19 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     return Padding(
       padding: const EdgeInsets.only(top: S.x3, bottom: S.x4),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Stack(alignment: Alignment.center, children: [
+        LayoutBuilder(builder: (c, box) {
+          // The pager sits centred, so it may take the width less twice the
+          // wider side (the battery and band, usually) and a gap each side.
+          final side = math.max(S.x12 * 0.8, HomeDeviceStatus.widestOf(c));
+          final room = box.maxWidth - 2 * (side + S.x3);
+          return Stack(alignment: Alignment.center, children: [
           DayPager(
             day: cur,
             today: today,
             days: _days,
             onDay: _goDay,
             onCalendar: () => _openCalendar(c, cur),
+            maxWidth: math.max(S.x16 * 2, room),
           ),
           const Align(
               alignment: AlignmentDirectional.centerStart,
@@ -682,7 +688,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           const Align(
               alignment: AlignmentDirectional.centerEnd,
               child: _DeviceStatus()),
-        ]),
+        ]);
+        }),
       ]),
     );
   }

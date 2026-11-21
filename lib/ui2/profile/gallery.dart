@@ -43,8 +43,10 @@ import '../activity/catalogue.dart';
 import '../activity/exercise_image.dart';
 import '../activity/live.dart';
 import '../screens/plus_menu.dart';
+import '../screens/coach_history_sheet.dart';
 import '../screens/coach_parts.dart';
 import '../screens/coach_workout.dart';
+import '../../coach/coach_engine.dart' show CoachSessionMeta;
 import '../../coach/workout_plan.dart';
 import '../activity/poster.dart'
     show PosterCard, PosterFormat, PosterStatRow, kPosterMapH, kPosterMapW;
@@ -459,6 +461,19 @@ Map<String, Widget> componentCases() => {
 
 /// The coach's chat pieces, on the coach's own ground.
 Map<String, Widget> _coachPartCases() => {
+  'coach_history': SizedBox(
+    height: S.x16 * 7,
+    child: CoachHistorySheet(
+      now: DateTime(2026, 8, 4, 9),
+      load: () async => [
+        CoachSessionMeta('1', 'Why was my HRV so low',
+            DateTime(2026, 8, 3, 12).millisecondsSinceEpoch, ''),
+        CoachSessionMeta('2', 'Plan for a rest day tomorrow',
+            DateTime(2026, 8, 2, 12).millisecondsSinceEpoch, ''),
+      ],
+      delete: (_) async {},
+    ),
+  ),
   'coach_thread': CoachGround(
     child: Padding(
       padding: const EdgeInsets.all(S.x4),

@@ -23,8 +23,8 @@ import '../activity/catalogue.dart' show activityByName, kUnknownActivityIcon;
 import '../../state/clock_format.dart';
 import '../ui2.dart';
 import 'calibration.dart' show CalibrationStrip, Milestone;
-import 'home_screen.dart' show monthShortName, pad, repoOf, weekdayShortName;
-import 'trend_view.dart' show shiftDay;
+import 'home_screen.dart' show go, monthShortName, pad, repoOf, weekdayShortName;
+import 'trend_view.dart' show TrendViewScreen, shiftDay;
 
 /// The colour of a score: blue when calm, through green and a warm yellow, to
 /// orange at the top of the scale.
@@ -177,8 +177,14 @@ class StressSource {
   Future<Map<String, double>> avgByDay(List<String> days) =>
       _perDay(days, _meanScore);
 
-  Future<Map<String, double>> _perDay(
-      List<String> days, double Function(List<double?>) read) async {
+  /// Each of [days]' minutes at each level, on the same terms as
+  /// [highPctByDay]: Trend View's total-day stress.
+  Future<Map<String, ({int low, int medium, int high})>> minutesByDay(
+          List<String> days) =>
+      _perDay(days, stressMinutes);
+
+  Future<Map<String, T>> _perDay<T>(
+      List<String> days, T Function(List<double?>) read) async {
     final inputs = <String, StressDayInput>{};
     final need = {
       for (final d in days)
@@ -194,7 +200,7 @@ class StressSource {
         d: [for (var i = 1; i <= 14; i++) shiftDay(d, -i)],
     };
     return Isolate.run(() {
-      final out = <String, double>{};
+      final out = <String, T>{};
       for (final d in want) {
         final today = inputs[d];
         if (today == null) continue;
@@ -671,6 +677,18 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
               ]),
             ),
         ]),
+        const SizedBox(height: S.x5),
+        // Its trend: the share of each day at each level, week by week.
+        Pressable(
+          semanticLabel: 'See total day stress trends',
+          onTap: () => go(context, const TrendViewScreen(initial: 'day_stress')),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Text('SEE TRENDS',
+                style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w800)),
+            const SizedBox(width: S.x2),
+            Icon(LucideIcons.arrowRight, size: I.md, color: p.ink),
+          ]),
+        ),
       ]),
     );
   }

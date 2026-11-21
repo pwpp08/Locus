@@ -61,9 +61,12 @@ String syncedThroughLabel(DateTime? at, String? todayId,
 (double, bool)? deviceBatteryOf(BuildContext c) {
   try {
     return c.select<AppState, (double, bool)?>((a) {
+      // The percentage shows as soon as the band reports it. Whether it is
+      // charging arrives by a separate event that can come much later (or not
+      // at all on a fresh link); until then it counts as not charging rather
+      // than hiding the level.
       final pct = a.device.batteryPct;
-      final charging = a.device.charging;
-      return (pct == null || charging == null) ? null : (pct, charging);
+      return pct == null ? null : (pct, a.device.charging ?? false);
     });
   } catch (_) {
     return null;
@@ -164,13 +167,21 @@ class DayPager extends StatelessWidget {
   final ValueChanged<String> onDay;
   final VoidCallback onCalendar;
 
+  /// The most the pager may take: what is left between whatever sits either
+  /// side of it. The label shrinks to fit below that.
+  final double? maxWidth;
+
   const DayPager(
       {super.key,
       required this.day,
       required this.today,
       required this.days,
       required this.onDay,
-      required this.onCalendar});
+      required this.onCalendar,
+      this.maxWidth});
+
+  /// The width the pager keeps for "TODAY" and short dates.
+  static const base = S.x16 * 2 + S.x6;
 
   static const _h = S.x8;
   static final _r = BorderRadius.circular(S.x2 + S.half);
@@ -219,14 +230,15 @@ class DayPager extends StatelessWidget {
           ),
         );
 
-    // As wide as it has always been, and wider when a long date (or a
-    // language's longer names, or larger text) needs the room, up to what
-    // clears the avatar and the device status either side; past that the
+    // Compact for "TODAY", wider when a long date (or a language's longer
+    // names, or larger text) needs the room, but never past [maxWidth], which
+    // clears the avatar and the battery and band either side; past that the
     // label shrinks.
-    const base = S.x16 * 2 + S.x8 + S.x1 * 2;
+    final most = math.min(base + S.x8, maxWidth ?? double.infinity);
+    final least = math.min(base, most);
     return ConstrainedBox(
-      constraints: const BoxConstraints(
-          minWidth: base, maxWidth: base + S.x8, minHeight: S.tap, maxHeight: S.tap),
+      constraints: BoxConstraints(
+          minWidth: least, maxWidth: most, minHeight: S.tap, maxHeight: S.tap),
       child: Stack(alignment: Alignment.center, children: [
         Positioned.fill(
           child: Center(
@@ -253,8 +265,8 @@ class DayPager extends StatelessWidget {
                   child: Center(
                     child: Container(
                       height: _h,
-                      constraints: const BoxConstraints(
-                          minWidth: base - (S.x8 + S.x1) * 2),
+                      constraints: BoxConstraints(
+                          minWidth: math.max(0, least - (S.x8 + S.x1) * 2)),
                       padding: const EdgeInsets.symmetric(horizontal: S.x3),
                       decoration: BoxDecoration(
                         color: Color.alphaBlend(p.ink.withValues(alpha: .15), p.bg),
@@ -286,6 +298,21 @@ class DayPager extends StatelessWidget {
 
 class HomeDeviceStatus extends StatelessWidget {
   const HomeDeviceStatus({super.key});
+
+  /// The widest the status gets: "100%", the gap and the band with its badge.
+  static double widestOf(BuildContext c) {
+    final tp = TextPainter(
+      text: TextSpan(
+          text: '100%',
+          style: F.n17.copyWith(fontWeight: FontWeight.w700)),
+      textDirection: Directionality.of(c),
+      textScaler: MediaQuery.textScalerOf(c),
+      maxLines: 1,
+    )..layout();
+    final w = tp.width.ceilToDouble();
+    tp.dispose();
+    return w + S.x2 + StrapIcon.widthFor(S.x6) + S.x1;
+  }
 
   @override
   Widget build(BuildContext c) {

@@ -3,8 +3,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/ai/briefing.dart';
 import 'package:openstrap_edge/ai/briefing_engine.dart';
+import 'package:openstrap_edge/coach/coach_engine.dart';
 import 'package:openstrap_edge/coach/coach_memory.dart';
+import 'package:openstrap_edge/coach/coach_style.dart';
 import 'package:openstrap_edge/coach/coach_web.dart';
+import 'package:openstrap_edge/ui2/screens/coach_history_sheet.dart';
 import 'package:openstrap_edge/ui2/screens/coach_parts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -99,5 +102,61 @@ void main() {
     expect(tightParagraphs('Text\n\n| a | b |\n|---|---|'),
         'Text\n\n| a | b |\n|---|---|');
     expect(tightParagraphs('```\na\n\nb\n```'), '```\na\n\nb\n```');
+  });
+
+  group('memory kinds', () {
+    test('a first-version note carries over as about-you', () async {
+      SharedPreferences.setMockInitialValues({
+        'coach_memory_v1': ['Call me Vince.'],
+      });
+      final n = await CoachMemory.notes();
+      expect(n.single.text, 'Call me Vince.');
+      expect(n.single.kind, MemoryKind.about);
+      await CoachMemory.add('Run a half marathon in April.',
+          kind: MemoryKind.goal, now: DateTime(2026, 11, 21));
+      final after = await CoachMemory.notes();
+      expect([for (final x in after) x.kind],
+          [MemoryKind.about, MemoryKind.goal]);
+      expect(after.last.at, DateTime(2026, 11, 21).millisecondsSinceEpoch);
+    });
+
+    test('an unknown kind from the model reads as about-you', () {
+      expect(MemoryKind.parse('goal'), MemoryKind.goal);
+      expect(MemoryKind.parse('nonsense'), MemoryKind.about);
+      expect(MemoryKind.parse(null), MemoryKind.about);
+    });
+  });
+
+  test('style choices override the prompt, emojis off by default', () {
+    final off = CoachStyle.section(
+        emojis: false, length: CoachLength.brief, tone: CoachTone.direct);
+    expect(off, contains('never use any emoji'));
+    expect(off, contains(CoachLength.brief.rule));
+    expect(off, contains(CoachTone.direct.rule));
+    expect(
+        CoachStyle.section(
+            emojis: true,
+            length: CoachLength.balanced,
+            tone: CoachTone.friendly),
+        contains('Emojis: allowed'));
+  });
+
+  test('a busy provider is retried after a short, bounded wait', () {
+    expect(CoachEngine.transientStatuses, containsAll([500, 502, 503, 504]));
+    expect(CoachEngine.transientStatuses, isNot(contains(429)));
+    expect(CoachEngine.retryWait(0, null), CoachEngine.retryDelays[0]);
+    expect(CoachEngine.retryWait(1, '4'), const Duration(seconds: 4));
+    // A long or nonsense Retry-After falls back to our own schedule.
+    expect(CoachEngine.retryWait(2, '600'), CoachEngine.retryDelays[2]);
+    expect(CoachEngine.retryWait(3, 'soon'), CoachEngine.retryDelays[3]);
+  });
+
+  test('history days read today, yesterday, then the date', () {
+    final now = DateTime(2026, 8, 4, 9);
+    expect(coachHistoryDay(DateTime(2026, 8, 4, 1), now), 'TODAY');
+    expect(coachHistoryDay(DateTime(2026, 8, 3, 23), now), 'YESTERDAY');
+    expect(coachHistoryDay(DateTime(2026, 8, 2), now), 'SUN, AUGUST 2');
+    expect(coachHistoryDay(DateTime(2025, 12, 31), now),
+        'WED, DECEMBER 31, 2025');
   });
 }

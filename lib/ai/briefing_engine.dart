@@ -668,7 +668,7 @@ class BriefingEngine {
             CoachEngine.completeText(
                 config: config, system: system, user: user)))(
       system: briefingSystemPrompt(period,
-          length: OutlookLength.current, notes: await CoachMemory.all()),
+          length: OutlookLength.current, notes: await CoachMemory.forPrompt()),
       user: buildBriefingUserPrompt(period, day, inputs, tod),
     );
     if (raw.trim().isEmpty) {

@@ -33,6 +33,7 @@ import 'coach_figure_spec.dart';
 import 'coach_memory.dart';
 import 'coach_responses.dart';
 import 'coach_web.dart';
+import 'coach_style.dart';
 
 // ── value types ──────────────────────────────────────────────────────────────
 
@@ -399,9 +400,14 @@ class CoachEngine {
   String _newId() => '${DateTime.now().millisecondsSinceEpoch}';
 
   /// All saved sessions for this user, most recent first.
-  Future<List<CoachSessionMeta>> listSessions() async {
+  Future<List<CoachSessionMeta>> listSessions() => sessionsFor(storageKey);
+
+  /// [listSessions] without an engine: the history sheet opened from AI
+  /// settings, where no chat is running.
+  static Future<List<CoachSessionMeta>> sessionsFor(String storageKey) async {
     try {
-      final f = await _indexFile();
+      final f = File('${(await getApplicationDocumentsDirectory()).path}'
+          '/coach_idx_$storageKey.json');
       if (!await f.exists()) return [];
       final list = (jsonDecode(await f.readAsString()) as List)
           .map((e) => CoachSessionMeta.fromJson((e as Map).cast<String, dynamic>())).toList();
@@ -532,16 +538,22 @@ class CoachEngine {
 
   /// Delete a session (and start fresh if it was the current one).
   Future<void> deleteSession(String id) async {
+    await deleteSessionFor(storageKey, id);
+    if (id == _sessionId) newSession();
+  }
+
+  /// [deleteSession] without an engine.
+  static Future<void> deleteSessionFor(String storageKey, String id) async {
+    final dir = (await getApplicationDocumentsDirectory()).path;
     try {
-      final f = await _sessionFile(id);
+      final f = File('$dir/coach_s_${storageKey}_$id.json');
       if (await f.exists()) await f.delete();
     } catch (_) {}
-    final metas = await listSessions()..removeWhere((m) => m.id == id);
+    final metas = await sessionsFor(storageKey)..removeWhere((m) => m.id == id);
     try {
-      final f = await _indexFile();
+      final f = File('$dir/coach_idx_$storageKey.json');
       await f.writeAsString(jsonEncode(metas.map((m) => m.toJson()).toList()));
     } catch (_) {}
-    if (id == _sessionId) newSession();
   }
 
   String _deriveTitle() {
@@ -699,12 +711,13 @@ class CoachEngine {
       _trimHistory();
       // Read every round: a `remember` earlier in this turn holds for the
       // rest of it.
-      final memory = CoachMemory.promptSection(await CoachMemory.all());
+      final memory = CoachMemory.promptSection(await CoachMemory.forPrompt());
       final messages = <Map<String, dynamic>>[
         {
           'role': 'system',
           'content': [
             kCoachSystemPrompt,
+            CoachStyle.promptSection(),
             if (memory.isNotEmpty) memory,
             'Today is ${_today()} (device-local date; all day-keyed data uses '
                 'these local dates).',
@@ -713,7 +726,12 @@ class CoachEngine {
         ..._history,
       ];
 
-      final reply = await _chat(messages, onDelta: onDelta);
+      final reply = await _chat(
+        messages,
+        onDelta: onDelta,
+        onRetry: (_, wait) => onStatus(
+            'The AI provider is busy. Trying again in ${wait.inSeconds} s…'),
+      );
       final toolCalls = (reply['tool_calls'] as List?) ?? const [];
       final content = (reply['content'] as String?)?.trim();
       final responseState = <String, dynamic>{
@@ -812,6 +830,7 @@ class CoachEngine {
   Future<Map<String, dynamic>> _chat(
     List<Map<String, dynamic>> messages, {
     void Function(String delta)? onDelta,
+    void Function(int attempt, Duration wait)? onRetry,
   }) =>
       postChat(config, {
         'model': config.model,
@@ -819,7 +838,7 @@ class CoachEngine {
         'tools': _toolDefs,
         'tool_choice': 'auto',
         'temperature': 0.3,
-      }, client: _http, onDelta: onDelta);
+      }, client: _http, onDelta: onDelta, onRetry: onRetry);
 
   /// True when [model] names a Claude version that rejects OpenAI sampling
   /// params (temperature/top_p/top_k) with a 400: Opus >= 4.7, Sonnet and
@@ -852,6 +871,28 @@ class CoachEngine {
     return major >= 5; // sonnet, haiku
   }
 
+  /// Statuses a provider sends when it is momentarily overloaded rather than
+  /// refusing the request itself.
+  static const transientStatuses = {500, 502, 503, 504, 529};
+
+  /// How long to wait before each retry on a busy provider (about half a
+  /// minute in all).
+  static List<Duration> retryDelays = const [
+    Duration(seconds: 3),
+    Duration(seconds: 5),
+    Duration(seconds: 8),
+    Duration(seconds: 12),
+  ];
+
+  /// The wait before retry [attempt]: the provider's own Retry-After when it
+  /// names a short one, else [retryDelays].
+  @visibleForTesting
+  static Duration retryWait(int attempt, String? retryAfter) {
+    final s = int.tryParse(retryAfter?.trim() ?? '');
+    if (s != null && s > 0 && s <= 20) return Duration(seconds: s);
+    return retryDelays[attempt];
+  }
+
   /// THE one provider POST. Every LLM call in the app
   /// (the coach tool loop, the daily briefings, the journal chat) goes through
   /// here so there is exactly ONE provider client + error contract. Returns the
@@ -862,6 +903,9 @@ class CoachEngine {
     Map<String, dynamic> body, {
     http.Client? client,
     void Function(String delta)? onDelta,
+
+    /// Told before each wait on a busy provider: which retry, and how long.
+    void Function(int attempt, Duration wait)? onRetry,
   }) async {
     final c = client ?? http.Client();
     final model = body['model'] as String? ?? '';
@@ -1002,13 +1046,31 @@ class CoachEngine {
         }
       }
 
-      final resp = await c
+      // A busy provider (503 "high demand", 502/504 from its gateway, 529
+      // overloaded) usually answers a few seconds later, so wait and ask
+      // again before showing the user an error.
+      var resp = await c
           .post(
             uri,
             headers: headers,
             body: payload,
           )
           .timeout(config.requestTimeout);
+      for (var attempt = 0;
+          attempt < retryDelays.length &&
+              transientStatuses.contains(resp.statusCode);
+          attempt++) {
+        final wait = retryWait(attempt, resp.headers['retry-after']);
+        onRetry?.call(attempt + 1, wait);
+        await Future<void>.delayed(wait);
+        resp = await c
+            .post(
+              uri,
+              headers: headers,
+              body: payload,
+            )
+            .timeout(config.requestTimeout);
+      }
       if (resp.statusCode != 200) {
         throw CoachException(providerErrorText(
           status: resp.statusCode,
@@ -1244,7 +1306,12 @@ class CoachEngine {
 
         // memory — the person's own standing asks
         case 'remember':
-          final kept = await CoachMemory.add('${args['note'] ?? ''}');
+          if (!CoachMemory.enabled) {
+            return 'Memory is off in AI settings, so nothing was kept. Tell '
+                'them, and that they can turn it on there.';
+          }
+          final kept = await CoachMemory.add('${args['note'] ?? ''}',
+              kind: MemoryKind.parse(args['kind']));
           return kept == null
               ? 'Nothing to remember: the note was empty.'
               : 'Remembered: "$kept". It holds in every chat and outlook from '
@@ -1631,7 +1698,17 @@ class CoachEngine {
         'emojis", "shorter answers", "training for a marathon in April". '
         'Call it whenever they ask you to remember something or state a '
         'lasting preference. One short sentence in the third person.',
-        {'note': {'type': 'string'}}, ['note']),
+        {
+          'note': {'type': 'string'},
+          'kind': {
+            'type': 'string',
+            'enum': ['goal', 'preference', 'about'],
+            'description': 'goal: something they are working towards; '
+                'preference: how they want you to coach or write; about: '
+                'a fact about them, their life or routine',
+          },
+        },
+        ['note', 'kind']),
     _fn('forget',
         'Drop a note kept with remember, when they take it back.',
         {'note': {'type': 'string', 'description': 'the note, or words from it'}},

@@ -200,6 +200,7 @@ class LucideIcons {
   static const IconData phoneIncoming = base.LucideIcons.phoneIncoming300;
   static const IconData smartphone = base.LucideIcons.smartphone300;
   static const IconData smile = base.LucideIcons.smile300;
+  static const IconData sparkles = base.LucideIcons.sparkles300;
   static const IconData snowflake = base.LucideIcons.snowflake300;
   static const IconData sprout = base.LucideIcons.sprout300;
   static const IconData square = base.LucideIcons.square300;

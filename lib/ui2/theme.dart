@@ -1086,6 +1086,80 @@ class DS {
       letterSpacing: .35);
 }
 
+/// ── COACH MEMORY ── the memory page, measured off its reference (1179 px
+/// across = 393 dp, 3 px to the dp).
+class MEM {
+  MEM._();
+
+  /// The add-a-note card: a navy veil with a faint violet edge.
+  static const shareA = Color(0xFF2B2F4A);
+  static const shareB = Color(0xFF24303A);
+  static const shareEdge = Color(0x557C7FE0);
+
+  /// Its button: a grey veil, its edge a little lighter.
+  static const button = Color(0x24FFFFFF);
+  static const buttonEdge = Color(0x1FFFFFFF);
+
+  /// A door row and a note card: navy into slate.
+  static const rowA = Color(0xFF262B44);
+  static const rowB = Color(0xFF232C34);
+
+  /// The violet of the arrows and the date.
+  static const violet = Color(0xFF7E86F2);
+
+  /// The kind chip: an outline, as the reference draws a category.
+  static const chipEdge = Color(0x66FFFFFF);
+  static const chipInk = Color(0xFFC9CBD0);
+
+  /// An unchosen tab, and the chosen one.
+  static const tabOff = Color(0xFF2A2D33);
+  static const tabOn = Color(0xFFFFFFFF);
+  static const tabOnInk = Color(0xFF101215);
+
+  static const sub = Color(0xFFA9ACB1);
+
+  /// The person's mark: a grey ring lit violet, round a grey disc.
+  static const markRing = Color(0xFF4A4D57);
+  static const markDisc = Color(0xFF3A3D45);
+  static const markGlyph = Color(0xFF8D9097);
+  static const markShade = Color(0x66000000);
+
+  /// The two-line headline, the line under it, a row's words, the chip and
+  /// the date.
+  static const headline = TextStyle(
+      fontFamily: F.family,
+      fontSize: 24,
+      height: 1.36,
+      fontWeight: FontWeight.w600,
+      letterSpacing: -.2);
+  static const lede = TextStyle(
+      fontFamily: F.family, fontSize: 14, fontWeight: FontWeight.w500);
+  static const row = TextStyle(
+      fontFamily: F.family, fontSize: 16, height: 1.3, letterSpacing: -.2);
+  static const chip = TextStyle(
+      fontFamily: F.family, fontSize: 14, fontWeight: FontWeight.w500);
+  static const date = TextStyle(
+      fontFamily: F.family, fontSize: 15, fontWeight: FontWeight.w500);
+}
+
+/// ── COACH HISTORY ── the past-chats sheet, off the same reference.
+class HIST {
+  HIST._();
+  static const top = Color(0xFF2B323A);
+  static const foot = Color(0xFF111518);
+  static const row = Color(0x1FFFFFFF);
+  static const label = Color(0xFF8E9399);
+  static const rule = Color(0x24FFFFFF);
+  static const grab = Color(0x4DFFFFFF);
+
+  /// CONVERSATION HISTORY.
+  static const title = TextStyle(
+      fontFamily: F.family,
+      fontSize: 14.5,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 1.6);
+}
+
 /// ── HEALTH MONITOR ── measured off its reference (1180 px across = 393 dp,
 /// so 3 px to the dp). Always char: the page runs from slate at the top to
 /// near-black at the foot, and every card is a veil of white over it, which is

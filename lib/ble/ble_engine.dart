@@ -4205,10 +4205,15 @@ class BleEngine {
     // The stamp belongs to the WRITE, so a strap that never answers does not
     // turn the poll into a five-second-per-tick retry loop.
     _lastBatteryPollAt = DateTime.now();
+    final stamp = _lastBatteryPollAt;
     unawaited(out.response.then((r) {
       if (r == null) {
         _log('[BATTERY] GET_BATTERY_LEVEL went unanswered — the link produced '
             'no inbound traffic for this poll.');
+        // Ask again on the next keep-alive tick instead of waiting out the
+        // whole interval with no level on screen. Only this poll's stamp is
+        // undone, so a newer poll that went out meanwhile keeps its own.
+        if (_lastBatteryPollAt == stamp) _lastBatteryPollAt = null;
       }
     }));
   }
