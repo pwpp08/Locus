@@ -84,7 +84,7 @@ class _CoachHistorySheetState extends State<CoachHistorySheet> {
     );
     if (ok != DialogChoice.destructive) return;
     await widget.delete(s.id);
-    if (mounted) setState(() => _list = widget.load());
+    if (mounted) setState(() { _list = widget.load(); });
   }
 
   @override
