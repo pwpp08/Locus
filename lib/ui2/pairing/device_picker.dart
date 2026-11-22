@@ -288,10 +288,9 @@ Widget _sensorRow({
   required Color color,
   required String title,
   String sub = '',
-  bool chevron = true,
   VoidCallback? onTap,
 }) =>
-    SetRow(icon, color, title, sub: sub, chevron: chevron, onTap: onTap);
+    SetRow(icon, color, title, sub: sub, onTap: onTap);
 
 /// The pure half — every state this screen can be in, from values, so a
 /// test can render each one without a radio.
@@ -554,7 +553,6 @@ class _NearbySection extends StatelessWidget {
           : cand.entryId == kMiBand234.id
               ? '$idle\n${deviceCategoryBlurb(AppLocalizations.of(c), kMiBand234)}'
               : idle,
-      chevron: !busy,
       onTap: busy || onTap == null ? null : () => onTap!(cand),
     );
   }

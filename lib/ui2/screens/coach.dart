@@ -35,8 +35,6 @@ import '../../ai/briefing.dart';
 import '../../ai/briefing_engine.dart';
 import '../../coach/coach_config.dart';
 import '../../coach/coach_engine.dart';
-import '../../coach/coach_memory.dart';
-import '../../coach/coach_style.dart';
 import '../../state/app_state.dart';
 import '../ui2.dart';
 import 'ai_briefing.dart';
@@ -45,7 +43,7 @@ import 'coach_figures.dart';
 import 'coach_history_sheet.dart';
 import 'coach_memory_screen.dart';
 import 'coach_parts.dart';
-import '../profile/profile.dart' show SetDropdown, SetRow, goto, settingsGroup;
+import '../profile/profile.dart' show goto;
 import 'coach_workout.dart';
 import '../../coach/workout_plan.dart';
 import 'home_screen.dart' show go, pad, repoOf;
@@ -1549,24 +1547,6 @@ class _CoachSetupState extends State<CoachSetup> {
 
   /// AI settings → My memory. Its doors open the coach over it: a past chat,
   /// or a fresh one asking for a summary of what it knows.
-  void _openMemory(BuildContext c) {
-    final key = (c.read<AppState>().user?['id'] ?? 'local').toString();
-    goto(
-      c,
-      CoachMemoryScreen(
-        storageKey: key,
-        onOpenChat: (id) => openCoachSheet(c, sessionId: id),
-        onSnapshot: () => openCoachSheet(c,
-            initialMessage: 'Give me a snapshot of what you know about me: '
-                'my goals, how I like to be coached, and my routine.'),
-        onSent: () => go(
-            c,
-            AiBriefingScreen(
-                period: currentBriefingPeriod(DateTime.now()))),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
@@ -1593,7 +1573,7 @@ class _CoachSetupState extends State<CoachSetup> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: S.x4),
-              child: NavBar(l?.coachSetupNavTitle ?? 'AI settings',
+              child: NavBar('Provider',
                   sub: l?.coachSetupNavSub ?? 'Bring your own model'),
             ),
             Expanded(
@@ -1774,51 +1754,6 @@ class _CoachSetupState extends State<CoachSetup> {
                     color: kCoachAccent,
                     onTap: _save,
                   ),
-                  settingsGroup(c, 'Answer style', [
-                    SetDropdown(
-                      LucideIcons.ruler,
-                      'Answer length',
-                      [for (final x in CoachLength.values) x.label],
-                      CoachStyle.length.index,
-                      sub: 'How much each chat answer says',
-                      onChanged: (i) => setState(
-                          () => CoachStyle.length = CoachLength.values[i]),
-                    ),
-                    SetDropdown(
-                      LucideIcons.messageSquare,
-                      'Tone',
-                      [for (final x in CoachTone.values) x.label],
-                      CoachStyle.tone.index,
-                      sub: 'How the AI talks to you',
-                      onChanged: (i) => setState(
-                          () => CoachStyle.tone = CoachTone.values[i]),
-                    ),
-                    SetRow(LucideIcons.smile, C.slate, 'Emojis',
-                        sub: 'Let answers use a few emojis',
-                        switchValue: CoachStyle.emojis,
-                        onTap: () => setState(
-                            () => CoachStyle.emojis = !CoachStyle.emojis)),
-                  ]),
-                  settingsGroup(c, 'Outlook and memory', [
-                    SetDropdown(
-                      LucideIcons.sun,
-                      'Outlook length',
-                      [for (final x in OutlookLength.values) x.label],
-                      OutlookLength.current.index,
-                      sub: 'How much the Daily Outlook says',
-                      onChanged: (i) => setState(
-                          () => OutlookLength.set(OutlookLength.values[i])),
-                    ),
-                    SetRow(LucideIcons.brain, C.slate, 'Memory',
-                        sub: 'Let the AI remember details from your chats '
-                            'to tailor its advice',
-                        switchValue: CoachMemory.enabled,
-                        onTap: () => setState(
-                            () => CoachMemory.enabled = !CoachMemory.enabled)),
-                    SetRow(LucideIcons.bookOpen, C.slate, 'My memory',
-                        sub: 'What it knows about you, and past chats',
-                        onTap: () => _openMemory(c)),
-                  ]),
                 ],
               ),
             ),

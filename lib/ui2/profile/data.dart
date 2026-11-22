@@ -401,14 +401,12 @@ class _DataScreenState extends State<DataScreen> {
                       l?.dataLastBackup ?? 'Last backup',
                       value: last == null
                           ? (l?.dataNever ?? 'Never')
-                          : _stamp(last),
-                      chevron: false),
+                          : _stamp(last)),
                   if (backupError != null)
                     SetRow(LucideIcons.triangleAlert, C.strainDown,
                         'Last backup failed',
                         sub: '$backupError '
-                            '${defaultTargetPlatform == TargetPlatform.android ? (l?.dataBackupFolderRetry ?? 'Retry with Back up now, or choose another folder') : (l?.dataBackUpNow ?? 'Back up now')}',
-                        chevron: false),
+                            '${defaultTargetPlatform == TargetPlatform.android ? (l?.dataBackupFolderRetry ?? 'Retry with Back up now, or choose another folder') : (l?.dataBackUpNow ?? 'Back up now')}'),
                   SetRow(LucideIcons.hardDriveDownload, C.stressLow,
                       l?.dataBackUpNow ?? 'Back up now',
                       onTap: _busy ? null : () => _run(() => _backupNow(app))),

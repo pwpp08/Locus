@@ -539,7 +539,6 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                         LucideIcons.power,
                         C.dialStrain,
                         'Alarm on',
-                        chevron: false,
                         trailing: AppSwitch(
                             on,
                             (v) => setS(() {

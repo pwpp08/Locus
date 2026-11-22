@@ -790,7 +790,6 @@ class MemberProfile extends StatelessWidget {
         label,
         sub: best == null ? '' : 'Best ${boardValue(m, best)}',
         value: month.isEmpty ? '--' : '${boardValue(m, month.first.value)} avg',
-        chevron: false,
       );
     }
 

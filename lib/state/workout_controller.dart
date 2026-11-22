@@ -54,6 +54,7 @@ import '../notify/notification_event.dart';
 import '../notify/tap_router.dart';
 import '../sync/edge_tracking.dart';
 import '../widget/widget_service.dart';
+import '../ui2/activity/catalogue.dart' show activityByName;
 import '../ui2/activity/live.dart' show LiveDraft;
 import 'workout_idle.dart';
 import 'zone_alert.dart';
@@ -289,6 +290,23 @@ class WorkoutController {
     final set = activeWorkout?.zoneSet;
     if (hr <= 0 || set == null) return 0;
     return set.zoneNumber(hr.toDouble());
+  }
+
+  /// Where [hr] sits on the live card's zone track, 0..6: zone n's segment
+  /// spans n to n + 1. Below zone 1 the marker climbs from the resting rate.
+  double _zonePos(int hr) {
+    final set = activeWorkout?.zoneSet;
+    if (set == null || hr <= 0) return 0;
+    final z = _zoneFor(hr);
+    if (z == 0) {
+      final rhr = _restingHr();
+      final lo = set.zones.first.lower;
+      if (lo <= rhr) return 0;
+      return ((hr - rhr) / (lo - rhr)).clamp(0, 1).toDouble();
+    }
+    final zone = set.zones.firstWhere((x) => x.number == z);
+    final span = zone.upper - zone.lower;
+    return z + (span <= 0 ? 0 : ((hr - zone.lower) / span).clamp(0, 1));
   }
 
   /// The zone the live session is in right now, 1..5, or null at rest / with
@@ -528,6 +546,9 @@ class WorkoutController {
       // is a passthrough, not a number anyone reads.
       maxHr: activeWorkout?.hrMax?.round() ?? 0,
       rhr: _restingHr(),
+      // The activity's own name: "Running", "Strength training", not a
+      // generic "Live session". Unknown types say what they have.
+      name: activityByName(type)?.name ?? 'Workout',
     );
     _lastLaPush = DateTime.fromMillisecondsSinceEpoch(0);
     // GPS route: only for run/ride/walk, and only if the user grants location.
@@ -1242,15 +1263,24 @@ class WorkoutController {
     // full active rate at any heart rate the band reported, so the number on
     // the gauge did not survive the re-score of its own stream.
     // Push to the Live Activity at most ~every 4s (ActivityKit throttles; saves battery).
-    // Skipped entirely while HR is absent: the widget's channel takes a
-    // non-null int, so the only way to push "no reading" today would be to send
-    // 0 bpm, which is a fabricated measurement on the lock screen. Holding the
-    // last frame is the lesser wrong until `LiveActivity.update` takes `int?`.
-    if (hr != null && DateTime.now().difference(_lastLaPush).inSeconds >= 4) {
+    // Pushed with no heart rate too: the card then says "--" and the timer
+    // and the other figures carry on, as they must for an activity done
+    // without the band (a gym session, a watch-free walk). Never a 0 bpm.
+    if (DateTime.now().difference(_lastLaPush).inSeconds >= 4) {
       _lastLaPush = DateTime.now();
+      final speed = _routeTracker?.currentSpeedMps.value;
+      final draft = LiveDraft.current;
       LiveActivity.update(
         hr: hr,
-        zone: _zoneFor(hr),
+        zone: hr == null ? 0 : _zoneFor(hr),
+        zonePos: hr == null ? 0 : _zonePos(hr),
+        // The app's own clock, pauses taken out, so the card's timer agrees
+        // with the screen and stops while the session is paused.
+        elapsedSec: draft?.elapsedSec,
+        paused: draft?.pausedAt != null,
+        distanceKm: liveDistanceKm,
+        // Walking pace and up only: a standing phone's drift is not a pace.
+        paceSecPerKm: speed != null && speed > .5 ? 1000 / speed : null,
         // Absent stays absent. These used to be coerced to 0, so a new user
         // with no profile anchors — the case where both correctly abstain and
         // the in-app gauge shows "—" — got a confident "0 kcal" pushed to the

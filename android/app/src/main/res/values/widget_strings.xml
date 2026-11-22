@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?><!-- Widget-picker labels/descriptions. -->
 <resources>
-    <string name="widget_openstrap_label">Locus</string>
-    <string name="widget_openstrap_description">Recovery, strain and sleep at a glance.</string>
+    <string name="widget_openstrap_label">Dials</string>
+    <string name="widget_openstrap_description">Sleep, recovery and strain as three dials.</string>
+    <string name="widget_rings_wide_label">Rings</string>
+    <string name="widget_rings_wide_description">Strain and recovery as rings, with HRV and calories.</string>
+    <string name="widget_rings_label">Rings</string>
+    <string name="widget_rings_description">Strain and recovery as rings.</string>
+    <string name="widget_sleep_label">Sleep</string>
+    <string name="widget_sleep_description">Your sleep score.</string>
+    <string name="widget_recovery_label">Recovery</string>
+    <string name="widget_recovery_description">Your recovery score.</string>
+    <string name="widget_strain_label">Strain</string>
+    <string name="widget_strain_description">Your strain today.</string>
     <string name="widget_battery_label">Band battery</string>
     <string name="widget_battery_description">Your band\'s battery, from the last connection.</string>
-    <string name="widget_sleep_label">SLEEP</string>
-    <string name="widget_sleep_picker_label">Last night</string>
-    <string name="widget_sleep_description">How long you slept, against the need the app has learned.</string>
-    <string name="widget_overnight_label">Overnight</string>
-    <string name="widget_overnight_description">Last night\'s HRV against your own baseline, and resting heart rate.</string>
-    <string name="widget_hrv_label">HRV</string>
-    <string name="widget_rhr_label">RESTING HR</string>
 </resources>

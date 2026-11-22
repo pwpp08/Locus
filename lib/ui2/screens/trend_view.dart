@@ -537,6 +537,19 @@ String _dayOfEpoch(int t) =>
 
 DateTime _dateOf(String day) => DateTime.parse(day);
 
+/// The days from [first] to [today], at most the latest [cap], oldest first.
+/// Counted back from today: counted forward from the first day, a long
+/// history stopped [cap] days in and never reached the weeks being looked at.
+List<String> latestDays(String first, String today, int cap) {
+  final days = <String>[];
+  for (var d = today;
+      d.compareTo(first) >= 0 && days.length < cap;
+      d = shiftDay(d, -1)) {
+    days.add(d);
+  }
+  return days.reversed.toList();
+}
+
 /// [day] moved by [n] calendar days — by calendar, so a DST day is one day.
 String shiftDay(String day, int n) {
   final d = _dateOf(day);
@@ -1091,15 +1104,19 @@ class TrendLoader {
         if (r == null) return const <String, ({int low, int medium, int high})>{};
         final today = todayLabel();
         final first = await firstDay() ?? today;
-        final days = <String>[];
-        for (var d = first;
-            d.compareTo(today) <= 0 && days.length < 400;
-            d = shiftDay(d, 1)) {
-          days.add(d);
-        }
+        final days = latestDays(first, today, 400);
+        final clock = Stopwatch()..start();
         try {
-          return await StressSource(r).minutesByDay(days);
-        } catch (_) {
+          final out = await StressSource(r).minutesByDay(days);
+          debugPrint('[OpenStrap] [trend] day stress: ${out.length} of '
+              '${days.length} days in ${clock.elapsedMilliseconds} ms');
+          // An empty answer is not kept: the next ask reads again, rather than
+          // showing "not enough" for as long as the screen lives.
+          if (out.isEmpty) _stress = null;
+          return out;
+        } catch (e, st) {
+          debugPrint('[OpenStrap] [trend] day stress failed: $e $st');
+          _stress = null;
           return const <String, ({int low, int medium, int high})>{};
         }
       }();

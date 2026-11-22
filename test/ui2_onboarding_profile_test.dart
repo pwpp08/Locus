@@ -91,7 +91,7 @@ Map<String, Widget> _cases() => {
       'my_devices': MyDevicesView(sources: [_band, _phone]),
       'my_devices_empty': const MyDevicesView(),
       'device_detail': DeviceDetailView(_band, onFind: () {}, onForget: () {}),
-      'more_settings': const MoreSettingsView(units: 'Metric'),
+      'about': const AboutView(version: '0.9.26 (57)'),
       'your_data': const YourDataView(storage: '1.4 GB'),
       'device_settings': DeviceSettingsView(
           connected: true,

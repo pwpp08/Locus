@@ -36,7 +36,7 @@ class OpenStrapBatteryWidgetProvider : HomeWidgetProvider() {
         prefs: SharedPreferences,
     ) {
         val w = StrapWidgets
-        val pal = w.pal(prefs)
+        val pal = w.darkPal()
 
         val pct = w.readInt(prefs, "batt_pct", -1)
         val charging = prefs.getBoolean("batt_charging", false)

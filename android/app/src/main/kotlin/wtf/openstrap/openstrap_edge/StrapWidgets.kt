@@ -118,6 +118,9 @@ internal object StrapWidgets {
     fun pal(prefs: SharedPreferences): Pal =
         if (prefs.getBoolean("theme_dark", false)) DARK else LIGHT
 
+    /** The app is dark only, and so are the widgets. */
+    fun darkPal(): Pal = DARK
+
     // ── home_widget snapshot readers ─────────────────────────────────────────
     // home_widget's Android store isn't type-stable across Dart types: Dart ints
     // arrive as Int, but Dart doubles are stored as RAW LONG BITS

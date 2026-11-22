@@ -177,7 +177,8 @@ void main() {
         expect(spies.liveActivityMethods, ['start']);
         final args = spies.liveActivity.single.args as Map;
         expect(args['targetKcal'], 410);
-        expect(args['hr'], 0);
+        expect(args['hr'], isNull,
+            reason: 'no heart rate yet: none is sent, never a 0 bpm');
         expect(args['strain'], isNull, reason: 'nothing measured yet');
         expect(args['calories'], isNull);
         await finish(app);

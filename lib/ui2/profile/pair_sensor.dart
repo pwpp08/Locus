@@ -582,7 +582,6 @@ class PairSensorView extends StatelessWidget {
                       'Readings stored as it takes them',
                 _ => l?.pairSensorUsedDuringWorkouts ?? 'Used during workouts',
               },
-              chevron: false,
               onTap: null,
             ),
             SetRow(
@@ -592,7 +591,6 @@ class PairSensorView extends StatelessWidget {
               sub: l?.pairSensorForgetThisSensorSub ??
                   'Removes the source. The readings it already took stay.',
               danger: true,
-              chevron: false,
               onTap: onForget == null ? null : () => onForget!(s.id),
             ),
           ]),
@@ -624,7 +622,6 @@ class PairSensorView extends StatelessWidget {
           : cand.label == null
               ? '…$tail · $signal'
               : signal,
-      chevron: !busy,
       onTap: busy || onPick == null ? null : () => onPick!(cand),
     );
   }

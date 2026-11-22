@@ -772,7 +772,6 @@ Widget wearableSettingsGroup(BuildContext c) => ListenableBuilder(
               value: d.sideBySide
                   ? l.wearablePresentationSideBySide
                   : l.wearablePresentationOneNumber,
-              chevron: false,
               onTap: () => d.setSideBySide(!d.sideBySide)),
           SetRow(LucideIcons.circleDashed, C.strainDown, l.wearableEstimatesRowTitle,
               sub: l.wearableEstimatesRowSub,
@@ -786,7 +785,6 @@ Widget wearableSettingsGroup(BuildContext c) => ListenableBuilder(
                 value: w.active && w.on
                     ? l.wearableFlagActive
                     : (w.on ? l.stateOn : l.stateOff),
-                chevron: false,
                 onTap: d.busy
                     ? null
                     : () => d.toggleDevice(w.id, w.adapter, w.on, w.active)),

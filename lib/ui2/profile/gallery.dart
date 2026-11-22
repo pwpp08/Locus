@@ -84,6 +84,8 @@ import '../screens/home/card_pictures.dart';
 import '../onboarding/setup_parts.dart';
 import '../screens/locus_age.dart' show LocusAgeTrends;
 import '../../compute/stress_monitor.dart' show StressBaseline;
+import 'settings_tree.dart'
+    show DashedRule, DetectionPicture, InfoCard, SwitchHead;
 
 /// A deterministic series — a gallery cannot depend on random data.
 final _series =
@@ -1988,6 +1990,23 @@ Map<String, Widget> _stateCases() => {
         body: 'Your sleep is being worked out. We will let you know once it '
             'is ready.',
       ),
+      // The settings tree's parts: a page's leading switch, the dotted rule
+      // under it, a titled note, and Activity detection's picture.
+      'switch_head': const SwitchHead('Memory', true),
+      'gear_mark': const GearMark(size: I.lg, color: ST.glyph),
+      'dial_number': const DialNumber('72', '%', color: DC.ink),
+      'gear_badged': const GearBadged(
+          size: I.lg,
+          color: ST.glyph,
+          gap: ST.face,
+          child: Icon(LucideIcons.heartPulse, size: I.lg, color: ST.glyph)),
+      'activity_figure': const ActivityFigure(size: I.lg, color: ST.glyph),
+      'dashed_rule': const DashedRule(),
+      'info_card': InfoCard('Data privacy',
+          'Your questions go only to the provider you chose.',
+          link: 'Learn more', onLink: () {}),
+      'detection_picture':
+          const AspectRatio(aspectRatio: 393 / 180, child: DetectionPicture()),
       // Edit Activity's chart over a made-up half hour.
       'activity_window_chart': ActivityWindowChart(
         start: 1755925920,
@@ -2280,7 +2299,7 @@ Map<String, Widget> _listCases() => {
           SetDropdown(LucideIcons.clock, 'Time format',
               const ['System', '24-hour', '12-hour'], 0, onChanged: (_) {}),
           const SetRow(LucideIcons.clock, C.n500, 'Last backup',
-              value: '2026-08-16 04:12', chevron: false),
+              value: '2026-08-16 04:12'),
           SetRow(LucideIcons.trash2, C.dialStrain, 'Delete everything on this device',
               danger: true, onTap: () {}),
         ]),
@@ -2812,13 +2831,11 @@ class _PosterPreviewState extends State<_PosterPreview> {
               sub: 'From this phone. Nothing is uploaded', onTap: _pick),
           if (_photo != null) ...[
             Divider(color: p.line, height: 1),
-            SetRow(LucideIcons.trash2, C.dialStrain, 'Remove the photo',
-                chevron: false, onTap: () => setState(() => _photo = null)),
+            SetRow(LucideIcons.trash2, C.dialStrain, 'Remove the photo', onTap: () => setState(() => _photo = null)),
           ],
           Divider(color: p.line, height: 1),
           SetRow(LucideIcons.share2, C.dialStrain, 'Share this card',
-              sub: 'The real export — the boundary above, at 3×',
-              chevron: false, onTap: _share),
+              sub: 'The real export — the boundary above, at 3×', onTap: _share),
         ]),
       ),
       if (_tried && !_loading && _mosaic == null) ...[

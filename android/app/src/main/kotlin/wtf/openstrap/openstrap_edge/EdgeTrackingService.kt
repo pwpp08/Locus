@@ -30,7 +30,7 @@ import androidx.core.content.ContextCompat
 class EdgeTrackingService : Service() {
     companion object {
         private const val CHANNEL_ID = "edge_tracking"
-        private const val NOTIF_ID = 4201
+        const val NOTIF_ID = 4201
         private const val TAG = "EdgeTrackingService"
 
         /**
@@ -110,7 +110,9 @@ class EdgeTrackingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val notif = buildNotification()
+        // A live workout's card stands in for the keep-alive line while it runs
+        // (see LiveActivityNotifier), so a restart mid-session keeps showing it.
+        val notif = LiveActivityNotifier.current(this) ?: baseNotification(this)
         // Tri-state (see [locationSessionActive]): only an intent that actually
         // carries the extra may change the mode. A bare start() from CDM /
         // KeepAliveWorker / boot inherits the live session's type instead of
@@ -191,9 +193,12 @@ class EdgeTrackingService : Service() {
                 .createNotificationChannel(ch)
         }
     }
+}
 
-    private fun buildNotification(): Notification {
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+/** The keep-alive line itself, outside the class so the live workout's
+ *  notifier can put it back when a session ends. */
+fun EdgeTrackingService.Companion.baseNotification(ctx: Context): Notification =
+        NotificationCompat.Builder(ctx, "edge_tracking")
             .setContentTitle("Edge Tracking")
             .setContentText("Keeping your strap in sync")
             .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
@@ -201,5 +206,3 @@ class EdgeTrackingService : Service() {
             .setSilent(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
-    }
-}

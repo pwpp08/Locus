@@ -24,45 +24,45 @@ import '../../state/prefs.dart';
 import '../community/community.dart' show CommunityScreen;
 import '../ui2.dart';
 import '../screens/reports.dart' show ReportsScreen;
-import '../screens/heart_rate_settings.dart' show HeartRateSettingsScreen;
+import '../onboarding/what_to_expect.dart' show WhatToExpectScreen;
 import '../../updater/update_service.dart';
 import 'data_highlights.dart' show DataHighlightsScreen;
 import 'device_settings.dart' show DeviceSettings;
+import 'report_issue.dart' show ReportIssueScreen;
 import 'settings.dart';
+import 'settings_tree.dart';
 
 // ══════════════════ shared list furniture ══════════════════
 
-/// The ground of a More-tab and settings card: lit from the top left, like
-/// the reference's cards. No border, no shadow.
-BoxDecoration moreCard(P p) => BoxDecoration(
-      borderRadius: R.rXl,
+/// The ground of a More-tab and settings card: the reference's flat slate,
+/// its top edge catching the light. No border, no shadow.
+BoxDecoration moreCard(P p) => const BoxDecoration(
+      borderRadius: ST.r,
       gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color.alphaBlend(p.ink.withValues(alpha: .05), p.card),
-          p.card,
-        ],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [ST.lit, ST.face, ST.face],
+        stops: [0, .05, 1],
       ),
     );
 
 /// The name of a row in a settings card: spaced caps, as on the More tab.
-TextStyle setRowTitle(P p) => F.cap
-    .copyWith(color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.5);
+TextStyle setRowTitle(P p) => ST.title.copyWith(color: p.ink);
 
 /// One row in a settings list: the same anatomy as a [MoreRow] (an outline
 /// glyph, the name in spaced caps) with room for a line under the name and,
-/// on the right, a value, a switch or the chevron that says the row is a door.
+/// on the right, a value or a switch. A door has nothing there, as on the
+/// reference: the row itself is the door.
 class SetRow extends StatelessWidget {
   final IconData? icon;
 
   /// Kept so existing call sites compile; rows are not tinted by domain.
   final Color color;
   final String title, sub, value;
-  final bool danger, chevron;
+  final bool danger;
   final VoidCallback? onTap;
 
-  /// Replaces the value and chevron.
+  /// Replaces the value.
   final Widget? trailing;
 
   /// An on/off row: a switch on the right that does what tapping the row
@@ -86,7 +86,6 @@ class SetRow extends StatelessWidget {
     this.sub = '',
     this.value = '',
     this.danger = false,
-    this.chevron = true,
     this.trailing,
     this.switchValue,
     this.keepCase = false,
@@ -101,7 +100,6 @@ class SetRow extends StatelessWidget {
     this.sub = '',
     this.value = '',
     this.danger = false,
-    this.chevron = true,
     this.onTap,
   })  : icon = null,
         trailing = null,
@@ -112,15 +110,15 @@ class SetRow extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     // A destructive row says so with its glyph, never with red words.
-    final mark = danger ? C.danger : p.ink2;
+    final mark = danger ? C.danger : ST.glyph;
     final sw = switchValue;
     return Pressable(
       onTap: onTap,
       semanticLabel: sub.isEmpty ? title : '$title. $sub',
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: S.x16 - S.x1),
+        constraints: const BoxConstraints(minHeight: ST.rowH),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: S.x3),
+          padding: const EdgeInsets.symmetric(vertical: S.x2),
           child: Row(
             children: [
               SizedBox(
@@ -131,7 +129,7 @@ class SetRow extends StatelessWidget {
                       : Icon(icon, size: I.lg, color: mark),
                 ),
               ),
-              const SizedBox(width: S.x5 - S.x1),
+              const SizedBox(width: S.x5),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,8 +140,7 @@ class SetRow extends StatelessWidget {
                       Text(value, style: F.cap.copyWith(color: p.ink3)),
                     if (sub.isNotEmpty) ...[
                       const SizedBox(height: S.half),
-                      Text(sub,
-                          style: F.over.copyWith(color: p.ink3, height: 1.35)),
+                      Text(sub, style: ST.sub.copyWith(color: p.ink2)),
                     ],
                   ],
                 ),
@@ -163,10 +160,6 @@ class SetRow extends StatelessWidget {
                   !bigText(c)) ...[
                 const SizedBox(width: S.x2),
                 Text(value, style: F.cap.copyWith(color: p.ink3)),
-              ],
-              if (trailing == null && sw == null && chevron && !danger) ...[
-                const SizedBox(width: S.x2),
-                Icon(LucideIcons.chevronRight, size: I.md, color: p.ink3),
               ],
             ],
           ),
@@ -225,41 +218,41 @@ class _SetDropdownState extends State<SetDropdown> {
   }
 }
 
-/// A titled run of setting cards, one card per row, 12 apart: the same
-/// heading and spacing as the More tab's groups.
-Widget settingsGroup(BuildContext c, String title, List<Widget> rows) {
-  final p = P.of(c);
-  return Padding(
-    padding: const EdgeInsets.only(top: S.x6),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (title.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(left: S.x1, bottom: S.x3),
-            child: Text(title.toUpperCase(),
-                style: F.caps.copyWith(
-                    color: p.ink2,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.6)),
-          ),
-        for (var i = 0; i < rows.length; i++) ...[
-          if (i > 0) const SizedBox(height: S.x3),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: S.x4),
-            decoration: moreCard(p),
-            child: rows[i],
-          ),
+/// A titled run of setting cards, one card per row, [ST.gap] apart, under
+/// the reference's heading: flush with the cards, a wide gap above it and a
+/// narrower one below.
+Widget settingsGroup(BuildContext c, String title, List<Widget> rows) =>
+    _group(c, title, [
+      for (final r in rows)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: ST.inset),
+          decoration: moreCard(P.of(c)),
+          child: r,
+        ),
+    ]);
+
+Widget _group(BuildContext c, String title, List<Widget> rows) => Padding(
+      padding: EdgeInsets.only(top: title.isEmpty ? S.x6 : S.x8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (title.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: S.x4),
+              child: Text(title.toUpperCase(),
+                  style: ST.head.copyWith(color: P.of(c).ink2)),
+            ),
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) const SizedBox(height: ST.gap),
+            rows[i],
+          ],
         ],
-      ],
-    ),
-  );
-}
+      ),
+    );
 
 /// One row of the More tab: a card of its own, an outline glyph, the name in
-/// spaced caps, and at most a short value on the right. Measured off the
-/// reference: 60 tall, 12 apart, radius 14, a 24 glyph 16 in from the edge
-/// and the name 20 after it. No sub-line: the name says what is behind it.
+/// spaced caps, a line under it when the name needs one, and at most a short
+/// value on the right. Measured off the reference ([ST]).
 class MoreRow extends StatelessWidget {
   final IconData? icon;
 
@@ -269,7 +262,7 @@ class MoreRow extends StatelessWidget {
   /// A small second glyph on the main one's lower right (a gear on a band:
   /// "the band's settings").
   final IconData? badge;
-  final String title, value;
+  final String title, sub, value;
   final VoidCallback? onTap;
 
   /// An on/off row: an [AppSwitch] on the right that does what tapping the
@@ -277,17 +270,27 @@ class MoreRow extends StatelessWidget {
   final bool? switchValue;
 
   const MoreRow(IconData this.icon, this.title,
-      {super.key, this.badge, this.value = '', this.switchValue, this.onTap})
+      {super.key,
+      this.badge,
+      this.sub = '',
+      this.value = '',
+      this.switchValue,
+      this.onTap})
       : glyph = null;
 
   const MoreRow.brand(this.glyph, this.title,
-      {super.key, this.badge, this.value = '', this.switchValue, this.onTap})
+      {super.key,
+      this.badge,
+      this.sub = '',
+      this.value = '',
+      this.switchValue,
+      this.onTap})
       : icon = null;
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    final ink = p.ink2;
+    const ink = ST.glyph;
     Widget mark = glyph != null
         ? glyph!(ink, I.lg)
         : Icon(icon, size: I.lg, color: ink);
@@ -310,20 +313,32 @@ class MoreRow extends StatelessWidget {
     }
     return Pressable(
       onTap: onTap,
-      semanticLabel: value.isEmpty ? title : '$title, $value',
+      semanticLabel: [title, sub, value].where((x) => x.isNotEmpty).join(', '),
       child: Container(
-        height: S.x16 - S.x1,
-        padding: const EdgeInsets.symmetric(horizontal: S.x4),
+        constraints: const BoxConstraints(minHeight: ST.rowH),
+        padding: const EdgeInsets.symmetric(horizontal: ST.inset),
         decoration: moreCard(p),
         child: Row(children: [
           SizedBox(width: I.lg + S.x1, child: Center(child: mark)),
-          const SizedBox(width: S.x5 - S.x1),
+          const SizedBox(width: S.x5),
           Expanded(
-            child: Text(title.toUpperCase(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: F.cap.copyWith(
-                    color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: S.x2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(title.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: setRowTitle(p)),
+                  if (sub.isNotEmpty) ...[
+                    const SizedBox(height: S.half),
+                    Text(sub, style: ST.sub.copyWith(color: p.ink2)),
+                  ],
+                ],
+              ),
+            ),
           ),
           if (switchValue != null) ...[
             const SizedBox(width: S.x2),
@@ -339,25 +354,9 @@ class MoreRow extends StatelessWidget {
   }
 }
 
-/// A titled run of [MoreRow]s: the title in spaced caps, the rows 12 apart.
-Widget moreGroup(BuildContext c, String title, List<Widget> rows) {
-  final p = P.of(c);
-  return Padding(
-    padding: const EdgeInsets.only(top: S.x6),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Padding(
-        padding: const EdgeInsets.only(left: S.x1, bottom: S.x3),
-        child: Text(title.toUpperCase(),
-            style: F.caps.copyWith(
-                color: p.ink2, fontWeight: FontWeight.w700, letterSpacing: 1.6)),
-      ),
-      for (var i = 0; i < rows.length; i++) ...[
-        if (i > 0) const SizedBox(height: S.x3),
-        rows[i],
-      ],
-    ]),
-  );
-}
+/// A titled run of [MoreRow]s, spaced as a [settingsGroup].
+Widget moreGroup(BuildContext c, String title, List<Widget> rows) =>
+    _group(c, title, rows);
 
 /// Push a screen, keeping the enclosing domain accent. Returns when it pops,
 /// so a caller whose own numbers the pushed screen can change is able to
@@ -608,6 +607,15 @@ class _ProfileHomeState extends State<ProfileHome> {
   /// Re-read after every page this one pushes: an edited name shows the
   /// moment the page closes.
   late Future<ProfileStats> _stats = _load();
+  String _version = '';
+
+  @override
+  void initState() {
+    super.initState();
+    readAppVersion().then((v) {
+      if (mounted) setState(() => _version = v);
+    });
+  }
 
   Future<ProfileStats> _load() async =>
       ProfileStats(name: context.read<AppState>().user?['name'] as String?);
@@ -624,36 +632,45 @@ class _ProfileHomeState extends State<ProfileHome> {
 
   @override
   Widget build(BuildContext c) => FutureBuilder<ProfileStats>(
-    future: _stats,
-    builder: (c, snap) => ProfileHomeView(
-      tab: widget.tab,
-      stats: snap.data,
-      onProfile: () => _open(c, const EditProfile()),
-      onReports: () => _open(c, const ReportsScreen()),
-      onCommunity: () => _open(c, const CommunityScreen()),
-      onDevice: () => _open(c, const DeviceSettings()),
-      onZones: () => _open(c, const HeartRateSettingsScreen()),
-      onNotifications: () => _open(c, const NotificationSettings()),
-      onData: () => _open(c, const YourDataSettings()),
-      onSettings: () => _open(c, const MoreSettings()),
-    ),
-  );
+        future: _stats,
+        builder: (c, snap) => ProfileHomeView(
+          tab: widget.tab,
+          stats: snap.data,
+          version: _version,
+          onReports: () => _open(c, const ReportsScreen()),
+          onCommunity: () => _open(c, const CommunityScreen()),
+          onAccount: () => _open(c, const MyAccountSettings()),
+          onDevice: () => _open(c, const DeviceSettings()),
+          onAppSettings: () => _open(c, const AppSettings()),
+          onPrivacy: () => _open(c, const PrivacySettings()),
+          onReport: () => _open(c, const ReportIssueScreen()),
+          onFirstWeek: () => _open(c, const WhatToExpectScreen()),
+          onAbout: () => _open(c, const AboutSettings()),
+          onReset: () => confirmReset(c, c.read<AppState>()),
+        ),
+      );
 }
 
+/// The More tab, laid out as the reference's settings: your picture, then
+/// your reports and community, then ACCOUNT & SETTINGS and SUPPORT, and the
+/// one destructive action at the foot where the reference logs out.
 class ProfileHomeView extends StatelessWidget {
   /// Null while the name is still being read.
   final ProfileStats? stats;
 
-  /// The doors: you, your reports, the band, your heart rate zones, what may
-  /// interrupt you, your data, and the app.
-  final VoidCallback? onProfile,
-      onReports,
+  /// `0.9.26 (57)`; the foot line is not drawn until it is known.
+  final String version;
+
+  final VoidCallback? onReports,
       onCommunity,
+      onAccount,
       onDevice,
-      onZones,
-      onNotifications,
-      onData,
-      onSettings;
+      onAppSettings,
+      onPrivacy,
+      onReport,
+      onFirstWeek,
+      onAbout,
+      onReset;
 
   /// The More tab: a tab title instead of a back bar.
   final bool tab;
@@ -662,14 +679,17 @@ class ProfileHomeView extends StatelessWidget {
     super.key,
     this.tab = false,
     this.stats,
-    this.onProfile,
+    this.version = '',
     this.onReports,
     this.onCommunity,
+    this.onAccount,
     this.onDevice,
-    this.onZones,
-    this.onNotifications,
-    this.onData,
-    this.onSettings,
+    this.onAppSettings,
+    this.onPrivacy,
+    this.onReport,
+    this.onFirstWeek,
+    this.onAbout,
+    this.onReset,
   });
 
   @override
@@ -677,82 +697,109 @@ class ProfileHomeView extends StatelessWidget {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
     final s = stats;
-    // Drawn glyphs, one per door, no badges (StatMark, one family with the
-    // band Home's header draws and the zones' heart); the app's settings a
-    // gear.
-    final doors = <Widget>[
-      MoreRow.brand(
-          (tint, size) => StatIcon(StatMark.profile, color: tint, size: size),
-          'My profile',
-          onTap: onProfile),
-      MoreRow.brand(
-          (tint, size) => StatIcon(StatMark.reports, color: tint, size: size),
-          'Reports',
-          onTap: onReports),
-      // Its unread count, when there is one: the in-app badge.
-      ListenableBuilder(
-        listenable: CommunityService.instance,
-        builder: (c, _) {
-          final n = CommunityService.instance.unread;
-          return MoreRow.brand(
-              (tint, size) =>
-                  StatIcon(StatMark.community, color: tint, size: size),
-              'Community',
-              value: n == 0 ? '' : '${n > 99 ? '99+' : n} new',
-              onTap: onCommunity);
-        },
-      ),
-      MoreRow.brand(
-          (tint, size) => StrapIcon(color: tint, height: size),
-          'Device settings',
-          onTap: onDevice),
-      MoreRow.brand(
-          (tint, size) => StatIcon(StatMark.zonesLow, color: tint, size: size),
-          'Heart rate zones',
-          onTap: onZones),
-      MoreRow.brand(
-          (tint, size) => StatIcon(StatMark.bell, color: tint, size: size),
-          'Notifications',
-          onTap: onNotifications),
-      MoreRow.brand(
-          (tint, size) => StatIcon(StatMark.data, color: tint, size: size),
-          'Your data',
-          onTap: onData),
-      AnimatedBuilder(
-        animation: UpdateService.instance,
-        builder: (c, _) => MoreRow(LucideIcons.settings, 'Settings',
-            value: UpdateService.instance.hasUpdate ? 'Update ready' : '',
-            onTap: onSettings),
-      ),
-    ];
     final list = ListView(
-      padding: EdgeInsets.fromLTRB(S.x4, 0, S.x4, tab ? S.navClear(c) : S.x10),
+      padding: EdgeInsets.fromLTRB(
+          ST.margin, 0, ST.margin, tab ? S.navClear(c) : S.x10),
       children: [
         const SizedBox(height: S.x4),
         ProfilePhotoHeader(name: s?.name),
-        const SizedBox(height: S.x8),
-        // Every setting is behind exactly one of these doors.
-        for (var i = 0; i < doors.length; i++) ...[
-          if (i > 0) const SizedBox(height: S.x3),
-          doors[i],
+        const SizedBox(height: S.x2),
+        moreGroup(c, '', [
+          MoreRow.brand(
+              (tint, size) =>
+                  StatIcon(StatMark.reports, color: tint, size: size),
+              'Reports',
+              onTap: onReports),
+          // Its unread count, when there is one: the in-app badge.
+          ListenableBuilder(
+            listenable: CommunityService.instance,
+            builder: (c, _) {
+              final n = CommunityService.instance.unread;
+              return MoreRow.brand(
+                  (tint, size) =>
+                      StatIcon(StatMark.community, color: tint, size: size),
+                  'Community',
+                  value: n == 0 ? '' : '${n > 99 ? '99+' : n} new',
+                  onTap: onCommunity);
+            },
+          ),
+        ]),
+        moreGroup(c, 'Account & settings', [
+          MoreRow(LucideIcons.circleUserRound, 'My account',
+              onTap: onAccount),
+          MoreRow.brand(
+              (tint, size) => GearBadged(
+                  size: size,
+                  color: tint,
+                  gap: ST.face,
+                  child: StrapIcon(color: tint, height: size)),
+              'Device settings',
+              onTap: onDevice),
+          MoreRow(LucideIcons.clipboardPenLine, 'App settings',
+              onTap: onAppSettings),
+          MoreRow(LucideIcons.eye, 'Privacy settings', onTap: onPrivacy),
+        ]),
+        moreGroup(c, 'Support', [
+          MoreRow(LucideIcons.bug, 'Report an issue',
+              sub: 'Tell us about a bug or anything that looks wrong',
+              onTap: onReport),
+          MoreRow(LucideIcons.graduationCap, 'First week with Locus',
+              onTap: onFirstWeek),
+          AnimatedBuilder(
+            animation: UpdateService.instance,
+            builder: (c, _) => MoreRow.brand(
+                (tint, size) => SizedBox.square(
+                      dimension: size,
+                      child: CustomPaint(
+                          painter: LocusMarkPainter(ink: tint)),
+                    ),
+                'About',
+                value: UpdateService.instance.hasUpdate ? 'Update ready' : '',
+                onTap: onAbout),
+          ),
+        ]),
+        const SizedBox(height: S.x10),
+        Center(
+          child: Pressable(
+            onTap: onReset,
+            semanticLabel: l?.settingsResetAllDataRowTitle ?? 'Reset all data',
+            child: Container(
+              width: S.x16 * 3 + S.x10 + S.x2,
+              height: S.x10,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: R.rPill,
+                border: Border.all(color: p.ink3, width: S.half),
+              ),
+              child: Text(
+                  (l?.settingsResetAllDataRowTitle ?? 'Reset all data')
+                      .toUpperCase(),
+                  style: setRowTitle(p).copyWith(color: p.ink2)),
+            ),
+          ),
+        ),
+        if (version.isNotEmpty) ...[
+          const SizedBox(height: S.x6),
+          Text('APP VERSION: ${version.replaceFirst('(', '(BUILD ')}',
+              textAlign: TextAlign.center,
+              style: ST.head.copyWith(color: p.ink)),
         ],
+        const SizedBox(height: S.x6),
       ],
     );
     // The tab is hosted by the shell's scaffold; the pushed screen brings its
     // own.
     if (tab) return list;
-    return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: S.x4),
-              child: NavBar(l?.tabMore ?? 'More'),
-            ),
-            Expanded(child: list),
-          ],
-        ),
+    return settingsGround(
+      c,
+      Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: S.x4),
+            child: NavBar(l?.tabMore ?? 'More'),
+          ),
+          Expanded(child: list),
+        ],
       ),
     );
   }

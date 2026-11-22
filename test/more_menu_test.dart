@@ -1,7 +1,8 @@
-// The More tab is eight doors: My profile, Reports, Community, Device
-// settings, Heart rate zones, Notifications, Your data and Settings. Every setting is behind
-// exactly one of them; two doors to one thing is how people end up unsure
-// which is the real one.
+// The More tab is laid out as the reference's settings: Reports and
+// Community, then ACCOUNT & SETTINGS (My account, Device settings, App
+// settings, Privacy settings) and SUPPORT (Help, First week, About). Every
+// setting is behind exactly one door; two doors to one thing is how people
+// end up unsure which is the real one.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,32 +28,37 @@ void main() {
     await t.pumpAndSettle();
   }
 
-  testWidgets('the More tab is eight doors, each opening its own page',
+  testWidgets('the More tab is the reference tree, each door its own page',
       (t) async {
     final taps = <String>[];
     await pump(
       t,
       ProfileHomeView(
         tab: true,
-        onProfile: () => taps.add('profile'),
+        version: '0.9.26 (57)',
         onReports: () => taps.add('reports'),
         onCommunity: () => taps.add('community'),
+        onAccount: () => taps.add('account'),
         onDevice: () => taps.add('device'),
-        onZones: () => taps.add('zones'),
-        onNotifications: () => taps.add('notifications'),
-        onData: () => taps.add('data'),
-        onSettings: () => taps.add('settings'),
+        onAppSettings: () => taps.add('app'),
+        onPrivacy: () => taps.add('privacy'),
+        onReport: () => taps.add('report'),
+        onFirstWeek: () => taps.add('first week'),
+        onAbout: () => taps.add('about'),
+        onReset: () => taps.add('reset'),
       ),
     );
     const rows = [
-      'MY PROFILE',
       'REPORTS',
       'COMMUNITY',
+      'MY ACCOUNT',
       'DEVICE SETTINGS',
-      'HEART RATE ZONES',
-      'NOTIFICATIONS',
-      'YOUR DATA',
-      'SETTINGS',
+      'APP SETTINGS',
+      'PRIVACY SETTINGS',
+      'REPORT AN ISSUE',
+      'FIRST WEEK WITH LOCUS',
+      'ABOUT',
+      'RESET ALL DATA',
     ];
     for (final row in rows) {
       await t.ensureVisible(find.text(row));
@@ -60,48 +66,44 @@ void main() {
       await t.pump();
     }
     expect(taps, [
-      'profile',
       'reports',
       'community',
+      'account',
       'device',
-      'zones',
-      'notifications',
-      'data',
-      'settings'
+      'app',
+      'privacy',
+      'report',
+      'first week',
+      'about',
+      'reset',
     ]);
-    // Nothing else: every setting is behind one of the eight.
-    expect(find.byType(MoreRow), findsNWidgets(rows.length));
+    expect(find.text('ACCOUNT & SETTINGS'), findsOneWidget);
+    expect(find.text('SUPPORT'), findsOneWidget);
+    expect(find.text('APP VERSION: 0.9.26 (BUILD 57)'), findsOneWidget);
+    // Nothing else: every setting is behind one of the nine.
+    expect(find.byType(MoreRow), findsNWidgets(rows.length - 1));
   });
 
-  testWidgets('Settings holds the app, and none of what moved out', (t) async {
-    await pump(
-        t, MoreSettingsView(version: '0.11.4', devMode: false, onUpdates: () {}));
+  testWidgets('About holds the build, and none of what moved out', (t) async {
+    await pump(t, AboutView(version: '0.11.4', onUpdates: () {}));
     for (final gone in [
-      'APPEARANCE',
-      'STEPS',
-      'ALARM',
-      'HEART RATE ZONES',
-      'DOUBLE-TAP',
-      'MANAGE NOTIFICATIONS',
-      'IMPORT WHOOP DATA',
-      'EXPORT AND BACKUP',
-      'LOCUS ACCOUNT',
-      'STORAGE',
-    ]) {
-      expect(find.text(gone), findsNothing, reason: '$gone is not in Settings');
-    }
-    for (final kept in [
       'UNITS',
       'TIME FORMAT',
-      'APP UPDATES',
       'TASKER AND SHORTCUTS',
       'MODEL AND KEY',
+      'CRASH REPORTS',
+      'IMPORT WHOOP DATA',
     ]) {
-      expect(find.text(kept), findsWidgets, reason: '$kept is in Settings');
+      expect(find.text(gone), findsNothing, reason: '$gone is not in About');
     }
-    // A choice is a dropdown now, not a row of segments.
-    expect(find.byType(RangeSegments), findsNothing);
-    expect(find.byType(SetDropdown), findsNWidgets(2));
+    for (final kept in [
+      'APP UPDATES',
+      'CHECK AUTOMATICALLY',
+      'NOTICES AND LICENCES',
+      'VERSION',
+    ]) {
+      expect(find.text(kept), findsWidgets, reason: '$kept is in About');
+    }
   });
 
   testWidgets('a dropdown row opens its menu and reports the pick', (t) async {
@@ -122,17 +124,14 @@ void main() {
     expect(picked, 1);
   });
 
-  testWidgets('Your data holds what comes in and what goes out', (t) async {
+  testWidgets('Data export holds what goes out, and nothing coming in',
+      (t) async {
     await pump(t, const YourDataView(storage: '1.4 GB'));
-    for (final row in [
-      'IMPORT WHOOP DATA',
-      'WRITE TO HEALTH CONNECT',
-      'EXPORT AND BACKUP',
-      'LOCUS ACCOUNT',
-      'STORAGE',
-    ]) {
-      expect(find.text(row), findsOneWidget, reason: row);
-    }
+    expect(find.text('EXPORT AND BACKUP'), findsOneWidget);
+    expect(find.text('STORAGE'), findsOneWidget);
+    expect(find.text('1.4 GB'), findsOneWidget);
+    expect(find.text('IMPORT WHOOP DATA'), findsNothing,
+        reason: 'what comes in is Integrations');
   });
 
   testWidgets('the HR zone alert lives in Notifications, its zone under it',

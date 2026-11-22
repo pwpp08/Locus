@@ -158,9 +158,9 @@ class DayPager extends StatelessWidget {
       this.maxWidth});
 
   /// The width the pager keeps for "TODAY" and short dates.
-  static const base = S.x16 * 2 + S.x6;
+  static const base = S.x16 * 2 + S.x8;
 
-  static const _h = S.x8;
+  static const _h = S.x8 + S.x1;
   static final _r = BorderRadius.circular(S.x2 + S.half);
 
   @override
@@ -211,7 +211,7 @@ class DayPager extends StatelessWidget {
     // names, or larger text) needs the room, but never past [maxWidth], which
     // clears the avatar and the battery and band either side; past that the
     // label shrinks.
-    final most = math.min(base + S.x8, maxWidth ?? double.infinity);
+    final most = math.min(base + S.x10, maxWidth ?? double.infinity);
     final least = math.min(base, most);
     return ConstrainedBox(
       constraints: BoxConstraints(
@@ -246,7 +246,7 @@ class DayPager extends StatelessWidget {
                           minWidth: math.max(0, least - (S.x8 + S.x1) * 2)),
                       padding: const EdgeInsets.symmetric(horizontal: S.x3),
                       decoration: BoxDecoration(
-                        color: Color.alphaBlend(p.ink.withValues(alpha: .15), p.bg),
+                        color: Color.alphaBlend(p.ink.withValues(alpha: .2), p.bg),
                         borderRadius: _r,
                       ),
                       alignment: Alignment.center,
@@ -254,10 +254,10 @@ class DayPager extends StatelessWidget {
                         fit: BoxFit.scaleDown,
                         child: Text(label,
                             maxLines: 1,
-                            style: F.over.copyWith(
+                            style: F.dHero.copyWith(
                                 color: p.ink,
                                 fontWeight: FontWeight.w800,
-                                letterSpacing: 1,
+                                letterSpacing: 1.2,
                                 height: 1)),
                       ),
                     ),

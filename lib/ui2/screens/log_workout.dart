@@ -331,8 +331,7 @@ class _LogWorkoutState extends State<LogWorkout> {
                       onTap: () => _pickTime(isStart: false)),
                   SetRow(LucideIcons.timer, C.dialStrain,
                       l?.logWorkoutLengthLabel ?? 'Length',
-                      value: mins > 0 ? '$mins min' : '--',
-                      chevron: false),
+                      value: mins > 0 ? '$mins min' : '--'),
                 ]),
                 const SizedBox(height: S.x4),
                 if (bad != null)

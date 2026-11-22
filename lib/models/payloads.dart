@@ -185,6 +185,15 @@ class TodayData {
   Metric get sleepNeed => metricOf(_sleep, 'need_min');
   Metric get sleepEfficiency => metricOf(_sleep, 'efficiency');
 
+  /// The sleep score, 0–100, as Home's sleep dial reads it; null while the
+  /// night has none.
+  double? get sleepPerformancePct {
+    final env = _coach?['performance'];
+    final v = env is Map ? env['value'] : null;
+    final pct = v is Map ? v['pct'] : null;
+    return pct is num ? pct.toDouble() : null;
+  }
+
   bool get isEmpty => _daily.isEmpty && _sleep.isEmpty;
 }
 

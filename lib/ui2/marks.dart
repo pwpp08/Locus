@@ -1068,3 +1068,124 @@ class _RollingNumberState extends State<RollingNumber>
     );
   }
 }
+
+/// A small solid gear: the "settings of" mark the reference sets at a
+/// glyph's lower right (a band's settings, an activity's settings).
+class GearMark extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const GearMark({super.key, required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext c) => SizedBox.square(
+      dimension: size, child: CustomPaint(painter: _GearPaint(color)));
+}
+
+class _GearPaint extends CustomPainter {
+  final Color color;
+  const _GearPaint(this.color);
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final r = s.width / 2;
+    final o = Offset(r, r);
+    var gear = Path()..addOval(Rect.fromCircle(center: o, radius: r * .72));
+    for (var i = 0; i < 8; i++) {
+      final a = i * math.pi / 4;
+      final tooth = Path()
+        ..addRRect(RRect.fromRectAndRadius(
+            Rect.fromCenter(
+                center: Offset.zero, width: r * .42, height: r * .5),
+            Radius.circular(r * .08)));
+      final m = Matrix4.identity()
+        ..translateByDouble(o.dx + math.sin(a) * r * .74,
+            o.dy - math.cos(a) * r * .74, 0, 1)
+        ..rotateZ(a);
+      gear = Path.combine(
+          PathOperation.union, gear, tooth.transform(m.storage));
+    }
+    gear = Path.combine(PathOperation.difference, gear,
+        Path()..addOval(Rect.fromCircle(center: o, radius: r * .3)));
+    canvas.drawPath(gear, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_GearPaint old) => old.color != color;
+}
+
+/// [child] with a [GearMark] at its lower right, a ring of [gap] cut round
+/// the gear so it reads apart from the glyph under it.
+class GearBadged extends StatelessWidget {
+  final Widget child;
+  final double size;
+  final Color color, gap;
+
+  const GearBadged(
+      {super.key,
+      required this.child,
+      required this.size,
+      required this.color,
+      required this.gap});
+
+  @override
+  Widget build(BuildContext c) {
+    final g = size * .46;
+    return SizedBox.square(
+      dimension: size,
+      child: Stack(clipBehavior: Clip.none, children: [
+        Positioned.fill(child: Align(alignment: Alignment.topLeft, child: child)),
+        Positioned(
+          right: -size * .12,
+          bottom: -size * .1,
+          child: Container(
+            padding: EdgeInsets.all(size * .05),
+            decoration: BoxDecoration(color: gap, shape: BoxShape.circle),
+            child: GearMark(size: g, color: color),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+/// The activity figure: a person with arms raised to the corners and legs
+/// apart, as the reference marks an activity.
+class ActivityFigure extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const ActivityFigure({super.key, required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext c) => SizedBox.square(
+      dimension: size, child: CustomPaint(painter: _FigurePaint(color)));
+}
+
+class _FigurePaint extends CustomPainter {
+  final Color color;
+  const _FigurePaint(this.color);
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final w = s.width;
+    final line = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * .085
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawCircle(Offset(w * .5, w * .15), w * .095, Paint()..color = color);
+    final shoulder = Offset(w * .5, w * .36);
+    final hip = Offset(w * .5, w * .6);
+    canvas.drawLine(shoulder, Offset(w * .16, w * .08), line);
+    canvas.drawLine(shoulder, Offset(w * .84, w * .08), line);
+    canvas.drawLine(shoulder, hip, line..strokeWidth = w * .12);
+    line.strokeWidth = w * .085;
+    canvas.drawLine(hip, Offset(w * .3, w * .95), line);
+    canvas.drawLine(hip, Offset(w * .7, w * .95), line);
+  }
+
+  @override
+  bool shouldRepaint(_FigurePaint old) => old.color != color;
+}

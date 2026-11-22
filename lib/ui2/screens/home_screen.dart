@@ -448,7 +448,11 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     try {
       final d = await (_stressSource ??= StressSource(repo)).load(day);
       if (mounted) setState(() => _stress = d);
-    } catch (_) {}
+    } catch (e, st) {
+      // Not swallowed silently: an empty Stress Monitor on Home has no other
+      // trace of why.
+      debugPrint('[OpenStrap] [home] stress load failed: $e $st');
+    }
   }
 
   List<String> _tiles = dashboardTilesOf();
@@ -461,6 +465,10 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     _stressSource
       ?..forget(day)
       ..forget(shiftDay(day, -1));
+    // Started first and left to run beside the rest: fifteen days of minutes
+    // are read for it, and it used to start only once every dashboard series
+    // had loaded (or never, when one of them threw), so the card sat empty.
+    unawaited(_loadStress(repo, day));
     var night = const <String, dynamic>{};
     var sessions = const <Map<String, dynamic>>[];
     var naps = const <Map<String, dynamic>>[];
@@ -562,7 +570,6 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     _detected = detected;
     _daily = daily;
     _firstDay = first;
-    _loadStress(repo, day);
     unawaited(healthGlanceOf(context).then((h) {
       if (mounted) setState(() => _health = h);
     }).catchError((Object _) {}));
@@ -678,7 +685,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
         LayoutBuilder(builder: (c, box) {
           // The pager sits centred, so it may take the width less twice the
           // wider side (the battery and band, usually) and a gap each side.
-          final side = math.max(S.x12 * 0.8, HomeDeviceStatus.widestOf(c));
+          final side = math.max(S.x8 + S.x1, HomeDeviceStatus.widestOf(c));
           final room = box.maxWidth - 2 * (side + S.x3);
           return Stack(alignment: Alignment.center, children: [
           DayPager(
@@ -691,7 +698,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           ),
           const Align(
               alignment: AlignmentDirectional.centerStart,
-              child: ProfileAvatar(accent: C.dialStrain, size: S.x12 * 0.8)),
+              child: ProfileAvatar(accent: C.dialStrain, size: S.x8 + S.x1)),
           const Align(
               alignment: AlignmentDirectional.centerEnd,
               child: _DeviceStatus()),
@@ -1040,7 +1047,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             height: S.tap,
             child: Center(
               child: Container(
-                height: S.x8,
+                height: S.x6 + S.x1,
                 padding: const EdgeInsets.symmetric(horizontal: S.x3),
                 decoration: const BoxDecoration(
                   borderRadius: R.rMd,
@@ -1048,10 +1055,10 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Text('CUSTOMIZE',
-                      style: F.caps.copyWith(
+                      style: F.dLabel.copyWith(
                           color: C.white, fontWeight: FontWeight.w800)),
                   const SizedBox(width: S.x2),
-                  const Icon(LucideIcons.pencil, size: I.md, color: C.white),
+                  const Icon(LucideIcons.pencil, size: I.sm, color: C.white),
                 ]),
               ),
             ),
@@ -1173,10 +1180,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
                       padding: EdgeInsets.all(size * .2),
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Text('$value$suffix',
-                            style: F.n34.copyWith(
-                                color: r.provisional ? p.ink3 : p.ink,
-                                fontWeight: FontWeight.w700)),
+                        child: DialNumber(value, suffix,
+                            color: r.provisional ? p.ink3 : p.ink),
                       ),
                     ),
                   ),

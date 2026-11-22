@@ -187,6 +187,30 @@ class _SleepCardState extends State<_SleepCard> {
         );
 }
 
+/// The number in a dial: the value large, its unit at half size. One widget
+/// for the resting dial and the folded one, so the unit keeps its ratio to
+/// the number however far the dial has shrunk.
+class DialNumber extends StatelessWidget {
+  final String value, suffix;
+  final Color color;
+  const DialNumber(this.value, this.suffix, {super.key, required this.color});
+
+  @override
+  Widget build(BuildContext c) => Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Text(value,
+              style: F.n34.copyWith(color: color, fontWeight: FontWeight.w700)),
+          if (suffix.isNotEmpty)
+            Text(suffix,
+                style:
+                    F.n17.copyWith(color: color, fontWeight: FontWeight.w700)),
+        ],
+      );
+}
+
 class HomeScoreDial extends StatelessWidget {
   final RingState r;
   final HomeData d;
@@ -251,21 +275,8 @@ class HomeScoreDial extends StatelessWidget {
                       padding: EdgeInsets.all(stroke + S.x2),
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            Text(value,
-                                style: F.n34.copyWith(
-                                    color: r.provisional ? p.ink3 : p.ink,
-                                    fontWeight: FontWeight.w700)),
-                            if (suffix.isNotEmpty)
-                              Text(suffix,
-                                  style: F.n17.copyWith(
-                                      color: r.provisional ? p.ink3 : p.ink,
-                                      fontWeight: FontWeight.w700)),
-                          ],
-                        ),
+                        child: DialNumber(value, suffix,
+                            color: r.provisional ? p.ink3 : p.ink),
                       ),
                     ),
                   ]);

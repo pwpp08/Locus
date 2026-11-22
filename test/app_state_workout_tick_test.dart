@@ -237,16 +237,22 @@ void main() {
       });
     });
 
-    test('a tick with no reading never pushes (no fabricated 0 bpm)',
+    test('a tick with no reading still pushes, with no heart rate (never a '
+        'fabricated 0 bpm): the card runs for a workout the band cannot read',
         () async {
       final probe = TimerProbe();
       await probe.run(() async {
         final (app, tick) = await started(probe, 'w4-la-none');
         setLiveHr(app, null);
         tick.fire();
+        await until(() => spies.liveActivity.length >= 2);
+        final args = spies.liveActivity.last.args as Map;
+        expect(args['hr'], isNull);
+        expect(args['zone'], 0);
         tick.fire();
         await settleMs(50);
-        expect(spies.liveActivityMethods, ['start']);
+        expect(spies.liveActivityMethods, ['start', 'update'],
+            reason: 'throttled to one push per 4 s');
         await finish(app);
       });
     });

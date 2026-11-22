@@ -182,7 +182,7 @@ class BandNotificationsView extends StatelessWidget {
                     if (enabled && granted)
                       SetRow(LucideIcons.listChecks, C.stressLow,
                           l?.bandNotifAppsArmed ?? 'Apps armed',
-                          value: '$_armed', chevron: false),
+                          value: '$_armed'),
                   ]),
                   if (enabled && !granted) ...[
                     const SizedBox(height: S.x4),

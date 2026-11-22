@@ -1731,8 +1731,7 @@ Widget _batteryRow(BuildContext c, HealthSource s, BatteryForecast? forecast) {
               'Not reported since the last connection')
           : s.charging
               ? (l?.devicesCharging ?? 'Charging')
-              : (_timeLeft(forecast) ?? ''),
-      chevron: false);
+              : (_timeLeft(forecast) ?? ''));
 }
 
 Widget _lastDataRow(BuildContext c, HealthSource s) {
@@ -1743,8 +1742,7 @@ Widget _lastDataRow(BuildContext c, HealthSource s) {
       value: last == null ? '' : formatDayTime(last, l),
       sub: last == null
           ? (l?.devicesNothingBankedYet ?? 'Nothing banked yet')
-          : '',
-      chevron: false);
+          : '');
 }
 
 /// Which generation the band says it is. The value only: what it means stays
@@ -1754,7 +1752,7 @@ Widget? _calibrationRow(BuildContext c, HealthSource s) {
   if (calibration == null) return null;
   return SetRow(LucideIcons.sliders, C.stressLow,
       AppLocalizations.of(c)?.devicesCalibration ?? 'Calibration',
-      value: calibration.$1, chevron: false);
+      value: calibration.$1);
 }
 
 /// The connected band's numbers, on the My sources list under its row: battery
@@ -2262,7 +2260,6 @@ class DeviceDetailView extends StatelessWidget {
               ? (l?.devicesConnectToRename ??
                   'Connect to the band to change it')
               : '',
-          chevron: onRename != null,
           onTap: onRename),
       if (onWearing != null)
         SetRow(LucideIcons.personStanding, C.stressLow,
@@ -2278,8 +2275,7 @@ class DeviceDetailView extends StatelessWidget {
             l?.devicesBatteryPack ?? 'Battery pack',
             value: '${pack.round()}%',
             sub: l?.devicesBatteryPackSub ??
-                'Reported by the band about every 10 minutes',
-            chevron: false),
+                'Reported by the band about every 10 minutes'),
       // WHO HAS CHECKED, not how good the numbers are.
       if (s.experimental)
         SetRow(LucideIcons.flaskConical, C.strainDown,
@@ -2288,13 +2284,11 @@ class DeviceDetailView extends StatelessWidget {
             sub: l?.devicesBandExperimentalSub ??
                 'This band is decoded but nobody here has worn one. Its '
                     'numbers have not been checked against the hardware, only '
-                    'against the protocol.',
-            chevron: false),
+                    'against the protocol.'),
       if (onFind != null)
         SetRow(LucideIcons.bellRing, C.strainDown,
             l?.devicesBuzzTheBand ?? 'Buzz the band',
             sub: l?.devicesFindItByFeel ?? 'Find it by feel',
-            chevron: false,
             onTap: onFind),
     ];
 
@@ -2306,8 +2300,7 @@ class DeviceDetailView extends StatelessWidget {
           value: l?.devicesExperimental ?? 'Experimental',
           sub: l?.devicesSensorExperimentalSub ??
               'Decoded from the protocol, never checked against the hardware '
-                  '— nobody here owns one.',
-          chevron: false),
+                  '— nobody here owns one.'),
       SetRow(LucideIcons.database, C.stressLow,
           l?.devicesWhatItDoes ?? 'What it does',
           sub: s.tier == null
@@ -2318,8 +2311,7 @@ class DeviceDetailView extends StatelessWidget {
               : (l?.devicesWhatItDoesBeats ??
                   'Heartbeat timing is saved under its name, during workouts '
                       'and a few minutes after. Scoring workouts from it is '
-                      'experimental and off for now.'),
-          chevron: false),
+                      'experimental and off for now.')),
       // A wearable with a column in the metric x device table, developer
       // mode only, as the wearable flags are (R6).
       if (columnFor(s.family) != null && Prefs.getBool(Prefs.devMode, false))
@@ -2495,7 +2487,7 @@ class DeviceDetailView extends StatelessWidget {
                     rows([
                       SetRow(LucideIcons.trash2, C.dialStrain,
                           l?.devicesForgetThisBand ?? 'Forget this band',
-                          danger: true, chevron: false, onTap: onForget),
+                          danger: true, onTap: onForget),
                     ]),
                   ],
                 ],
@@ -2619,7 +2611,7 @@ Future<int?> _pickWearing(BuildContext c) async {
               child: Surface(
                 onTap: () => Navigator.of(sheet).pop(code),
                 child: SetRow(LucideIcons.personStanding, C.stressLow, title,
-                    sub: sub, chevron: false),
+                    sub: sub),
               ),
             ),
         ]),

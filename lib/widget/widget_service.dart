@@ -6,6 +6,8 @@
 // The App Group id MUST match the one set in Xcode (Runner + widget targets) and
 // in the Swift suite name. See guides/IOS_INSTALLATION.md.
 
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:flutter/services.dart';
@@ -13,7 +15,10 @@ import 'package:flutter/services.dart';
 import '../data/local_repository.dart';
 import '../models/metric.dart';
 import '../models/payloads.dart';
+import '../ui2/screens/home/home_data.dart' show recoveryColor;
 import '../ui2/screens/home_screen.dart' show readinessBand;
+import '../ui2/theme.dart' show C;
+import 'widget_faces.dart';
 
 class WidgetService {
   static const _platform = MethodChannel('openstrap/ios_config');
@@ -39,16 +44,92 @@ class WidgetService {
   /// overnight autonomic pair (HRV + resting HR). They read the keys [push]
   /// writes, so they reload with it — a widget left holding yesterday because
   /// nobody told it to re-read is the failure this list exists to stop.
-  static const List<(String, String)> _snapshotWidgets = [
+  static const List<(String?, String?)> _snapshotWidgets = [
     (_iOSName, _androidName),
     ('OpenStrapSleepWidget', 'SleepWidgetProvider'),
-    ('OpenStrapOvernightWidget', 'OvernightWidgetProvider'),
+    // iOS only now: Android's overnight pair became the Rings face.
+    ('OpenStrapOvernightWidget', null),
+    // Android's other three faces (the iOS app has no sibling for them).
+    (null, 'RingsWideWidgetProvider'),
+    (null, 'RingsWidgetProvider'),
+    (null, 'RecoveryWidgetProvider'),
+    (null, 'StrainWidgetProvider'),
   ];
 
   static Future<void> _reloadSnapshotWidgets() async {
     for (final (ios, android) in _snapshotWidgets) {
+      if (Platform.isAndroid ? android == null : ios == null) continue;
       await HomeWidget.updateWidget(iOSName: ios, androidName: android);
     }
+  }
+
+  /// What the Android faces draw, kept so a new battery reading can redraw
+  /// them without waiting for the next derive.
+  static FaceData? _face;
+
+  static FaceRing _faceRing(_Ring r, Color color,
+      {String suffix = '',
+      ({double value, double low, double high, String rationale})? target}) {
+    final numeric = double.tryParse(r.value) != null;
+    return FaceRing(
+      value: r.value,
+      suffix: numeric ? suffix : '',
+      numeric: numeric,
+      frac: r.frac < 0 ? null : r.frac,
+      color: r.state == 0 ? color : kFaceMuted,
+      band: target == null ? null : (target.low / 21, target.high / 21),
+      tick: target == null
+          ? null
+          : target.value.clamp(target.low, target.high) / 21,
+    );
+  }
+
+  static FaceData _faceOf(List<_Ring> rings, num? recovery, double? sleepPct,
+      int hrv, int calories,
+      ({double value, double low, double high, String rationale})? target) {
+    final sleep = sleepPct != null
+        ? FaceRing(
+            value: '${sleepPct.round()}',
+            suffix: '%',
+            frac: sleepPct / 100,
+            color: C.dialSleep)
+        // No score: the ring says why (calibrating, no sleep), never the hours
+        // in a dial that reads as a percentage.
+        : _faceRing(
+            _Ring('sleep',
+                state: rings[2].state == 1 ? 1 : 2,
+                value: rings[2].state == 1 ? rings[2].value : 'No score',
+                frac: rings[2].state == 1 ? rings[2].frac : null),
+            C.dialSleep);
+    return FaceData(
+      recovery: _faceRing(
+          rings[0], recovery == null ? kFaceMuted : recoveryColor(recovery),
+          suffix: '%'),
+      // The day's target as Home's strain dial draws it: the range and the
+      // tick, on the 0-21 scale. Only where the range is a real one.
+      strain: _faceRing(rings[1], C.dialStrain,
+          target: target != null && target.high > target.low && target.low >= 0
+              ? target
+              : null),
+      sleep: sleep,
+      hrv: hrv < 0 ? null : hrv,
+      calories: calories < 0 ? null : calories,
+    );
+  }
+
+  /// Writes the Android faces, with the band's battery as last seen. Best
+  /// effort: a background wake without a renderer leaves the last picture.
+  static Future<void> _writeFaces() async {
+    final f = _face;
+    if (f == null || !Platform.isAndroid) return;
+    try {
+      final pct = await HomeWidget.getWidgetData<int>('batt_pct');
+      final at = await HomeWidget.getWidgetData<int>('batt_at');
+      final stale = at != null &&
+          at > 0 &&
+          DateTime.now().millisecondsSinceEpoch ~/ 1000 - at > 86400 - 21600;
+      await WidgetFaces.write(f.withBattery(pct != null && pct >= 0 ? pct : null, stale));
+    } catch (_) {}
   }
 
   static bool _inited = false;
@@ -144,6 +225,8 @@ class WidgetService {
     'sleep_need_min',
     'rhr',
     'sleep_efficiency',
+    'sleep_pct',
+    'calories',
     'overnight_why',
     'coach_line',
     'ring_recovery_state',
@@ -235,6 +318,10 @@ class WidgetService {
       final needMin = need.isEmpty ? -1 : need.value!.round();
       final rhrV = rhr.isEmpty ? -1 : rhr.value!.round();
       final effMin = eff.isEmpty ? -1 : eff.value!.round();
+      final sleepPerf = heldWhy == null ? t.sleepPerformancePct : null;
+      final sleepPct = sleepPerf == null ? -1 : sleepPerf.round();
+      final cal = t.calories;
+      final caloriesV = cal.isEmpty ? -1 : cal.value!.round();
       final overnightWhy = heldWhy ?? '';
       final coachLine = _coachLine(t.coach);
       // The day this snapshot describes leads the fingerprint — the SAME
@@ -312,6 +399,8 @@ class WidgetService {
         needMin,
         rhrV,
         effMin,
+        sleepPct,
+        caloriesV,
         overnightWhy,
         coachLine,
         for (final r in rings) ...[r.state, r.value, r.sub, r.why, r.frac],
@@ -335,6 +424,8 @@ class WidgetService {
       await setI('sleep_need_min', needMin);
       await setI('rhr', rhrV);
       await setI('sleep_efficiency', effMin);
+      await setI('sleep_pct', sleepPct);
+      await setI('calories', caloriesV);
       await HomeWidget.saveWidgetData<String>('overnight_why', overnightWhy);
       await HomeWidget.saveWidgetData<String>('coach_line', coachLine);
       for (final r in rings) {
@@ -346,6 +437,9 @@ class WidgetService {
       }
       await setI('updated_at', DateTime.now().millisecondsSinceEpoch ~/ 1000);
 
+      _face = _faceOf(
+          rings, rv, sleepPerf, hrvV, caloriesV, t.coach?.strainTarget);
+      await _writeFaces();
       await _reloadSnapshotWidgets();
       await _syncWatch();
       // Only after everything landed — a mid-write failure must retry on the
@@ -385,6 +479,8 @@ class WidgetService {
         'sleep_min',
         'sleep_need_min',
         'sleep_efficiency',
+        'sleep_pct',
+        'calories',
         'rhr',
         'batt_pct',
         // A Siri "enable tomorrow's alarm" request pending before the wipe
@@ -424,6 +520,8 @@ class WidgetService {
       ]) {
         await HomeWidget.saveWidgetData<bool>(k, false);
       }
+      _face = null;
+      await WidgetFaces.erase();
       await _reloadSnapshotWidgets();
       await HomeWidget.updateWidget(
         iOSName: _batteryIOSName,
@@ -463,6 +561,8 @@ class WidgetService {
           'batt_at', DateTime.now().millisecondsSinceEpoch ~/ 1000);
       await HomeWidget.updateWidget(
           iOSName: _batteryIOSName, androidName: _batteryAndroidName);
+      await _writeFaces();
+      await _reloadSnapshotWidgets();
       await _syncWatch();
     } catch (_) {/* widgets unavailable / not configured yet — ignore */}
   }

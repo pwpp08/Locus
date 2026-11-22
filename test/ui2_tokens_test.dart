@@ -315,7 +315,11 @@ const _notComponents = {
   'OnboardingPage',
   'ProfileSetupScreen', 'ProfileSetupView',
   // profile routes
-  'ProfileHome', 'ProfileHomeView', 'MoreSettings', 'MoreSettingsView',
+  'ProfileHome', 'ProfileHomeView', 'AboutSettings', 'AboutView',
+  // The settings tree: each a Scaffold route of settings groups.
+  'MyAccountSettings', 'AppSettings', 'ActivitySettings',
+  'ActivityDetectionScreen', 'AiSettings', 'IntegrationsSettings',
+  'UnitsSettings', 'PrivacySettings', 'LiveActivitySettings',
   'DeviceSettings', 'DeviceSettingsView',
   'YourDataSettings', 'YourDataView',
   'NotificationSettings', 'NotificationSettingsView', 'EditProfile',

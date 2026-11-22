@@ -32,10 +32,8 @@ import '../../state/prefs.dart';
 import '../../state/units_controller.dart';
 import '../../telemetry/health_uploader.dart';
 import '../ui2.dart';
-import '../screens/coach.dart';
 import '../screens/weight_trend_screen.dart' show WeightTrendScreen;
 import '../../updater/update_service.dart';
-import '../community/community.dart' show CommunityScreen;
 import '../onboarding/profile_setup.dart'
     show BirthdayPage, BodyPage, NamePage, SexPage, nameFields, namesOf;
 import 'band_notifications.dart' show BandNotifications;
@@ -44,8 +42,6 @@ import 'gestures.dart' show BandGestures;
 import 'storage_screen.dart' show StorageScreen;
 import 'gallery.dart';
 import 'profile.dart';
-import 'report_issue.dart';
-import 'whoop_import_screen.dart';
 import 'wearable_numbers.dart' show WearableDisplay, wearableSettingsGroup;
 
 /// Unwind the profile stack back to the gate.
@@ -66,14 +62,14 @@ void backToRoot(BuildContext c) =>
 /// already knows it and invisible to everyone else.
 const kDevTaps = 7;
 
-class MoreSettings extends StatefulWidget {
-  const MoreSettings({super.key});
+class AboutSettings extends StatefulWidget {
+  const AboutSettings({super.key});
 
   @override
-  State<MoreSettings> createState() => _MoreSettingsState();
+  State<AboutSettings> createState() => _AboutSettingsState();
 }
 
-class _MoreSettingsState extends State<MoreSettings> {
+class _AboutSettingsState extends State<AboutSettings> {
   bool _dev = Prefs.getBool(Prefs.devMode, false);
 
   String _version = '';
@@ -82,29 +78,19 @@ class _MoreSettingsState extends State<MoreSettings> {
   @override
   void initState() {
     super.initState();
-    _readVersion();
+    readAppVersion().then((v) {
+      if (mounted) setState(() => _version = v);
+    });
     // The developer wearable toggles list the paired devices; best-effort.
     if (_dev) {
       WearableDisplay.instance.loadDevices().catchError((Object _) {});
     }
   }
 
-  Future<void> _readVersion() async {
-    try {
-      final i = await PackageInfo.fromPlatform();
-      if (mounted) setState(() => _version = '${i.version} (${i.buildNumber})');
-    } catch (_) {/* no version, no row — and no way in */}
-  }
-
   void _tapVersion() {
     if (_dev || ++_taps < kDevTaps) return;
     _setDev(true);
   }
-
-  /// The one preference here that is awaited. A revocation that never reached
-  /// storage is back ON at the next launch, so it does not get to fail quietly
-  /// — the switch still moves (in-session it really is off, nothing is sent),
-  /// and the person is told it did not stick.
 
   void _setDev(bool on) {
     Prefs.setBool(Prefs.devMode, on);
@@ -118,44 +104,30 @@ class _MoreSettingsState extends State<MoreSettings> {
   @override
   Widget build(BuildContext c) {
     final app = c.watch<AppState>();
-    final units = c.watch<UnitsController>();
-    final clock = c.watch<ClockFormatController>();
-    return MoreSettingsView(
+    return AboutView(
       version: _version,
       devMode: _dev,
       onVersionTap: _tapVersion,
       onToggleDev: () => _setDev(false),
       onGallery: () => goto(c, const GalleryScreen()),
-      units: units.system.label,
-      clockFormat: clock.format,
-      telemetry: app.telemetryConsent,
-      // Shown when the build has the feature OR when this install already
-      // consented under an older build. A consent that cannot be withdrawn is
-      // not consent, and the old `lib/ui` toggle died with that package while
-      // the pref — and the daily whole-database upload it authorises — did not.
-      showHealthShare: kHealthDataContributionEnabled || app.healthShareConsent,
-      healthShare: app.healthShareConsent,
       showUpdateChecks: app.updateChecksAvailable,
       updateChecks: app.updateChecksEnabled,
       updateAvailable: app.updateAvailable,
       updateMandatory: app.updateMandatory,
       onUpdates: () => UpdateService.instance.check(c, manual: true),
-      onAutomation: () => goto(c, const AutomationSettings()),
-      onUnits: (i) => units.setSystem(UnitSystem.values[i]),
-      // the wind-down body bakes the time in when it's armed, re-arm it now
-      onClockFormat: (i) async {
-        try {
-          await clock.setFormat(ClockFormat.values[i]);
-        } finally {
-          await app.refreshAiReminders();
-        }
-      },
-      onToggleTelemetry: () => app.setTelemetryConsent(!app.telemetryConsent),
-      onToggleHealthShare: () => _toggleHealthShare(c, app),
       onToggleUpdateChecks: () =>
           app.setUpdateChecksEnabled(!app.updateChecksEnabled),
-      onReset: () => _confirmReset(c, app),
     );
+  }
+}
+
+/// `0.9.26 (57)`, or empty when package_info cannot answer.
+Future<String> readAppVersion() async {
+  try {
+    final i = await PackageInfo.fromPlatform();
+    return '${i.version} (${i.buildNumber})';
+  } catch (_) {
+    return '';
   }
 }
 
@@ -170,7 +142,7 @@ class _MoreSettingsState extends State<MoreSettings> {
 /// Health Connect has two failure modes that are not refusals and must not be
 /// reported as one: it may not be installed, or it may be too old. Both are
 /// answered with the action that fixes them rather than an error.
-Future<void> _toggleHealthSync(AppState app) async {
+Future<void> toggleHealthSync(AppState app) async {
   if (app.healthSyncEnabled) {
     await app.setHealthSync(false);
     return;
@@ -225,7 +197,7 @@ String healthSyncSub(
 /// IMMEDIATELY, with no dialog in the way, and only then says what had already
 /// been sent: a revocation you have to confirm is a revocation that can be
 /// mis-tapped into staying on.
-Future<void> _toggleHealthShare(BuildContext c, AppState app) async {
+Future<void> toggleHealthShare(BuildContext c, AppState app) async {
   if (app.healthShareConsent) {
     await app.setHealthShareConsent(false);
     final last = await HealthUploader.instance.lastUploadAt();
@@ -279,7 +251,7 @@ Future<void> _toggleHealthShare(BuildContext c, AppState app) async {
   if (ok == true) await app.setHealthShareConsent(true);
 }
 
-Future<void> _confirmReset(BuildContext c, AppState app) async {
+Future<void> confirmReset(BuildContext c, AppState app) async {
   final l = AppLocalizations.of(c);
   final ok = await showDialog<bool>(
     context: c,
@@ -335,17 +307,9 @@ Future<void> _confirmReset(BuildContext c, AppState app) async {
   }
 }
 
-class MoreSettingsView extends StatelessWidget {
-  final String units;
-
-  /// 12- or 24-hour clock, or whatever the OS says ("System", the default).
-  final ClockFormat clockFormat;
-  final bool telemetry;
-
-  /// The health-contribution row appears only where it means something: a
-  /// build that has the feature, or an install that already said yes to it.
-  final bool showHealthShare, healthShare;
-
+/// About: the build, its updates, its licences, and, seven taps on the
+/// version away, the developer group.
+class AboutView extends StatelessWidget {
   /// The legacy release-server check appears only on a build that can check.
   final bool showUpdateChecks, updateChecks;
 
@@ -354,7 +318,7 @@ class MoreSettingsView extends StatelessWidget {
   /// says what it found, so without these two the whole poll was a no-op.
   final bool updateAvailable, updateMandatory;
 
-  /// `0.9.26 (57)`, or empty until package_info answers — the About group is
+  /// `0.9.26 (57)`, or empty until package_info answers: the version row is
   /// the whole reveal gesture, so it is not drawn against a blank.
   final String version;
 
@@ -367,23 +331,10 @@ class MoreSettingsView extends StatelessWidget {
   /// Look for a newer build now; null hides the app-update rows.
   final VoidCallback? onUpdates;
 
-  final VoidCallback? onAutomation,
-      onToggleTelemetry,
-      onToggleHealthShare,
-      onToggleUpdateChecks,
-      onReset;
+  final VoidCallback? onToggleUpdateChecks;
 
-  /// The index of the choice tapped: units (metric, imperial), time format
-  /// (system, 24 h, 12 h).
-  final ValueChanged<int>? onUnits, onClockFormat;
-
-  const MoreSettingsView({
+  const AboutView({
     super.key,
-    this.units = 'Metric',
-    this.clockFormat = ClockFormat.system,
-    this.telemetry = false,
-    this.showHealthShare = false,
-    this.healthShare = false,
     this.showUpdateChecks = false,
     this.updateChecks = true,
     this.updateAvailable = false,
@@ -394,46 +345,13 @@ class MoreSettingsView extends StatelessWidget {
     this.onToggleDev,
     this.onGallery,
     this.onUpdates,
-    this.onAutomation,
-    this.onUnits,
-    this.onClockFormat,
-    this.onToggleTelemetry,
-    this.onToggleHealthShare,
     this.onToggleUpdateChecks,
-    this.onReset,
   });
 
   @override
   Widget build(BuildContext c) {
-    final p = P.of(c);
     final l = AppLocalizations.of(c);
-    return settingsPage(c, l?.settingsNavTitle ?? 'Settings', [
-      // The app itself. You, the band, your zones, notifications and your
-      // data each have a page of their own on the More tab; nothing here
-      // repeats them.
-      //
-      // Every group is named for the question it answers, in the order
-      // people come looking: how the app reads, updates, what it talks to,
-      // the coach's model, privacy, then help. The one destructive action
-      // sits alone at the end.
-      settingsGroup(c, 'Display', [
-        SetDropdown(
-            LucideIcons.ruler,
-            l?.settingsUnitsRowTitle ?? 'Units',
-            const ['Metric', 'Imperial'],
-            units == 'Imperial' ? 1 : 0,
-            onChanged: onUnits),
-        SetDropdown(
-            LucideIcons.clock,
-            l?.settingsClockFormatRowTitle ?? 'Time format',
-            [
-              l?.settingsClockFormatSystem ?? ClockFormat.system.label,
-              l?.settingsClockFormat24h ?? ClockFormat.h24.label,
-              l?.settingsClockFormat12h ?? ClockFormat.h12.label,
-            ],
-            clockFormat.index,
-            onChanged: onClockFormat),
-      ]),
+    return settingsPage(c, 'About', [
       if (onUpdates != null || showUpdateChecks)
         settingsGroup(c, 'Updates', [
           if (onUpdates != null)
@@ -479,48 +397,7 @@ class MoreSettingsView extends StatelessWidget {
                 switchValue: updateChecks,
                 onTap: onToggleUpdateChecks),
         ]),
-      settingsGroup(c, 'Connected apps', [
-        SetRow(LucideIcons.workflow, C.dialStrain,
-            l?.settingsTaskerShortcutsRowTitle ?? 'Tasker and Shortcuts',
-            // The row states the asymmetry rather than leaving it to the
-            // screen.
-            sub: l?.settingsTaskerShortcutsRowSub ??
-                'Android only for events out. iOS can buzz the band '
-                    'but cannot be triggered by it',
-            onTap: onAutomation),
-      ]),
-      settingsGroup(c, 'AI provider', [
-        SetRow.brand((t) => CoachMark(size: I.lg, color: t), C.dialStrain,
-            'Model and key',
-            sub: 'The AI coach’s model, its API key and how it answers',
-            onTap: () => goto(c, const CoachSetup())),
-        SetRow(LucideIcons.messageSquare, C.dialStrain, 'AI button',
-            sub: 'The floating button that opens the coach anywhere',
-            onTap: () => goto(c, const AiButtonSettings())),
-      ]),
-      settingsGroup(c, l?.settingsGroupPrivacy ?? 'Privacy', [
-        SetRow(LucideIcons.bug, C.dialStrain,
-            l?.settingsCrashReportsRowTitle ?? 'Crash reports',
-            sub: l?.settingsCrashReportsRowSub ??
-                'Nothing is sent until you say so',
-            switchValue: telemetry,
-            onTap: onToggleTelemetry),
-        if (showHealthShare)
-          SetRow(LucideIcons.cloudUpload, C.dialStrain,
-              l?.settingsContributeHealthDataRowTitle ??
-                  'Contribute my health data',
-              sub: l?.settingsContributeHealthDataRowSub ??
-                  'Uploads your whole database once a day, on '
-                      'Wi-Fi and charging, to improve the algorithms',
-              switchValue: healthShare,
-              onTap: onToggleHealthShare),
-      ]),
-      settingsGroup(c, 'Help and about', [
-        SetRow(LucideIcons.messageSquareWarning, C.dialStrain,
-            l?.settingsReportIssueRowTitle ?? 'Report an issue',
-            sub: l?.settingsReportIssueRowSub ??
-                'Sends what you choose to the maintainers, encrypted',
-            onTap: () => goto(c, const ReportIssueScreen())),
+      settingsGroup(c, 'This app', [
         // Where the licences of what this app uses are written out in full.
         SetRow(LucideIcons.scale, C.dialStrain,
             l?.settingsNoticesLicencesRowTitle ?? 'Notices and licences',
@@ -532,7 +409,7 @@ class MoreSettingsView extends StatelessWidget {
         if (version.isNotEmpty)
           SetRow(LucideIcons.info, C.dialStrain,
               l?.settingsVersionRowTitle ?? 'Version',
-              value: version, chevron: false, onTap: onVersionTap),
+              value: version, onTap: onVersionTap),
       ]),
       // How a non-WHOOP wearable's numbers are drawn. Developer only while
       // every wearable is (rule R6).
@@ -548,17 +425,6 @@ class MoreSettingsView extends StatelessWidget {
               l?.settingsDeveloperModeRowTitle ?? 'Developer mode',
               switchValue: true, onTap: onToggleDev),
         ]),
-      const SizedBox(height: S.x10),
-      Center(
-        child: BigButton(l?.settingsResetAllDataRowTitle ?? 'Reset all data',
-            icon: LucideIcons.trash2,
-            tone: ButtonTone.danger,
-            compact: true,
-            onTap: onReset),
-      ),
-      const SizedBox(height: S.x3),
-      Text('Deletes everything this app has stored on this phone. It asks first.',
-          textAlign: TextAlign.center, style: F.over.copyWith(color: p.ink3)),
     ]);
   }
 }
@@ -603,31 +469,49 @@ class AiButtonSettings extends StatelessWidget {
       );
 }
 
-/// A settings page: the bar with its name, then its groups.
+/// A settings page as the reference draws one: the bar with its name over a
+/// page fading from slate to near-black, then its groups.
 Widget settingsPage(BuildContext c, String title, List<Widget> children) =>
-    Scaffold(
-      backgroundColor: P.of(c).bg,
-      body: SafeArea(
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: S.x4),
-            child: NavBar(title),
+    settingsGround(
+      c,
+      Column(children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: S.x4),
+          child: NavBar(title),
+        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+                ST.margin, 0, ST.margin, S.x10),
+            children: children,
           ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
-              children: children,
-            ),
-          ),
-        ]),
-      ),
+        ),
+      ]),
     );
+
+/// The settings pages' ground: [ST.ground], under a safe area.
+Widget settingsGround(BuildContext c, Widget child) {
+  final p = P.of(c);
+  return Scaffold(
+    backgroundColor: p.bg,
+    body: DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: ST.ground,
+          stops: ST.groundStops,
+        ),
+      ),
+      child: SafeArea(child: child),
+    ),
+  );
+}
 
 // ══════════════════ MY PROFILE · DEVICE · HEALTH ══════════════════
 
-/// Everything that is your data: what comes in (a WHOOP export), what goes
-/// out (the health store, export and backup, the cloud copy) and how much
-/// room it takes.
+/// Data export: a copy of everything going out, and how much room it takes.
+/// What comes in, and the health store, are Integrations.
 class YourDataSettings extends StatefulWidget {
   const YourDataSettings({super.key});
 
@@ -647,64 +531,25 @@ class _YourDataSettingsState extends State<YourDataSettings> {
   }
 
   @override
-  Widget build(BuildContext c) {
-    final app = c.watch<AppState>();
-    return YourDataView(
-      storage: _bytes == null ? '' : formatBytes(_bytes!),
-      healthStore: app.healthStoreName,
-      healthSync: app.healthSyncEnabled,
-      healthState: app.healthState,
-      onToggleHealthSync: () => _toggleHealthSync(app),
-    );
-  }
+  Widget build(BuildContext c) =>
+      YourDataView(storage: _bytes == null ? '' : formatBytes(_bytes!));
 }
 
 class YourDataView extends StatelessWidget {
   /// How much room the data takes ("1.4 GB"); empty until it is read.
   final String storage;
 
-  /// The platform health EXPORT. `healthStore` names it — "Apple Health" or
-  /// "Health Connect" — because "your health app" is not something a user can
-  /// go and grant a permission in.
-  final bool healthSync;
-  final HealthLinkState healthState;
-  final String healthStore;
-  final VoidCallback? onToggleHealthSync;
-
-  const YourDataView({
-    super.key,
-    this.storage = '',
-    this.healthSync = false,
-    this.healthState = HealthLinkState.unknown,
-    this.healthStore = 'Health Connect',
-    this.onToggleHealthSync,
-  });
+  const YourDataView({super.key, this.storage = ''});
 
   @override
   Widget build(BuildContext c) {
     final l = AppLocalizations.of(c);
-    return settingsPage(c, l?.profileYourDataGroup ?? 'Your data', [
-      settingsGroup(c, 'In and out', [
-        SetRow(LucideIcons.upload, C.dialStrain, 'Import WHOOP data',
-            sub: 'Your recovery, sleep, strain and workouts from a '
-                'WHOOP export',
-            onTap: () => goto(c, const WhoopImportScreen())),
-        SetRow(LucideIcons.heartPulse, C.dialStrain,
-            l?.settingsWriteToHealthStoreRowTitle(healthStore) ??
-                'Write to $healthStore',
-            sub: healthSyncSub(c, healthSync, healthState, healthStore),
-            switchValue: healthSync,
-            onTap: onToggleHealthSync),
-      ]),
-      settingsGroup(c, 'Copies and room', [
+    return settingsPage(c, 'Data export', [
+      settingsGroup(c, '', [
         SetRow(LucideIcons.hardDriveDownload, C.dialStrain,
             l?.profileExportRow ?? 'Export and backup',
+            sub: 'A copy of everything, to keep or to move to a new phone',
             onTap: () => goto(c, const DataScreen())),
-        // The Locus account: optional, and only for the community. It
-        // replaced the old self-hosted backup sign-in here.
-        SetRow(LucideIcons.circleUserRound, C.dialStrain, 'Locus account',
-            sub: 'Optional: teams, leaderboards and chat',
-            onTap: () => goto(c, const CommunityScreen())),
         SetRow(LucideIcons.database, C.dialStrain,
             l?.profileStorage ?? 'Storage',
             value: storage,
@@ -931,7 +776,6 @@ class NotificationSettingsView extends StatelessWidget {
                               'Warn when the band drops under this charge '
                                   'level',
                           value: '${prefs.batteryAlertPct}%',
-                          chevron: false,
                           onTap: () => set(prefs.copyWith(
                               batteryAlertPct:
                                   _nextBatteryPct(prefs.batteryAlertPct)))),
@@ -1073,7 +917,6 @@ class NotificationSettingsView extends StatelessWidget {
                           l?.settingsRemindMeEveryRowTitle ??
                               'Remind me every',
                           value: _everyLabel(prefs.waterIntervalMin),
-                          chevron: false,
                           onTap: () => set(prefs.copyWith(
                               waterIntervalMin:
                                   _nextEvery(prefs.waterIntervalMin)))),
@@ -1091,7 +934,6 @@ class NotificationSettingsView extends StatelessWidget {
                           C.dialStrain,
                           l?.settingsQuietHoursStartsRowTitle ?? 'Starts',
                           value: _hhmm(prefs.quietStartMin),
-                          chevron: false,
                           onTap: () async {
                             final v = await _pickMinute(c, prefs.quietStartMin);
                             if (v != null) {
@@ -1102,7 +944,6 @@ class NotificationSettingsView extends StatelessWidget {
                     SetRow(LucideIcons.sunrise, C.recYellow,
                         l?.settingsQuietHoursEndsRowTitle ?? 'Ends',
                         value: _hhmm(prefs.quietEndMin),
-                        chevron: false,
                         onTap: () async {
                           final v = await _pickMinute(c, prefs.quietEndMin);
                           if (v != null) set(prefs.copyWith(quietEndMin: v));

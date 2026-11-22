@@ -570,7 +570,7 @@ void main() {
           t,
           const SizedBox(
               height: 4200,
-              child: MoreSettingsView(version: '1', devMode: true)));
+              child: AboutView(version: '1', devMode: true)));
       expect(find.text('WEARABLE NUMBERS'), findsOneWidget);
       expect(find.text('GARMIN WATCH'), findsOneWidget);
       expect(find.text('Active'), findsOneWidget);
@@ -584,7 +584,7 @@ void main() {
           t,
           const SizedBox(
               height: 4200,
-              child: MoreSettingsView(version: '1', devMode: false)));
+              child: AboutView(version: '1', devMode: false)));
       expect(find.text('WEARABLE NUMBERS'), findsNothing);
       expect(find.text('CHEST STRAP'), findsNothing);
     });

@@ -278,14 +278,12 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
                       trailing: AppSwitch(_db || _full, _busy || _full
                               ? null
                               : (v) => setState(() => _db = v)),
-                      chevron: false,
                       onTap: _busy || _full
                           ? null
                           : () => setState(() => _db = !_db)),
                   SetRow(LucideIcons.database, C.dialStrain, l.reportFullDatabaseRow,
                       sub: l.reportFullDatabaseWarning,
                       trailing: AppSwitch(_full, _busy ? null : (v) => setState(() => _full = v)),
-                      chevron: false,
                       onTap:
                           _busy ? null : () => setState(() => _full = !_full)),
                 ]),
@@ -297,8 +295,7 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
                       fullDatabase: draft.fullDatabase))
                     SetRow(LucideIcons.fileText, C.n500, path,
                         sub: describeReportFile(l, path),
-                        keepCase: true,
-                        chevron: false),
+                        keepCase: true),
                 ]),
                 const SizedBox(height: S.x2),
                 Text(l.reportIncludedNote,
@@ -370,7 +367,6 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
                           sub: l.reportMyReportsSub(
                               date.formatMediumDate(r.expiresAt.toLocal())),
                           value: l.reportDelete,
-                          chevron: false,
                           onTap: _busy ? null : () => _delete(r)),
                   ]),
                 ],

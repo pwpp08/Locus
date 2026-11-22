@@ -43,7 +43,7 @@ void main() {
       (tester) async {
     _tallPhone(tester);
     await tester.pumpWidget(_wrap(
-        const MoreSettingsView(version: '0.9.26 (57)', devMode: false)));
+        const AboutView(version: '0.9.26 (57)', devMode: false)));
     expect(find.text('COMPONENT GALLERY'), findsNothing);
     expect(find.text('DEVELOPER'), findsNothing);
     // …and the row that reveals it says nothing about what it does.
@@ -53,7 +53,7 @@ void main() {
   testWidgets('and offers one once it is', (tester) async {
     _tallPhone(tester);
     var opened = false;
-    await tester.pumpWidget(_wrap(MoreSettingsView(
+    await tester.pumpWidget(_wrap(AboutView(
       version: '0.9.26 (57)',
       devMode: true,
       onGallery: () => opened = true,

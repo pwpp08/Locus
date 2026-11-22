@@ -315,7 +315,6 @@ class _ShareSheetState extends State<ShareSheet> {
                         Divider(color: p.line, height: 1),
                         SetRow(LucideIcons.trash2, C.dialStrain,
                             l?.activityShareRemovePhoto ?? 'Remove the photo',
-                            chevron: false,
                             onTap: () => setState(() => _photo = null)),
                       ],
                     ]),

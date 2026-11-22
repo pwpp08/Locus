@@ -1037,6 +1037,42 @@ class PH {
       fontFeatures: [FontFeature.tabularFigures()]);
 }
 
+/// ── SETTINGS ROWS ── measured off the reference's settings list (480 px
+/// across a 393 pt phone, so 1 px = 0.82 pt): every row a card of its own,
+/// 56 tall and 10 apart, a 9 pt corner, a flat slate face lit along its top
+/// edge, the glyph's centre 27 in and the name 61 in, 20 in from the page's
+/// edges. The page fades from slate to near-black by 60% of its height.
+class ST {
+  static const rowH = 56.0;
+  static const gap = 10.0;
+  static const r = BorderRadius.all(Radius.circular(9));
+  static const face = Color(0xFF30363A);
+  static const lit = Color(0xFF3A4045);
+
+  /// A row's outline glyph: a dim grey, quieter than the name beside it.
+  static const glyph = Color(0xFF85898C);
+  static const inset = 13.0;
+  static const margin = 20.0;
+
+  /// The page behind a settings list, sampled down the reference's left edge:
+  /// a pale slate-blue lit along the top, falling to near-black by the
+  /// middle and a little darker still at the foot.
+  static const ground = [
+    Color(0xFF3F4B54), Color(0xFF354149), Color(0xFF2B353D),
+    Color(0xFF1E262A), Color(0xFF151B1E), Color(0xFF111518),
+    Color(0xFF0E1216), Color(0xFF0D1113),
+  ];
+  static const groundStops = [0.0, .056, .14, .28, .42, .56, .70, 1.0];
+
+  /// The name in spaced caps, its line under it, a group's heading.
+  static final title =
+      F.caps.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1.5);
+  static final sub =
+      F.over.copyWith(fontWeight: FontWeight.w500, letterSpacing: 0);
+  static final head =
+      F.caps.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1.6);
+}
+
 /// ── DEVICE SETTINGS ── measured off its reference screenshot, scaled to
 /// 390 across. Always char: slate under the header fading to near-black
 /// behind the band, small tracked capitals, and a neutral grey banner.

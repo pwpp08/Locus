@@ -100,6 +100,7 @@ class LucideIcons {
   static const IconData dumbbell = base.LucideIcons.dumbbell300;
   static const IconData eggFried = base.LucideIcons.eggFried300;
   static const IconData ellipsis = base.LucideIcons.ellipsis300;
+  static const IconData eye = base.LucideIcons.eye300;
   static const IconData fileSpreadsheet = base.LucideIcons.fileSpreadsheet300;
   static const IconData fileText = base.LucideIcons.fileText300;
   static const IconData fileWarning = base.LucideIcons.fileWarning300;
@@ -113,6 +114,7 @@ class LucideIcons {
   static const IconData gauge = base.LucideIcons.gauge300;
   static const IconData gitCompareArrows = base.LucideIcons.gitCompareArrows300;
   static const IconData glassWater = base.LucideIcons.glassWater300;
+  static const IconData graduationCap = base.LucideIcons.graduationCap300;
   static const IconData gripVertical = base.LucideIcons.gripVertical300;
   static const IconData hammer = base.LucideIcons.hammer300;
   static const IconData hand = base.LucideIcons.hand300;
@@ -127,6 +129,7 @@ class LucideIcons {
   static const IconData house = base.LucideIcons.house300;
   static const IconData image = base.LucideIcons.image300;
   static const IconData imagePlus = base.LucideIcons.imagePlus300;
+  static const IconData importBox = base.LucideIcons.import300;
   static const IconData inboxDown = base.LucideIcons.import300;
   static const IconData info = base.LucideIcons.info300;
   static const IconData laugh = base.LucideIcons.laugh300;
@@ -134,6 +137,7 @@ class LucideIcons {
   static const IconData layoutGrid = base.LucideIcons.layoutGrid300;
   static const IconData leaf = base.LucideIcons.leaf300;
   static const IconData lightbulb = base.LucideIcons.lightbulb300;
+  static const IconData link2 = base.LucideIcons.link2300;
   static const IconData list = base.LucideIcons.list300;
   static const IconData listChecks = base.LucideIcons.listChecks300;
   static const IconData listOrdered = base.LucideIcons.listOrdered300;
@@ -143,6 +147,7 @@ class LucideIcons {
   static const IconData lockOpen = base.LucideIcons.lockOpen300;
   static const IconData logIn = base.LucideIcons.logIn300;
   static const IconData logOut = base.LucideIcons.logOut300;
+  static const IconData mail = base.LucideIcons.mail300;
   static const IconData map = base.LucideIcons.map300;
   static const IconData mapPin = base.LucideIcons.mapPin300;
   static const IconData mapPinOff = base.LucideIcons.mapPinOff300;
@@ -150,6 +155,7 @@ class LucideIcons {
   static const IconData medal = base.LucideIcons.medal300;
   static const IconData meh = base.LucideIcons.meh300;
   static const IconData menu = base.LucideIcons.menu300;
+  static const IconData messageCircle = base.LucideIcons.messageCircle300;
   static const IconData messageSquare = base.LucideIcons.messageSquare300;
   static const IconData messageSquarePlus = base.LucideIcons.messageSquarePlus300;
   static const IconData messageSquareWarning = base.LucideIcons.messageSquareWarning300;
