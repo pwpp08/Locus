@@ -426,6 +426,10 @@ const _notComponents = {
   // its done flags from Prefs and opens routes; Home is its only host.
   'NamePage', 'BirthdayPage', 'BodyPage', 'SexPage', 'SetupFrame',
   'GetStartedSection',
+  // CREATE SCHEDULE: a sheet's three steps at a phone's width, and its wake
+  // time drum (three fixed columns under one band). The overlay a write runs
+  // under is a full-screen route. tmp-free: schedule_flow_test pumps them.
+  'ScheduleFlowSheet', 'WakeTimeDrum', 'StatusOverlay',
   // tabs and drill-downs
   'HomeScreen', 'HealthScreen', 'WorkoutScreen', 'NutritionScreen',
   'WellnessScreen', 'MetricDetail', 'ReadinessDetail',

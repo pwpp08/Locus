@@ -23,6 +23,9 @@ import '../activity/catalogue.dart';
 import '../ui2.dart';
 import 'home_screen.dart' show monthShortName, repoOf;
 import 'log_workout.dart' show appOf;
+import '../../state/clock_format.dart' show formatClock;
+import 'activity_window_chart.dart';
+import 'movement_lane.dart' show MovePoint;
 import 'window_editor.dart';
 
 /// Opens the sheet. Resolves true when an activity was saved.
@@ -48,9 +51,12 @@ Future<bool?> openEditActivity(
   BuildContext c,
   EditedSession session, {
   DateTime? now,
+  HrReader? hr,
+  Future<List<MovePoint>> Function(int from, int to)? movement,
 }) => AppSheet.open<bool>(
   c,
-  builder: (_) => _AddActivitySheet(now: now, edit: session),
+  builder: (_) =>
+      _AddActivitySheet(now: now, edit: session, hr: hr, movement: movement),
   scroll: true,
   bare: true,
 );
@@ -162,7 +168,7 @@ class _SheetFrame extends StatelessWidget {
         ? PH.pickTop
         : Color.alphaBlend(C.dialSleep.withValues(alpha: .10), p.card);
     return FractionallySizedBox(
-      heightFactor: compact ? .92 : .825,
+      heightFactor: compact ? .92 : .86,
       alignment: Alignment.bottomCenter,
       child: Container(
         decoration: BoxDecoration(
@@ -179,7 +185,7 @@ class _SheetFrame extends StatelessWidget {
         padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(c).bottom),
         child: Column(
           children: [
-            SizedBox(height: compact ? S.x4 : S.x5),
+            const SizedBox(height: S.x4),
             Container(
               width: compact ? PH.pickHandle : S.x16 + S.x4,
               height: compact ? S.half + S.hair : S.x1,
@@ -201,7 +207,11 @@ class _AddActivitySheet extends StatefulWidget {
 
   /// Set when this edits a saved session instead of adding one.
   final EditedSession? edit;
-  const _AddActivitySheet({this.now, this.edit});
+
+  /// The chart's heart rate and movement; the band's store when null.
+  final HrReader? hr;
+  final Future<List<MovePoint>> Function(int from, int to)? movement;
+  const _AddActivitySheet({this.now, this.edit, this.hr, this.movement});
 
   @override
   State<_AddActivitySheet> createState() => _AddActivitySheetState();
@@ -342,26 +352,6 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
     });
   }
 
-  /// The times on the heart rate chart, for an activity, sleep or nap.
-  Future<void> _onChart(WindowKind k) async {
-    final title = k == WindowKind.sleep
-        ? 'Set sleep'
-        : (k == WindowKind.nap ? 'Set nap' : 'Set activity');
-    final r = await openWindowEditor(
-      context,
-      kind: k,
-      title: title,
-      start: _start,
-      end: _end,
-      save: 'Use these times',
-    );
-    if (r == null || !mounted) return;
-    setState(() {
-      _start = r.$1;
-      _end = r.$2;
-    });
-  }
-
   void _choose(ActivityChoice r) {
     setState(() {
       _picking = false;
@@ -499,17 +489,17 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
                 onTap: () => setState(() => _picking = true),
                 semanticLabel: 'Select activity',
                 child: Container(
-                  height: S.x16 + S.half,
+                  height: S.x12 + S.x2,
                   padding: const EdgeInsets.symmetric(horizontal: S.x5),
                   decoration: BoxDecoration(
-                    color: p.ink.withValues(alpha: .09),
-                    borderRadius: R.rXl,
+                    color: p.ink.withValues(alpha: .11),
+                    borderRadius: R.rLg,
                   ),
                   child: Row(
                     children: [
                       Icon(
                         icon ?? LucideIcons.personStanding,
-                        size: I.lg,
+                        size: I.md,
                         color: p.ink2,
                       ),
                       const SizedBox(width: S.x5),
@@ -518,42 +508,40 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
                           (name ?? 'Select activity').toUpperCase(),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: F.body.copyWith(
+                          style: F.caps.copyWith(
                             color: p.ink,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.6,
                           ),
                         ),
                       ),
-                      Icon(LucideIcons.chevronRight, size: I.lg, color: p.ink2),
+                      BoldChevron(left: false, height: S.x4, color: p.ink),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: S.x12 + S.x2),
+              const SizedBox(height: S.x8),
               _rule(p, 'Time'),
-              const SizedBox(height: S.x8 + S.x1),
-              _timeRow(c, p, 'Start Time', _start, true),
-              const SizedBox(height: S.x5),
-              _timeRow(c, p, 'End Time', _end, false),
+              const SizedBox(height: S.x8),
+              // The heart rate across the window, its lines to drag, and the
+              // wrist's movement under it: the times are set where they show.
               if (k != null) ...[
-                const SizedBox(height: S.x5),
-                WindowPreview(
-                  key: ValueKey('preview-$k'),
+                ActivityWindowChart(
                   start: _startSec,
                   end: _endSec,
-                  kind: k,
-                  onChanged: (newStart, newEnd) {
-                    setState(() {
-                      _start = DateTime.fromMillisecondsSinceEpoch(
-                        newStart * 1000,
-                      );
-                      _end = DateTime.fromMillisecondsSinceEpoch(newEnd * 1000);
-                    });
-                  },
-                  onExpand: () => _onChart(k),
+                  hr: widget.hr,
+                  movement: widget.movement,
+                  latest: _now.millisecondsSinceEpoch ~/ 1000,
+                  onChanged: (s, e) => setState(() {
+                    _start = DateTime.fromMillisecondsSinceEpoch(s * 1000);
+                    _end = DateTime.fromMillisecondsSinceEpoch(e * 1000);
+                  }),
                 ),
+                const SizedBox(height: S.x4),
               ],
+              _timeRow(c, p, 'Start Time', _start, true),
+              const SizedBox(height: S.x4),
+              _timeRow(c, p, 'End Time', _end, false),
               if (bad != null && _chosen) ...[
                 const SizedBox(height: S.x5),
                 Text(
@@ -572,7 +560,8 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(S.x12, S.x2, S.x12, S.x16 + S.x4),
+          padding: EdgeInsets.fromLTRB(
+              S.x6, S.x2, S.x6, S.x6 + MediaQuery.paddingOf(c).bottom),
           child: _SaveButton(
             label: _saving ? (l?.logWorkoutSaving ?? 'Saving…') : 'Save',
             enabled: _canSave,
@@ -583,42 +572,46 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
     );
   }
 
+  /// "Start Time" and its moment on one pill, "23 Aug at 7:12 AM": the day
+  /// opens the calendar, the time the clock.
   Widget _timeRow(BuildContext c, P p, String label, DateTime at, bool start) {
     final l = AppLocalizations.of(c);
-    Widget chip(String text, VoidCallback onTap, String hint, double width) =>
-        Pressable(
-          onTap: onTap,
-          semanticLabel: '$label, $hint: $text',
-          child: Container(
-            width: width,
-            height: S.x8 + S.x1,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: p.ink.withValues(alpha: .09),
-              borderRadius: R.rMd,
-            ),
-            child: Text(text, style: F.body.copyWith(color: p.ink)),
-          ),
-        );
-    String two(int v) => v.toString().padLeft(2, '0');
+    final style =
+        F.num(F.body).copyWith(color: p.ink, fontWeight: FontWeight.w700);
+    final day = '${at.day} ${monthShortName(at.month, l)}';
+    final time = formatClock(at.hour, at.minute);
     return Row(
       children: [
+        const SizedBox(width: S.x4),
         Expanded(
           child: Text(label, style: F.body.copyWith(color: p.ink)),
         ),
-        chip(
-          '${monthShortName(at.month, l)} ${at.day}',
-          () => _pickDate(start: start),
-          'date',
-          S.x16 + S.x1 + S.half,
+        Container(
+          height: S.x8 + S.x1,
+          decoration: BoxDecoration(
+            color: p.ink.withValues(alpha: .11),
+            borderRadius: R.rSm,
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Pressable(
+              onTap: () => _pickDate(start: start),
+              semanticLabel: '$label, date: $day',
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(S.x3, 0, S.half, 0),
+                child: Center(child: Text('$day at', style: style)),
+              ),
+            ),
+            Pressable(
+              onTap: () => _pickTime(start: start),
+              semanticLabel: '$label, time: $time',
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(S.half, 0, S.x3, 0),
+                child: Center(child: Text(time, style: style)),
+              ),
+            ),
+          ]),
         ),
-        const SizedBox(width: S.x2 + S.half),
-        chip(
-          '${at.hour}:${two(at.minute)}',
-          () => _pickTime(start: start),
-          'time',
-          S.x12 + S.x2 + S.half + S.half,
-        ),
+        const SizedBox(width: S.x4),
       ],
     );
   }
@@ -634,7 +627,7 @@ Widget _sheetHeader(
   TextStyle? titleStyle,
 }) {
   return Padding(
-    padding: const EdgeInsets.fromLTRB(S.x3, S.x3, S.x3, 0),
+    padding: const EdgeInsets.fromLTRB(S.x3, S.x2, S.x3, 0),
     child: SizedBox(
       height: S.tap,
       child: Stack(
@@ -645,7 +638,7 @@ Widget _sheetHeader(
             child: Text(
               title.toUpperCase(),
               style: (titleStyle ??
-                      F.body.copyWith(
+                      F.cap.copyWith(
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.6,
                       ))
@@ -1065,7 +1058,7 @@ class _SaveButton extends StatelessWidget {
         ),
         child: Text(
           label.toUpperCase(),
-          style: F.body.copyWith(
+          style: F.cap.copyWith(
             color: enabled ? p.inkOn(p.ink) : p.ink.withValues(alpha: .4),
             fontWeight: FontWeight.w800,
             letterSpacing: 1.6,

@@ -21,6 +21,7 @@ import '../screens/journal_compose.dart' show OsTextField;
 import '../screens/metric_detail.dart' show detailLinkRow;
 import '../ui2.dart';
 import 'profile.dart' show SetRow;
+import 'schedule_flow.dart' show openScheduleFlow;
 
 /// What we actually know about the armed alarm.
 enum AlarmArmState {
@@ -708,21 +709,11 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
     if (pick == 'off') await mgr.toggleAlarm(alarm.id, false);
   }
 
+  /// CREATE SCHEDULE: days, then the alarm mode, then the wake time.
   Future<void> _createNewAlarm(BuildContext context) async {
     final mgr = widget.alarmManager;
     if (mgr == null) return;
-    // Ring once by default, and on once it is saved.
-    await _editAlarm(
-      context,
-      AlarmItem(
-        id: 'alarm_${DateTime.now().millisecondsSinceEpoch}',
-        hour: 7,
-        minute: 0,
-        label: 'Wake up',
-        enabled: true,
-      ),
-      isNew: true,
-    );
+    await openScheduleFlow(context, mgr);
   }
 
   /// The weekdays an enabled repeating alarm covers.
@@ -808,8 +799,11 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
             Align(
               alignment: Alignment.centerLeft,
               child: Pressable(
-                onTap: () => _pickMode(c, alarm),
-                semanticLabel: 'Alarm mode ${alarm.mode.title}',
+                // A wake time with no alarm has no mode to pick.
+                onTap: alarm.ring ? () => _pickMode(c, alarm) : null,
+                semanticLabel: alarm.ring
+                    ? 'Alarm mode ${alarm.mode.title}'
+                    : 'No alarm, wake time only',
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: S.x2 + S.half, vertical: S.x1),
@@ -818,9 +812,10 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                     borderRadius: R.rSm,
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(LucideIcons.vibrate, size: I.sm, color: p.ink2),
+                    Icon(alarm.ring ? LucideIcons.vibrate : LucideIcons.bellOff,
+                        size: I.sm, color: p.ink2),
                     const SizedBox(width: S.x1 + S.half),
-                    Text(alarm.mode.title,
+                    Text(alarm.ring ? alarm.mode.title : 'NO ALARM',
                         style: F.over.copyWith(
                             color: p.ink2, letterSpacing: .5)),
                   ]),

@@ -27,12 +27,18 @@ class StrainRecoveryCard extends StatelessWidget {
   /// Recovery's milestone while it is still calibrating: its strip at the foot.
   final Milestone? calibrating;
 
+  /// The first weeks, before the band has been worn long enough: an empty
+  /// week says its trends are coming. After them an empty week is only an
+  /// empty grid; a lock there would promise what is already unlocked.
+  final bool comingSoon;
+
   const StrainRecoveryCard({
     super.key,
     required this.days,
     required this.strain,
     required this.recovery,
     this.calibrating,
+    this.comingSoon = false,
   });
 
   static const _inset = EdgeInsets.fromLTRB(S.x6, S.x8, S.x8 + S.x1, S.x10);
@@ -94,6 +100,7 @@ class StrainRecoveryCard extends StatelessWidget {
                   ),
                 ),
               ),
+              if (comingSoon)
               Positioned.fill(
                 bottom: S.x8,
                 child: Semantics(

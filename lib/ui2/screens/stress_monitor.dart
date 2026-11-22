@@ -132,6 +132,14 @@ class StressSource {
         }
       }();
 
+  /// Drops what was read for [day], so the next read sees what has been
+  /// stored since: a day still being recorded changes under a long-lived
+  /// source (Home keeps one), and a stale copy read as NO DATA all day.
+  void forget(String day) {
+    _inputs.remove(day);
+    _timelines.remove(day);
+  }
+
   Future<StressDayInput?> _input(String day) => _inputs[day] ??= () async {
         final t = await _timeline(day);
         return t == null ? null : StressDayInput.fromTimeline(day, t);

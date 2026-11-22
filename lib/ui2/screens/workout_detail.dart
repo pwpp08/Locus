@@ -1592,14 +1592,16 @@ class _ChartPaint extends CustomPainter {
         canvas.drawLine(Offset(x, y), Offset(x, y + S.x1), dot);
       }
       if (hit != null) {
+        // 12 across with a white rim: a marker on the line, not a lid over
+        // the beats either side of it.
         canvas.drawCircle(
           Offset(x, yOf(hit.v)),
-          S.x2 + S.half,
+          S.x1 + S.half,
           Paint()..color = ink,
         );
         canvas.drawCircle(
           Offset(x, yOf(hit.v)),
-          S.x2,
+          S.x1 + S.hair,
           Paint()..color = C.dialStrain,
         );
       }

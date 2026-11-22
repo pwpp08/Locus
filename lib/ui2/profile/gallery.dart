@@ -71,7 +71,9 @@ import 'devices.dart';
 import 'profile.dart';
 import 'wearable_numbers.dart';
 import '../../compute/energy_reserve.dart';
+import '../screens/activity_window_chart.dart';
 import '../screens/home/home_calibrating.dart';
+import '../screens/home/home_get_started.dart' show PromptCard;
 import '../screens/home/home_energy.dart';
 import '../../compute/training_readiness.dart';
 import '../screens/training_readiness_card.dart' show TrainingReadinessView;
@@ -1971,6 +1973,7 @@ Map<String, Widget> _stateCases() => {
         days: [for (var i = 6; i >= 0; i--) shiftDay('2026-08-16', -i)],
         strain: const {},
         recovery: const {},
+        comingSoon: true,
       ),
       'home_stress_empty': HomeStressCard(
         data: null,
@@ -1979,6 +1982,24 @@ Map<String, Widget> _stateCases() => {
         onOpen: () {},
       ),
       'personalizing_card': const PersonalizingCard(),
+      // Home's prompt card as Sleep Pending shows it: words only.
+      'prompt_card': const PromptCard(
+        title: 'Sleep Pending',
+        body: 'Your sleep is being worked out. We will let you know once it '
+            'is ready.',
+      ),
+      // Edit Activity's chart over a made-up half hour.
+      'activity_window_chart': ActivityWindowChart(
+        start: 1755925920,
+        end: 1755927060,
+        latest: 1755936000,
+        onChanged: (_, _) {},
+        hr: (from, to) async => [
+          for (var t = from; t <= to; t += 60)
+            (t: t, v: 96.0 + (t ~/ 60 % 9) * 4),
+        ],
+        movement: (from, to) async => const [],
+      ),
       'strain_recovery_calibrating': StrainRecoveryCard(
         days: [for (var i = 6; i >= 0; i--) shiftDay('2026-08-16', -i)],
         strain: {shiftDay('2026-08-16', 0): 9.4},

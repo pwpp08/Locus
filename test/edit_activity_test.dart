@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:openstrap_edge/state/clock_format.dart';
 import 'package:openstrap_edge/ui2/activity/catalogue.dart';
 import 'package:openstrap_edge/ui2/screens/add_activity.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
@@ -45,9 +46,10 @@ void main() {
     expect(find.text('CYCLING'), findsOneWidget);
     expect(find.text('Start Time'), findsOneWidget);
     expect(find.text('End Time'), findsOneWidget);
-    expect(find.text('Apr 25'), findsNWidgets(2));
-    expect(find.text('7:22'), findsOneWidget);
-    expect(find.text('7:32'), findsOneWidget);
+    // One pill each: the day, then the time as the phone reads clocks.
+    expect(find.text('25 Apr at'), findsNWidgets(2));
+    expect(find.text(formatClock(7, 22)), findsOneWidget);
+    expect(find.text(formatClock(7, 32)), findsOneWidget);
     expect(find.text('SAVE'), findsOneWidget);
 
     // The row opens the list, which has no way to start a sleep from here.

@@ -456,6 +456,11 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
 
   Future<void> _loadExtras(LocalRepository repo, HomeData d) async {
     final day = d.dayId ?? _day ?? todayLabel();
+    // The day (and the evening before it, which its night starts in) is read
+    // fresh each load; older days stay cached.
+    _stressSource
+      ?..forget(day)
+      ..forget(shiftDay(day, -1));
     var night = const <String, dynamic>{};
     var sessions = const <Map<String, dynamic>>[];
     var naps = const <Map<String, dynamic>>[];
@@ -1083,6 +1088,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             ],
             strain: _daily['strain'] ?? const {},
             recovery: _daily['recovery'] ?? const {},
+            comingSoon: firstWeeks,
           ),
           kStressTile: HomeStressCard(
             data: isToday ? _stress : null,
@@ -1313,8 +1319,10 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       );
 
   /// A pull: the black data bar comes up as catching up at once, the band is
-  /// synced and the day re-read, and the bar stays until both are done (then
-  /// says caught up and folds away).
+  /// synced and the day re-read, and the bar stays until the band's data is
+  /// in (then says caught up and folds away). The second read, for the scores
+  /// the sync's derive lands a moment later, runs after the bar has cleared:
+  /// it is the app catching up, not the band, and kept the bar spinning.
   Future<void> _pullToSync() async {
     AppState? app;
     try {
@@ -1332,11 +1340,11 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
               .then<void>((_) {}, onError: (Object _) {}),
         _load(),
       ]);
-      // The sync's derive lands after it reports done: read once more.
-      if (syncs) await _load();
     } finally {
       if (mounted && _pulling) setState(() => _pulling = false);
     }
+    // The sync's derive lands after it reports done: read once more.
+    if (syncs && mounted) await _load();
   }
 
   /// A pull's sync is running: the data bar shows it whatever the band link

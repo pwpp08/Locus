@@ -109,7 +109,7 @@ void main() {
     // Get Started's cards done, so the wearable's card is the first thing
     // under the day.
     SharedPreferences.setMockInitialValues({
-      for (final id in ['goals', 'charge', 'sleep', 'journal'])
+      for (final id in ['goals', 'charge', 'sleep', 'journal', 'crew'])
         GetStartedSection.donePref(id): true,
     });
     await Prefs.ensureLoaded();

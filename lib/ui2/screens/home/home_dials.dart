@@ -9,9 +9,10 @@ import '../../../l10n/presentation_text.dart';
 import '../../charts.dart' show DashedRing, Ring;
 import '../../grammar.dart' show Pressable;
 import '../../marks.dart' show BoldChevron;
-import '../../theme.dart' show C, F, I, Motion, P, R, S, animate, motion;
-import '../../ui2.dart' show LucideIcons;
+import '../../theme.dart' show C, F, P, S, animate;
+import '../status_overlay.dart' show runWithStatus;
 import 'home_data.dart';
+import 'home_get_started.dart' show PromptCard, SleepMoonPainter;
 import 'home_rings.dart';
 
 const kDialOrder = [
@@ -121,64 +122,69 @@ class HomeDials extends StatelessWidget {
       ],
       if (d.recoveryState == 'night_in_progress' ||
           d.recoveryState == 'provisional') ...[
-        const SizedBox(height: S.x3),
-        const _AwakePill(),
+        const SizedBox(height: S.x6),
+        const _SleepCard(),
       ],
       const SizedBox(height: S.x3),
     ]);
   }
 }
 
-/// While today's night is still open: "I'm awake" ends it now, so recovery
-/// is scored as soon as the band's data catches up instead of waiting out
-/// the settle margin. Turns into a quiet "Scoring your night" once pressed.
-class _AwakePill extends StatefulWidget {
-  const _AwakePill();
+/// While today's night is still open, Home says so on a card under the
+/// dials: SLEEP DETECTED, with END SLEEP to end it now (recovery is then
+/// scored as soon as the band's data catches up, instead of waiting out the
+/// settle margin). Once ended, SLEEP PENDING until the scores land.
+class _SleepCard extends StatefulWidget {
+  const _SleepCard();
 
   @override
-  State<_AwakePill> createState() => _AwakePillState();
+  State<_SleepCard> createState() => _SleepCardState();
 }
 
-class _AwakePillState extends State<_AwakePill> {
-  // Held across Home's reloads: the pill is rebuilt whenever the day
-  // refreshes, and a fresh state offered the button again before recovery
-  // was ready, so it had to be pressed twice.
-  late bool _sent = Prefs.getString(Prefs.awakeMarkedDay, '') == todayLabel();
+class _SleepCardState extends State<_SleepCard> {
+  // Held across Home's reloads: the card is rebuilt whenever the day
+  // refreshes, and a fresh state offered END SLEEP again before recovery was
+  // ready, so it had to be pressed twice.
+  late bool _ended = Prefs.getString(Prefs.awakeMarkedDay, '') == todayLabel();
 
-  Future<void> _tap() async {
-    setState(() => _sent = true);
-    final ok = await context.read<AppState>().markAwake();
-    if (!ok && mounted) setState(() => _sent = false);
+  Future<void> _end() async {
+    final app = context.read<AppState>();
+    final ok = await runWithStatus(
+      context,
+      working: 'Processing…',
+      done: 'Success',
+      doneLine: "Your sleep is being scored. We'll let you know when it's "
+          'ready.',
+      task: () async {
+        if (!await app.markAwake()) throw StateError('no night to end');
+      },
+    );
+    if (!mounted) return;
+    if (ok) {
+      setState(() => _ended = true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('There is no night to end yet.')));
+    }
   }
 
   @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    return Pressable(
-      onTap: _sent ? null : _tap,
-      semanticLabel: _sent
-          ? 'Scoring your night'
-          : "I'm awake: end the night and score recovery",
-      child: AnimatedContainer(
-        duration: motion(c, Motion.base),
-        curve: Curves.easeOut,
-        height: S.x8,
-        padding: const EdgeInsets.symmetric(horizontal: S.x3 + S.half),
-        decoration: BoxDecoration(
-          color: _sent ? p.card : p.ink,
-          borderRadius: const BorderRadius.all(Radius.circular(R.xl)),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(_sent ? LucideIcons.hourglass : LucideIcons.sunrise,
-              size: I.sm, color: _sent ? p.ink3 : p.bg),
-          const SizedBox(width: S.x2 - S.hair),
-          Text(_sent ? 'Scoring your night…' : "I'm awake",
-              style: F.cap.copyWith(
-                  color: _sent ? p.ink3 : p.bg, fontWeight: FontWeight.w600)),
-        ]),
-      ),
-    );
-  }
+  Widget build(BuildContext c) => _ended
+      ? const PromptCard(
+          title: 'Sleep Pending',
+          body: 'Your sleep is being worked out: its score, your recovery '
+              "and today's strain target. We'll let you know once it's ready.",
+        )
+      : PromptCard(
+          title: 'Sleep Detected',
+          body: 'Ready for your sleep stats? End your sleep now, or it ends '
+              'on its own once you are up and about.',
+          cta: 'END SLEEP',
+          link: C.dialSleep,
+          picture: const CustomPaint(painter: SleepMoonPainter()),
+          side: S.x16 + S.x8,
+          onOpen: _end,
+        );
 }
 
 class HomeScoreDial extends StatelessWidget {

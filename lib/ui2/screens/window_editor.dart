@@ -27,6 +27,9 @@ typedef HrPoint = ({int t, double v});
 /// Per-minute heart rate between two epoch seconds, oldest first.
 typedef HrReader = Future<List<HrPoint>> Function(int from, int to);
 
+/// The band's per-minute heart rate between two epoch seconds.
+Future<List<HrPoint>> readWindowHr(int from, int to) => _readHr(from, to);
+
 Future<List<HrPoint>> _readHr(int from, int to) async {
   try {
     final rows = await LocalDb.hrPerMinuteBetween(from, to);

@@ -17,7 +17,6 @@ import '../../profile/device_settings.dart' show DeviceSettings;
 import '../../profile/devices.dart' show formatDayTime;
 import '../../theme.dart' show C, DC, Ease, F, I, Motion, P, R, S, motion;
 import '../../ui2.dart' show LucideIcons;
-import '../battery_detail_screen.dart';
 import '../recovery_calendar.dart' show openRecoveryCalendar;
 import '../trend_view.dart' show TrendLoader, trendMetricOf;
 import 'home_data.dart';
@@ -75,28 +74,6 @@ String syncedThroughLabel(DateTime? at, String? todayId,
 
 bool lowBattery(double pct, bool charging) =>
     !charging && pct < NotificationPrefs.batteryPctDefault;
-
-Widget? batteryLine(BuildContext c) {
-  final battery = deviceBatteryOf(c);
-  if (battery == null) return null;
-  final (pct, charging) = battery;
-  final p = P.of(c);
-  final color = lowBattery(pct, charging) ? p.on(C.dialStrain) : p.ink3;
-  return Pressable(
-    semanticLabel: 'Battery details',
-    onTap: () {
-      Navigator.of(c).push(
-        MaterialPageRoute(builder: (_) => const BatteryDetailScreen()),
-      );
-    },
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(charging ? LucideIcons.batteryCharging : LucideIcons.battery,
-          size: I.sm, color: color),
-      const SizedBox(width: 3),
-      Text('${pct.round()}%', style: F.cap.copyWith(color: color)),
-    ]),
-  );
-}
 
 /// The time the band's data reaches: the clock today, a day and time before.
 String syncedToText(DateTime at, String todayId, [AppLocalizations? l]) {
@@ -337,9 +314,11 @@ class HomeDeviceStatus extends StatelessWidget {
       },
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         if (battery != null) ...[
+          // Light grey, as the reference reads it; white once it runs low.
+          // Never a colour: a blue percentage read as a link.
           Text('${battery.$1.round()}%',
               style: F.n17.copyWith(
-                  color: low ? p.on(C.dialStrain) : p.ink, fontWeight: FontWeight.w700)),
+                  color: low ? p.ink : p.ink2, fontWeight: FontWeight.w700)),
           const SizedBox(width: S.x2),
         ],
         StrapIcon(
@@ -490,10 +469,10 @@ class _HomeSyncBannerState extends State<HomeSyncBanner> {
 }
 
 /// The black bar under Home's header: whether the band's data has caught up,
-/// and the time it is synced to. One compact line, 40 tall, radius 10: a 20
-/// cloud in ink3, the state in white caps; on the right SYNCED TO and the
-/// time (amber while catching up, green once caught up), then the mark: a
-/// turning 20 ring, or a 16 check.
+/// and the time it is synced to, laid out on its reference: 56 tall, radius
+/// 10, 12 in from each end. A 16 cloud in ink3, 12 to the state in white
+/// caps; on the right SYNCED TO over the time (amber while catching up),
+/// both flush right, 8 to the mark: a turning 24 ring, or a 16 check.
 class HomeSyncBar extends StatelessWidget {
   final SyncBarState state;
 
@@ -520,58 +499,52 @@ class HomeSyncBar extends StatelessWidget {
       onTap: onTap,
       semanticLabel: '${word.toLowerCase()}, synced to $syncedTo',
       child: Container(
-        constraints: const BoxConstraints(minHeight: S.x10),
+        constraints: const BoxConstraints(minHeight: S.x12 + S.x2),
         padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x2),
         decoration: const BoxDecoration(
           color: DC.syncBar,
           borderRadius: BorderRadius.all(Radius.circular(R.md + S.half)),
         ),
-        child: LayoutBuilder(builder: (c, box) {
-          // The state word keeps the width it needs, up to 60 % of the bar:
-          // `Expanded` beside a `Flexible` split the free width in half, so
-          // the longest state read "DATA NOT UP TO DA…" while the time wrapped.
-          final measure = TextPainter(
-            text: TextSpan(text: word, style: caps),
-            textDirection: Directionality.of(c),
-            textScaler: MediaQuery.textScalerOf(c),
-            maxLines: 1,
-          )..layout();
-          final wordW = measure.width.ceilToDouble();
-          measure.dispose();
-          return Row(children: [
-          const Icon(LucideIcons.cloud, size: I.md, color: DC.ink3),
-          const SizedBox(width: S.x2),
-          ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: math.min(wordW, box.maxWidth * .6)),
-            child: Text(word,
-                maxLines: 1, overflow: TextOverflow.ellipsis, style: caps),
-          ),
-          const SizedBox(width: S.x2),
-          // Takes the rest and wraps under itself, at large text or with a long
-          // day and time, rather than pushing off the bar.
-          Expanded(
-            child: Text.rich(
-              TextSpan(children: [
-                const TextSpan(text: 'SYNCED TO '),
-                TextSpan(
-                    text: syncedTo.toUpperCase(),
-                    style: TextStyle(color: tone)),
-              ]),
-              textAlign: TextAlign.end,
-              style: caps,
+        child: LayoutBuilder(
+          builder: (c, box) => Row(children: [
+            const Icon(LucideIcons.cloud, size: I.md, color: DC.ink3),
+            const SizedBox(width: S.x3),
+            // The state takes what the time leaves, and only shortens once
+            // the time has had its half.
+            Expanded(
+              child: Text(word,
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: caps),
             ),
-          ),
-          const SizedBox(width: S.x2),
-          switch (state) {
-            SyncBarState.catchingUp =>
-              const SizedBox.square(dimension: I.md, child: _SyncRing()),
-            SyncBarState.caughtUp =>
-              const Icon(LucideIcons.check, size: I.sm, color: C.optimal),
-            SyncBarState.behind =>
-              const Icon(LucideIcons.refreshCw, size: I.sm, color: DC.ink3),
-          },
-        ]);
-        }),
+            const SizedBox(width: S.x2),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: box.maxWidth * .5),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('SYNCED TO', textAlign: TextAlign.end, style: caps),
+                  const SizedBox(height: S.half),
+                  Text(syncedTo.toUpperCase(),
+                      textAlign: TextAlign.end,
+                      style: F.num(caps).copyWith(
+                          color: tone,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: .3)),
+                ],
+              ),
+            ),
+            const SizedBox(width: S.x2),
+            switch (state) {
+              SyncBarState.catchingUp =>
+                const SizedBox.square(dimension: I.lg, child: _SyncRing()),
+              SyncBarState.caughtUp => const SizedBox(
+                  width: I.lg,
+                  child: Icon(LucideIcons.check, size: I.md, color: C.optimal)),
+              SyncBarState.behind => const SizedBox(
+                  width: I.lg,
+                  child: Icon(LucideIcons.refreshCw, size: I.sm, color: DC.ink3)),
+            },
+          ]),
+        ),
       ),
     );
   }
@@ -623,7 +596,7 @@ class _SyncRingPaint extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const w = S.half;
+    const w = S.x1 * .75;
     final box = (Offset.zero & size).deflate(w / 2);
     final line = Paint()
       ..style = PaintingStyle.stroke

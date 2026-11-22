@@ -38,6 +38,11 @@ class AlarmItem {
   /// comes round" reading.
   final int? onceAt;
 
+  /// False for a schedule that only says when you wake: the planner plans
+  /// bed and wake times round it, and nothing is ever armed on the band
+  /// ("Don't use an alarm"). It has no next ring, so every armer skips it.
+  final bool ring;
+
   const AlarmItem({
     required this.id,
     required this.hour,
@@ -49,6 +54,7 @@ class AlarmItem {
     this.mode = AlarmMode.exact,
     this.skipDay,
     this.onceAt,
+    this.ring = true,
   });
 
   /// `YYYY-MM-DD` for [d], the form [skipDay] is kept in.
@@ -98,7 +104,7 @@ class AlarmItem {
 
   /// Calculates the next occurrence of this alarm strictly after [from].
   DateTime? nextOccurrence(DateTime from) {
-    if (!enabled) return null;
+    if (!enabled || !ring) return null;
 
     if (days.isEmpty) {
       // Ring once
@@ -145,6 +151,7 @@ class AlarmItem {
     bool clearSkip = false,
     int? onceAt,
     bool clearOnce = false,
+    bool? ring,
   }) =>
       AlarmItem(
         id: id ?? this.id,
@@ -157,13 +164,14 @@ class AlarmItem {
         mode: mode ?? this.mode,
         skipDay: clearSkip ? null : (skipDay ?? this.skipDay),
         onceAt: clearOnce ? null : (onceAt ?? this.onceAt),
+        ring: ring ?? this.ring,
       );
 
   /// This alarm as it should be stored at [now]: an enabled ring-once alarm
   /// stamped with the next time its clock time comes round, anything else
   /// with no stamp. A stamp still ahead for the same clock time is kept.
   AlarmItem stampedAt(DateTime now) {
-    if (!enabled || days.isNotEmpty) {
+    if (!enabled || !ring || days.isNotEmpty) {
       return onceAt == null ? this : copyWith(clearOnce: true);
     }
     final kept =
@@ -196,6 +204,7 @@ class AlarmItem {
         'mode': mode.name,
         if (skipDay != null) 'skipDay': skipDay,
         if (onceAt != null) 'onceAt': onceAt,
+        if (!ring) 'ring': false,
       };
 
   factory AlarmItem.fromJson(Map<String, dynamic> json) => AlarmItem(
@@ -209,6 +218,7 @@ class AlarmItem {
         mode: AlarmMode.fromName(json['mode']),
         skipDay: json['skipDay'] as String?,
         onceAt: (json['onceAt'] as num?)?.toInt(),
+        ring: json['ring'] != false,
       );
 
   static List<AlarmItem> decodeList(String jsonStr) {

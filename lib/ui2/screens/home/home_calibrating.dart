@@ -14,9 +14,10 @@ import '../calibration.dart' show CalibrationStrip, Milestone;
 import '../stress_monitor.dart' show StressMonitorData, stressColor;
 
 /// My Dashboard's Stress Monitor: when it was last read, the level and score
-/// then, and the day's line on a 0–3 scale. Before there is a reading the
-/// grid stays, empty, with NO DATA over it; while the baseline is still
-/// being learned its strip says how many more days.
+/// then, and the day's line on a 0–3 scale. While the baseline is still being
+/// learned and there is no reading yet, the grid stays, empty, with NO DATA
+/// over it, and its strip says how many more days. Once calibrated, an empty
+/// grid is only that: NO DATA there read as a fault.
 class HomeStressCard extends StatelessWidget {
   final StressMonitorData? data;
 
@@ -123,7 +124,7 @@ class HomeStressCard extends StatelessWidget {
                   S.x1 - S.hair, Paint()..color = p.ink);
             },
           ),
-          if (!has)
+          if (!has && calibrating != null)
             Positioned.fill(
               bottom: S.x6,
               child: IgnorePointer(
