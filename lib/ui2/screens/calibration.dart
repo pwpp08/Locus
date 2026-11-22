@@ -242,7 +242,8 @@ class CalibrationStrip extends StatelessWidget {
   }
 }
 
-/// The ring on Home's timeline card: nights logged out of [total].
+/// The ring on Home's timeline card: nights logged out of [total], one
+/// segment a night, the nights so far lit pink into violet.
 class CalibrationRing extends StatelessWidget {
   final int nights, total;
   const CalibrationRing({super.key, required this.nights, required this.total});
@@ -254,15 +255,19 @@ class CalibrationRing extends StatelessWidget {
       label: '$nights of $total nights',
       excludeSemantics: true,
       child: SizedBox.square(
-        dimension: S.x12,
+        dimension: S.x12 + S.x3,
         child: CustomPaint(
-          painter: _RingPainter(nights / total, p.ink.withValues(alpha: .12)),
+          painter: _RingPainter(nights, total, p.ink.withValues(alpha: .12)),
           child: Center(
             child: Text.rich(TextSpan(children: [
-              TextSpan(text: '$nights', style: F.n17.copyWith(color: p.ink)),
+              TextSpan(
+                  text: '$nights',
+                  style: F.n17.copyWith(
+                      color: p.ink, fontWeight: FontWeight.w700)),
               TextSpan(
                   text: '/$total',
-                  style: F.num(F.over).copyWith(color: p.ink3)),
+                  style: F.n17.copyWith(
+                      color: p.ink3, fontWeight: FontWeight.w700)),
             ])),
           ),
         ),
@@ -272,39 +277,62 @@ class CalibrationRing extends StatelessWidget {
 }
 
 class _RingPainter extends CustomPainter {
-  final double frac;
+  final int lit, count;
   final Color track;
-  const _RingPainter(this.frac, this.track);
+  const _RingPainter(this.lit, this.count, this.track);
 
   @override
   void paint(Canvas canvas, Size s) {
-    const w = S.x1;
+    const w = S.x1 + S.half;
     final r = Rect.fromLTWH(w / 2, w / 2, s.width - w, s.height - w);
-    final paint = Paint()
+    final step = math.pi * 2 / count;
+    // The room between segments as an angle: the same few points of arc
+    // however many nights the ring holds.
+    final gap = math.min(step * .35, S.x1 / (r.width / 2));
+    final on = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w
+      ..shader = SweepGradient(
+        colors: const [CB.ringA, CB.ringB],
+        stops: [0, math.max(.05, lit / count)],
+        transform: const GradientRotation(-math.pi / 2),
+      ).createShader(r);
+    final off = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = w
       ..color = track;
-    canvas.drawArc(r, 0, math.pi * 2, false, paint);
-    if (frac <= 0) return;
-    canvas.drawArc(
-        r,
-        -math.pi / 2,
-        math.pi * 2 * frac.clamp(0.0, 1.0),
-        false,
-        paint
-          ..color = C.calibrate
-          ..strokeCap = StrokeCap.round);
+    for (var i = 0; i < count; i++) {
+      canvas.drawArc(r, -math.pi / 2 + i * step + gap / 2, step - gap, false,
+          i < lit ? on : off);
+    }
   }
 
   @override
-  bool shouldRepaint(_RingPainter o) => o.frac != frac || o.track != track;
+  bool shouldRepaint(_RingPainter o) =>
+      o.lit != lit || o.count != count || o.track != track;
 }
 
 /// Home's "Calibration timeline" card, while anything is still locked. Opens
 /// the milestones; swiped away, it stays gone for the rest of the day.
 class CalibrationCard extends StatelessWidget {
   final Calibration cal;
-  const CalibrationCard(this.cal, {super.key});
+
+  /// The person's first name, to cheer them on by.
+  final String? name;
+  const CalibrationCard(this.cal, {super.key, this.name});
+
+  /// How far along: a start before the first night, the nights left after.
+  String get _line {
+    final left = Calibration.total - cal.nights;
+    final who = name == null || name!.isEmpty ? '' : ', $name';
+    if (cal.nights <= 0) {
+      return 'Wear the band to bed tonight$who, and your first night '
+          'starts the count.';
+    }
+    if (left <= 0) return 'Nearly there$who. Recovery is being worked out.';
+    return 'Good progress$who. $left more ${left == 1 ? 'night' : 'nights'} '
+        'until your Recovery score is calibrated.';
+  }
 
   @override
   Widget build(BuildContext c) {
@@ -328,10 +356,7 @@ class CalibrationCard extends StatelessWidget {
           const SizedBox(height: S.x2),
           Row(children: [
             Expanded(
-              child: Text(
-                  'Wear the band to bed every night and check back here to '
-                  'follow your sleeps and what they unlock.',
-                  style: F.cap.copyWith(color: p.ink2)),
+              child: Text(_line, style: F.cap.copyWith(color: p.ink2)),
             ),
             const SizedBox(width: S.x4),
             CalibrationRing(nights: cal.nights, total: Calibration.total),

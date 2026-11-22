@@ -45,6 +45,10 @@ class StrainRecoveryCard extends StatelessWidget {
     final sv = [for (final d in days) strain[d]];
     final rv = [for (final d in days) recovery[d]];
     final empty = !sv.any((v) => v != null) && !rv.any((v) => v != null);
+    final xLabels = [
+      for (final d in days)
+        '${weekdayShortName(DateTime.parse(d).weekday, l)}\n${DateTime.parse(d).day}',
+    ];
 
     return Container(
       padding: const EdgeInsets.all(S.x5),
@@ -70,13 +74,42 @@ class StrainRecoveryCard extends StatelessWidget {
           ),
         ]),
         const SizedBox(height: S.x2),
-        if (empty || n == 0)
+        if (n == 0)
+          const SizedBox.shrink()
+        else if (empty)
+          // Nothing yet: the week's grid and scales stay, a lock over them.
           SizedBox(
-            height: S.x16 * 2,
-            child: Center(
-              child: Text('Nothing recorded this week.',
-                  style: F.num(F.cap).copyWith(color: p.ink3)),
-            ),
+            height: S.x16 * 4 + S.x2,
+            child: Stack(children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _DualPainter(
+                    p: p,
+                    strain: sv,
+                    recovery: rv,
+                    xLabels: xLabels,
+                    focus: n - 1,
+                    rest: false,
+                    inset: _inset,
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                bottom: S.x8,
+                child: Semantics(
+                  label: 'Trends coming soon',
+                  child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                    Icon(LucideIcons.lock, size: I.xl, color: p.ink3),
+                    const SizedBox(height: S.x3),
+                    Text('TRENDS COMING SOON',
+                        style: F.caps.copyWith(
+                            color: p.ink, fontWeight: FontWeight.w800)),
+                  ]),
+                ),
+              ),
+            ]),
           )
         else
           ScrubArea(
@@ -98,10 +131,7 @@ class StrainRecoveryCard extends StatelessWidget {
                 p: p,
                 strain: sv,
                 recovery: rv,
-                xLabels: [
-                  for (final d in days)
-                    '${weekdayShortName(DateTime.parse(d).weekday, l)}\n${DateTime.parse(d).day}',
-                ],
+                xLabels: xLabels,
                 focus: at ?? n - 1,
                 rest: at == null,
                 inset: _inset,

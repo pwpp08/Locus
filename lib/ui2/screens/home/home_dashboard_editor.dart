@@ -5,7 +5,12 @@ import '../../grammar.dart' show AppSwitch, BigButton, Pressable;
 import '../../theme.dart' show C, F, I, P, R, S;
 import '../../ui2.dart' show LucideIcons;
 import '../trend_view.dart'
-    show kCompareTile, kStrainRecoveryTile, kTrendCatalogue, trendMetricOf;
+    show
+        kCompareTile,
+        kStrainRecoveryTile,
+        kStressTile,
+        kTrendCatalogue,
+        trendMetricOf;
 
 /// What the editor hands back: the tiles in order, and which metrics are drawn
 /// as their week chart instead of a row.
@@ -27,6 +32,7 @@ class _HomeDashboardEditorState extends State<HomeDashboardEditor> {
   late final List<String> _order = [
     ...widget.selected,
     for (final k in [
+      kStressTile,
       kStrainRecoveryTile,
       kCompareTile,
       for (final m in kTrendCatalogue) m.id,
@@ -62,7 +68,11 @@ class _HomeDashboardEditorState extends State<HomeDashboardEditor> {
                 final k = _order[i];
                 final m = trendMetricOf(k);
                 final title = m?.title ??
-                    (k == kCompareTile ? 'Compare metrics' : 'Strain & Recovery');
+                    switch (k) {
+                      kCompareTile => 'Compare metrics',
+                      kStressTile => 'Stress Monitor',
+                      _ => 'Strain & Recovery',
+                    };
                 return Padding(
                   key: ValueKey(k),
                   padding: const EdgeInsets.symmetric(vertical: S.x1),
@@ -78,9 +88,11 @@ class _HomeDashboardEditorState extends State<HomeDashboardEditor> {
                     ),
                     Icon(
                         m?.icon ??
-                            (k == kCompareTile
-                                ? LucideIcons.gitCompareArrows
-                                : LucideIcons.chartColumn),
+                            switch (k) {
+                              kCompareTile => LucideIcons.gitCompareArrows,
+                              kStressTile => LucideIcons.brain,
+                              _ => LucideIcons.chartColumn,
+                            },
                         size: I.md, color: p.ink2),
                     const SizedBox(width: S.x3),
                     Expanded(

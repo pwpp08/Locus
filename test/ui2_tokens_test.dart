@@ -182,6 +182,8 @@ final _rules = <_Rule>[
       'lib/ui2/profile/device_settings.dart',
       // Get Started's charging card shows the band on its strap.
       'lib/ui2/screens/home/home_get_started.dart',
+      // So does the dashboard's card before the first night.
+      'lib/ui2/screens/home/home_calibrating.dart',
     },
   ),
 ];

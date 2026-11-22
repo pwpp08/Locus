@@ -38,7 +38,9 @@ import '../../updater/update_service.dart';
 import '../community/community.dart' show CommunityScreen;
 import '../onboarding/profile_setup.dart'
     show BirthdayPage, BodyPage, NamePage, SexPage, nameFields, namesOf;
+import 'band_notifications.dart' show BandNotifications;
 import 'data.dart' show DataScreen;
+import 'gestures.dart' show BandGestures;
 import 'storage_screen.dart' show StorageScreen;
 import 'gallery.dart';
 import 'profile.dart';
@@ -865,6 +867,17 @@ class NotificationSettingsView extends StatelessWidget {
                     onFix: onRequestPermission,
                   ),
                 if (loaded) ...[
+                  // What the band itself does, here as well as under the
+                  // device: a buzz is a notification too.
+                  settingsGroup(c, 'On the band', [
+                    if (defaultTargetPlatform == TargetPlatform.android)
+                      SetRow(LucideIcons.vibrate, C.dialStrain, 'Band buzzes',
+                          sub: 'Which phone notifications the band buzzes for',
+                          onTap: () => goto(c, const BandNotifications())),
+                    SetRow(LucideIcons.hand, C.stressLow, 'Double-tap',
+                        sub: 'What a double-tap on the band does',
+                        onTap: () => goto(c, const BandGestures())),
+                  ]),
                   settingsGroup(c, 'Health', [
                     SetRow(LucideIcons.heartPulse, C.dialStrain,
                         l?.settingsHealthExceptionsRowTitle ??

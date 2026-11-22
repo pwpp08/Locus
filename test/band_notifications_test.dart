@@ -71,7 +71,7 @@ void main() {
       expect(find.text('—'), findsNothing);
     });
 
-    testWidgets('each seen app is a row you can arm, with its package under it',
+    testWidgets('each app is a row you can arm, by its own name, with a search',
         (t) async {
       final calls = <(String, bool)>[];
       await _pump(
@@ -80,21 +80,30 @@ void main() {
           enabled: true,
           granted: true,
           apps: const [
-            RelayApp('com.whatsapp', on: true),
-            RelayApp('org.telegram.messenger'),
+            RelayApp('com.whatsapp', on: true, label: 'WhatsApp'),
+            RelayApp('org.telegram.messenger', label: 'Telegram'),
+            RelayApp('com.spotify.music'),
           ],
           onApp: (p, v) => calls.add((p, v)),
         ),
       );
-      expect(find.text('Whatsapp'), findsOneWidget);
-      expect(find.text('com.whatsapp'), findsOneWidget);
-      expect(find.text('Buzzes'), findsOneWidget);
+      // The app's own name, not its package; a package with no name known
+      // still reads as a word.
+      expect(find.text('WhatsApp'), findsOneWidget);
+      expect(find.text('com.whatsapp'), findsNothing);
+      expect(find.text('Music'), findsOneWidget);
       // The count is the one number that says whether this does anything.
       expect(find.text('APPS ARMED'), findsOneWidget);
       expect(find.text('1'), findsOneWidget);
 
-      await t.tap(find.text('Messenger'));
+      await t.tap(find.text('Telegram'));
       expect(calls, [('org.telegram.messenger', true)]);
+
+      // The search narrows by name.
+      await t.enterText(find.byType(EditableText), 'tele');
+      await t.pump();
+      expect(find.text('Telegram'), findsOneWidget);
+      expect(find.text('WhatsApp'), findsNothing);
     });
 
     testWidgets('iOS gets a reason, not a dead switch', (t) async {

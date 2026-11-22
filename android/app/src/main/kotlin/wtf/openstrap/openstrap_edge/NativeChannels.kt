@@ -9,6 +9,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ActivityNotFoundException
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -186,6 +188,16 @@ object NativeChannels {
                     }
                     "openOemAutostartSettings" -> {
                         result.success(openOemAutostartSettings(app))
+                    }
+                    // The apps on the launcher, with their own names and a
+                    // small icon each, for the band-buzz picker. Off the main
+                    // thread: a hundred icons drawn and encoded take a moment.
+                    "launcherApps" -> {
+                        val main = Handler(Looper.getMainLooper())
+                        Thread {
+                            val apps = try { launcherApps(app) } catch (_: Throwable) { emptyList() }
+                            main.post { result.success(apps) }
+                        }.start()
                     }
                     else -> result.notImplemented()
                 }
@@ -686,4 +698,32 @@ object NativeChannels {
         ctx.sendBroadcast(intent)
     }
 
+}
+
+/// Every app with a launcher entry except this one: its package, the name it
+/// shows under its icon, and that icon as a 96 px PNG.
+private fun launcherApps(ctx: Context): List<Map<String, Any?>> {
+    val pm = ctx.packageManager
+    val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+    val seen = HashSet<String>()
+    val out = ArrayList<Map<String, Any?>>()
+    for (ri in pm.queryIntentActivities(launcher, 0)) {
+        val pkg = ri.activityInfo?.packageName ?: continue
+        if (pkg == ctx.packageName || !seen.add(pkg)) continue
+        val label = try { ri.activityInfo.applicationInfo.loadLabel(pm).toString() } catch (_: Throwable) { pkg }
+        val icon = try {
+            val d = ri.activityInfo.applicationInfo.loadIcon(pm)
+            val px = 96
+            val bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bmp)
+            d.setBounds(0, 0, px, px)
+            d.draw(canvas)
+            val bytes = java.io.ByteArrayOutputStream()
+            bmp.compress(Bitmap.CompressFormat.PNG, 100, bytes)
+            bmp.recycle()
+            bytes.toByteArray()
+        } catch (_: Throwable) { null }
+        out.add(mapOf("package" to pkg, "label" to label, "icon" to icon))
+    }
+    return out
 }

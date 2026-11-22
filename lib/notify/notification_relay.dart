@@ -119,7 +119,37 @@ class NotificationRelay extends ChangeNotifier with WidgetsBindingObserver {
   final Map<String, Uint8List> _icons = {};
 
   List<String> get seenPackages => List.unmodifiable(_seen);
-  Uint8List? iconFor(String pkg) => _icons[pkg];
+  Uint8List? iconFor(String pkg) => _icons[pkg] ?? _launcherIcons[pkg];
+
+  /// The apps on the launcher, by their own names, read once per process the
+  /// first time the picker opens. RAM only, like [_icons].
+  final Map<String, String> _labels = {};
+  final Map<String, Uint8List> _launcherIcons = {};
+  Future<void>? _launcherLoad;
+
+  /// The app's own name when the launcher told us it, else one guessed from
+  /// its package.
+  String labelFor(String pkg) => _labels[pkg] ?? appLabel(pkg);
+
+  /// What the picker offers: every launcher app, every app seen notifying,
+  /// and every armed one, each once.
+  List<String> get pickerPackages =>
+      {..._seen, ..._packages, ..._labels.keys}.toList();
+
+  /// Reads the launcher's apps for the picker, once.
+  Future<void> loadLauncherApps(
+          Future<List<({String package, String label, Uint8List? icon})>>
+                  Function()
+              read) =>
+      _launcherLoad ??= () async {
+        for (final a in await read()) {
+          _labels[a.package] = a.label;
+          if (a.icon case final i? when i.isNotEmpty) {
+            _launcherIcons[a.package] = i;
+          }
+        }
+        notifyListeners();
+      }();
 
   final Set<String> _packages = {};
   Set<String> get packages => _packages;

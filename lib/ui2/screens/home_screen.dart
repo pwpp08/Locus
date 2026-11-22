@@ -38,6 +38,7 @@ import '../ui2.dart';
 import '../../ai/briefing.dart' show BriefingPeriod, currentBriefingPeriod;
 import 'add_activity.dart' show openAddActivity;
 import 'calibration.dart' show Calibration, CalibrationCard;
+import 'home/home_calibrating.dart' show HomeStressCard, PersonalizingCard;
 import 'home/home_get_started.dart' show GetStartedSection;
 import 'coach.dart' show openCoachSheet;
 import 'coach_workout.dart' show TodayPlanCard;
@@ -837,8 +838,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             ? workoutHoldCard(l)
             : _bareStatusCard(c, d, l, pastDay: !isToday),
         if (firstWeeks) ...[
-          const SizedBox(height: S.x3),
-          CalibrationCard(cal),
+          const _SectionHead('Welcome to Locus'),
+          CalibrationCard(cal, name: d.name),
         ],
       ] else ...[
         if (dialsShown) ...[
@@ -874,8 +875,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             );
           }),
         if (firstWeeks) ...[
-          const SizedBox(height: S.x3),
-          CalibrationCard(cal),
+          const _SectionHead('Welcome to Locus'),
+          CalibrationCard(cal, name: d.name),
         ],
       ],
 
@@ -1026,20 +1027,37 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
 
       _SectionHead(
         'My Dashboard',
+        // A salmon-to-violet pill, as the reference's.
         trailing: Pressable(
           onTap: _editDashboard,
           semanticLabel: 'Customize My Dashboard',
           child: SizedBox(
             height: S.tap,
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text('CUSTOMIZE',
-                  style: F.caps.copyWith(color: P.of(c).ink)),
-              const SizedBox(width: S.x2),
-              Icon(LucideIcons.pencil, size: I.md, color: P.of(c).ink),
-            ]),
+            child: Center(
+              child: Container(
+                height: S.x8,
+                padding: const EdgeInsets.symmetric(horizontal: S.x3),
+                decoration: const BoxDecoration(
+                  borderRadius: R.rMd,
+                  gradient: LinearGradient(colors: [CB.pillA, CB.pillB]),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text('CUSTOMIZE',
+                      style: F.caps.copyWith(
+                          color: C.white, fontWeight: FontWeight.w800)),
+                  const SizedBox(width: S.x2),
+                  const Icon(LucideIcons.pencil, size: I.md, color: C.white),
+                ]),
+              ),
+            ),
           ),
         ),
       ),
+      // Before the first night: what the dashboard is waiting for.
+      if (firstWeeks && cal.nights == 0) ...[
+        const PersonalizingCard(),
+        const SizedBox(height: S.x2),
+      ],
       DashboardRows(
         ids: _tiles,
         expanded: _expanded,
@@ -1065,7 +1083,11 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             ],
             strain: _daily['strain'] ?? const {},
             recovery: _daily['recovery'] ?? const {},
-            calibrating: isToday && !cal.recovery ? cal.milestones[3] : null,
+          ),
+          kStressTile: HomeStressCard(
+            data: isToday ? _stress : null,
+            calibrating: isToday && !cal.stress ? cal.milestones[2] : null,
+            onOpen: () => go(c, const StressMonitorScreen()),
           ),
         },
       ),
@@ -1230,6 +1252,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     Prefs.setString(Prefs.dashboardTiles, next.tiles.join(','));
     Prefs.setString(Prefs.dashboardExpanded, next.expanded.join(','));
     Prefs.setBool(Prefs.dashboardChartChosen, true);
+    Prefs.setBool(Prefs.dashboardStressChosen, true);
     setState(() {
       _tiles = next.tiles;
       _expanded = next.expanded;

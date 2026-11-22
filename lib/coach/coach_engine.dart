@@ -22,6 +22,7 @@ import '../data/day_label.dart';
 import '../data/db.dart';
 import '../data/local_repository.dart';
 import '../models/payloads.dart' show todayHeadlineOf;
+import 'coach_a2ui.dart';
 import 'coach_actions.dart';
 import 'coach_health.dart';
 import 'workout_plan.dart';
@@ -1329,6 +1330,14 @@ class CoachEngine {
           onItem(CoachItem.render(figure.spec!));
           return 'Rendered "${figure.spec!['type']}" for the user.';
 
+        // show_ui — an A2UI surface, checked here and drawn by the app
+        case 'show_ui':
+          final ui = prepareA2ui(args);
+          if (ui.spec == null) return ui.error!;
+          onItem(CoachItem.render(ui.spec!));
+          return 'Shown to the user. A button they tap comes back as their '
+              'next message, starting "[A2UI action]".';
+
         // actions (confirmed)
         case 'log_journal':
           final journalDate = CoachActions.day(args['date']);
@@ -1475,6 +1484,7 @@ class CoachEngine {
       case 'get_medications': return 'Reading your medications…';
       case 'get_app_state': return 'Reading your settings…';
       case 'render': return 'Rendering ${args['type'] ?? 'figure'}…';
+      case 'show_ui': return 'Building that for you…';
       case 'propose_workout': return 'Building your workout…';
       case 'web_search': return 'Searching the web…';
       case 'read_web_page': return 'Reading the page…';
@@ -1560,6 +1570,7 @@ class CoachEngine {
         'run_sql and its column names; the app reads the values itself.',
         figureProperties,
         ['type', 'title']),
+    _fn('show_ui', a2uiToolDescription, a2uiToolProperties, ['messages']),
     _fn('get_nutrition',
         'Read one day of food. Returns every entry and the day totals as the '
         'app computes them (a total over an entry with no numbers is a FLOOR '

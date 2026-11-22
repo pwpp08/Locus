@@ -43,6 +43,7 @@ import '../activity/catalogue.dart';
 import '../activity/exercise_image.dart';
 import '../activity/live.dart';
 import '../screens/plus_menu.dart';
+import '../screens/coach_a2ui_view.dart';
 import '../screens/coach_history_sheet.dart';
 import '../screens/coach_parts.dart';
 import '../screens/coach_workout.dart';
@@ -70,6 +71,7 @@ import 'devices.dart';
 import 'profile.dart';
 import 'wearable_numbers.dart';
 import '../../compute/energy_reserve.dart';
+import '../screens/home/home_calibrating.dart';
 import '../screens/home/home_energy.dart';
 import '../../compute/training_readiness.dart';
 import '../screens/training_readiness_card.dart' show TrainingReadinessView;
@@ -636,11 +638,36 @@ Map<String, Widget> _coachFigureCases() => {
   'coach_fig_table': const CoachFigure(spec: {
     'type': 'table',
     'title': 'Sessions this week',
-    'columns': ['Day', 'Type', 'Minutes', 'Strain'],
+    'columns': ['Day', 'Type', 'Minutes', 'Strain', 'Avg HR'],
     'rows': [
-      ['Mon', 'Run', '42', '11.4'],
-      ['Thu', 'Strength', '55', '8.1'],
+      ['Mon', 'Run', '42', '11.4', '148 bpm'],
+      ['Wed', 'Cycling', '75', '13.9', '139 bpm'],
+      ['Thu', 'Strength', '55', '8.1', '121 bpm'],
+      ['Sat', 'Walk', '', '4.6', '102 bpm'],
     ],
+  }),
+  'coach_a2ui_form': const A2uiSurfaceView(spec: {
+    'type': 'a2ui',
+    'surfaceId': 'rate',
+    'components': [
+      {'id': 'root', 'component': 'Column', 'children': ['t', 'feel', 'rpe', 'done', 'go']},
+      {'id': 't', 'component': 'Text', 'text': 'How did the run feel?', 'variant': 'h3'},
+      {
+        'id': 'feel',
+        'component': 'ChoicePicker',
+        'value': {'@path': '/feel'},
+        'options': [
+          {'label': 'Easy', 'value': 'easy'},
+          {'label': 'Right', 'value': 'right'},
+          {'label': 'Too hard', 'value': 'hard'},
+        ],
+      },
+      {'id': 'rpe', 'component': 'Slider', 'label': 'Effort', 'min': 1, 'max': 10, 'value': {'@path': '/rpe'}},
+      {'id': 'done', 'component': 'CheckBox', 'label': 'Finished the whole plan', 'value': {'@path': '/done'}},
+      {'id': 'go', 'component': 'Button', 'variant': 'primary', 'child': 'go_t', 'action': {'event': {'name': 'rate'}}},
+      {'id': 'go_t', 'component': 'Text', 'text': 'Send to coach'},
+    ],
+    'dataModel': {'feel': 'right', 'rpe': 6, 'done': true},
   }),
   'coach_fig_unsupported': const CoachFigure(spec: {
     'type': 'sankey',
@@ -1940,6 +1967,18 @@ Map<String, Widget> _stateCases() => {
             shiftDay('2026-08-16', i - 6): v,
         },
       ),
+      'strain_recovery_empty': StrainRecoveryCard(
+        days: [for (var i = 6; i >= 0; i--) shiftDay('2026-08-16', -i)],
+        strain: const {},
+        recovery: const {},
+      ),
+      'home_stress_empty': HomeStressCard(
+        data: null,
+        now: DateTime(2026, 8, 16, 9, 37),
+        calibrating: const Calibration(nights: 0, days: 0).milestones[2],
+        onOpen: () {},
+      ),
+      'personalizing_card': const PersonalizingCard(),
       'strain_recovery_calibrating': StrainRecoveryCard(
         days: [for (var i = 6; i >= 0; i--) shiftDay('2026-08-16', -i)],
         strain: {shiftDay('2026-08-16', 0): 9.4},

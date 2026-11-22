@@ -69,6 +69,29 @@ class AndroidBackground {
     }
   }
 
+  /// The apps on the phone's launcher: package, the name under its icon, and
+  /// that icon as a small PNG. Empty off Android or on any failure. Needs the
+  /// manifest's narrow MAIN/LAUNCHER `<queries>` entry, not QUERY_ALL_PACKAGES.
+  static Future<List<({String package, String label, Uint8List? icon})>>
+      launcherApps() async {
+    if (!Platform.isAndroid) return const [];
+    try {
+      final raw = await _ch.invokeListMethod<Object?>('launcherApps') ?? const [];
+      return [
+        for (final e in raw)
+          if (e is Map && e['package'] is String)
+            (
+              package: e['package'] as String,
+              label: (e['label'] as String?) ?? e['package'] as String,
+              icon: e['icon'] as Uint8List?,
+            ),
+      ];
+    } catch (e) {
+      debugPrint('[android-bg] launcher apps failed: $e');
+      return const [];
+    }
+  }
+
   /// Fire the system "ignore battery optimizations?" dialog for this app.
   static Future<void> requestIgnoreBatteryOptimizations() async {
     if (!Platform.isAndroid) return;

@@ -515,8 +515,12 @@ class _BestRing extends StatelessWidget {
     this.pct = false,
   });
 
+  /// Drawn as Home's dials are: the same ring at the same share of the
+  /// column, the same stroke, the figure in the same weight, and the name in
+  /// caps under it.
   @override
   Widget build(BuildContext c) {
+    final p = P.of(c);
     final v = value;
     return Expanded(
       child: Semantics(
@@ -524,42 +528,60 @@ class _BestRing extends StatelessWidget {
         excludeSemantics: true,
         child: Column(
           children: [
-            SizedBox.square(
-              dimension: PH.ring,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  CustomPaint(
-                    size: const Size.square(PH.ring),
-                    painter: Ring(
-                      v == null ? 0 : (v / max).clamp(0.0, 1.0),
-                      color,
-                      DC.track,
-                      stroke: PH.ringStroke,
-                      solid: true,
-                      flatStart: true,
-                      softStart: true,
-                    ),
-                  ),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: _figure(
-                      text ?? '--',
-                      pct && v != null ? '%' : '',
-                      PH.figure,
-                      PH.figureUnit.copyWith(color: DC.pure),
-                      gap: PH.pctGap,
-                    ),
-                  ),
-                ],
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: S.x16 * 2 + S.x4),
+              child: FractionallySizedBox(
+                widthFactor: 0.85,
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: LayoutBuilder(builder: (c, box) {
+                    final stroke = box.maxWidth * .058;
+                    return Stack(alignment: Alignment.center, children: [
+                      CustomPaint(
+                        size: Size.infinite,
+                        painter: Ring(
+                          v == null ? 0 : (v / max).clamp(0.0, 1.0),
+                          color,
+                          p.track,
+                          stroke: stroke,
+                          t: animate(c, 1),
+                          solid: true,
+                          flatStart: true,
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.all(stroke + S.x2),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(text ?? '--',
+                                  style: F.n34.copyWith(
+                                      color: p.ink,
+                                      fontWeight: FontWeight.w700)),
+                              if (pct && v != null)
+                                Text('%',
+                                    style: F.n17.copyWith(
+                                        color: p.ink,
+                                        fontWeight: FontWeight.w700)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ]);
+                  }),
+                ),
               ),
             ),
-            const SizedBox(height: PH.ringToLabel),
+            const SizedBox(height: S.x3),
             Text(
-              label,
+              label.toUpperCase(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: F.dBody.copyWith(color: DC.pure),
+              textAlign: TextAlign.center,
+              style: F.caps.copyWith(color: p.ink),
             ),
           ],
         ),

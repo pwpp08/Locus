@@ -441,4 +441,22 @@ void main() {
     // It is a chart like any other now, not a refusal.
     expect(find.text('Not available'), findsNothing);
   });
+
+  testWidgets('total day stress columns never pass 100 %', (t) async {
+    // Layers that do not add up (a share missing a day, or rounding): each
+    // column is still drawn as a whole day, exactly 100 %.
+    Map<String, double> days(double v) =>
+        {for (var i = 0; i < 7; i++) shiftDay(_today, -i): v};
+    await pumpTrend(
+        t,
+        'day_stress',
+        _Loader({'day_stress': days(90)},
+            layered: {'day_stress': [days(60), days(50), days(20)]}));
+    final cols = t.widget<ScrubColumns>(find.byType(ScrubColumns));
+    expect(cols.hi, 100);
+    for (final s in cols.stacks!) {
+      if (s == null) continue;
+      expect(s.fold<double>(0, (a, b) => a + b), closeTo(100, 1e-9));
+    }
+  });
 }

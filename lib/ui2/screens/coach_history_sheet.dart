@@ -1,5 +1,5 @@
 // Past coach chats, as the reference's history sheet lays them out: a caps
-// title and a close cross, then each day as a caps label with a rule running
+// title under the grab bar, then each day as a caps label with a rule running
 // to the edge, and under it one rounded row per chat (a glyph, its title, a
 // chevron). A long press offers to delete a chat.
 
@@ -98,7 +98,9 @@ class _CoachHistorySheetState extends State<CoachHistorySheet> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [HIST.top, HIST.foot],
+          // Dark by halfway down, as the reference's sheet.
+          colors: [HIST.top, HIST.mid, HIST.foot],
+          stops: [0, .5, 1],
         ),
       ),
       child: Column(children: [
@@ -109,22 +111,15 @@ class _CoachHistorySheetState extends State<CoachHistorySheet> {
           decoration: const BoxDecoration(
               color: HIST.grab, borderRadius: R.rPill),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x2, 0),
-          child: Row(children: [
-            Expanded(
-              child: Text('CONVERSATION HISTORY',
-                  style: HIST.title.copyWith(color: C.white)),
-            ),
-            Pressable(
-              semanticLabel: 'Close',
-              onTap: () => Navigator.of(c).maybePop(),
-              child: const SizedBox.square(
-                dimension: S.tap,
-                child: Icon(LucideIcons.x, size: I.lg, color: C.white),
-              ),
-            ),
-          ]),
+        // No cross: the sheet is pulled down to close, as the reference's.
+        Container(
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.fromLTRB(S.x4, S.x3, S.x4, S.x2),
+          child: Semantics(
+            header: true,
+            child: Text('CONVERSATION HISTORY',
+                style: HIST.title.copyWith(color: C.white)),
+          ),
         ),
         Expanded(
           child: FutureBuilder<List<CoachSessionMeta>>(
@@ -154,6 +149,7 @@ class _CoachHistorySheetState extends State<CoachHistorySheet> {
                 }
                 rows.add(_ChatRow(
                   s.title.isEmpty ? 'Untitled chat' : s.title,
+                  outlook: s.title.startsWith('Daily Outlook'),
                   onTap: () {
                     Navigator.of(c).pop();
                     widget.onOpen?.call(s.id);
@@ -200,8 +196,11 @@ class _ChatRow extends StatelessWidget {
   final String title;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
+
+  /// A Daily Outlook: the sun coming up instead of the clipboard.
+  final bool outlook;
   const _ChatRow(this.title,
-      {required this.onTap, required this.onLongPress});
+      {required this.onTap, required this.onLongPress, this.outlook = false});
 
   @override
   Widget build(BuildContext c) => Padding(
@@ -216,7 +215,8 @@ class _ChatRow extends StatelessWidget {
             decoration: const BoxDecoration(
                 color: HIST.row, borderRadius: R.rLg),
             child: Row(children: [
-              const Icon(LucideIcons.clipboardList, size: I.md, color: C.white),
+              Icon(outlook ? LucideIcons.sunrise : LucideIcons.clipboardList,
+                  size: I.md, color: C.white),
               const SizedBox(width: S.x2),
               Expanded(
                 child: Text(title,

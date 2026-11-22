@@ -422,8 +422,11 @@ class CompareSeries {
       ? ranges.every((r) => r == null)
       : values.every((v) => v == null);
 
-  String tick(double t) =>
-      shape == CompareShape.ranges ? trendClockText(t) : trendTickText(m, t);
+  String tick(double t) => shape == CompareShape.ranges
+      ? trendClockText(t)
+      : shape == CompareShape.stacked && m.stackPercent
+          ? '${t.round()}%'
+          : trendTickText(m, t);
 
   /// Where [v] sits in [plot] on this series' axis.
   double y(double v, Rect plot) {
@@ -468,11 +471,14 @@ CompareSeries compareSeriesOf(
     final totals = <double?>[];
     for (var i = 0; i < bars.length; i++) {
       final parts = [for (final lb in layerBars) lb[i].v];
-      if (parts.every((v) => v == null)) {
+      var ps = [for (final v in parts) v != null && v.isFinite ? v : 0.0];
+      final sum = ps.fold<double>(0, (a, b) => a + b);
+      if (parts.every((v) => v == null) || sum <= 0) {
         stacks.add(null);
         totals.add(null);
       } else {
-        final ps = [for (final v in parts) v ?? 0.0];
+        // Shares of a day stand at exactly 100 %, as in Trend View.
+        if (m.stackPercent) ps = [for (final v in ps) v / sum * 100];
         stacks.add(ps);
         totals.add(ps.fold<double>(0, (a, b) => a + b));
       }
@@ -483,7 +489,9 @@ CompareSeries compareSeriesOf(
       values: totals,
       stacks: stacks,
       layerColours: trendLayerColours(m),
-      axis: trendAxis(m, [for (final t in totals) ?t], line: false),
+      axis: m.stackPercent
+          ? (lo: 0.0, hi: 100.0, ticks: const [0.0, 25.0, 50.0, 75.0, 100.0])
+          : trendAxis(m, [for (final t in totals) ?t], line: false),
     );
   }
   return CompareSeries(

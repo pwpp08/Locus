@@ -23,7 +23,7 @@ import '../../coach/coach_chart_attachment.dart';
 
 import '../../data/db.dart';
 import '../../l10n/display_text.dart';
-import 'dart:convert' show utf8;
+import 'dart:convert' show jsonEncode, utf8;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -40,6 +40,7 @@ import '../../coach/coach_style.dart';
 import '../../state/app_state.dart';
 import '../ui2.dart';
 import 'ai_briefing.dart';
+import 'coach_a2ui_view.dart';
 import 'coach_figures.dart';
 import 'coach_history_sheet.dart';
 import 'coach_memory_screen.dart';
@@ -192,28 +193,6 @@ class _CoachScreenState extends State<CoachScreen> {
   /// Scrolled up far enough from the newest line to offer the way back.
   bool _farFromEnd = false;
 
-  static List<String> _starters(BuildContext c) {
-    final l = AppLocalizations.of(c);
-    return [
-      l?.coachStarterRecovery ?? 'How recovered am I today, and why?',
-      l?.coachStarterHrvChart ?? 'Chart my HRV over the last month',
-      l?.coachStarterSleep ?? 'How has my sleep been this week?',
-      l?.coachStarterAteYesterday ?? 'What did I eat yesterday?',
-      l?.coachStarterLogWater ?? 'Log 500 ml of water for today',
-      l?.coachStarterLogRun ?? 'I ran for 40 minutes this morning — log it',
-    ];
-  }
-
-  /// One glyph per entry of [_starters], in the same order.
-  static const _starterIcons = [
-    LucideIcons.heartPulse,
-    LucideIcons.chartLine,
-    LucideIcons.moon,
-    LucideIcons.utensils,
-    LucideIcons.droplet,
-    LucideIcons.activity,
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -321,7 +300,6 @@ class _CoachScreenState extends State<CoachScreen> {
   }
 
   /// The composer's (+): a new conversation, or a picture or a file to send.
-  /// Things to try asking sit behind the lightbulb in the header.
   Future<void> _plus() async {
     final box = _plusKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return;
@@ -421,27 +399,6 @@ class _CoachScreenState extends State<CoachScreen> {
     } catch (e) {
       _attachError('The file could not be opened: $e');
     }
-  }
-
-  /// The starters, from the composer's (+).
-  Future<void> _suggest() async {
-    final starters = _starters(context);
-    final pick = await AppSheet.show<String>(
-      context,
-      title: 'TRY ASKING',
-      child: Column(children: [
-        for (var i = 0; i < starters.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: S.x2),
-            child: _Starter(
-              _starterIcons[i % _starterIcons.length],
-              starters[i],
-              onTap: () => Navigator.of(context).pop(starters[i]),
-            ),
-          ),
-      ]),
-    );
-    if (pick != null && mounted) await _send(pick);
   }
 
   @override
@@ -677,6 +634,30 @@ class _CoachScreenState extends State<CoachScreen> {
       ? cfg.model
       : (AppLocalizations.of(c)?.coachNotSetUp ?? 'Not set up');
 
+  /// The lightbulb: what the coach knows about you. A past chat or the
+  /// snapshot opens here, in this sheet, once the page has closed.
+  void _memory(BuildContext c) {
+    final key = _engine?.storageKey ??
+        (c.read<AppState>().user?['id'] ?? 'local').toString();
+    goto(
+      c,
+      CoachMemoryScreen(
+        storageKey: key,
+        onOpenChat: (id) {
+          Navigator.of(context).pop();
+          unawaited(_openSession(id));
+        },
+        onSnapshot: () {
+          Navigator.of(context).pop();
+          unawaited(_send('Give me a snapshot of what you know about me: '
+              'my goals, how I like to be coached, and my routine.'));
+        },
+        onSent: () => go(
+            c, AiBriefingScreen(period: currentBriefingPeriod(DateTime.now()))),
+      ),
+    );
+  }
+
   Widget _historyButton(BuildContext c) => Pressable(
         onTap: _menu,
         semanticLabel: AppLocalizations.of(c)?.coachMenuSemantic ??
@@ -700,7 +681,15 @@ class _CoachScreenState extends State<CoachScreen> {
           const SizedBox(height: S.x2),
           Row(children: [
             if (widget.outlook == null) ...[
-              Flexible(child: CoachTag(_modelLabel(c, cfg))),
+              // The model's tag opens its settings: the model, the tone,
+              // emojis and the rest of how it answers.
+              Flexible(
+                child: Pressable(
+                  onTap: () => go(c, const CoachSetup()),
+                  semanticLabel: 'AI model and answer style',
+                  child: CoachTag(_modelLabel(c, cfg)),
+                ),
+              ),
               const Spacer(),
             ] else ...[
               // Two buttons' width on the left too, so the title is centred.
@@ -715,11 +704,10 @@ class _CoachScreenState extends State<CoachScreen> {
               ),
             ],
             _historyButton(c),
-            // Things to ask, as the reference keeps them beside History.
+            // My memory, as the reference keeps it beside History.
             Pressable(
-              onTap: _busy ? null : () => unawaited(_suggest()),
-              semanticLabel:
-                  AppLocalizations.of(c)?.coachTryAsking ?? 'Try asking',
+              onTap: () => _memory(c),
+              semanticLabel: 'My memory',
               child: const SizedBox.square(
                 dimension: S.tap,
                 child: Icon(LucideIcons.lightbulb, size: I.lg, color: C.white),
@@ -845,7 +833,6 @@ class _CoachScreenState extends State<CoachScreen> {
       );
     }
     if (_items.isEmpty && !_busy) {
-      // Things to ask are behind the lightbulb, so the empty sheet stays short.
       return ListView(
         shrinkWrap: true,
         padding: const EdgeInsets.fromLTRB(S.x4, S.x6, S.x4, S.x6),
@@ -903,6 +890,13 @@ class _CoachScreenState extends State<CoachScreen> {
               ? () => _send('Give me different options.')
               : null,
           streaming: identical(_items[i], _streamingItem),
+          // A card's button speaks for them: their bubble shows the words,
+          // the coach also reads the A2UI action behind them.
+          onA2uiAction: _busy
+              ? null
+              : (said, msg) => _send(
+                  '$said\n\n[A2UI action] ${jsonEncode(msg)}',
+                  display: said),
           onRegenerate: !_busy && i == lastAnswer ? _regenerate : null,
           // Only the latest error, and only once nothing is on its way.
           // ponytail: the failed question stays in the history, so a retry
@@ -1144,44 +1138,6 @@ String clipFileText(String text) => text.length <= _maxFileChars
         '[the rest of the file, ${text.length - _maxFileChars} more '
         'characters, was left out]';
 
-/// A suggestion to start from: a glyph, the question, and an arrow.
-class _Starter extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  final VoidCallback onTap;
-  const _Starter(this.icon, this.text, {required this.onTap});
-
-  @override
-  Widget build(BuildContext c) {
-    final p = P.of(c);
-    // One line, tap height: five of them fit under the greeting without
-    // pushing the composer's neighbourhood off the screen.
-    return Pressable(
-      onTap: onTap,
-      semanticLabel: text,
-      child: Container(
-        width: double.infinity,
-        constraints: const BoxConstraints(minHeight: S.tap),
-        padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x2),
-        decoration: BoxDecoration(
-            color: C.white.withValues(alpha: .07), borderRadius: R.rLg),
-        child: Row(children: [
-          Icon(icon, size: I.sm, color: p.on(kCoachAccent)),
-          const SizedBox(width: S.x3),
-          Expanded(
-            child: Text(text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: F.cap.copyWith(color: p.ink)),
-          ),
-          const SizedBox(width: S.x2),
-          Icon(LucideIcons.arrowUpRight, size: I.sm, color: p.ink3),
-        ]),
-      ),
-    );
-  }
-}
-
 /// Waiting on the model: three dots, and what it is doing if it says.
 class _Thinking extends StatefulWidget {
   final String? status;
@@ -1281,9 +1237,13 @@ class _Bubble extends StatelessWidget {
 
   /// Ask for other workouts; only on the latest proposal.
   final VoidCallback? onAlternatives;
+
+  /// A button on an A2UI card was tapped; null while an answer is on its way.
+  final A2uiActionHandler? onA2uiAction;
   const _Bubble({
     required this.item,
     this.onAlternatives,
+    this.onA2uiAction,
     this.streaming = false,
     this.onRegenerate,
     this.onRetry,
@@ -1327,6 +1287,15 @@ class _Bubble extends StatelessWidget {
                 onCommit: WorkoutPlanStore.save,
                 onAlternatives: onAlternatives,
               ),
+            ),
+          );
+        }
+        if (spec['type'] == 'a2ui') {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: S.x5),
+            child: CoachCard(
+              padding: const EdgeInsets.all(S.x4),
+              child: A2uiSurfaceView(spec: spec, onAction: onA2uiAction),
             ),
           );
         }

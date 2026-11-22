@@ -221,6 +221,8 @@ class LucideIcons {
   static const IconData trendingUp = base.LucideIcons.trendingUp300;
   static const IconData triangleAlert = base.LucideIcons.triangleAlert300;
   static const IconData trophy = base.LucideIcons.trophy300;
+  static const IconData star = base.LucideIcons.star300;
+  static const IconData bed = base.LucideIcons.bed300;
   static const IconData undo2 = base.LucideIcons.undo2300;
   static const IconData unlink = base.LucideIcons.unlink300;
   static const IconData upload = base.LucideIcons.upload300;

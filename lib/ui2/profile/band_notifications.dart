@@ -25,6 +25,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../ble/android_background.dart';
 import '../../l10n/app_localizations.dart';
 import '../../notify/notification_relay.dart';
 import '../../state/app_state.dart';
@@ -33,10 +34,14 @@ import 'profile.dart' show SetRow, settingsGroup;
 
 /// One row's worth of the picker.
 class RelayApp {
-  const RelayApp(this.package, {this.icon, this.on = false});
+  const RelayApp(this.package, {this.icon, this.on = false, this.label});
   final String package;
   final Uint8List? icon;
   final bool on;
+
+  /// The app's own name; guessed from [package] when not known.
+  final String? label;
+  String get name => label ?? appLabel(package);
 }
 
 /// The route. Reads the live [NotificationRelay] off [AppState] and hands
@@ -57,6 +62,8 @@ class _BandNotificationsState extends State<BandNotifications>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Every app on the launcher, by its own name, for the picker.
+    _relay.loadLauncherApps(AndroidBackground.launcherApps);
   }
 
   @override
@@ -84,8 +91,11 @@ class _BandNotificationsState extends State<BandNotifications>
         enabled: relay.enabled,
         granted: relay.permissionGranted,
         apps: [
-          for (final p in relay.seenPackages)
-            RelayApp(p, icon: relay.iconFor(p), on: relay.isAppEnabled(p)),
+          for (final p in relay.pickerPackages)
+            RelayApp(p,
+                icon: relay.iconFor(p),
+                on: relay.isAppEnabled(p),
+                label: relay.labelFor(p)),
         ],
         callsOn: relay.callsEnabled,
         tasksOn: relay.tasksEnabled,
@@ -219,11 +229,7 @@ class BandNotificationsView extends StatelessWidget {
                         ),
                       )
                     else
-                      settingsGroup(
-                          c, l?.bandNotifAppsGroup ?? 'Apps that notify you', [
-                        for (final a in apps)
-                          _AppRow(a, onChanged: onApp),
-                      ]),
+                      _AppPicker(apps, onApp: onApp),
                   ],
                   const SizedBox(height: S.x4),
                   StatusCard(
@@ -242,9 +248,76 @@ class BandNotificationsView extends StatelessWidget {
   }
 }
 
-/// One app. The icon is the identifier a human reads — [appLabel] is only the
-/// caption under it, derived from the package name because the app's real
-/// label is behind a permission this feature does not ask for.
+/// The apps, with a search over them: the ones that buzz first, then the
+/// rest by name, each a row with its icon, its own name and a switch.
+class _AppPicker extends StatefulWidget {
+  const _AppPicker(this.apps, {this.onApp});
+  final List<RelayApp> apps;
+  final void Function(String pkg, bool on)? onApp;
+
+  @override
+  State<_AppPicker> createState() => _AppPickerState();
+}
+
+class _AppPickerState extends State<_AppPicker> {
+  String _q = '';
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final q = _q.trim().toLowerCase();
+    final shown = [
+      for (final a in widget.apps)
+        if (q.isEmpty ||
+            a.name.toLowerCase().contains(q) ||
+            a.package.toLowerCase().contains(q))
+          a,
+    ]..sort((a, b) => a.on != b.on
+        ? (a.on ? -1 : 1)
+        : a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Container(
+        height: S.tap,
+        padding: const EdgeInsets.symmetric(horizontal: S.x3),
+        decoration: BoxDecoration(color: p.card, borderRadius: R.rLg),
+        child: Row(children: [
+          Icon(LucideIcons.search, size: I.md, color: p.ink3),
+          const SizedBox(width: S.x2),
+          Expanded(
+            child: AppField(
+              bare: true,
+              hint: 'Search apps',
+              semanticLabel: 'Search apps',
+              autocorrect: false,
+              onChanged: (v) => setState(() => _q = v),
+            ),
+          ),
+        ]),
+      ),
+      const SizedBox(height: S.x3),
+      if (shown.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: S.x4),
+          child: Text('No app matches "$_q".',
+              textAlign: TextAlign.center,
+              style: F.cap.copyWith(color: p.ink3)),
+        )
+      else
+        Container(
+          decoration: BoxDecoration(color: p.card, borderRadius: R.rLg),
+          padding: const EdgeInsets.symmetric(horizontal: S.x3),
+          child: Column(children: [
+            for (var i = 0; i < shown.length; i++) ...[
+              if (i > 0) Container(height: S.hair, color: p.line),
+              _AppRow(shown[i], onChanged: widget.onApp),
+            ],
+          ]),
+        ),
+    ]);
+  }
+}
+
+/// One app: its icon, its own name, and whether it buzzes.
 class _AppRow extends StatelessWidget {
   const _AppRow(this.app, {this.onChanged});
   final RelayApp app;
@@ -254,29 +327,27 @@ class _AppRow extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     final icon = app.icon;
-    // Decoded at the size it is drawn at, same reasoning as _IconChoice in
-    // settings.dart: these are launcher masters (Android ships up to 512 px)
-    // decoded in full to paint a 32 pt row. WIDTH ONLY — a third-party icon
-    // need not be square, and constraining both dimensions would distort it.
-    final px = (32 * MediaQuery.devicePixelRatioOf(c)).round();
+    // Decoded at the size it is drawn at: launcher masters run up to 512 px.
+    // WIDTH ONLY, as a third-party icon need not be square.
+    final px = (S.x8 * MediaQuery.devicePixelRatioOf(c)).round();
     final l = AppLocalizations.of(c);
     return Pressable(
       onTap: () => onChanged?.call(app.package, !app.on),
-      semanticLabel: '${appLabel(app.package)}, ${app.on ? (l?.bandNotifBuzzesDescription ?? 'buzzes') : (l?.bandNotifDoesNotBuzzDescription ?? 'does not buzz')}',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: S.x3),
+      semanticLabel: '${app.name}, ${app.on ? (l?.bandNotifBuzzesDescription ?? 'buzzes') : (l?.bandNotifDoesNotBuzzDescription ?? 'does not buzz')}',
+      child: SizedBox(
+        height: S.tap + S.x2,
         child: Row(children: [
           ClipRRect(
             borderRadius: R.rSm,
             child: icon != null && icon.isNotEmpty
                 ? Image.memory(icon,
-                    width: 32,
-                    height: 32,
+                    width: S.x8,
+                    height: S.x8,
                     cacheWidth: px,
                     gaplessPlayback: true)
                 : Container(
-                    width: 32,
-                    height: 32,
+                    width: S.x8,
+                    height: S.x8,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                         color: p.wash(C.dialStrain), borderRadius: R.rSm),
@@ -286,24 +357,19 @@ class _AppRow extends StatelessWidget {
           ),
           const SizedBox(width: S.x3),
           Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(appLabel(app.package),
-                      style: F.body.copyWith(color: p.ink),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                  Text(app.package,
-                      style: F.over.copyWith(color: p.ink3),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                ]),
+            child: Text(app.name,
+                style: F.body.copyWith(color: p.ink),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
           ),
           const SizedBox(width: S.x2),
-          Text(app.on ? (l?.bandNotifBuzzes ?? 'Buzzes') : (l?.stateOff ?? 'Off'),
-              style: F.cap.copyWith(
-                  color: app.on ? p.ink : p.ink3,
-                  fontWeight: FontWeight.w600)),
+          ExcludeSemantics(
+            child: AppSwitch(
+              app.on,
+              (v) => onChanged?.call(app.package, v),
+              semanticLabel: app.name,
+            ),
+          ),
         ]),
       ),
     );

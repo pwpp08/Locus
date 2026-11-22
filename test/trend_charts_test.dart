@@ -220,12 +220,18 @@ void main() {
     // Never customized: the default tiles, and every metric listed.
     return Prefs.ensureLoaded().then((_) {
       expect(dashboardMetricsOf(), isNull);
-      expect(dashboardTilesOf().first, kStrainRecoveryTile);
-      // A list saved before the chart was a tile keeps the chart, first.
+      // The reference's order: the rows, then Stress Monitor, then the chart.
+      expect(dashboardTilesOf(), kDashboardDefault);
+      expect(dashboardTilesOf().sublist(kDashboardDefault.length - 2),
+          [kStressTile, kStrainRecoveryTile]);
+      // A list saved before the chart was a tile keeps the chart, first, and
+      // one saved before the Stress Monitor tile gets it just above the chart.
       Prefs.setString(Prefs.dashboardTiles, 'hrv,steps');
-      expect(dashboardTilesOf(), [kStrainRecoveryTile, 'hrv', 'steps']);
+      expect(dashboardTilesOf(),
+          [kStressTile, kStrainRecoveryTile, 'hrv', 'steps']);
       // Once the user has chosen, a tile that is off stays off.
       Prefs.setBool(Prefs.dashboardChartChosen, true);
+      Prefs.setBool(Prefs.dashboardStressChosen, true);
       expect(dashboardTilesOf(), ['hrv', 'steps']);
       expect(dashboardMetricsOf(), {'hrv', 'steps'});
     });

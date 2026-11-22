@@ -499,7 +499,7 @@ class _ColumnsPainter extends CustomPainter {
     // A week's bars are wide, a month's narrow, and both sit centred in
     // their slot.
     final bw =
-        barWidth ?? slot * (barFill ?? (n <= 4 ? .62 : n <= 8 ? .38 : .56));
+        barWidth ?? slot * (barFill ?? (n <= 4 ? .62 : n <= 8 ? .38 : .7));
 
     // Gridlines and their values, in the gutter.
     final grid = Paint()
@@ -523,18 +523,6 @@ class _ColumnsPainter extends CustomPainter {
         const Radius.circular(R.sm),
       );
       canvas.drawRRect(band, Paint()..color = p.ink.withValues(alpha: .08));
-    }
-
-    // The average sits behind the bars: dashed, faint, and unlabelled.
-    final a = avg;
-    if (a != null && a >= lo && a <= hi) {
-      final y = yOf(a);
-      final dash = Paint()
-        ..color = p.ink.withValues(alpha: .28)
-        ..strokeWidth = 1;
-      for (var x = r.left; x < r.right; x += S.x2) {
-        canvas.drawLine(Offset(x, y), Offset(math.min(x + S.x1, r.right), y), dash);
-      }
     }
 
     final zero = yOf(lo > 0 ? lo : 0);
@@ -596,6 +584,28 @@ class _ColumnsPainter extends CustomPainter {
           fontWeight: FontWeight.w700,
         ), width: slot * 2);
         tp.paint(canvas, Offset(x + bw / 2 - tp.width / 2, top - tp.height - S.half));
+      }
+    }
+
+    // The average, over the bars: a white dashed line, and where there is a
+    // gutter for it, AVG. on a white tag at its start, as the reference's.
+    final a = avg;
+    if (a != null && a >= lo && a <= hi) {
+      final y = yOf(a);
+      final dash = Paint()
+        ..color = p.ink.withValues(alpha: .85)
+        ..strokeWidth = 1.2;
+      for (var x = r.left; x < r.right; x += S.x2) {
+        canvas.drawLine(Offset(x, y), Offset(math.min(x + S.x1, r.right), y), dash);
+      }
+      if (inset.left >= S.x8) {
+        final tp = _text('AVG.', F.over.copyWith(
+            color: TV.tagInk, fontWeight: FontWeight.w800, letterSpacing: .6));
+        final tag = Rect.fromLTWH(r.left - tp.width - S.x2 - S.x1,
+            y - tp.height / 2 - S.half, tp.width + S.x2, tp.height + S.x1);
+        canvas.drawRRect(RRect.fromRectAndRadius(tag, const Radius.circular(R.sm / 2)),
+            Paint()..color = p.ink);
+        tp.paint(canvas, Offset(tag.left + S.x1, tag.top + S.half));
       }
     }
 

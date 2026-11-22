@@ -88,6 +88,10 @@ class Prefs {
   /// as a tile of its own. A list saved before that keeps the chart, first.
   static const String dashboardChartChosen = 'ui.dashboard_chart_chosen';
 
+  /// True once My Dashboard has been saved with the Stress Monitor tile on
+  /// offer. A list saved before that gets the tile, above the chart.
+  static const String dashboardStressChosen = 'ui.dashboard_stress_chosen';
+
   /// My Dashboard's metrics drawn as a full week chart rather than a row,
   /// comma-separated keys. Empty = every one a row.
   static const String dashboardExpanded = 'ui.dashboard_expanded';

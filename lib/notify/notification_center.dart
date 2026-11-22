@@ -461,14 +461,26 @@ class NotificationCenter {
     await NotificationService.instance.ensurePermission();
   }
 
+  /// A DAILY repeat at [at]'s time, starting on [at]'s day. It used to be a
+  /// one-shot re-armed on each foreground pass, so a day without opening the
+  /// app was a day with no reminder, and the one after it too: "every day"
+  /// only held for someone who opened the app every day anyway. The body
+  /// names no day, so repeating it stays true. A day already written starts
+  /// the repeat tomorrow (skipToday), and the next foreground pass re-asserts
+  /// the same id, which replaces rather than stacks.
   Future<void> _armCheckIn(NotificationService svc, DateTime at) async {
-    await svc.scheduleOnce(
+    final now = DateTime.now();
+    await svc.scheduleDaily(
       id: NotificationService.idCheckIn,
       category: NotifCategory.reminders,
       title: 'How was today?',
       // No guilt, no count, no reference to a day that was missed.
       body: 'Mood, energy, stress — a minute of it.',
-      at: at,
+      hour: at.hour,
+      minute: at.minute,
+      skipToday: at.year != now.year ||
+          at.month != now.month ||
+          at.day != now.day,
       route: kRouteJournalCompose,
     );
   }

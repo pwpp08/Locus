@@ -216,6 +216,25 @@
             </intent-filter>
         </service>
 
+        <!-- flutter_local_notifications' own receivers. Since v18 the plugin no
+             longer merges them in: without the first, every scheduled
+             notification (journal check-in, wind-down, medication, the 7 pm
+             alarm check) is a broadcast with nowhere to land and never shows;
+             without the second, a reboot or an app update drops them all. -->
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
         <!-- Boot receiver: restarts EdgeTrackingService + headless auto-connect after reboot.
              Handles BOOT_COMPLETED + QUICKBOOT_POWERON. -->
         <receiver
@@ -340,6 +359,14 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Apps with a launcher icon, by name and icon, for the band-buzz
+             picker. The narrow query Play allows for this, in place of
+             QUERY_ALL_PACKAGES (still removed): services and libraries stay
+             invisible, the apps a person opens are listed. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
         </intent>
         <!-- Health Connect app discovery (for install/status checks). -->
         <package android:name="com.google.android.apps.healthdata" />

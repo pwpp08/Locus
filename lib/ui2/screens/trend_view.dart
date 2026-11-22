@@ -36,7 +36,6 @@ import 'home_screen.dart'
         monthShortName,
         pad,
         pointsOf,
-        recoveryColor,
         repoOf,
         thousands,
         weekdayShortName;
@@ -427,18 +426,27 @@ TrendMetric? trendMetricOf(String id) {
 const kStrainRecoveryTile = 'strain_recovery';
 const kCompareTile = 'compare_metrics';
 
+/// The day's Stress Monitor line, as a tile of My Dashboard.
+const kStressTile = 'stress_monitor';
+
+/// A recovery column's colour in Trend View: the same bands as the dials
+/// (67 and 34), in the reference's softer shades.
+Color trendRecoveryColor(double v) =>
+    v >= 67 ? TV.recGreen : (v >= 34 ? TV.recYellow : TV.recRed);
+
 /// The colour [m]'s Trend View chart is drawn in.
 Color trendColorOf(TrendMetric m) => _TrendViewScreenState._colorOf(m);
 
 /// What My Dashboard shows until the user customizes it.
 const kDashboardDefault = [
-  kStrainRecoveryTile,
   'hrv',
   'resting_hr',
   'steps',
   'zones_13',
   'zones_45',
   'sleep_perf',
+  kStressTile,
+  kStrainRecoveryTile,
 ];
 
 /// The saved tile order, unknown keys dropped. Unset is the default set.
@@ -447,15 +455,26 @@ List<String> dashboardTilesOf() {
   if (raw.isEmpty) return kDashboardDefault;
   final saved = [
     for (final k in raw.split(','))
-      if (k == kStrainRecoveryTile || k == kCompareTile || trendMetricOf(k) != null)
+      if (k == kStrainRecoveryTile ||
+          k == kCompareTile ||
+          k == kStressTile ||
+          trendMetricOf(k) != null)
         k,
   ];
   // The chart used to sit above the dashboard whatever was chosen: a list saved
   // before it was a tile keeps it, first, until the user decides.
-  return !saved.contains(kStrainRecoveryTile) &&
+  final withChart = !saved.contains(kStrainRecoveryTile) &&
           !Prefs.getBool(Prefs.dashboardChartChosen, false)
       ? [kStrainRecoveryTile, ...saved]
       : saved;
+  // The Stress Monitor tile came later: a list saved before it gets it, just
+  // above the Strain & Recovery chart, until the user saves with it off.
+  if (withChart.contains(kStressTile) ||
+      Prefs.getBool(Prefs.dashboardStressChosen, false)) {
+    return withChart;
+  }
+  final at = withChart.indexOf(kStrainRecoveryTile);
+  return [...withChart]..insert(at < 0 ? withChart.length : at, kStressTile);
 }
 
 /// The dashboard metrics the user chose to see as a week chart.
@@ -474,7 +493,12 @@ Set<String> dashboardExpandedOf() {
 Set<String>? dashboardMetricsOf() =>
     Prefs.getString(Prefs.dashboardTiles, '').isEmpty
     ? null
-    : {...dashboardTilesOf()};
+    : {
+        ...dashboardTilesOf(),
+        // The Stress Monitor tile is the day's line; its days, split by
+        // level, are Total day stress.
+        if (dashboardTilesOf().contains(kStressTile)) 'day_stress',
+      };
 
 String trendGroupName(TrendGroup g) => switch (g) {
   TrendGroup.strain => 'Strain',
@@ -1038,7 +1062,11 @@ class TrendLoader {
       case 'hvn_hours':
         return [await _chart('sleep_need_min'), await _chart('tst_min')];
       case 'day_stress':
-        final m = await _stressMinutes();
+        // A day with no minutes scored has no shares: 0/0 is not a column.
+        final m = {
+          for (final e in (await _stressMinutes()).entries)
+            if (e.value.low + e.value.medium + e.value.high > 0) e.key: e.value,
+        };
         double pct(int part, ({int low, int medium, int high}) x) =>
             part / (x.low + x.medium + x.high) * 100;
         return [
@@ -1313,6 +1341,11 @@ class DashboardRows extends StatelessWidget {
             ),
           ),
           const SizedBox(width: S.x2),
+          // Nothing to show yet: the row is a way in, a chevron, as the
+          // reference's dashboard before its first numbers.
+          if (m.absent != null || h.value == null)
+            BoldChevron(left: false, color: p.ink, height: S.x4)
+          else
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -1320,7 +1353,7 @@ class DashboardRows extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    m.absent != null ? '--' : trendFormat(m, h.value),
+                    trendFormat(m, h.value),
                     style: F.n24.copyWith(
                       color: p.ink,
                       fontWeight: FontWeight.w700,
@@ -1462,7 +1495,7 @@ Widget trendWeekChart(
           tickText: (t) => _TrendViewScreenState._tickText(m, t),
           avg: m.weekly ? null : avg,
           color: color,
-          colorOf: m.id == 'recovery' ? (i, v) => recoveryColor(v) : null,
+          colorOf: m.id == 'recovery' ? (i, v) => trendRecoveryColor(v) : null,
           highlight: highlight,
           height: height,
           onScrub: onScrub,
@@ -1583,8 +1616,12 @@ class _ExpandedTrendCardState extends State<ExpandedTrendCard> {
           const SizedBox(height: S.x2),
           Row(
             children: [
+              // Flexible, so at a large text size its "vs." words give way.
               if (sel == null && avg != null && prev != null)
-                _DeltaChip(m: m, avg: avg, prev: prev, range: TrendRange.week),
+                Flexible(
+                  child: _DeltaChip(
+                      m: m, avg: avg, prev: prev, range: TrendRange.week),
+                ),
               const SizedBox(width: S.x2),
               Expanded(
                 child: Text(range.toUpperCase(),
@@ -1986,10 +2023,8 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       return mi == 0 ? '${h}h' : '$h:${mi.toString().padLeft(2, '0')}';
     }
     if (m.fmt == TrendFmt.decimal1 && t % 1 != 0) return t.toStringAsFixed(1);
-    if (t.abs() >= 1000) {
-      return '${(t / 1000).toStringAsFixed(t % 1000 == 0 ? 0 : 1)}k';
-    }
-    return '${t.round()}';
+    // Whole figures with their thousands marked, as the reference's axis.
+    return thousands(t.round());
   }
 
   /// The label under each bar. A week names its days, a month marks every
@@ -2770,7 +2805,7 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
       avg: avg,
       marks: _monthMarks(m, bars, [for (final b in bars) b.v]),
       color: color,
-      colorOf: m.id == 'recovery' ? (i, v) => recoveryColor(v) : null,
+      colorOf: m.id == 'recovery' ? (i, v) => trendRecoveryColor(v) : null,
       height: S.x16 * 4 + S.x8,
       onScrub: (i) => setState(() => _selected = i),
     );
@@ -2836,11 +2871,15 @@ class _TrendViewScreenState extends State<TrendViewScreen> {
     final totals = <double?>[];
     for (var i = 0; i < n; i++) {
       final parts = [for (final lb in layerBars) lb[i].v];
-      if (parts.every((v) => v == null)) {
+      var ps = [for (final v in parts) v != null && v.isFinite ? v : 0.0];
+      final sum = ps.fold<double>(0, (a, b) => a + b);
+      if (parts.every((v) => v == null) || sum <= 0) {
         stacks.add(null);
         totals.add(null);
       } else {
-        final ps = [for (final v in parts) v ?? 0];
+        // Shares are a whole: each column is exactly 100 %, never over the
+        // top line, whatever rounding or a layer missing a day left behind.
+        if (m.stackPercent) ps = [for (final v in ps) v / sum * 100];
         stacks.add(ps);
         totals.add(ps.fold<double>(0, (a, b) => a + b));
       }
@@ -3754,16 +3793,19 @@ class _DeltaChip extends StatelessWidget {
     final up = diff > 0;
     final good = higherBetter ?? m.higherBetter;
     final better = flat || good == null ? null : up == good;
-    final tone = better == null ? p.ink2 : (better ? C.optimal : C.strainDown);
+    // Worse is amber, as the reference's chip; better keeps a mint arrow on
+    // white words (never green text).
+    final tone = better == null ? p.ink2 : (better ? C.optimal : TV.worseInk);
     final past = switch (range) {
       TrendRange.day => 'prior day',
       TrendRange.week => 'prior week',
       TrendRange.month => 'prior month',
       TrendRange.sixMonths => 'prior 6 months',
     };
-    // The chip says only how much: the pager beside it already names the
-    // window, and "vs. prior week" pushed that pager onto a row of its own.
-    // A screen reader still hears what the figure is against.
+    final ink = F.num(F.over).copyWith(
+        color: better == false ? TV.worseInk : p.ink,
+        fontWeight: FontWeight.w700);
+    // How much, and against what, as the reference's chip.
     return Semantics(
       label: '$text ${up ? 'up' : 'down'} vs. $past',
       excludeSemantics: true,
@@ -3771,7 +3813,7 @@ class _DeltaChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(
           horizontal: S.x1 + S.half, vertical: S.half),
       decoration: BoxDecoration(
-        color: better == null ? p.card2 : tone.withValues(alpha: .18),
+        color: better == false ? TV.worse : p.card2,
         borderRadius: R.rSm,
       ),
       child: Row(
@@ -3784,15 +3826,11 @@ class _DeltaChip extends StatelessWidget {
             ),
             const SizedBox(width: S.x1),
           ],
+          // The figure whole; what it is against gives way first.
+          Text(text, maxLines: 1, style: ink),
           Flexible(
-            child: Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: F.num(F.over).copyWith(
-                  color: better == true ? p.ink : tone,
-                  fontWeight: FontWeight.w700),
-            ),
+            child: Text(' vs. $past',
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: ink),
           ),
         ],
       ),

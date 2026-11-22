@@ -1154,9 +1154,10 @@ class MEM {
 /// ── COACH HISTORY ── the past-chats sheet, off the same reference.
 class HIST {
   HIST._();
-  static const top = Color(0xFF2B323A);
-  static const foot = Color(0xFF111518);
-  static const row = Color(0x1FFFFFFF);
+  static const top = Color(0xFF2A3238);
+  static const mid = Color(0xFF181E21);
+  static const foot = Color(0xFF0E1213);
+  static const row = Color(0x14FFFFFF);
   static const label = Color(0xFF8E9399);
   static const rule = Color(0x24FFFFFF);
   static const grab = Color(0x4DFFFFFF);
@@ -1275,6 +1276,44 @@ class OB {
 }
 
 /// ── GET STARTED ── the new person's cards on Home, off their reference.
+/// ── CALIBRATING ── Home while Locus is still learning you, read off its
+/// reference: the timeline ring, the CUSTOMIZE pill, the card before the
+/// first night.
+class CB {
+  CB._();
+
+  /// The timeline ring's nights so far, pink into violet.
+  static const ringA = Color(0xFFF29AC6);
+  static const ringB = Color(0xFFB24CF0);
+
+  /// CUSTOMIZE: salmon into violet.
+  static const pillA = Color(0xFFF59A8F);
+  static const pillB = Color(0xFFB331F6);
+
+  /// The first-night card: a well darker than the cards, a faint edge, and
+  /// the pulse through its picture.
+  static const well = Color(0xFF192024);
+  static const wellEdge = Color(0xFF262C31);
+  static const pulse = Color(0xFF5AA9E6);
+}
+
+/// ── TREND VIEW ── read off its reference: recovery's columns in softer
+/// greens and yellows than the dials, the amber chip of a change for the
+/// worse, and the white tag on the average line.
+class TV {
+  TV._();
+  static const recGreen = Color(0xFF6DE949);
+  static const recYellow = Color(0xFFF9DF4B);
+  static const recRed = Color(0xFFF2465A);
+
+  /// A change for the worse: an amber chip with its figure in amber.
+  static const worse = Color(0xFF4A3516);
+  static const worseInk = Color(0xFFEAB149);
+
+  /// AVG. on the average line: dark caps on a white tag.
+  static const tagInk = Color(0xFF15191C);
+}
+
 class GS {
   GS._();
 
