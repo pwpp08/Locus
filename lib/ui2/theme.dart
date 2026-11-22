@@ -1169,6 +1169,160 @@ class HIST {
       letterSpacing: 1.6);
 }
 
+/// ── SETUP ── the onboarding pages and the profile editors that share them,
+/// read off their reference (480 px across = 393 dp).
+class OB {
+  OB._();
+
+  /// A typed field: a well darker than the page, its edge a shade lighter.
+  static const field = Color(0xFF0D1114);
+  static const fieldEdge = Color(0xFF1E2327);
+
+  /// A field's name over it, and the line under a page's headline.
+  static const label = Color(0xFF9B9FA2);
+  static const sub = Color(0xFFB4B8BB);
+
+  /// The NEXT ring: its track, the setup's progress round it, and the arrow
+  /// and word while the page cannot go on yet.
+  static const track = Color(0xFF2A3033);
+  static const progress = Color(0xFF80C2F9);
+  static const off = Color(0xFF41484A);
+
+  /// A choice: grey, and white with dark words when it is the one.
+  static const choice = Color(0xFF2B2F33);
+  static const chosen = Color(0xFFFFFFFF);
+  static const chosenInk = Color(0xFF101215);
+
+  /// A wheel's band behind the chosen row; the units switch's well and its
+  /// chosen half.
+  static const band = Color(0xFF2A2E31);
+  static const well = Color(0xFF0D1114);
+  static const wellOn = Color(0xFF25292B);
+  static const wheelInk = Color(0xFF9A9EA1);
+
+  /// A wheel's mask: clear at its edges, solid through the middle.
+  static const fadeOut = Color(0x00000000);
+  static const fadeIn = Color(0xFF000000);
+
+  /// FINISH: the mint disc and its dark tick.
+  static const finish = Color(0xFF00F0A2);
+  static const finishInk = Color(0xFF06120D);
+
+  /// The first week's ring: nights to come, nights lit, the lit pips' rim.
+  static const ringOff = Color(0xFF24282B);
+  static const ringOffEdge = Color(0xFF33373A);
+  static const ringA = Color(0xFF8A24C2);
+  static const ringB = Color(0xFFB234EE);
+  static const pipOff = Color(0xFF45494D);
+  static const pipOn = Color(0xFF5A1888);
+  static const pipOffInk = Color(0xFFB9BDC0);
+
+  /// The pictures' metal and the blue lit on it.
+  static const metal = Color(0xFF6A6E71);
+  static const metalLit = Color(0xFF85898C);
+  static const metalDark = Color(0xFF44484B);
+  static const metalDeep = Color(0xFF2F3336);
+  static const lit = Color(0xFF4FA8F0);
+
+  static const title = TextStyle(
+      fontFamily: F.family,
+      fontSize: 24,
+      height: 1.25,
+      fontWeight: FontWeight.w500,
+      letterSpacing: -.3);
+  static const body = TextStyle(
+      fontFamily: F.family,
+      fontSize: 15,
+      height: 1.45,
+      fontWeight: FontWeight.w500);
+  static const caps = TextStyle(
+      fontFamily: F.family,
+      fontSize: 11,
+      height: 1.2,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.3);
+  static const button = TextStyle(
+      fontFamily: F.family,
+      fontSize: 11.5,
+      height: 1.2,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 1.4);
+  static const input = TextStyle(
+      fontFamily: F.family,
+      fontSize: 15,
+      height: 1.2,
+      fontWeight: FontWeight.w500);
+  static const wheelOn = TextStyle(
+      fontFamily: F.family,
+      fontSize: 22,
+      height: 1.1,
+      fontWeight: FontWeight.w500);
+  static const wheel = TextStyle(
+      fontFamily: F.family,
+      fontSize: 19,
+      height: 1.1,
+      fontWeight: FontWeight.w400);
+  static const measure = TextStyle(
+      fontFamily: F.family,
+      fontSize: 14.5,
+      height: 1.1,
+      fontWeight: FontWeight.w700);
+  static const pip = TextStyle(
+      fontFamily: F.family,
+      fontSize: 12.5,
+      height: 1,
+      fontWeight: FontWeight.w700);
+}
+
+/// ── GET STARTED ── the new person's cards on Home, off their reference.
+class GS {
+  GS._();
+
+  /// A card's ground, and the first card's warm-to-violet ground and rim.
+  static const card = Color(0xFF1F2327);
+  static const warmA = Color(0xFF363035);
+  static const warmB = Color(0xFF231C31);
+  static const rimA = Color(0xFFE48D6C);
+  static const rimB = Color(0xFFC44FA0);
+  static const rimC = Color(0xFFA94BE0);
+
+  /// The words: a card's line under its title, and the violet way in.
+  static const body = Color(0xFFBAB6BA);
+  static const link = Color(0xFFCF67DF);
+
+  /// The pictures' pink.
+  static const pink = Color(0xFFE04FD0);
+
+  static const title = TextStyle(
+      fontFamily: F.family,
+      fontSize: 15.5,
+      height: 1.3,
+      fontWeight: FontWeight.w600,
+      letterSpacing: -.1);
+  static const text = TextStyle(
+      fontFamily: F.family,
+      fontSize: 13.5,
+      height: 1.3,
+      fontWeight: FontWeight.w500);
+  static const cta = TextStyle(
+      fontFamily: F.family,
+      fontSize: 11,
+      height: 1.2,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 1.5);
+  static const head = TextStyle(
+      fontFamily: F.family,
+      fontSize: 22,
+      height: 1.2,
+      fontWeight: FontWeight.w600,
+      letterSpacing: -.3);
+  static const digits = TextStyle(
+      fontFamily: F.numerals,
+      fontSize: 20,
+      height: 1,
+      fontWeight: FontWeight.w400);
+}
+
 /// ── HEALTH MONITOR ── measured off its reference (1180 px across = 393 dp,
 /// so 3 px to the dp). Always char: the page runs from slate at the top to
 /// near-black at the foot, and every card is a veil of white over it, which is

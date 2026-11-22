@@ -13,11 +13,14 @@ import 'package:openstrap_edge/data/day_label.dart';
 import 'package:openstrap_edge/data/db.dart';
 import 'package:openstrap_edge/data/local_repository.dart';
 import 'package:openstrap_edge/state/app_state.dart';
+import 'package:openstrap_edge/state/prefs.dart';
 import 'package:openstrap_edge/ui2/profile/wearable_numbers.dart';
+import 'package:openstrap_edge/ui2/screens/home/home_get_started.dart';
 import 'package:openstrap_edge/ui2/screens/screens.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 const String _band = 'miband-wiring';
@@ -103,6 +106,13 @@ Future<void> _pumpHome(WidgetTester t, {bool handed = false}) async {
 
 void main() {
   setUpAll(() async {
+    // Get Started's cards done, so the wearable's card is the first thing
+    // under the day.
+    SharedPreferences.setMockInitialValues({
+      for (final id in ['goals', 'charge', 'sleep', 'journal'])
+        GetStartedSection.donePref(id): true,
+    });
+    await Prefs.ensureLoaded();
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
     await LocalDb.close();

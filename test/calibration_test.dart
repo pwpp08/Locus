@@ -80,8 +80,9 @@ void main() {
       home: WhatToExpectScreen(onFinish: () => finished = true),
     ));
     await t.pump();
-    expect(find.text('What to expect next'), findsOneWidget);
-    expect(find.text('$readinessCompositeMinBaseline'), findsOneWidget);
+    expect(find.text('What to Expect Next'), findsOneWidget);
+    // The first week round the ring, a pip a night.
+    expect(find.text('${NightWheel.count}'), findsOneWidget);
     await t.tap(find.bySemanticsLabel('Finish'));
     expect(finished, isTrue);
     expect(t.takeException(), isNull);

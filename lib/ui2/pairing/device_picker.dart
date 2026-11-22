@@ -45,7 +45,7 @@ import '../../ble/oura_link.dart' show pairOuraRingWithTypedKey;
 import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
 import '../onboarding/pairing.dart' show PairingScreen;
-import '../onboarding/welcome.dart' show OnboardingLink, OnboardingStep;
+import '../onboarding/welcome.dart' show OnboardingLink;
 import '../screens/dial_parts.dart' show kDialGround, kDialMargin;
 import '../ui2.dart';
 import '../profile/devices.dart' show kPairableSensors, sensorIcon;
@@ -354,10 +354,6 @@ class DevicePickerView extends StatelessWidget {
               children: [
                 // Step 2 only inside onboarding, which is the one caller that
                 // can skip.
-                if (onSkip != null) ...[
-                  const OnboardingStep(2),
-                  const SizedBox(height: S.x4),
-                ],
                 Text(subtitle, style: F.body.copyWith(color: p.ink3)),
                 const SizedBox(height: S.x4),
                 _SearchField(controller: query),

@@ -3807,6 +3807,9 @@ class AppField extends StatelessWidget {
   /// Where the text sits; a figure in a small box is centred.
   final TextAlign textAlign;
 
+  /// Capitals the keyboard offers: words for a name.
+  final TextCapitalization textCapitalization;
+
   const AppField({
     super.key,
     this.label = '',
@@ -3831,6 +3834,7 @@ class AppField extends StatelessWidget {
     this.bare = false,
     this.textStyle,
     this.textAlign = TextAlign.start,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   @override
@@ -3848,6 +3852,7 @@ class AppField extends StatelessWidget {
         initialValue: controller == null ? initialValue : null,
         keyboardType: keyboardType,
         textInputAction: textInputAction,
+        textCapitalization: textCapitalization,
         onChanged: onChanged,
         onFieldSubmitted: onSubmitted,
         minLines: minLines,

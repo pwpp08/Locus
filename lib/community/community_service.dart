@@ -182,12 +182,15 @@ class CommunityService extends ChangeNotifier {
 
   /// In with no email and no password: an anonymous account tied to this
   /// phone. The name is asked for straight after.
-  Future<void> join() async {
+  /// Joins with a new account; [name], the username from setup, becomes
+  /// the name the others see.
+  Future<void> join({String? name}) async {
     await ensureReady();
     if (signedIn) return;
     await _db.auth.signInAnonymously();
     Prefs.setBool(kUsed, true);
     await refresh();
+    if (name != null && name.trim().isNotEmpty) await updateProfile(name: name);
   }
 
   /// An anonymous account cannot be signed back into once signed out.

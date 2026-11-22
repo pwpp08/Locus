@@ -578,7 +578,7 @@ class WelcomeView extends StatelessWidget {
       below: [
         const SizedBox(height: S.x4),
         // Local, said once and quietly: a shield and the words, no chip.
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Row(children: [
           const Icon(LucideIcons.shieldCheck, size: I.sm, color: C.optimal),
           const SizedBox(width: S.x2),
           Flexible(
@@ -629,10 +629,9 @@ class _MarkHero extends StatelessWidget {
       );
 }
 
-/// Every onboarding screen's frame: the dial screens' ground, the progress
-/// along the top, a picture centred in the room that is left, then the
-/// headline and one line under it, centred, and the actions at the foot. A
-/// page without a picture (a form) reads left-aligned from the top instead.
+/// Every onboarding screen's frame, in the setup pages' type: the dial
+/// screens' ground, a picture centred in the room that is left, then the
+/// headline and the line under it set left, and the actions at the foot.
 /// Short pages keep the actions down at the thumb; long ones (large text, an
 /// import report) scroll as one.
 class OnboardingPage extends StatelessWidget {
@@ -655,8 +654,6 @@ class OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext c) {
-    final centred = hero != null;
-    final align = centred ? TextAlign.center : TextAlign.start;
     return Scaffold(
         backgroundColor: DC.bgFoot,
         body: DecoratedBox(
@@ -673,7 +670,9 @@ class OnboardingPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (step case final s?) OnboardingStep(s),
+                      // The chevron's row on the setup pages, kept empty
+                      // so the headlines sit at one height through setup.
+                      const SizedBox(height: S.x12 + S.x2),
                       if (hero case final h?)
                         Expanded(
                           child: Padding(
@@ -686,19 +685,11 @@ class OnboardingPage extends StatelessWidget {
                       Semantics(
                         header: true,
                         child: Text(title,
-                            textAlign: align,
-                            style: F.t1.copyWith(color: DC.ink, height: 1.2)),
+                            style: OB.title.copyWith(color: DC.pure)),
                       ),
                       if (body case final b?) ...[
-                        const SizedBox(height: S.x3),
-                        Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: centred ? S.x4 : 0),
-                          child: Text(b,
-                              textAlign: align,
-                              style: F.dBody
-                                  .copyWith(color: DC.ink2, height: 1.45)),
-                        ),
+                        const SizedBox(height: S.x2),
+                        Text(b, style: OB.body.copyWith(color: OB.sub)),
                       ],
                       ...below,
                       if (hero == null) const Spacer(),

@@ -180,6 +180,8 @@ final _rules = <_Rule>[
       'lib/ui2/profile/settings.dart',
       // Device settings shows the band itself, as the reference page does.
       'lib/ui2/profile/device_settings.dart',
+      // Get Started's charging card shows the band on its strap.
+      'lib/ui2/screens/home/home_get_started.dart',
     },
   ),
 ];
@@ -416,6 +418,12 @@ const _notComponents = {
   // routes. Their parts (MilestoneCard, NightPips, NightWheel) have gallery
   // cases, and calibration_test pumps both at a real phone width.
   'MilestonesScreen', 'WhatToExpectScreen',
+  // Setup's four pages and their frame: full-screen routes laid out on their
+  // reference at a phone's width. Their parts (SetupNext, SetupField, the
+  // wheels, the pictures) have gallery cases. The Get Started section reads
+  // its done flags from Prefs and opens routes; Home is its only host.
+  'NamePage', 'BirthdayPage', 'BodyPage', 'SexPage', 'SetupFrame',
+  'GetStartedSection',
   // tabs and drill-downs
   'HomeScreen', 'HealthScreen', 'WorkoutScreen', 'NutritionScreen',
   'WellnessScreen', 'MetricDetail', 'ReadinessDetail',

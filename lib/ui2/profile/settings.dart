@@ -36,6 +36,8 @@ import '../screens/coach.dart';
 import '../screens/weight_trend_screen.dart' show WeightTrendScreen;
 import '../../updater/update_service.dart';
 import '../community/community.dart' show CommunityScreen;
+import '../onboarding/profile_setup.dart'
+    show BirthdayPage, BodyPage, NamePage, SexPage, nameFields, namesOf;
 import 'data.dart' show DataScreen;
 import 'storage_screen.dart' show StorageScreen;
 import 'gallery.dart';
@@ -1176,6 +1178,9 @@ class EditProfile extends StatelessWidget {
         await app.updateProfile({
           for (final k in const [
             'name',
+            'first_name',
+            'last_name',
+            'username',
             'sex',
             'age',
             'birth_date',
@@ -1211,8 +1216,8 @@ class EditProfileView extends StatefulWidget {
 class _EditProfileViewState extends State<EditProfileView> {
   late final UnitsController _u =
       widget.units ?? UnitsController.seed(UnitSystem.metric);
-  late final _name =
-      TextEditingController(text: '${widget.initial['name'] ?? ''}');
+  late var _names = nameFields(namesOf(widget.initial).first,
+      namesOf(widget.initial).last, namesOf(widget.initial).user);
   late final _age =
       TextEditingController(text: _s(widget.initial['age']));
   late DateTime? _birth = birthDateOf(widget.initial);
@@ -1227,7 +1232,6 @@ class _EditProfileViewState extends State<EditProfileView> {
 
   @override
   void dispose() {
-    _name.dispose();
     _age.dispose();
     _height.dispose();
     _weight.dispose();
@@ -1256,7 +1260,7 @@ class _EditProfileViewState extends State<EditProfileView> {
       return;
     }
     widget.onSave({
-      'name': _name.text.trim().isEmpty ? null : _name.text.trim(),
+      ..._names,
       'sex': _sex,
       // The birth date decides the age when there is one.
       'age': birth == null
@@ -1321,35 +1325,72 @@ class _EditProfileViewState extends State<EditProfileView> {
     draft.dispose();
   }
 
+  /// The profile as this form holds it, for a setup page to start from.
+  Map<String, dynamic> get _current => {
+        ..._names,
+        'sex': _sex,
+        if (_birth case final b?) 'birth_date': dayLabelOf(b),
+        'height_cm': _u.heightToCm(_height.text),
+        'weight_kg': _u.weightToKg(_weight.text),
+      };
+
+  /// Opens one of setup's pages with SAVE; its answer comes back here and is
+  /// written with the rest when the form is saved.
+  Future<Map<String, dynamic>?> _page(
+          Widget Function(ValueChanged<Map<String, dynamic>> done,
+                  VoidCallback back)
+              build) =>
+      Navigator.of(context).push<Map<String, dynamic>>(MaterialPageRoute(
+          builder: (r) => build((f) => Navigator.of(r).pop(f),
+              () => Navigator.of(r).pop())));
+
+  Future<void> _editName() async {
+    final f = await _page((done, back) => NamePage(
+        initial: _current,
+        editing: true,
+        action: 'SAVE',
+        progress: 1,
+        onBack: back,
+        onDone: done));
+    if (f != null && mounted) setState(() => _names = f);
+  }
+
   Future<void> _editSex() async {
-    final l = AppLocalizations.of(context);
-    final pick = await AppSheet.show<String>(
-      context,
-      title: l?.settingsSexFieldLabel ?? 'Sex',
-      child: Builder(
-        builder: (s) => Column(mainAxisSize: MainAxisSize.min, children: [
-          for (final (k, word) in [
-            ('m', l?.settingsSexMale ?? 'Male'),
-            ('f', l?.settingsSexFemale ?? 'Female'),
-            ('other', 'Other'),
-          ])
-            _Line(
-              word,
-              value: null,
-              trailing: _sex == k
-                  ? Icon(LucideIcons.check, size: I.md, color: P.of(s).ink)
-                  : null,
-              onTap: () => Navigator.of(s).pop(k),
-            ),
-        ]),
-      ),
-    );
-    if (pick != null && mounted) setState(() => _sex = pick);
+    final f = await _page((done, back) => SexPage(
+        initial: _current,
+        action: 'SAVE',
+        progress: 1,
+        onBack: back,
+        onDone: done));
+    if (f != null && mounted) setState(() => _sex = f['sex'] as String?);
   }
 
   Future<void> _editBirthday() async {
-    final d = await pickBirthday(context, initial: _birth);
-    if (d != null && mounted) setState(() => _birth = d);
+    final f = await _page((done, back) => BirthdayPage(
+        initial: _current,
+        action: 'SAVE',
+        progress: 1,
+        onBack: back,
+        onDone: done));
+    if (f != null && mounted) {
+      setState(() => _birth = DateTime.parse(f['birth_date'] as String));
+    }
+  }
+
+  Future<void> _editBody() async {
+    final f = await _page((done, back) => BodyPage(
+        initial: _current,
+        units: _u,
+        action: 'SAVE',
+        progress: 1,
+        onBack: back,
+        onDone: done));
+    if (f != null && mounted) {
+      setState(() {
+        _height.text = _u.heightField(f['height_cm'] as num?);
+        _weight.text = _u.weightField(f['weight_kg'] as num?);
+      });
+    }
   }
 
   @override
@@ -1367,8 +1408,9 @@ class _EditProfileViewState extends State<EditProfileView> {
         v.isEmpty ? '' : (unit.isEmpty ? v : '$v $unit');
     final rows = <Widget>[
       _Line('Name',
-          value: _name.text.trim(),
-          onTap: () => _editText('Name', _name, TextInputType.name)),
+          value: (_names['name'] as String?) ?? '', onTap: _editName),
+      _Line('Username',
+          value: (_names['username'] as String?) ?? '', onTap: _editName),
       _Line('Sex',
           value: _sexWord(l), onTap: _editSex),
       _Line('Birthday', value: _birthWord(), onTap: _editBirthday),
@@ -1378,15 +1420,9 @@ class _EditProfileViewState extends State<EditProfileView> {
             onTap: () =>
                 _editText('Age', _age, TextInputType.number, unit: 'years')),
       _Line('Height',
-          value: withUnit(_height.text.trim(), hUnit),
-          onTap: () => _editText('Height', _height,
-              const TextInputType.numberWithOptions(decimal: true),
-              unit: hUnit.isEmpty ? null : hUnit)),
+          value: withUnit(_height.text.trim(), hUnit), onTap: _editBody),
       _Line('Weight',
-          value: withUnit(_weight.text.trim(), wUnit),
-          onTap: () => _editText('Weight', _weight,
-              const TextInputType.numberWithOptions(decimal: true),
-              unit: wUnit.isEmpty ? null : wUnit)),
+          value: withUnit(_weight.text.trim(), wUnit), onTap: _editBody),
     ];
     return Scaffold(
       backgroundColor: p.bg,
@@ -1450,10 +1486,8 @@ class _Line extends StatelessWidget {
 
   /// Null shows no value at all; empty says "Not set".
   final String? value;
-  final Widget? trailing;
   final VoidCallback onTap;
-  const _Line(this.label,
-      {required this.value, required this.onTap, this.trailing});
+  const _Line(this.label, {required this.value, required this.onTap});
 
   @override
   Widget build(BuildContext c) {
@@ -1480,8 +1514,7 @@ class _Line extends StatelessWidget {
                   ),
           ),
           const SizedBox(width: S.x2),
-          trailing ??
-              Icon(LucideIcons.chevronRight, size: I.sm, color: p.ink3),
+          Icon(LucideIcons.chevronRight, size: I.sm, color: p.ink3),
         ]),
       ),
     );

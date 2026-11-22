@@ -77,6 +77,7 @@ import '../../compute/training_status.dart';
 import '../screens/training_status_card.dart' show TrainingStatusView;
 import '../screens/reports.dart' show ScoreRing;
 import '../screens/home/card_pictures.dart';
+import '../onboarding/setup_parts.dart';
 import '../screens/locus_age.dart' show LocusAgeTrends;
 import '../../compute/stress_monitor.dart' show StressBaseline;
 
@@ -461,6 +462,31 @@ Map<String, Widget> componentCases() => {
 
 /// The coach's chat pieces, on the coach's own ground.
 Map<String, Widget> _coachPartCases() => {
+  // Setup's parts; the pages themselves are full-screen routes.
+  'setup_next': SetupNext(label: 'NEXT', progress: .33, onTap: () {}),
+  'setup_next_off': const SetupNext(label: 'NEXT', progress: .11),
+  'setup_finish': SetupNext(label: 'FINISH', finish: true, onTap: () {}),
+  'setup_label': const SetupLabel('Height'),
+  'setup_field':
+      SetupField(TextEditingController(text: 'Max'), label: 'First name'),
+  'setup_choices': SetupChoices(const ['Female', 'Male'],
+      chosen: 0, onChoose: (_) {}),
+  'setup_segments': SetupSegments(const ['Imperial', 'Metric'],
+      chosen: 0, onChoose: (_) {}),
+  'setup_wheel': SetupWheels(
+    height: S.x16 * 2,
+    bands: const [(0, S.x16 * 2)],
+    wheels: [
+      SetupWheel(
+          count: 12,
+          initial: 1,
+          width: S.x16 * 2,
+          label: (i) => '${i + 1}',
+          onChanged: (_) {}),
+    ],
+  ),
+  'clap_picture': const ClapPicture(),
+  'clipboard_picture': const ClipboardPicture(),
   'coach_history': SizedBox(
     height: S.x16 * 7,
     child: CoachHistorySheet(

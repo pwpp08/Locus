@@ -140,6 +140,7 @@ class LucideIcons {
   static const IconData listTree = base.LucideIcons.listTree300;
   static const IconData loader = base.LucideIcons.loader300;
   static const IconData lock = base.LucideIcons.lock300;
+  static const IconData lockOpen = base.LucideIcons.lockOpen300;
   static const IconData logIn = base.LucideIcons.logIn300;
   static const IconData logOut = base.LucideIcons.logOut300;
   static const IconData map = base.LucideIcons.map300;

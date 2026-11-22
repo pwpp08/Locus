@@ -38,6 +38,7 @@ import '../ui2.dart';
 import '../../ai/briefing.dart' show BriefingPeriod, currentBriefingPeriod;
 import 'add_activity.dart' show openAddActivity;
 import 'calibration.dart' show Calibration, CalibrationCard;
+import 'home/home_get_started.dart' show GetStartedSection;
 import 'coach.dart' show openCoachSheet;
 import 'coach_workout.dart' show TodayPlanCard;
 import '../../coach/workout_plan.dart';
@@ -877,6 +878,9 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           CalibrationCard(cal),
         ],
       ],
+
+      // The first weeks: what to set up, under the dials.
+      if (firstWeeks) const GetStartedSection(),
 
       if (widget.data == null) ...[
         const SizedBox(height: S.x3),

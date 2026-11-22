@@ -276,9 +276,14 @@ void main() {
     });
   });
 
-  group('profile setup keeps its promise', () {
-    testWidgets('continue is gated on sex alone, and blanks stay blank',
-        (tester) async {
+  group('profile setup walks its four pages', () {
+    Future<void> next(WidgetTester tester) async {
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('each page holds until it has what it needs, then all of it '
+        'is written at the end', (tester) async {
       _tallView(tester);
       Map<String, dynamic>? saved;
       await tester.pumpWidget(MaterialApp(
@@ -286,62 +291,59 @@ void main() {
         home: ProfileSetupView(onSave: (f) async => saved = f),
       ));
 
-      // Nothing chosen: the one required field is missing.
-      await tester.tap(find.text('CONTINUE'));
+      // The name page will not go on without a first name and a username.
+      await next(tester);
+      expect(find.text('Welcome to Locus!'), findsOneWidget);
+      await tester.enterText(find.byType(TextField).at(0), 'Max');
+      await tester.enterText(find.byType(TextField).at(2), 'maxs');
       await tester.pump();
-      expect(saved, isNull);
+      await next(tester);
 
+      // The birthday and the body pages always point at something.
+      expect(find.text('When Were You Born?'), findsOneWidget);
+      await next(tester);
+      expect(find.text('Your Height and Weight'), findsOneWidget);
+      await next(tester);
+
+      // Sex has no honest default: nothing is written until it is chosen.
+      expect(find.text('Choose Your Sex'), findsOneWidget);
+      await next(tester);
+      expect(saved, isNull);
       await tester.tap(find.text('FEMALE'));
       await tester.pump();
-      await tester.tap(find.text('CONTINUE'));
-      await tester.pump();
+      await next(tester);
 
       expect(saved, isNotNull);
       expect(saved!['sex'], 'f');
-      // The three optional fields were left blank, so they are ABSENT — not
-      // zero, and not a default body.
-      expect(saved!.containsKey('age'), isFalse);
-      expect(saved!.containsKey('height_cm'), isFalse);
-      expect(saved!.containsKey('weight_kg'), isFalse);
+      expect(saved!['first_name'], 'Max');
+      expect(saved!['username'], 'maxs');
+      expect(saved!['name'], 'Max');
+      expect(saved!['birth_date'], isA<String>());
+      expect(saved!['height_cm'], 170.0);
+      expect(saved!['weight_kg'], 70.0);
     });
 
-    testWidgets('what is typed is what is written', (tester) async {
+    testWidgets('only male and female are offered', (tester) async {
       _tallView(tester);
-      Map<String, dynamic>? saved;
       await tester.pumpWidget(MaterialApp(
         theme: buildTheme(),
-        home: ProfileSetupView(onSave: (f) async => saved = f),
+        home: ProfileSetupView(page: 3, onSave: (_) async {}),
       ));
-      await tester.tap(find.text('MALE'));
-      // Height then weight: the age comes from the birthday row now.
-      await tester.enterText(find.byType(TextField).at(1), '78.4');
-      await tester.pump();
-      await tester.tap(find.text('CONTINUE'));
-      await tester.pump();
-
-      expect(saved!['sex'], 'm');
-      expect(saved!.containsKey('age'), isFalse);
-      expect(saved!['weight_kg'], 78.4);
-      expect(saved!.containsKey('height_cm'), isFalse);
+      expect(find.text('FEMALE'), findsOneWidget);
+      expect(find.text('MALE'), findsOneWidget);
+      expect(find.textContaining('OTHER'), findsNothing);
     });
 
-    testWidgets('a number it cannot read stops the save instead of dropping it',
-        (tester) async {
-      _tallView(tester);
-      Map<String, dynamic>? saved;
-      await tester.pumpWidget(MaterialApp(
-        theme: buildTheme(),
-        home: ProfileSetupView(onSave: (f) async => saved = f),
-      ));
-      await tester.tap(find.text('MALE'));
-      await tester.enterText(find.byType(TextField).at(1), '78 kg');
-      await tester.pump();
-      await tester.tap(find.text('CONTINUE'));
-      await tester.pump();
-
-      // Blank is unknown; "78 kg" is not blank, and writing the profile
-      // without it would have read as a save that worked.
-      expect(saved, isNull);
+    test('a name splits into its parts and back', () {
+      expect(nameFields(' Max ', 'Smyth', 'maxs'), {
+        'first_name': 'Max',
+        'last_name': 'Smyth',
+        'username': 'maxs',
+        'name': 'Max Smyth',
+      });
+      // A profile from before the split keeps its one name.
+      final n = namesOf(const {'name': 'Max van Smyth'});
+      expect((n.first, n.last), ('Max', 'van Smyth'));
     });
   });
 

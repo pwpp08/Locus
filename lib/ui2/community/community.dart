@@ -11,10 +11,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../community/community_service.dart';
 import '../../community/leaderboard.dart';
+import '../../state/app_state.dart';
 import '../profile/profile.dart' show SetRow, settingsGroup;
 import '../screens/home_screen.dart' show go;
 import '../ui2.dart';
@@ -250,7 +252,9 @@ class _WelcomeState extends State<_Welcome> {
                 : () async {
                     setState(() => _busy = true);
                     try {
-                      await _svc.join();
+                      await _svc.join(
+                          name: c.read<AppState>().user?['username']
+                              as String?);
                     } catch (e) {
                       if (c.mounted) _say(c, communityError(e));
                     } finally {
