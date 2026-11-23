@@ -48,6 +48,7 @@ import '../profile/profile.dart' show SetRow, settingsGroup;
 import 'exercise_image.dart';
 import 'exercise_picker.dart';
 import 'live_map.dart';
+import '../screens/workout_detail.dart' show WorkoutDetailScreen;
 import 'summary.dart';
 
 /// What the band and the phone know right now. Read once per tick.
@@ -209,6 +210,9 @@ class ActivityHost {
   /// Throws the running session away: nothing is saved.
   final Future<void> Function()? discard;
 
+  /// The stored row of a finished session, for the after-workout screen.
+  final Future<Map<String, dynamic>?> Function(String id)? sessionRow;
+
   const ActivityHost({
     this.feed,
     this.onStart,
@@ -219,6 +223,7 @@ class ActivityHost {
     this.quietSince,
     this.endAt,
     this.discard,
+    this.sessionRow,
   });
 
   /// No app behind the screens: they still render, nothing is persisted.
@@ -667,7 +672,28 @@ class LiveShellState extends State<LiveShell> {
     }
     // The session is over: no draft to reopen, and no resume bar.
     LiveDraft.clear();
+    // Saved, and not a lift (whose sets only the summary lays out): the
+    // activity's own detail screen, the same one My Day opens.
+    final id = result.sessionId;
+    Map<String, dynamic>? row;
+    if (retrySave == null &&
+        id != null &&
+        result.arch != Arch.strength &&
+        host?.sessionRow != null) {
+      try {
+        row = await host!.sessionRow!(id);
+      } catch (_) {}
+    }
     if (!mounted) return;
+    if (row != null) {
+      final session = row;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(
+            builder: (_) => WorkoutDetailScreen(session: session)),
+        (r) => r.isFirst,
+      );
+      return;
+    }
     // Everything under the summary belongs to setting this session up —
     // picker, setup, the live screen itself. Back from a summary used to land
     // on "choose an activity", immediately after finishing one.

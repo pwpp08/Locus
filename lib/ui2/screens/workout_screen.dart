@@ -58,6 +58,7 @@ ActivityHost activityHost(AppState app,
     },
     quietSince: app.workoutQuietSince,
     endAt: (t) => endAt = t,
+    sessionRow: (id) => LocalDb.session(id),
     discard: () async {
       final id = app.activeWorkout?.workoutId;
       if (id != null) await app.deleteWorkout(id);
