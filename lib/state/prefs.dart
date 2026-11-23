@@ -111,6 +111,10 @@ class Prefs {
   /// as text ('8.5'); empty when no goal is set.
   static const String activityStrainTarget = 'activity.strain_target';
 
+  /// The countdown set on Start Activity for a timed activity (sauna, cold
+  /// plunge, meditation…): 'type_key|minutes'; empty when none.
+  static const String activityTimer = 'activity.timer';
+
   /// A sleep or a nap started by hand and not yet ended: 'sleep|(epoch ms)' or
   /// 'nap|(epoch ms)'. Empty when none is running.
   static const String restPending = 'rest.pending';

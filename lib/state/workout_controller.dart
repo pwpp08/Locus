@@ -56,6 +56,8 @@ import '../sync/edge_tracking.dart';
 import '../widget/widget_service.dart';
 import '../ui2/activity/catalogue.dart' show activityByName;
 import '../ui2/activity/live.dart' show LiveDraft;
+import 'prefs.dart';
+import 'workout_alerts.dart';
 import 'workout_idle.dart';
 import 'zone_alert.dart';
 
@@ -86,6 +88,7 @@ class WorkoutController {
     required bool Function() healthSyncEnabled,
     required Future<bool> Function(Map<String, Object?> session) exportToHealth,
     required Future<void> Function() buzz,
+    Future<void> Function(int count, bool long)? buzzBeats,
     required LocalRepository? Function() repo,
     required bool Function() hostDisposed,
     String? Function()? liveSensor,
@@ -113,6 +116,7 @@ class WorkoutController {
         _healthSyncEnabled = healthSyncEnabled,
         _exportToHealth = exportToHealth,
         _buzz = buzz,
+        _buzzBeats = buzzBeats,
         _repo = repo,
         _hostDisposed = hostDisposed {
     onStrapTailBanked = requestHeavyDerive ?? () {};
@@ -152,6 +156,12 @@ class WorkoutController {
   final bool Function() _healthSyncEnabled;
   final Future<bool> Function(Map<String, Object?> session) _exportToHealth;
   final Future<void> Function() _buzz;
+  final Future<void> Function(int count, bool long)? _buzzBeats;
+
+  /// The strain target and countdown buzzes of the running session, made on
+  /// its first tick (so a session resumed after a relaunch gets them too).
+  WorkoutAlerts? _alerts;
+  String? _alertsFor;
   final LocalRepository? Function() _repo;
   final bool Function() _hostDisposed;
 
@@ -1220,6 +1230,28 @@ class WorkoutController {
     final alert = _zoneAlert;
     if (alert != null && hr != null && alert.onTick(DateTime.now(), _zoneFor(hr))) {
       unawaited(_buzz());
+    }
+
+    // The strain target set on Start Activity, and a countdown (sauna, cold
+    // plunge, meditation…): the band says so once each.
+    if (_alertsFor != w.workoutId) {
+      _alertsFor = w.workoutId;
+      _alerts = WorkoutAlerts(
+        strainGoal:
+            double.tryParse(Prefs.getString(Prefs.activityStrainTarget, '')),
+        timerSec: WorkoutAlerts.timerFor(
+            Prefs.getString(Prefs.activityTimer, ''), w.type),
+        resumed: w.elapsed.inSeconds > 5,
+        elapsedSec: w.elapsed.inSeconds,
+        strain: w.strain,
+      );
+    }
+    final due = _alerts?.onTick(elapsedSec: w.elapsed.inSeconds, strain: w.strain);
+    if (due != null) {
+      final (count, long) = WorkoutAlerts.pattern(due);
+      final beats = _buzzBeats;
+      unawaited(beats != null ? beats(count, long) : _buzz());
+      _log('Workout alert: ${due.name}.');
     }
 
     // Forgotten-session watch: judged against the calorie gate (null when

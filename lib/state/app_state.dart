@@ -317,6 +317,7 @@ class AppState extends ChangeNotifier {
     healthSyncEnabled: () => healthSyncEnabled,
     exportToHealth: (row) => _healthExport.exportWorkout(row),
     buzz: () => engine.buzz(),
+    buzzBeats: (count, long) => engine.buzzBeats(count: count, long: long),
     repo: () => repo,
     hostDisposed: () => _disposed,
     liveSensor: () {
