@@ -171,8 +171,18 @@ class DayPager extends StatelessWidget {
   static const _pad = S.x4 + S.half;
   static final _r = BorderRadius.circular(S.x3);
 
-  /// The narrowest the pager gets: the arrows round a short label.
-  static const base = _arrow * 2 + S.x16 + S.x3;
+  /// The width the pager takes round [label], unshrunk.
+  static double _natural(BuildContext c, String label) {
+    final tp = TextPainter(
+      text: TextSpan(text: label, style: F.caps),
+      textDirection: Directionality.of(c),
+      textScaler: MediaQuery.textScalerOf(c),
+      maxLines: 1,
+    )..layout();
+    final w = tp.width;
+    tp.dispose();
+    return _arrow * 2 + _pad * 2 + w.ceilToDouble();
+  }
 
   @override
   Widget build(BuildContext c) {
@@ -193,10 +203,16 @@ class DayPager extends StatelessWidget {
       newer ??= today;
     }
     final dt = DateTime.tryParse(day);
-    final label = day == today || dt == null
+    final short = dt == null ? '' : '${monthShortName(dt.month, l)} ${dt.day}';
+    var label = day == today || dt == null
         ? (l?.dayStrainToday ?? 'TODAY')
-        : '${weekdayShortName(dt.weekday, l)}, ${monthShortName(dt.month, l)} ${dt.day}'
-            .toUpperCase();
+        : '${weekdayShortName(dt.weekday, l)}, $short'.toUpperCase();
+    // A narrow screen or large text drops the weekday (NOV 22) before the
+    // label is ever shrunk: shrunk, it read as tiny next to everything else.
+    final cap = maxWidth ?? double.infinity;
+    if (dt != null && day != today && _natural(c, label) > cap) {
+      label = short.toUpperCase();
+    }
 
     Widget arrow(bool left, String? to, String what) => Semantics(
           label: what,
@@ -239,6 +255,7 @@ class DayPager extends StatelessWidget {
       // The track is drawn 36 pt tall, but the arrows and the label take
       // taps across the full 44 pt round it.
       child: Center(
+        widthFactor: 1,
         child: Stack(alignment: Alignment.center, children: [
           Positioned.fill(
             child: Padding(
@@ -275,12 +292,16 @@ class DayPager extends StatelessWidget {
                             p.ink.withValues(alpha: .14), p.bg),
                         borderRadius: _r,
                       ),
-                      alignment: Alignment.center,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: AnimatedSwitcher(
-                          duration: motion(c, Motion.fast),
-                          child: inner,
+                      // Hugs the label: an alignment here stretched the pill
+                      // to all the room there was.
+                      child: Center(
+                        widthFactor: 1,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: AnimatedSwitcher(
+                            duration: motion(c, Motion.fast),
+                            child: inner,
+                          ),
                         ),
                       ),
                     ),

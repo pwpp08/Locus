@@ -721,13 +721,24 @@ class AC {
   static const tealTop = Color(0xFF3AA3A0);
   static const tealBottom = Color(0xFF5ACBB6);
   static const tealText = Color(0xFF7FE0D0);
-  static const greenTop = Color(0xFF45B97A);
-  static const greenBottom = Color(0xFF5CD892);
-  static const greenText = Color(0xFF6FE3A1);
+  static const greenTop = Color(0xFF2CC26F);
+  static const greenBottom = Color(0xFF3FE68A);
+  static const greenText = Color(0xFF5BE79A);
+
+  // The blob older (amber) and about even (blue into cyan), sampled off the
+  // reference blobs.
+  static const blobOldTop = Color(0xFFD9822B);
+  static const blobOldBottom = Color(0xFFF0B04A);
+  static const blobOldText = Color(0xFFF0A63C);
+  static const blobEvenTop = Color(0xFF3A8EE6);
+  static const blobEvenBottom = Color(0xFF3CCFC2);
+  static const blobEvenText = Color(0xFF62C9EC);
   static const lockedTop = Color(0xFF5E7280);
   static const lockedBottom = Color(0xFF85A0A2);
 
   static const blobGlow = Color(0x38000000);
+  /// The tone's strength under the specks: a haze, not a solid band.
+  static const blobHaze = Color(0xB3000000);
   static const blobCore = Color(0xFF040506);
   static const blobCore86 = Color(0xDB040506);
   static const blobCore40 = Color(0x66040506);

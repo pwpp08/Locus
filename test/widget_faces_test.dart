@@ -16,6 +16,7 @@ void main() {
     hrv: 58,
     calories: 1214,
     batteryPct: 76,
+    stress: (low: 410, medium: 182, high: 64),
   );
   const bare = FaceData(
     sleep: FaceRing(

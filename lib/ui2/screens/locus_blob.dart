@@ -25,7 +25,7 @@ double _wrap(double a) {
 /// The whole blob, in units of its resting radius, centred on the origin.
 class BlobSim {
   static const nodeCount = 72;
-  static const dotCount = 340;
+  static const dotCount = 1300;
 
   // A soft ring: stiff enough to come home in about a second, loose enough
   // that a poke travels round it.
@@ -42,6 +42,11 @@ class BlobSim {
   double _t = 0;
   double? _fx, _fy;
 
+  /// How lumpy the resting outline is, 0 to 1: a near circle well younger, a
+  /// soft wobble about even, jagged lobes older, as the reference's three
+  /// blobs are. See locusRoughness.
+  double roughness = .35;
+
   BlobSim({int seed = 11}) {
     final rng = math.Random(seed);
     for (var i = 0; i < dotCount; i++) {
@@ -49,13 +54,17 @@ class BlobSim {
       // Clumped a little, so the specks read as drifting matter and not an
       // even sprinkle.
       _homeA[i] = a + .25 * math.sin(3 * a);
-      // Most of them live in the bright ring, leaving the middle for the age.
-      _homeR[i] = rng.nextDouble() < .86
-          ? .98 - .43 * math.pow(rng.nextDouble(), 1.4)
-          : .32 + .23 * rng.nextDouble();
+      // Thick against the rim and thinning inward, as the reference's are,
+      // with a scatter of faint ones across the middle.
+      _homeR[i] = rng.nextDouble() < .96
+          ? .985 - .44 * math.pow(rng.nextDouble(), 2.6)
+          : .12 + .4 * rng.nextDouble();
       _spin[i] = (rng.nextBool() ? 1 : -1) * (.02 + rng.nextDouble() * .06);
       _phase[i] = rng.nextDouble() * 2 * math.pi;
-      _size[i] = .7 + 2.6 * math.pow(rng.nextDouble(), 3);
+      // Mostly fine grains, a few larger soft ones.
+      _size[i] = rng.nextDouble() < .05
+          ? 2.4 + 1.6 * rng.nextDouble()
+          : .6 + 1.8 * math.pow(rng.nextDouble(), 2.5);
     }
     for (var i = 0; i < nodeCount; i++) {
       _r[i] = _rest(_angle(i));
@@ -65,12 +74,22 @@ class BlobSim {
   double _angle(int i) => i / nodeCount * 2 * math.pi;
 
   /// The slow idle shape: a few sines drifting against each other, and a
-  /// breath over the whole of it.
-  double _rest(double a) =>
-      .036 * math.sin(2 * a + _t * .31) +
-      .030 * math.sin(3 * a - _t * .43 + 1.3) +
-      .014 * math.sin(5 * a + _t * .67 + .7) +
-      .012 * math.sin(_t * .9);
+  /// breath over the whole of it. [roughness] swells the broad lobes and
+  /// brings in the tighter ones that make an older blob jagged.
+  double _rest(double a) {
+    final k = .5 + roughness * 1.2, j = roughness * roughness;
+    return k *
+            (.036 * math.sin(2 * a + _t * .31) +
+                .030 * math.sin(3 * a - _t * .43 + 1.3) +
+                .014 * math.sin(5 * a + _t * .67 + .7)) +
+        .012 * math.sin(_t * .9) +
+        j *
+            (.040 * math.sin(4 * a - _t * .37 + 2.1) +
+                .034 * math.sin(6 * a + _t * .51 + .4) +
+                .030 * math.sin(8 * a - _t * .29 + 1.7) +
+                .026 * math.sin(11 * a + _t * .61 + 2.9) +
+                .022 * math.sin(15 * a - _t * .47 + .9));
+  }
 
   /// Where the rim is at node [i], as a multiple of the resting radius.
   double radiusAt(int i) => 1 + _r[i];
@@ -247,7 +266,12 @@ class LocusBlobPainter extends CustomPainter {
 
     canvas.save();
     canvas.clipPath(path);
-    canvas.drawRect(box, Paint()..shader = tone);
+    // The tone is a haze under the specks, not a solid band.
+    canvas.drawRect(
+        box,
+        Paint()
+          ..shader = tone
+          ..color = AC.blobHaze);
     canvas.drawRect(
       box,
       Paint()
@@ -257,15 +281,15 @@ class LocusBlobPainter extends CustomPainter {
           AC.blobCore86,
           AC.blobCore40,
           AC.blobCore0,
-        ], const [0, .50, .68, .86, 1]),
+        ], const [0, .62, .80, .94, 1]),
     );
     canvas.drawPath(
       path,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = radius * .10
+        ..strokeWidth = radius * .06
         ..shader = tone
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * .05),
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * .04),
     );
     _dots(canvas, c);
     canvas.restore();
@@ -275,33 +299,50 @@ class LocusBlobPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.4
-        ..color = Color.lerp(top, AC.blobSpeck, .35)!.withValues(alpha: .85),
+        ..shader = ui.Gradient.linear(
+          Offset(c.dx, c.dy - radius),
+          Offset(c.dx, c.dy + radius),
+          [
+            Color.lerp(top, AC.blobSpeck, .35)!.withValues(alpha: .9),
+            Color.lerp(bottom, AC.blobSpeck, .35)!.withValues(alpha: .9),
+          ],
+        ),
     );
   }
 
   void _dots(Canvas canvas, Offset c) {
-    // Three sizes by two brightnesses: six draw calls, not one per speck.
-    const sizes = 3, bright = 2;
-    final points = [for (var i = 0; i < sizes * bright; i++) <double>[]];
+    // The specks take the blob's own tone, lightened, from its top colour to
+    // its bottom one. Grouped by band, size and brightness: a couple of dozen
+    // draw calls, not one per speck.
+    const bands = 4, sizes = 3, bright = 2;
+    final points = [
+      for (var i = 0; i < bands * sizes * bright; i++) <double>[],
+    ];
     for (var i = 0; i < BlobSim.dotCount; i++) {
+      final x = sim.dotX(i), y = sim.dotY(i);
+      final band = ((y + 1) / 2 * bands).floor().clamp(0, bands - 1);
       final s = sim.dotSize(i);
-      final size = s < 1.1 ? 0 : (s < 2 ? 1 : 2);
+      final size = s < 1.2 ? 0 : (s < 2.4 ? 1 : 2);
       // Specks over the middle stay faint, to keep the number clear.
-      final glow = sim.dotGlow(i) * (sim.dotHomeRadius(i) < .55 ? .5 : 1);
-      points[size * bright + (glow > .55 ? 1 : 0)]
-        ..add(c.dx + sim.dotX(i) * radius)
-        ..add(c.dy + sim.dotY(i) * radius);
+      final glow = sim.dotGlow(i) * (sim.dotHomeRadius(i) < .6 ? .5 : 1);
+      points[(band * sizes + size) * bright + (glow > .55 ? 1 : 0)]
+        ..add(c.dx + x * radius)
+        ..add(c.dy + y * radius);
     }
     final scale = (radius / 137).clamp(.45, 1.0);
-    final colour = Color.lerp(AC.blobSpeck, top, .22)!;
     final paint = Paint()
       ..strokeCap = StrokeCap.round
       ..isAntiAlias = true;
     for (var i = 0; i < points.length; i++) {
       if (points[i].isEmpty) continue;
+      final band = i ~/ (sizes * bright), size = i ~/ bright % sizes;
+      final tone = Color.lerp(top, bottom, (band + .5) / bands)!;
       paint
-        ..strokeWidth = const [1.4, 2.4, 4.4][i ~/ bright] * scale
-        ..color = colour.withValues(alpha: i.isOdd ? .95 : .45);
+        ..strokeWidth = const [1.7, 2.9, 4.8][size] * scale
+        ..maskFilter =
+            size == 2 ? MaskFilter.blur(BlurStyle.normal, 1.2 * scale) : null
+        ..color = Color.lerp(tone, AC.blobSpeck, .28)!
+            .withValues(alpha: i.isOdd ? 1 : .6);
       canvas.drawRawPoints(
           ui.PointMode.points, Float32List.fromList(points[i]), paint);
     }

@@ -8,6 +8,7 @@
 //   ringsWide   strain over recovery as two rings, HRV and calories beside (4x2)
 //   rings       the same two rings, small (2x2)
 //   sleep, recovery, strain   one dial each (2x2)
+//   stress      today split into low, medium and high stress (2x2)
 
 import 'dart:io' show Directory, File, Platform;
 import 'dart:typed_data';
@@ -17,7 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../ui2/logo.dart' show LocusMarkPainter;
-import '../ui2/theme.dart' show F, ST;
+import '../ui2/theme.dart' show C, F, ST;
 
 enum WidgetFace {
   dials(344, 162),
@@ -25,7 +26,8 @@ enum WidgetFace {
   rings(162, 162),
   sleep(162, 162),
   recovery(162, 162),
-  strain(162, 162);
+  strain(162, 162),
+  stress(162, 162);
 
   final double width, height;
   const WidgetFace(this.width, this.height);
@@ -67,6 +69,10 @@ class FaceData {
   final FaceRing sleep, recovery, strain;
   final int? hrv, calories, batteryPct;
   final bool batteryStale;
+
+  /// Today's minutes at each stress level, as Total day stress counts them.
+  /// Null until the day has enough of a reading to split.
+  final ({int low, int medium, int high})? stress;
   const FaceData({
     required this.sleep,
     required this.recovery,
@@ -75,6 +81,7 @@ class FaceData {
     this.calories,
     this.batteryPct,
     this.batteryStale = false,
+    this.stress,
   });
 
   FaceData withBattery(int? pct, bool stale) => FaceData(
@@ -85,6 +92,18 @@ class FaceData {
         calories: calories,
         batteryPct: pct,
         batteryStale: stale,
+        stress: stress,
+      );
+
+  FaceData withStress(({int low, int medium, int high})? s) => FaceData(
+        sleep: sleep,
+        recovery: recovery,
+        strain: strain,
+        hrv: hrv,
+        calories: calories,
+        batteryPct: batteryPct,
+        batteryStale: batteryStale,
+        stress: s,
       );
 }
 
@@ -135,6 +154,8 @@ class FacePainter extends CustomPainter {
         _single(c, s, d.recovery, 'RECOVERY');
       case WidgetFace.strain:
         _single(c, s, d.strain, 'STRAIN');
+      case WidgetFace.stress:
+        _stress(c, s);
     }
     c.restore();
   }
@@ -384,6 +405,54 @@ class FacePainter extends CustomPainter {
     _dial(c, Offset(s.width / 2, 78), 104, r, figure: .3);
     _mark(c, const Offset(24, 141), 16, _grey);
     _put(c, _tp(TextSpan(text: name, style: _caps(10.7, _ink))),
+        Offset(s.width / 2, 145),
+        ax: .5, ay: .5);
+  }
+
+  /// The day's ring split low, medium and high in the stress colours, the
+  /// time in high stress in the middle. Without a reading, the ring stays a
+  /// track and says so.
+  void _stress(Canvas c, Size s) {
+    _battery(c, s, stacked: true);
+    final center = Offset(s.width / 2, 78);
+    const dia = 104.0, stroke = dia * .078;
+    final rect = Rect.fromCircle(center: center, radius: dia / 2 - stroke / 2);
+    final p = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.butt
+      ..isAntiAlias = true;
+    const top = -1.5707963, turn = 6.2831853;
+    c.drawArc(rect, 0, turn, false, p..color = _track);
+    final m = d.stress;
+    final total = m == null ? 0 : m.low + m.medium + m.high;
+    if (m == null || total <= 0) {
+      _words(c, center, dia, 'No stress reading');
+    } else {
+      var at = top;
+      // A hairline between levels, as the Trend View columns part them.
+      const gap = .02;
+      for (final (v, color) in [
+        (m.low, C.stressLow),
+        (m.medium, C.stressMedium),
+        (m.high, C.stressHigh),
+      ]) {
+        final sweep = v / total * turn;
+        if (sweep > gap * 2) {
+          c.drawArc(rect, at + gap / 2, sweep - gap, false, p..color = color);
+        }
+        at += sweep;
+      }
+      final h = m.high ~/ 60, mm = m.high % 60;
+      _put(c, _tp(_fig('$h:${mm.toString().padLeft(2, '0')}', '', dia * .26, _ink)),
+          center - const Offset(0, 6),
+          ax: .5, ay: .5);
+      _put(c, _tp(TextSpan(text: 'HIGH', style: _caps(9, _grey))),
+          center + const Offset(0, 15),
+          ax: .5, ay: .5);
+    }
+    _mark(c, const Offset(24, 141), 16, _grey);
+    _put(c, _tp(TextSpan(text: 'DAY STRESS', style: _caps(10.7, _ink))),
         Offset(s.width / 2, 145),
         ax: .5, ay: .5);
   }

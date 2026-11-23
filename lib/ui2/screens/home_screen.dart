@@ -691,27 +691,35 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       padding: const EdgeInsets.only(top: S.x3, bottom: S.x4),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         LayoutBuilder(builder: (c, box) {
-          // The pager sits centred, so it may take the width less twice the
-          // wider side (the battery and band, usually) and a gap each side.
-          final side = math.max(S.x8 + S.x1, HomeDeviceStatus.widestOf(c));
-          final room = box.maxWidth - 2 * (side + S.x3);
-          return Stack(alignment: Alignment.center, children: [
-          DayPager(
-            day: cur,
-            today: today,
-            days: _days,
-            onDay: _goDay,
-            onCalendar: () => _openCalendar(c, cur),
-            maxWidth: math.max(S.x16 * 2, room),
-            loading: _loading,
-          ),
-          const Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: ProfileAvatar(accent: C.dialStrain, size: S.x8 + S.x1)),
-          const Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: _DeviceStatus()),
-        ]);
+          // The pager may take all the width between the avatar and the
+          // battery and band, less a gap each side. It sits centred when it
+          // fits there and moves off centre only as far as it must.
+          final room = box.maxWidth -
+              (S.x8 + S.x1) -
+              HomeDeviceStatus.widestOf(c) -
+              2 * S.x3;
+          return SizedBox(
+            height: S.tap,
+            child: CustomMultiChildLayout(delegate: _HeaderLayout(), children: [
+              LayoutId(
+                id: #pager,
+                child: DayPager(
+                  day: cur,
+                  today: today,
+                  days: _days,
+                  onDay: _goDay,
+                  onCalendar: () => _openCalendar(c, cur),
+                  maxWidth: math.max(S.x16 * 2, room),
+                  loading: _loading,
+                ),
+              ),
+              LayoutId(
+                  id: #avatar,
+                  child:
+                      ProfileAvatar(accent: C.dialStrain, size: S.x8 + S.x1)),
+              LayoutId(id: #status, child: _DeviceStatus()),
+            ]),
+          );
         }),
       ]),
     );
@@ -1366,3 +1374,24 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   bool _pulling = false;
 }
 
+/// The Home header: the avatar at the start, the battery and band at the end,
+/// the day pager centred between them unless it needs to move to fit.
+class _HeaderLayout extends MultiChildLayoutDelegate {
+  @override
+  void performLayout(Size size) {
+    final a = layoutChild(#avatar, BoxConstraints.loose(size));
+    final s = layoutChild(#status, BoxConstraints.loose(size));
+    final room = math.max(0.0, size.width - a.width - s.width - 2 * S.x3);
+    final p = layoutChild(#pager, BoxConstraints.loose(Size(room, size.height)));
+    double mid(Size z) => (size.height - z.height) / 2;
+    positionChild(#avatar, Offset(0, mid(a)));
+    positionChild(#status, Offset(size.width - s.width, mid(s)));
+    final lo = a.width + S.x3;
+    final hi = math.max(lo, size.width - s.width - S.x3 - p.width);
+    positionChild(
+        #pager, Offset(((size.width - p.width) / 2).clamp(lo, hi), mid(p)));
+  }
+
+  @override
+  bool shouldRelayout(_HeaderLayout old) => false;
+}

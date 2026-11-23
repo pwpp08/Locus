@@ -238,9 +238,19 @@ String _capital(String s) => s[0].toUpperCase() + s.substring(1);
     return (AC.lockedTop, AC.lockedBottom, DC.ink3);
   }
   final delta = age - base;
-  if (delta > -.05) return (AC.olderTop, AC.olderBottom, AC.olderText);
-  if (delta > -4) return (AC.tealTop, AC.tealBottom, AC.tealText);
+  if (delta > -.05) return (AC.blobOldTop, AC.blobOldBottom, AC.blobOldText);
+  if (delta > -4) return (AC.blobEvenTop, AC.blobEvenBottom, AC.blobEvenText);
   return (AC.greenTop, AC.greenBottom, AC.greenText);
+}
+
+/// How lumpy the blob sits for a reading (BlobSim.roughness): jagged three
+/// years older and past, a soft wobble about even, a near circle four years
+/// younger and past.
+double locusRoughness(WhoopAgeResult r) {
+  final age = r.whoopAge, base = r.age;
+  if (age == null || base == null) return .35;
+  final t = ((age - base + 4) / 7).clamp(0.0, 1.0);
+  return math.pow(t, 1.5).toDouble();
 }
 
 // ─────────────────────────────── screen ─────────────────────────────────
@@ -285,7 +295,7 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
   List<_Week> _weeks = const [];
   int _at = 0;
   bool _loaded = false, _bannerGone = false;
-  final _open = <String>{'consistency'};
+  final _open = <String>{};
 
   String get _today => widget.today ?? todayLabel();
 
@@ -445,6 +455,7 @@ class _LocusAgeScreenState extends State<LocusAgeScreen>
     final width = mq.size.width;
     final r = _shown;
     final (toneTop, toneBottom, toneText) = _tones();
+    _sim.roughness = locusRoughness(_shown);
 
     final body = Stack(
       fit: StackFit.expand,

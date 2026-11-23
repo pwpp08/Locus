@@ -12,6 +12,8 @@
     <string name="widget_recovery_description">Your recovery score.</string>
     <string name="widget_strain_label">Strain</string>
     <string name="widget_strain_description">Your strain today.</string>
+    <string name="widget_stress_label">Day stress</string>
+    <string name="widget_stress_description">Today split into low, medium and high stress.</string>
     <string name="widget_battery_label">Band battery</string>
     <string name="widget_battery_description">Your band\'s battery, from the last connection.</string>
 </resources>

@@ -24,7 +24,8 @@ import 'health_monitor.dart'
     show HealthHeartRate, HealthMonitorScreen, VitalGlance, vitalGlyph, vitalsGlanceOf;
 import 'home_screen.dart' show go, repoOf, weekdayShortName;
 import 'journal_compose.dart';
-import 'locus_age.dart' show LocusAgeScreen, finishedSaturdays, locusTones;
+import 'locus_age.dart'
+    show LocusAgeScreen, finishedSaturdays, locusRoughness, locusTones;
 import 'locus_blob.dart';
 import 'stress_monitor.dart'
     show StressMonitorData, StressMonitorScreen, StressSource, stressColor;
@@ -54,17 +55,27 @@ class HealthTabData {
     final today = todayLabel();
     final loader = TrendLoader(repo);
     Future<T?> safe<T>(Future<T> f) => f.then<T?>((v) => v).catchError((_) => null);
-    final week = finishedSaturdays(today, 1);
+    // The week the Locus Age screen opens on, the last finished one, against
+    // the week before it: today's unfinished week read differently from the
+    // screen the card opens.
+    final week = finishedSaturdays(today, 2);
     final got = await Future.wait<Object?>([
-      safe(loader.whoopAge(asOf: today)),
-      week.isEmpty ? Future.value(null) : safe(loader.whoopAge(asOf: week.first)),
+      safe(loader.whoopAge(asOf: week[0])),
+      safe(loader.whoopAge(asOf: week[1])),
       safe(vitalsGlanceOf(repo)),
       safe(StressSource(repo).load(today)),
       safe(_journalWeek(repo, today)),
     ]);
+    var age = got[0] as WhoopAgeResult?;
+    var lastWeek = got[1] as WhoopAgeResult?;
+    // No finished week yet: this week so far, as the screen shows it.
+    if (age?.whoopAge == null) {
+      age = await safe(loader.whoopAge(asOf: today));
+      lastWeek = null;
+    }
     return HealthTabData(
-      age: got[0] as WhoopAgeResult?,
-      lastWeek: got[1] as WhoopAgeResult?,
+      age: age,
+      lastWeek: lastWeek,
       vitals: (got[2] as List<VitalGlance>?) ?? const [],
       stress: got[3] as StressMonitorData?,
       journal: got[4] as List<int>?,
@@ -387,6 +398,7 @@ class LocusAgeCard extends StatelessWidget {
             child: _MiniBlob(
               top: top,
               bottom: bottom,
+              roughness: locusRoughness(r),
               label: age == null ? '--' : age.toStringAsFixed(1),
             ),
           ),
@@ -414,7 +426,12 @@ class _Notch extends CustomPainter {
 class _MiniBlob extends StatefulWidget {
   final Color top, bottom;
   final String label;
-  const _MiniBlob({required this.top, required this.bottom, required this.label});
+  final double roughness;
+  const _MiniBlob(
+      {required this.top,
+      required this.bottom,
+      required this.label,
+      required this.roughness});
 
   @override
   State<_MiniBlob> createState() => _MiniBlobState();
@@ -453,7 +470,9 @@ class _MiniBlobState extends State<_MiniBlob> with SingleTickerProviderStateMixi
   }
 
   @override
-  Widget build(BuildContext c) => Stack(alignment: Alignment.center, children: [
+  Widget build(BuildContext c) {
+    _sim.roughness = widget.roughness;
+    return Stack(alignment: Alignment.center, children: [
         Positioned.fill(
           child: RepaintBoundary(
             child: CustomPaint(
@@ -474,6 +493,7 @@ class _MiniBlobState extends State<_MiniBlob> with SingleTickerProviderStateMixi
           Text('LOCUS AGE', style: HT.blobLabel.copyWith(color: HM.label)),
         ]),
       ]);
+  }
 }
 
 // ──────────────────────────── Health Monitor ──────────────────────────────

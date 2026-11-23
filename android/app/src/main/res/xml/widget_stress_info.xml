@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  Renders the picture the app last drew (lib/widget/widget_faces.dart); it never
+  fetches. updatePeriodMillis only re-runs the freshness check, so a snapshot
+  that has gone stale stops looking current without the app running.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
+    android:resizeMode="none"
+    android:updatePeriodMillis="21600000"
+    android:initialLayout="@layout/widget_face"
+    android:previewLayout="@layout/widget_face"
+    android:description="@string/widget_stress_description"
+    android:widgetCategory="home_screen" />

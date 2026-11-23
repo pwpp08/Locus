@@ -222,6 +222,35 @@ void main() {
     expect(find.text('Today could not be read'), findsOneWidget);
     expect(find.text('Set an alarm'), findsOneWidget);
   });
+
+  testWidgets('short of room the pager drops the weekday, never shrinks',
+      (t) async {
+    Future<void> pager(double room) => t.pumpWidget(MaterialApp(
+          theme: buildTheme(),
+          home: Scaffold(
+            body: Center(
+              child: DayPager(
+                day: '2026-11-22',
+                today: '2026-11-23',
+                days: const ['2026-11-21', '2026-11-22'],
+                onDay: (_) {},
+                onCalendar: () {},
+                maxWidth: room,
+              ),
+            ),
+          ),
+        ));
+    await pager(600);
+    await t.pumpAndSettle();
+    expect(find.text('SUN, NOV 22'), findsOneWidget);
+    // The pill hugs the label: wide room does not stretch it.
+    expect(t.getSize(find.byType(DayPager)).width, lessThan(400));
+
+    await pager(200);
+    await t.pumpAndSettle();
+    expect(find.text('SUN, NOV 22'), findsNothing);
+    expect(find.text('NOV 22'), findsOneWidget);
+  });
 }
 
 /// Today has a real reading; every past day is genuinely bare (no bundle at

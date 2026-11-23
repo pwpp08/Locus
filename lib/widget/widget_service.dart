@@ -12,11 +12,13 @@ import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:flutter/services.dart';
 
+import '../data/day_label.dart' show todayLabel;
 import '../data/local_repository.dart';
 import '../models/metric.dart';
 import '../models/payloads.dart';
 import '../ui2/screens/home/home_data.dart' show recoveryColor;
 import '../ui2/screens/home_screen.dart' show readinessBand;
+import '../ui2/screens/stress_monitor.dart' show StressSource;
 import '../ui2/theme.dart' show C;
 import 'widget_faces.dart';
 
@@ -54,6 +56,7 @@ class WidgetService {
     (null, 'RingsWidgetProvider'),
     (null, 'RecoveryWidgetProvider'),
     (null, 'StrainWidgetProvider'),
+    (null, 'StressWidgetProvider'),
   ];
 
   static Future<void> _reloadSnapshotWidgets() async {
@@ -128,7 +131,9 @@ class WidgetService {
       final stale = at != null &&
           at > 0 &&
           DateTime.now().millisecondsSinceEpoch ~/ 1000 - at > 86400 - 21600;
-      await WidgetFaces.write(f.withBattery(pct != null && pct >= 0 ? pct : null, stale));
+      await WidgetFaces.write(f
+          .withBattery(pct != null && pct >= 0 ? pct : null, stale)
+          .withStress(_stress));
     } catch (_) {}
   }
 
@@ -164,6 +169,21 @@ class WidgetService {
     try {
       await push(TodayData.fromJson(await repo.getToday()));
     } catch (_) {/* the widget is a mirror; it must never break its source */}
+    await _refreshStress(repo);
+  }
+
+  /// Today's stress split for the Day stress face, as Total day stress counts
+  /// it. Read on every refresh: the push above skips an unchanged snapshot,
+  /// but the day's stress keeps moving.
+  static ({int low, int medium, int high})? _stress;
+  static Future<void> _refreshStress(LocalRepository repo) async {
+    if (!Platform.isAndroid) return;
+    try {
+      final today = todayLabel();
+      _stress = (await StressSource(repo).minutesByDay([today]))[today];
+      await _writeFaces();
+      await HomeWidget.updateWidget(androidName: 'StressWidgetProvider');
+    } catch (_) {}
   }
 
   /// True when [t] is describing a day that is more than one calendar day
