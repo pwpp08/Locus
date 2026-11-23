@@ -138,7 +138,12 @@ class _TeamDetailsScreen extends StatefulWidget {
   /// From a code (private or public), or a public team's id.
   final TeamPreview? preview;
   final String? code, teamId;
-  const _TeamDetailsScreen({this.preview, this.code, this.teamId});
+
+  /// Opened from an admin's invitation: joining accepts it, Decline turns
+  /// it down.
+  final bool invited;
+  const _TeamDetailsScreen(
+      {this.preview, this.code, this.teamId, this.invited = false});
 
   @override
   State<_TeamDetailsScreen> createState() => _TeamDetailsScreenState();
@@ -172,9 +177,11 @@ class _TeamDetailsScreenState extends State<_TeamDetailsScreen> {
       final id = await _busy(
           context,
           'Saving',
-          () => widget.code != null
-              ? _svc.joinByCode(widget.code!)
-              : _svc.joinPublic(t.id));
+          () => widget.invited
+              ? _svc.acceptInvite(t.id)
+              : widget.code != null
+                  ? _svc.joinByCode(widget.code!)
+                  : _svc.joinPublic(t.id));
       if (id == null || !mounted) return;
     }
     final team = _svc.teams.where((x) => x.id == t.id).firstOrNull;
@@ -262,7 +269,12 @@ class _TeamDetailsScreenState extends State<_TeamDetailsScreen> {
                     if (!t.joined) ...[
                       const SizedBox(height: S.x3),
                       Center(
-                        child: TextAction('Decline', () => Navigator.maybePop(c)),
+                        child: TextAction('Decline', () async {
+                          if (widget.invited) {
+                            await _busy(c, 'Saving', () => _svc.declineInvite(t.id));
+                          }
+                          if (c.mounted) Navigator.maybePop(c);
+                        }),
                       ),
                     ],
                   ],

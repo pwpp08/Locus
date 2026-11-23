@@ -112,6 +112,16 @@ class _HumansScreenState extends State<_HumansScreen> {
                       padding:
                           const EdgeInsets.fromLTRB(S.gutter, 0, S.gutter, S.x8),
                       children: [
+                        if (_svc.invites.isNotEmpty) ...[
+                          _label(c, 'Team invites (${_svc.invites.length})',
+                              color: p.ink2),
+                          const SizedBox(height: S.x3),
+                          for (final i in _svc.invites) ...[
+                            _InviteRow(i, onAnswered: () => setState(() {})),
+                            const SizedBox(height: S.x2),
+                          ],
+                          const SizedBox(height: S.x4),
+                        ],
                         if (requests.isNotEmpty) ...[
                           _label(c, 'Requests (${requests.length})', color: p.ink2),
                           const SizedBox(height: S.x3),
@@ -372,7 +382,6 @@ const _metricNames = {
   'strain': 'Strain',
   'activities': 'Activities',
   'age': 'Locus Age',
-  'achievements': 'Achievements',
 };
 
 /// PRIVACY: who finds me and sees my profile, what followers see of each
@@ -664,6 +673,191 @@ class _MetricPrivacySheetState extends State<_MetricPrivacySheet> {
             }),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// An invitation into a team: its logo and name, who sent it, and ✓ / ✕.
+/// Tapping it opens the team as it is before joining.
+class _InviteRow extends StatelessWidget {
+  final TeamInvite invite;
+  final VoidCallback onAnswered;
+  const _InviteRow(this.invite, {required this.onAnswered});
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final t = invite.team;
+    Future<void> open() async {
+      await Navigator.of(c).push(themedRoute(
+          (_) => _TeamDetailsScreen(preview: t, invited: true),
+          name: 'TeamDetails'));
+      onAnswered();
+    }
+
+    return _cardRow(
+      c,
+      onTap: open,
+      label: 'Invitation to ${t.name}',
+      child: Row(children: [
+        TeamLogo(t.logo, size: S.x10),
+        const SizedBox(width: S.x3),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(t.name.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: F.body.copyWith(
+                    color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1)),
+            Text(
+                invite.inviter == null
+                    ? '${groupThousands(t.members)} members'
+                    : 'From ${invite.inviter}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: F.cap.copyWith(color: p.ink3)),
+          ]),
+        ),
+        _RingButton(LucideIcons.check, 'Look at ${t.name}', open),
+        const SizedBox(width: S.x2),
+        _RingButton(LucideIcons.x, 'Decline ${t.name}', () async {
+          await _busy(c, 'Saving', () => _svc.declineInvite(t.id));
+          onAnswered();
+        }),
+      ]),
+    );
+  }
+}
+
+/// FIND MEMBERS: an admin searches people and invites them into [team].
+/// They join only by accepting, from their Humans page.
+class _InviteMembersScreen extends StatefulWidget {
+  final CommunityTeam team;
+  const _InviteMembersScreen({required this.team});
+
+  @override
+  State<_InviteMembersScreen> createState() => _InviteMembersScreenState();
+}
+
+class _InviteMembersScreenState extends State<_InviteMembersScreen> {
+  final _q = TextEditingController();
+  Timer? _wait;
+  List<Human> _found = const [];
+  Set<String> _members = const {}, _invited = const {};
+  final _busyIds = <String>{};
+  bool _searching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTeam();
+  }
+
+  Future<void> _loadTeam() async {
+    try {
+      final people = await _svc.people(widget.team.id);
+      final inv = await _svc.invitees(widget.team.id);
+      if (mounted) {
+        setState(() {
+          _members = {for (final m in people) m.id};
+          _invited = inv;
+        });
+      }
+    } catch (_) {
+      // The buttons still work; the server says who is already in.
+    }
+  }
+
+  @override
+  void dispose() {
+    _wait?.cancel();
+    _q.dispose();
+    super.dispose();
+  }
+
+  void _changed(String q) {
+    _wait?.cancel();
+    _wait = Timer(Motion.slow, () => _search(q));
+  }
+
+  Future<void> _search(String q) async {
+    setState(() => _searching = true);
+    try {
+      final r = await _svc.search(q.replaceFirst('@', ''));
+      if (mounted && _q.text == q) setState(() => _found = r);
+    } catch (e) {
+      if (mounted) _say(context, communityError(e));
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  Future<void> _invite(Human h) async {
+    setState(() => _busyIds.add(h.id));
+    try {
+      await _svc.inviteMember(widget.team.id, h.id);
+      if (mounted) setState(() => _invited = {..._invited, h.id});
+    } catch (e) {
+      if (mounted) _say(context, communityError(e));
+    } finally {
+      if (mounted) setState(() => _busyIds.remove(h.id));
+    }
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    return Scaffold(
+      backgroundColor: p.bg,
+      body: SafeArea(
+        child: Column(children: [
+          const Padding(
+              padding: EdgeInsets.symmetric(horizontal: S.x4),
+              child: NavBar('Find members')),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(S.gutter, S.x2, S.gutter, S.x2),
+            child: AppField(
+              controller: _q,
+              hint: 'Name or @username',
+              semanticLabel: 'Search members to invite',
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              onChanged: _changed,
+              onSubmitted: _search,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(S.gutter, 0, S.gutter, S.x4),
+            child: Text(
+                'They get an invitation to ${widget.team.name} and join only if '
+                'they accept.',
+                style: F.cap.copyWith(color: p.ink3)),
+          ),
+          Expanded(
+            child: _searching && _found.isEmpty
+                ? const Center(child: CircularProgressIndicator.adaptive())
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(S.gutter, 0, S.gutter, S.x8),
+                    children: [
+                      for (final h in _found) ...[
+                        _HumanRow(h,
+                            trailing: _members.contains(h.id)
+                                ? Text('Member', style: F.cap.copyWith(color: p.ink3))
+                                : BigButton(
+                                    _invited.contains(h.id) ? 'Invited' : 'Invite',
+                                    compact: true,
+                                    soft: _invited.contains(h.id),
+                                    busy: _busyIds.contains(h.id),
+                                    onTap: _invited.contains(h.id)
+                                        ? null
+                                        : () => _invite(h))),
+                        const SizedBox(height: S.x2),
+                      ],
+                    ],
+                  ),
+          ),
+        ]),
       ),
     );
   }

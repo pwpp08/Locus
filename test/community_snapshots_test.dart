@@ -50,6 +50,16 @@ class _FakeCommunity extends CommunityService {
         hue: 200, username: 'vince', birthYear: 1994, region: 'Budapest');
     teams = signedInNow ? [_crew, _club] : const [];
     requests = [_h('u5', 'Lea Novak', 'lea', 320, state: 'pending')];
+    invites = [
+      const TeamInvite(
+          TeamPreview('t8', 'Lake Swimmers',
+              description: 'Open water, Saturdays at eight.',
+              banner: 'banner_5',
+              logo: 'waves',
+              chatEnabled: true,
+              members: 14),
+          inviter: 'Jade Kim'),
+    ];
   }
 
   final bool signedInNow;
@@ -201,7 +211,57 @@ class _FakeCommunity extends CommunityService {
             _day(0).add(const Duration(hours: 6, minutes: 12))),
         ChatMessage(4, teamId, 'u2', 'Strain 14 before breakfast, you all are animals',
             _day(0).add(const Duration(hours: 8, minutes: 40))),
+        ChatMessage(
+            5,
+            teamId,
+            '',
+            jsonEncode({
+              'from': '2026-11-16',
+              'to': '2026-11-22',
+              'boards': {
+                'strain': {
+                  'top': [
+                    {'id': 'u2', 'v': 17.8},
+                    {'id': 'u1', 'v': 16.2},
+                    {'id': 'me', 'v': 15.1},
+                  ],
+                  'avg': 11.4,
+                  'prev': 10.9,
+                },
+                'recovery': {
+                  'top': [
+                    {'id': 'u3', 'v': 81.3},
+                    {'id': 'u5', 'v': 74.0},
+                    {'id': 'u4', 'v': 70.6},
+                  ],
+                  'avg': 63.2,
+                  'prev': 66.0,
+                },
+                'sleep': {
+                  'top': [
+                    {'id': 'u5', 'v': 93},
+                    {'id': 'u3', 'v': 90},
+                    {'id': 'u1', 'v': 88},
+                  ],
+                  'avg': 84,
+                  'prev': 82,
+                },
+              },
+              'shout': {
+                'improved': {'id': 'u4', 'm': 'recovery', 'd': 12.5},
+                'streak': {'id': 'u3', 'm': 'recovery', 'n': 5},
+                'workouts': {'id': 'u2', 'n': 6},
+              },
+            }),
+            _day(0).add(const Duration(hours: 10)),
+            card: 'weekly_recap'),
       ];
+  @override
+  Future<List<TeamInvite>> myInvites() async => invites;
+  @override
+  Future<Set<String>> invitees(String teamId) async => {'u7'};
+  @override
+  Future<void> inviteMember(String teamId, String userId) async {}
   @override
   Future<void> markRead(String teamId) async {}
   @override
@@ -398,6 +458,8 @@ void main() {
       await shot(t, '31_team_info');
       await tap(t, 'chat');
       await shot(t, '32_team_chat');
+      await t.drag(find.byType(Scrollable).last, const Offset(0, 600));
+      await shot(t, '32_team_chat_up');
       await tap(t, 'recovery');
       await shot(t, '33_team_board_recovery');
       await tap(t, 'sleep');
@@ -412,6 +474,19 @@ void main() {
       await tap(t, 'Morning Crew');
       await tap(t, 'Team options');
       await shot(t, '36_team_menu');
+      await tap(t, 'Add team members');
+      await shot(t, '39_invite_sheet');
+      await tap(t, 'Find members');
+      await t.enterText(find.byType(EditableText).first, 'an');
+      await t.pump(const Duration(seconds: 1));
+      await shot(t, '39_invite_members');
+    });
+
+    await run(t, 'manage', _FakeCommunity(), () async {
+      await t.pumpWidget(_app(const CommunityScreen(tab: true)));
+      await settle(t);
+      await tap(t, 'Morning Crew');
+      await tap(t, 'Team options');
       await tap(t, 'Manage team');
       await shot(t, '37_manage_team');
     });
@@ -430,6 +505,10 @@ void main() {
       await settle(t);
       await tap(t, 'Humans');
       await shot(t, '40_humans_following');
+      await tap(t, 'Lake Swimmers');
+      await shot(t, '45_invited_team');
+      await tap(t, 'Back');
+      await settle(t);
       await tap(t, 'Followers (');
       await shot(t, '41_humans_followers');
       await tap(t, 'Following (');

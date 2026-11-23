@@ -524,7 +524,7 @@ class _HumansRow extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    final n = _svc.requests.length;
+    final n = _svc.requests.length + _svc.invites.length;
     return _cardRow(
       c,
       onTap: onTap,

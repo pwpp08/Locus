@@ -134,6 +134,8 @@ alter table public.messages drop constraint if exists messages_body_check;
 alter table public.messages add constraint messages_body_check
   check (char_length(body) <= 2000 and (char_length(body) > 0 or image_path is not null));
 create index if not exists messages_team_time on public.messages (team_id, created_at desc);
+-- The weekly recap is written by the server, so it has no author.
+alter table public.messages alter column user_id drop not null;
 
 -- The old picture feed. Kept so nothing is lost; the app no longer writes it.
 create table if not exists public.posts (
@@ -154,6 +156,17 @@ create table if not exists public.follows (
   check (follower <> followee)
 );
 create index if not exists follows_followee on public.follows (followee);
+
+-- An admin's invitation to someone found by search. Nobody is put in a team
+-- (and nobody's numbers reach it) until they accept.
+create table if not exists public.team_invites (
+  team_id uuid not null references public.teams (id) on delete cascade,
+  invitee uuid not null references auth.users (id) on delete cascade,
+  inviter uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now(),
+  primary key (team_id, invitee)
+);
+create index if not exists team_invites_invitee on public.team_invites (invitee);
 
 create table if not exists public.blocks (
   blocker uuid not null references auth.users (id) on delete cascade,
@@ -323,7 +336,10 @@ language sql stable security definer set search_path = public as $$
          public.is_member(t.id)
   from teams t
   where (join_code is not null and t.code = upper(trim(join_code)))
-     or (team is not null and t.id = team and (t.is_public or public.is_member(t.id)));
+     or (team is not null and t.id = team
+         and (t.is_public or public.is_member(t.id)
+              or exists (select 1 from team_invites i
+                         where i.team_id = t.id and i.invitee = auth.uid())));
 $$;
 
 -- Public teams, biggest first, optionally narrowed by name.
@@ -629,6 +645,7 @@ alter table public.posts enable row level security;
 alter table public.follows enable row level security;
 alter table public.blocks enable row level security;
 alter table public.reports enable row level security;
+alter table public.team_invites enable row level security;
 alter table public.community_migrations enable row level security;
 
 -- Profiles: names and colours of people you share a team or a follow with.
@@ -720,6 +737,15 @@ drop policy if exists "follows decide" on public.follows;
 drop policy if exists "follows remove" on public.follows;
 create policy "follows remove" on public.follows for delete
   using (follower = auth.uid() or followee = auth.uid());
+
+-- Invites: the invitee and the team's admins see them; either takes one back.
+-- Sending and accepting go through invite_member() / accept_invite().
+drop policy if exists "invites read" on public.team_invites;
+create policy "invites read" on public.team_invites for select
+  using (invitee = auth.uid() or public.is_admin(team_id));
+drop policy if exists "invites remove" on public.team_invites;
+create policy "invites remove" on public.team_invites for delete
+  using (invitee = auth.uid() or public.is_admin(team_id));
 
 drop policy if exists "blocks own" on public.blocks;
 create policy "blocks own" on public.blocks for all
@@ -844,3 +870,216 @@ $$;
 
 grant execute on function public.my_profile() to authenticated;
 grant execute on function public.team_people(uuid) to authenticated;
+
+-- ─────────────────────────── invites ───────────────────────────
+
+-- An admin invites someone they could find by search (or who already shares
+-- a team or a follow with them). Nobody blocked either way.
+create or replace function public.invite_member(t uuid, other uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin(t) then raise exception 'Only a team admin can invite'; end if;
+  if exists (select 1 from team_members where team_id = t and user_id = other) then
+    raise exception 'Already in the team';
+  end if;
+  if not exists (
+    select 1 from profiles p where p.id = other
+      and (p.searchable = 'all'
+           or (p.searchable = 'followers' and public.follows_me(p.id))
+           or public.shares_team(p.id) or public.i_follow(p.id)))
+     or other in (select blocked from blocks where blocker = auth.uid())
+     or auth.uid() in (select blocked from blocks where blocker = other) then
+    raise exception 'That person cannot be invited';
+  end if;
+  insert into team_invites (team_id, invitee, inviter) values (t, other, auth.uid())
+  on conflict do nothing;
+end $$;
+
+-- My open invitations, with what the join screen shows of each team.
+create or replace function public.my_invites()
+returns table (id uuid, name text, description text, is_public boolean,
+               chat_enabled boolean, board_strain boolean, board_recovery boolean,
+               board_sleep boolean, banner text, logo text, members bigint,
+               inviter_name text, invited_at timestamptz)
+language sql stable security definer set search_path = public as $$
+  select t.id, t.name, t.description, t.is_public, t.chat_enabled and not t.is_open,
+         t.board_strain, t.board_recovery, t.board_sleep, t.banner, t.logo,
+         (select count(*) from team_members m where m.team_id = t.id),
+         p.display_name, i.created_at
+  from team_invites i
+  join teams t on t.id = i.team_id
+  left join profiles p on p.id = i.inviter
+  where i.invitee = auth.uid()
+    and coalesce(i.inviter, i.invitee) not in
+        (select blocked from blocks where blocker = auth.uid())
+  order by i.created_at desc;
+$$;
+
+create or replace function public.accept_invite(t uuid)
+returns uuid language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from team_invites where team_id = t and invitee = auth.uid()) then
+    raise exception 'That invitation is no longer open';
+  end if;
+  insert into team_members (team_id, user_id) values (t, auth.uid())
+  on conflict do nothing;
+  delete from team_invites where team_id = t and invitee = auth.uid();
+  return t;
+end $$;
+
+grant execute on function public.invite_member(uuid, uuid) to authenticated;
+grant execute on function public.my_invites() to authenticated;
+grant execute on function public.accept_invite(uuid) to authenticated;
+
+do $$ begin
+  alter publication supabase_realtime add table public.team_invites;
+exception when duplicate_object then null; end $$;
+
+-- ─────────────────────────── weekly recap ───────────────────────────
+
+-- Every Monday, into each team chat: the week that just ended (Monday to
+-- Sunday) on each of the team's boards (the top three, the team's average
+-- against the week before) and shout-outs. Ranked as the boards rank:
+-- strain by the best day, recovery and sleep by the mean. The body is JSON
+-- the app draws as a card; names are looked up on the phone, so it stays
+-- short. Once per team per week, however often it runs.
+create or replace function public.weekly_recap(week_end date default null)
+returns int language plpgsql security definer set search_path = public as $$
+declare
+  t record;
+  b text;
+  wk_to date := coalesce(week_end, current_date - extract(isodow from current_date)::int);
+  wk_from date := wk_to - 6;
+  pv_to date := wk_to - 7;
+  pv_from date := wk_to - 13;
+  boards jsonb; top jsonb; shout jsonb; x jsonb;
+  avg_now numeric; avg_prev numeric;
+  imp text;
+  posted int := 0;
+begin
+  for t in select * from teams where chat_enabled and not is_open loop
+    if exists (select 1 from messages where team_id = t.id and card = 'weekly_recap'
+               and body like '%"to": "' || wk_to || '"%') then
+      continue;
+    end if;
+    boards := '{}'::jsonb;
+    foreach b in array array['strain', 'recovery', 'sleep'] loop
+      continue when (b = 'strain' and not t.board_strain)
+                 or (b = 'recovery' and not t.board_recovery)
+                 or (b = 'sleep' and not t.board_sleep);
+      select coalesce(jsonb_agg(jsonb_build_object('id', v.user_id, 'v', round(v.val, 1))
+                                order by v.val desc), '[]'::jsonb)
+        into top
+      from (
+        select s.user_id,
+               (case b when 'strain' then max(s.strain)
+                       when 'recovery' then avg(s.recovery)
+                       else avg(s.sleep_perf) end)::numeric as val
+        from daily_scores s
+        join team_members m on m.user_id = s.user_id and m.team_id = t.id
+        where s.day between wk_from and wk_to
+        group by s.user_id
+        having (case b when 'strain' then max(s.strain)
+                       when 'recovery' then avg(s.recovery)
+                       else avg(s.sleep_perf) end) is not null
+        order by val desc
+        limit 3) v;
+      select avg(case b when 'strain' then s.strain when 'recovery' then s.recovery
+                        else s.sleep_perf end) filter (where s.day >= wk_from),
+             avg(case b when 'strain' then s.strain when 'recovery' then s.recovery
+                        else s.sleep_perf end) filter (where s.day <= pv_to)
+        into avg_now, avg_prev
+      from daily_scores s
+      join team_members m on m.user_id = s.user_id and m.team_id = t.id
+      where s.day between pv_from and wk_to;
+      if jsonb_array_length(top) > 0 then
+        boards := boards || jsonb_build_object(b, jsonb_build_object(
+          'top', top, 'avg', round(avg_now, 1), 'prev', round(avg_prev, 1)));
+      end if;
+    end loop;
+    continue when boards = '{}'::jsonb;
+
+    shout := '{}'::jsonb;
+    -- Biggest improvement: the mean of the first board it has, against the
+    -- week before (two days of each at least).
+    imp := case when t.board_recovery then 'recovery'
+                when t.board_sleep then 'sleep' else 'strain' end;
+    x := null;
+    select jsonb_build_object('id', q.user_id, 'm', imp, 'd', round(q.d, 1)) into x
+    from (
+      select s.user_id,
+             avg(case imp when 'strain' then s.strain when 'recovery' then s.recovery
+                          else s.sleep_perf end) filter (where s.day >= wk_from)
+           - avg(case imp when 'strain' then s.strain when 'recovery' then s.recovery
+                          else s.sleep_perf end) filter (where s.day <= pv_to) as d
+      from daily_scores s
+      join team_members m on m.user_id = s.user_id and m.team_id = t.id
+      where s.day between pv_from and wk_to
+      group by s.user_id
+      having count(*) filter (where s.day >= wk_from) >= 2
+         and count(*) filter (where s.day <= pv_to) >= 2) q
+    where q.d > 0
+    order by q.d desc limit 1;
+    if x is not null then shout := shout || jsonb_build_object('improved', x); end if;
+
+    -- Longest streak: green recovery days (67 and up) in a row, or nights of
+    -- 85% sleep and up on a team without a recovery board.
+    x := null;
+    if t.board_recovery or t.board_sleep then
+      select jsonb_build_object('id', q.user_id, 'n', q.n,
+                                'm', case when t.board_recovery then 'recovery' else 'sleep' end)
+        into x
+      from (
+        select r.user_id, count(*) n
+        from (
+          select s.user_id,
+                 s.day - (row_number() over (partition by s.user_id order by s.day))::int g
+          from daily_scores s
+          join team_members m on m.user_id = s.user_id and m.team_id = t.id
+          where s.day between wk_from and wk_to
+            and case when t.board_recovery then s.recovery >= 67 else s.sleep_perf >= 85 end
+        ) r
+        group by r.user_id, r.g) q
+      where q.n >= 2
+      order by q.n desc limit 1;
+      if x is not null then shout := shout || jsonb_build_object('streak', x); end if;
+    end if;
+
+    -- Most workouts, where workouts are shared (the strain board).
+    x := null;
+    if t.board_strain then
+      select jsonb_build_object('id', a.user_id, 'n', count(*)) into x
+      from activities a
+      join team_members m on m.user_id = a.user_id and m.team_id = t.id
+      where a.day between wk_from and wk_to
+      group by a.user_id
+      having count(*) >= 2
+      order by count(*) desc limit 1;
+      if x is not null then shout := shout || jsonb_build_object('workouts', x); end if;
+    end if;
+
+    insert into messages (team_id, user_id, body, card)
+    values (t.id, null,
+            jsonb_build_object('from', wk_from, 'to', wk_to, 'boards', boards,
+                               'shout', shout)::text,
+            'weekly_recap');
+    posted := posted + 1;
+  end loop;
+  return posted;
+end $$;
+
+revoke all on function public.weekly_recap(date) from public, anon, authenticated;
+
+-- Mondays at 10:00 UTC, when Sunday has ended everywhere people sync from.
+-- Needs the pg_cron extension (Database > Extensions in the dashboard); if it
+-- is off this says so and everything above still applies.
+do $$ begin
+  create extension if not exists pg_cron;
+  if exists (select 1 from cron.job where jobname = 'locus-weekly-recap') then
+    perform cron.unschedule('locus-weekly-recap');
+  end if;
+  perform cron.schedule('locus-weekly-recap', '0 10 * * 1',
+                        'select public.weekly_recap()');
+exception when others then
+  raise notice 'weekly recap not scheduled (enable pg_cron, then run this again): %', sqlerrm;
+end $$;

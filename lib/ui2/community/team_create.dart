@@ -481,6 +481,17 @@ class _InviteSheetState extends State<_InviteSheet> {
           BigButton('Share invite',
               icon: LucideIcons.share2,
               onTap: () => Share.share(_message)),
+          if (widget.team.isAdmin) ...[
+            const SizedBox(height: S.x3),
+            BigButton('Find members',
+                icon: LucideIcons.search,
+                soft: true, onTap: () {
+              final nav = Navigator.of(c);
+              nav.pop();
+              nav.push(themedRoute((_) => _InviteMembersScreen(team: widget.team),
+                  name: 'InviteMembers'));
+            }),
+          ],
         ]),
       ),
     );

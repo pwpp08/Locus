@@ -128,7 +128,7 @@ class _ChatTabState extends State<_ChatTab> {
                   () => Navigator.of(s).pop('delete')),
               const SizedBox(height: S.x3),
             ],
-            if (!mine) ...[
+            if (!mine && !m.fromBot) ...[
               _actionRow(s, LucideIcons.flag, 'Report the message',
                   () => Navigator.of(s).pop('report')),
               const SizedBox(height: S.x3),
@@ -168,6 +168,12 @@ class _ChatTabState extends State<_ChatTab> {
       final d = DateTime(m.at.year, m.at.month, m.at.day);
       if (day != null && d != day) items.add(_DatePill(d));
       day = d;
+      if (m.fromBot) {
+        items.add(_RecapView(m,
+            people: people,
+            onLongPress: widget.team.isAdmin ? () => _options(m) : null));
+        continue;
+      }
       items.add(_MessageView(
         m,
         person: people[m.userId],
@@ -992,4 +998,206 @@ Future<bool> shareToTeam(BuildContext c, List<int> image,
   caption.dispose();
   if (posted == true && c.mounted) _say(c, 'Sent');
   return posted == true;
+}
+
+// ── the weekly recap ────────────────────────────────────────────────────────
+
+/// The server's Monday message: last week's top three on each board, the
+/// team's average against the week before, and shout-outs. Its body is the
+/// JSON weekly_recap() writes; names come from the team's people.
+class _RecapView extends StatelessWidget {
+  final ChatMessage m;
+  final Map<String, TeamPerson> people;
+  final VoidCallback? onLongPress;
+  const _RecapView(this.m, {required this.people, this.onLongPress});
+
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  String _range(DateTime a, DateTime b) => a.month == b.month
+      ? '${a.day} – ${b.day} ${_months[b.month - 1]}'
+      : '${a.day} ${_months[a.month - 1]} – ${b.day} ${_months[b.month - 1]}';
+
+  static String _value(String board, num v) =>
+      board == 'strain' ? v.toStringAsFixed(1) : '${v.round()}%';
+
+  static String _name(String metric) => switch (metric) {
+        'strain' => 'Strain',
+        'recovery' => 'Recovery',
+        _ => 'Sleep',
+      };
+
+  static Color _ink(String board) => switch (board) {
+        'strain' => C.dialStrain,
+        'recovery' => C.recGreen,
+        _ => C.dialSleep,
+      };
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    Map<String, dynamic> j;
+    try {
+      j = jsonDecode(m.body) as Map<String, dynamic>;
+    } catch (_) {
+      return const SizedBox.shrink();
+    }
+    final from = DateTime.tryParse('${j['from']}');
+    final to = DateTime.tryParse('${j['to']}');
+    final boards = (j['boards'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final shout = (j['shout'] as Map?)?.cast<String, dynamic>() ?? const {};
+    TeamPerson? who(Object? id) =>
+        _svc.blocked.contains(id) ? null : people[id];
+    String name(Object? id) => who(id)?.name ?? 'Former member';
+
+    Widget board(String b) {
+      final d = (boards[b] as Map).cast<String, dynamic>();
+      final top = [
+        for (final r in (d['top'] as List? ?? const []))
+          if (!_svc.blocked.contains((r as Map)['id'])) r,
+      ];
+      final avg = d['avg'] as num?, prev = d['prev'] as num?;
+      final diff = avg == null || prev == null ? null : avg - prev;
+      return Padding(
+        padding: const EdgeInsets.only(top: S.x4),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+                width: S.x2,
+                height: S.x2,
+                decoration: BoxDecoration(color: _ink(b), shape: BoxShape.circle)),
+            const SizedBox(width: S.x2),
+            Expanded(child: _label(c, _name(b))),
+            if (avg != null)
+              Text('Team ${_value(b, avg)}', style: F.cap.copyWith(color: p.ink2)),
+            if (diff != null) ...[
+              const SizedBox(width: S.x2),
+              Icon(diff >= 0 ? LucideIcons.arrowUp : LucideIcons.arrowDown,
+                  size: I.sm, color: p.ink3),
+              Text(_value(b, diff.abs()), style: F.cap.copyWith(color: p.ink3)),
+            ],
+          ]),
+          const SizedBox(height: S.x2),
+          for (final (i, r) in top.indexed)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: S.x1),
+              child: Row(children: [
+                SizedBox(
+                    width: S.x5,
+                    child: Text('${i + 1}', style: F.cap.copyWith(color: p.ink3))),
+                CommunityAvatar(name(r['id']), who(r['id'])?.hue ?? 0,
+                    size: S.x6, photo: who(r['id'])?.avatarPath),
+                const SizedBox(width: S.x2),
+                Expanded(
+                  child: Text(name(r['id']),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: F.body.copyWith(color: p.ink)),
+                ),
+                Text(_value(b, r['v'] as num),
+                    style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+        ]),
+      );
+    }
+
+    Widget shoutRow(IconData icon, String title, String text) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: S.x1),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(icon, size: I.md, color: p.ink2),
+            const SizedBox(width: S.x3),
+            Expanded(
+              child: Text.rich(TextSpan(children: [
+                TextSpan(
+                    text: '$title  ',
+                    style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w700)),
+                TextSpan(text: text, style: F.body.copyWith(color: p.ink)),
+              ])),
+            ),
+          ]),
+        );
+
+    final imp = (shout['improved'] as Map?)?.cast<String, dynamic>();
+    final streak = (shout['streak'] as Map?)?.cast<String, dynamic>();
+    final work = (shout['workouts'] as Map?)?.cast<String, dynamic>();
+    final shouts = [
+      if (imp != null && who(imp['id']) != null)
+        shoutRow(
+            LucideIcons.trendingUp,
+            'Most improved',
+            '${name(imp['id'])}, +${_value('${imp['m']}', imp['d'] as num)} '
+                '${_name('${imp['m']}').toLowerCase()}'),
+      if (streak != null && who(streak['id']) != null)
+        shoutRow(
+            LucideIcons.flame,
+            'Longest streak',
+            '${name(streak['id'])}, ${streak['n']} '
+                '${streak['m'] == 'recovery' ? 'green recoveries' : 'nights of 85%+ sleep'} in a row'),
+      if (work != null && who(work['id']) != null)
+        shoutRow(LucideIcons.dumbbell, 'Most workouts',
+            '${name(work['id'])}, ${work['n']}'),
+    ];
+
+    return Pressable(
+      onTap: onLongPress,
+      onLongPress: onLongPress,
+      semanticLabel: 'Weekly recap',
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: S.x5),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: S.x10,
+            height: S.x10,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: p.card2,
+              border: Border.all(color: C.dialStrain, width: S.half),
+            ),
+            child: Icon(LucideIcons.sparkles, size: I.md, color: p.ink),
+          ),
+          const SizedBox(width: S.x4),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text.rich(TextSpan(children: [
+                TextSpan(
+                    text: 'LOCUS BOT',
+                    style: F.caps.copyWith(
+                        color: p.on(C.dialStrain),
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2)),
+                TextSpan(
+                    text: '  ${_timeOf(m.at)}',
+                    style: F.cap.copyWith(color: p.ink3)),
+              ])),
+              const SizedBox(height: S.x2),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x4, S.x4),
+                decoration: BoxDecoration(color: p.card, borderRadius: R.rXl),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('WEEKLY RECAP',
+                      style: F.caps.copyWith(
+                          color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 1.6)),
+                  if (from != null && to != null)
+                    Text(_range(from, to), style: F.cap.copyWith(color: p.ink3)),
+                  for (final b in const ['strain', 'recovery', 'sleep'])
+                    if (boards[b] is Map) board(b),
+                  if (shouts.isNotEmpty) ...[
+                    const SizedBox(height: S.x4),
+                    Divider(color: p.line, height: S.hair),
+                    const SizedBox(height: S.x3),
+                    _label(c, 'Shout-outs', color: p.ink2),
+                    const SizedBox(height: S.x1),
+                    ...shouts,
+                  ],
+                ]),
+              ),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
 }

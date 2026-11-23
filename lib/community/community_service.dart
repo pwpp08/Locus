@@ -21,6 +21,8 @@ import '../data/db.dart';
 import '../data/local_repository.dart';
 import '../state/prefs.dart';
 import '../ui2/screens/dial_parts.dart' show dialSeries;
+import '../ui2/screens/locus_age.dart' show finishedSaturdays;
+import '../ui2/screens/trend_view.dart' show TrendLoader;
 import 'leaderboard.dart';
 
 /// The project the app talks to. The publishable key is meant to ship in the
@@ -77,7 +79,6 @@ const kPrivacyMetrics = [
   'strain',
   'activities',
   'age',
-  'achievements',
 ];
 
 class CommunityProfile {
@@ -346,6 +347,20 @@ class SharedActivity {
       );
 }
 
+/// An admin's invitation into a team, waiting for the person's answer.
+class TeamInvite {
+  final TeamPreview team;
+  final String? inviter;
+  final DateTime? at;
+  const TeamInvite(this.team, {this.inviter, this.at});
+
+  factory TeamInvite.fromJson(Map<String, dynamic> j) => TeamInvite(
+        TeamPreview.fromJson(j),
+        inviter: j['inviter_name'] as String?,
+        at: DateTime.tryParse('${j['invited_at']}')?.toLocal(),
+      );
+}
+
 class ChatMessage {
   final int id;
   final String teamId, userId, body;
@@ -354,10 +369,13 @@ class ChatMessage {
   const ChatMessage(this.id, this.teamId, this.userId, this.body, this.at,
       {this.imagePath, this.card});
 
+  /// Written by the server (the weekly recap), not by a member.
+  bool get fromBot => userId.isEmpty;
+
   factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(
         (j['id'] as num).toInt(),
         j['team_id'] as String,
-        j['user_id'] as String,
+        (j['user_id'] as String?) ?? '',
         (j['body'] as String?) ?? '',
         DateTime.parse(j['created_at'] as String).toLocal(),
         imagePath: j['image_path'] as String?,
@@ -439,11 +457,14 @@ class CommunityService extends ChangeNotifier {
   /// People asking to follow me.
   List<Human> requests = const [];
 
+  /// Teams whose admin invited me.
+  List<TeamInvite> invites = const [];
+
   /// The team whose chat is on screen: its new messages are not unread.
   String? viewingChat;
 
   int get unread =>
-      teams.fold(0, (n, t) => n + t.unread) + requests.length;
+      teams.fold(0, (n, t) => n + t.unread) + requests.length + invites.length;
 
   final _messages = StreamController<ChatMessage>.broadcast();
 
@@ -484,6 +505,7 @@ class CommunityService extends ChangeNotifier {
     teams = const [];
     blocked = const {};
     requests = const [];
+    invites = const [];
     _channel?.unsubscribe();
     _channel = null;
     notifyListeners();
@@ -584,6 +606,7 @@ class CommunityService extends ChangeNotifier {
       blocked = {for (final r in b) r['blocked'] as String};
       teams = await _withCounts(list);
       requests = await followRequests();
+      invites = await myInvites();
       _listen();
       notifyListeners();
       unawaited(uploadScores());
@@ -628,7 +651,7 @@ class CommunityService extends ChangeNotifier {
             .select('user_id')
             .eq('team_id', t.id)
             .gt('created_at', t.lastReadAt.toUtc().toIso8601String())
-            .neq('user_id', me)
+            .or('user_id.is.null,user_id.neq.$me')
             .limit(100);
         n = rows.where((r) => !blocked.contains(r['user_id'])).length;
       }
@@ -664,6 +687,15 @@ class CommunityService extends ChangeNotifier {
           table: 'follows',
           callback: (_) async {
             requests = await followRequests();
+            notifyListeners();
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'team_invites',
+          callback: (_) async {
+            invites = await myInvites();
             notifyListeners();
           },
         )
@@ -740,6 +772,46 @@ class CommunityService extends ChangeNotifier {
     final id = await _db.rpc('join_public', params: {'team': teamId});
     await refresh();
     return id as String;
+  }
+
+  // ── invites ──────────────────────────────────────────────────────────────
+
+  Future<List<TeamInvite>> myInvites() async {
+    try {
+      final r = await _db.rpc('my_invites');
+      return [for (final j in r as List) TeamInvite.fromJson(j as Map<String, dynamic>)];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// An admin asks [userId] into [teamId]; they join only by accepting.
+  Future<void> inviteMember(String teamId, String userId) =>
+      _db.rpc('invite_member', params: {'t': teamId, 'other': userId});
+
+  /// Who has an open invitation to [teamId] (admins only).
+  Future<Set<String>> invitees(String teamId) async {
+    final r =
+        await _db.from('team_invites').select('invitee').eq('team_id', teamId);
+    return {for (final j in r) j['invitee'] as String};
+  }
+
+  Future<String> acceptInvite(String teamId) async {
+    final id = await _db.rpc('accept_invite', params: {'t': teamId});
+    await refresh();
+    return id as String;
+  }
+
+  Future<void> declineInvite(String teamId) async {
+    final me = myId;
+    if (me == null) return;
+    await _db
+        .from('team_invites')
+        .delete()
+        .eq('team_id', teamId)
+        .eq('invitee', me);
+    invites = [for (final i in invites) if (i.team.id != teamId) i];
+    notifyListeners();
   }
 
   Future<String> createTeam(NewTeam t) async {
@@ -973,6 +1045,21 @@ class CommunityService extends ChangeNotifier {
       for (var i = 0; i < rows.length; i += 500) {
         await _db.from('daily_scores').upsert(
             rows.sublist(i, (i + 500).clamp(0, rows.length)));
+      }
+      if (age) {
+        // Today's reading, and each finished week's (the Locus Age screen's
+        // weekly points): half a year the first time, the last month after.
+        // Its own batch, so the rows above keep every other column.
+        final loader = TrendLoader(r);
+        final today = todayLabel();
+        final ages = <Map<String, Object?>>[];
+        for (final d in [today, ...finishedSaturdays(today, full ? 26 : 5)]) {
+          final v = (await loader.whoopAge(asOf: d)).whoopAge;
+          if (v != null) {
+            ages.add({'user_id': me, 'day': d, 'locus_age': v, 'updated_at': now});
+          }
+        }
+        if (ages.isNotEmpty) await _db.from('daily_scores').upsert(ages);
       }
       // Whatever nobody may see any more comes down, every day of it.
       final cleared = {

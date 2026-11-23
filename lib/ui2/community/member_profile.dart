@@ -147,6 +147,10 @@ class _MemberProfileState extends State<MemberProfile> {
           name: widget.name,
           hue: widget.hue,
           recoveryDays: _days.where((d) => d.recovery != null).length,
+          locusAge: ([..._days]..sort((a, b) => b.day.compareTo(a.day)))
+              .where((d) => d.locusAge != null)
+              .firstOrNull
+              ?.locusAge,
           streak: _streak(_days),
           busy: _busyFollow,
           onFollow: mine || h == null ? null : _follow,
@@ -198,7 +202,9 @@ class _ProfileCard extends StatelessWidget {
   final int hue, recoveryDays, streak;
   final bool busy;
   final VoidCallback? onFollow;
+  final double? locusAge;
   const _ProfileCard({
+    this.locusAge,
     required this.human,
     required this.name,
     required this.hue,
@@ -242,6 +248,15 @@ class _ProfileCard extends StatelessWidget {
       if (line.isNotEmpty) ...[
         const SizedBox(height: S.x1),
         Text(line, style: F.body.copyWith(color: p.ink2)),
+      ],
+      if (locusAge != null) ...[
+        const SizedBox(height: S.x2),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x1),
+          decoration: BoxDecoration(color: p.card, borderRadius: R.rPill),
+          child: Text('Locus Age ${locusAge!.toStringAsFixed(1)}',
+              style: F.cap.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+        ),
       ],
       if (since != null) ...[
         const SizedBox(height: S.half),
