@@ -8,12 +8,42 @@
 // Lifting the finger returns the chart to rest. Nothing is kept selected, so
 // the number a screen shows at rest is always the one it would show by default.
 
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'grammar.dart';
 import 'theme.dart';
+
+/// A light tap under the finger at the heart rate being read: held on a heart
+/// rate chart, the phone beats at that pace. Light, never heavy; it follows
+/// the finger and stops when it lifts.
+class HeartbeatHaptic {
+  Timer? _t;
+  int? _bpm;
+
+  /// Beat at [bpm]; null (a gap) or an implausible value goes quiet.
+  void beat(int? bpm) {
+    if (bpm == null || bpm < 30 || bpm > 230) return stop();
+    // A few beats either way is the same pace: restarting would reset the
+    // rhythm on every pixel of a drag.
+    if (_t != null && (bpm - _bpm!).abs() < 3) return;
+    _t?.cancel();
+    _bpm = bpm;
+    HapticFeedback.lightImpact();
+    _t = Timer.periodic(Motion.tick * (60 / bpm), (_) {
+      HapticFeedback.lightImpact();
+    });
+  }
+
+  void stop() {
+    _t?.cancel();
+    _t = null;
+    _bpm = null;
+  }
+}
 
 /// The plot inside a chart's box, after its [EdgeInsets]. The painter and the
 /// guide both read it, which is the whole reason this is a function.

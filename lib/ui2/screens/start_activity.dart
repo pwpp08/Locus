@@ -16,6 +16,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../gps/gps_source.dart';
 import '../../gps/route_types.dart';
 import '../../models/alarm_item.dart';
 import '../../state/app_state.dart';
@@ -24,6 +25,7 @@ import '../../state/prefs.dart';
 import '../../state/workout_alerts.dart';
 import '../activity/catalogue.dart';
 import '../activity/live.dart';
+import '../activity/live_map.dart';
 import '../profile/alarm.dart' show AlarmCountdown, AlarmScreen;
 import '../ui2.dart';
 import 'add_activity.dart' show chooseActivity, saveRestWindow;
@@ -66,6 +68,10 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
   Timer? _tick;
 
   bool _route = true;
+
+  /// Where the phone last was, for the map behind the pulse; null until known
+  /// (or when location is off or not allowed — nothing is asked here).
+  (double, double)? _here;
 
   /// The countdown for a timed activity, in minutes (0 off), per activity:
   /// the last one set for it, else its default.
@@ -112,6 +118,9 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
       _startTick();
     }
     _load();
+    GpsSource.lastKnown().then((h) {
+      if (mounted && h != null) setState(() => _here = h);
+    });
   }
 
   @override
@@ -308,6 +317,15 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
               ),
             ),
           ),
+          // ── where you are, on a dark map, when the phone knows ──
+          if (_here != null && rest == null)
+            Positioned(
+              left: 0,
+              right: 0,
+              top: headerH,
+              bottom: barH + _kDock - R.xxl,
+              child: LiveMap(here: _here, pad: .3),
+            ),
           Positioned(
               left: 0,
               right: 0,

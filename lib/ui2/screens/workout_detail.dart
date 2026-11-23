@@ -419,6 +419,15 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
       if ((e.t - t).abs() < (best.t - t).abs()) best = e;
     }
     setState(() => _scrubT = best.t);
+    _pulse.beat(best.v.round());
+  }
+
+  final _pulse = HeartbeatHaptic();
+
+  @override
+  void dispose() {
+    _pulse.stop();
+    super.dispose();
   }
 
   @override
@@ -857,7 +866,10 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
         Scrubber(
           value: null,
           onChanged: (f) => _scrub(d, f),
-          onLift: () => setState(() => _scrubT = null),
+          onLift: () {
+            _pulse.stop();
+            setState(() => _scrubT = null);
+          },
           yieldToScroll: true,
           onPinch: (ph, sc, fo, pa) => _pinch(d, ph, sc, fo, pa),
           label: 'Heart rate through the activity',

@@ -166,6 +166,7 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
 
   @override
   void dispose() {
+    _pulse.stop();
     // Back to whatever the app allows: portrait for a phone held upright.
     SystemChrome.setPreferredOrientations(const []);
     super.dispose();
@@ -212,7 +213,10 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
       _scrubTime = t;
       _scrubHr = (closest != null && minDiff <= 90) ? closest.v : null;
     });
+    _pulse.beat(_scrubHr?.round());
   }
+
+  final _pulse = HeartbeatHaptic();
 
   @override
   Widget build(BuildContext c) {
@@ -271,9 +275,10 @@ class _DayHeartScreenState extends State<DayHeartScreen> {
               child: Scrubber(
                 value: null,
                 onChanged: _onScrub,
-                onLift: () => setState(() {
-                  _scrubTime = null;
-                }),
+                onLift: () {
+                  _pulse.stop();
+                  setState(() => _scrubTime = null);
+                },
                 onPinch: _pinch,
                 label: 'Heart rate through the day',
                 describe: (f) {
