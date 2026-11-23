@@ -83,6 +83,7 @@ import 'whoop_scores.dart'
     show kWhoopMuscularTypes, whoopLoadForStrain, whoopMuscularLoad, whoopStrainFromLoad;
 import 'activity_classifier.dart';
 import 'movement_bouts.dart';
+import 'workout_merge.dart';
 import 'profile.dart';
 import 'substrate.dart';
 import 'vendor_sleep.dart';
@@ -1876,7 +1877,12 @@ import 'vendor_sleep.dart';
 // (onehz_pipeline `kPersistentSleepSec`), not to the first second staged as
 // sleep, which read near zero on most nights. Days derived before 119 keep
 // their stored values.
-const int kAlgoVersion = 119;
+// 119 → 120 (edge-only): detected workouts whose breaks are 15 minutes or
+// less are one workout (compute/workout_merge.dart): lifting with rests and
+// interval runs no longer come out as several bouts minutes apart. The
+// day's bout list, HRR means and suggestions change. Days derived before 120
+// keep their stored values.
+const int kAlgoVersion = 120;
 /// The sibling SHAs this version was derived against, asserted against
 /// pubspec.yaml in test/db_serve_version_and_reads_test.dart.
 ///
@@ -9989,9 +9995,10 @@ class DerivationEngine {
       // can't compute a trustworthy %HRR floor and ordinary daytime HR reads as a
       // workout. If we don't have a nightly RHR for this day yet, skip detection
       // entirely (HRR for already-saved sessions below still runs).
+      // Bouts split by short rests (lifting sets, intervals) are one workout.
       final bouts = rhr == null
           ? const <ana.DetectedWorkout>[]
-          : (ana.autoDetectWorkouts(
+          : mergeCloseBouts(ana.autoDetectWorkouts(
                 hrTs: hrTs,
                 hrBpm: hrBpm,
                 restingBpm: rhr,
@@ -9999,7 +10006,8 @@ class DerivationEngine {
                 motion: motion,
                 savedSpans: savedSpans,
               ).value ??
-              const <ana.DetectedWorkout>[]);
+              const <ana.DetectedWorkout>[],
+              keepApart: [for (final sp in savedSpans) [sp.startSec, sp.endSec]]);
 
       // HRR per bout from the per-second HR tail bracketing each bout end.
       final drops = <double>[];
