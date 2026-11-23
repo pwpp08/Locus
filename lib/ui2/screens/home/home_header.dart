@@ -236,14 +236,22 @@ class DayPager extends StatelessWidget {
           maxWidth: maxWidth ?? double.infinity,
           minHeight: S.tap,
           maxHeight: S.tap),
+      // The track is drawn 36 pt tall, but the arrows and the label take
+      // taps across the full 44 pt round it.
       child: Center(
-        child: Container(
-          height: _h,
-          decoration: BoxDecoration(
-            color: Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
-            borderRadius: _r,
+        child: Stack(alignment: Alignment.center, children: [
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: (S.tap - _h) / 2),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
+                  borderRadius: _r,
+                ),
+              ),
+            ),
           ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Row(mainAxisSize: MainAxisSize.min, children: [
             arrow(true, older, 'Previous day'),
             Flexible(
               child: Semantics(
@@ -252,7 +260,11 @@ class DayPager extends StatelessWidget {
                 excludeSemantics: true,
                 child: Pressable(
                   onTap: onCalendar,
-                  child: AnimatedSize(
+                  // Taps land across the full 44 pt, not only the 36 pt pill.
+                  child: Align(
+                   widthFactor: 1,
+                   heightFactor: S.tap / _h,
+                   child: AnimatedSize(
                     duration: motion(c, Motion.base),
                     curve: Curves.easeOutCubic,
                     child: Container(
@@ -273,12 +285,13 @@ class DayPager extends StatelessWidget {
                       ),
                     ),
                   ),
+                  ),
                 ),
               ),
             ),
             arrow(false, newer, 'Next day'),
           ]),
-        ),
+        ]),
       ),
     );
   }

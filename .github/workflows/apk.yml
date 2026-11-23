@@ -8,10 +8,12 @@ name: apk
 #     https://github.com/<owner>/<repo>/releases/tag/latest
 # The app's own updater (lib/updater) reads the same release. Each build's
 # build number (Android's versionCode) is the commit count of what it builds,
-# `git rev-list --count HEAD`: it only grows along main, and build.yml uses the
-# same counter, so a tagged release is never a downgrade from a CI build. It is
-# shown as `v0.11.4 · build 2295`, and the build is stamped with its commit and
-# time (GIT_SHA, BUILD_TIME); the APK is named `locus-0.11.4.2295-<sha>.apk`.
+# `git rev-list --count HEAD`, plus 10000: it only grows along main, and
+# build.yml uses the same counter, so a tagged release is never a downgrade
+# from a CI build. The 10000 lifts CI builds over the 900x codes local builds
+# used (2026-11-22), which a phone would otherwise keep as newer. It is
+# shown as `v0.11.4 · build 12295`, and the build is stamped with its commit and
+# time (GIT_SHA, BUILD_TIME); the APK is named `locus-0.11.4.12295-<sha>.apk`.
 #
 # SIGNING. Android refuses to install an APK over an older one signed with a
 # different key, so for updates in place the key must be the same every build.
@@ -53,7 +55,7 @@ jobs:
 
       - name: Count the build
         id: count
-        run: echo "build=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
+        run: echo "build=$(( $(git rev-list --count HEAD) + 10000 ))" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@v5
         with:

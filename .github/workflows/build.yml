@@ -73,7 +73,8 @@ jobs:
           # The versionCode is the tagged commit's commit count, the counter
           # apk.yml gives every CI build, not pubspec's +BUILD: a release cut
           # from pubspec's 85 would be a downgrade from any CI build after it.
-          code=$(git rev-list --count HEAD)
+          # Plus 10000, as in apk.yml.
+          code=$(( $(git rev-list --count HEAD) + 10000 ))
 
           # It must exceed the highest already-released versionCode, or the new
           # APK can't install over existing devices. Older releases used
@@ -84,7 +85,7 @@ jobs:
             pv=$(git show "$t:pubspec.yaml" 2>/dev/null | grep -E '^version:' | head -1 | awk '{print $2}' || true)
             b=${pv#*+}
             if printf '%s' "$b" | grep -qE '^[0-9]+$' && [ "$b" -gt "$max" ]; then max=$b; fi
-            n=$(git rev-list --count "$t" 2>/dev/null || echo 0)
+            n=$(( $(git rev-list --count "$t" 2>/dev/null || echo 0) + 10000 ))
             if [ "$n" -gt "$max" ]; then max=$n; fi
           done
           if [ "$code" -le "$max" ]; then
