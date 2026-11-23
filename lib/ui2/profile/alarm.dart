@@ -740,7 +740,10 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
 
   /// One schedule: the days it runs, its time, and what it waits for.
   Widget _scheduleCard(BuildContext c, P p, AlarmItem alarm) {
-    final dim = alarm.enabled ? 1.0 : .5;
+    // A skipped night reads as off, as the switch does: the line below it says
+    // when the alarm is back.
+    final skipped = alarm.enabled ? _skippedLabel(alarm) : null;
+    final dim = alarm.enabled && skipped == null ? 1.0 : .5;
     final days = alarm.days.toList()..sort();
     final names = days.isEmpty
         ? const ['ONE NIGHT']
@@ -782,10 +785,11 @@ class _AlarmScreenViewState extends State<AlarmScreenView> {
                     style: F.n24.copyWith(
                         color: p.ink, fontWeight: FontWeight.w700)),
               ),
-              AppSwitch(alarm.enabled, (v) => _toggle(c, alarm, v),
+              AppSwitch(alarm.enabled && skipped == null,
+                  (v) => _toggle(c, alarm, v),
                   semanticLabel: 'Alarm ${formatClock(alarm.hour, alarm.minute)} on'),
             ]),
-            if (alarm.enabled ? _skippedLabel(alarm) : null case final skipped?) ...[
+            if (skipped != null) ...[
               const SizedBox(height: S.x1),
               Row(children: [
                 Text('Skipping $skipped',

@@ -15,6 +15,8 @@ import '../../grammar.dart' show Pressable, SideDrag, panelDecoration;
 import '../../theme.dart';
 import '../../ui2.dart' show LucideIcons;
 import 'card_pictures.dart';
+import '../home_screen.dart' show go;
+import '../trend_view.dart' show TrendViewScreen;
 import 'home_daily_cards.dart';
 
 /// How far the card beneath shows under the top one, and how much narrower
@@ -188,6 +190,9 @@ class _DailyCardDeckState extends State<DailyCardDeck>
         // offset, so it drains on the same spring that brings the card back.
         fill: top ? (x.abs() / (_width * _throwShare)).clamp(0.0, 1.0) : 0,
         onDone: top ? () => _throw(1, 0) : null,
+        onOpen: top
+            ? () => go(c, TrendViewScreen(initial: card.kind.trendId))
+            : null,
       );
       return Positioned.fill(
         key: ValueKey(card.kind),
@@ -270,6 +275,10 @@ class DailyCardFace extends StatelessWidget {
   /// fills with pink from the bottom by that much.
   final double fill;
 
+  /// A tap on the card's words: opens the chart the card is about. Null on a
+  /// card that is not on top.
+  final VoidCallback? onOpen;
+
   const DailyCardFace(
     this.card, {
     super.key,
@@ -277,6 +286,7 @@ class DailyCardFace extends StatelessWidget {
     this.content = 1,
     this.onDone,
     this.fill = 0,
+    this.onOpen,
   });
 
   @override
@@ -360,7 +370,10 @@ class DailyCardFace extends StatelessWidget {
         opacity: content.clamp(0.0, 1.0),
         child: Stack(
           children: [
-            Padding(
+            Pressable(
+              onTap: onOpen,
+              semanticLabel: 'Open ${card.title} in Trend View',
+              child: Padding(
               padding: EdgeInsets.fromLTRB(
                 S.x5,
                 art?.pad ?? S.x5,
@@ -391,6 +404,7 @@ class DailyCardFace extends StatelessWidget {
                     if (art != null) ...[SizedBox(width: art.gap), art.picture],
                   ],
                 ),
+              ),
               ),
             ),
             Positioned(

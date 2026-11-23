@@ -90,7 +90,22 @@ enum DailyCardKind {
   targetReached,
   stepGoalToday,
   targetMet,
-  stepGoal,
+  stepGoal;
+
+  /// The Trend View metric a card is about: where a tap on it goes.
+  String get trendId => switch (this) {
+        firstRed || backToGreen || greenTarget => 'recovery',
+        rhrHigh || rhrLowest || rhrLow => 'resting_hr',
+        respHigh => 'resp_rate',
+        tempOff => 'skin_temp',
+        hrvLow || hrvBest || hrvHigh => 'hrv',
+        debtBuilding || debtPaid => 'sleep_debt',
+        strainOver || targetReached || targetMet => 'strain',
+        sleptPlenty => 'hvn_hours',
+        restorative => 'restorative_pct',
+        consistencySlipping || consistencyHigh => 'consistency',
+        stepGoalToday || stepGoal => 'steps',
+      };
 }
 
 /// One card: a title and a sentence or two. A card about the week's recovery

@@ -2,6 +2,8 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/models/alarm_item.dart';
+import 'package:openstrap_edge/state/alarm_manager.dart';
+import 'package:openstrap_edge/ui2/profile/alarm.dart' show AlarmScreenView;
 
 void main() {
   // Wed 5 Nov 2026, 22:00. The alarm rings Mon, Tue, Thu, Fri at 06:10.
@@ -30,5 +32,24 @@ void main() {
   test('a one-shot alarm has nothing to skip', () {
     const once = AlarmItem(id: 'o', hour: 7, minute: 0);
     expect(once.nextUnskipped(now), isNull);
+  });
+
+  test('the alarm list is always earliest time first', () {
+    final m = AlarmManager()
+      ..debugSetAlarms(const [
+        AlarmItem(id: 'late', hour: 22, minute: 0, days: {1}),
+        AlarmItem(id: 'early', hour: 5, minute: 45, days: {1}),
+        AlarmItem(id: 'mid', hour: 7, minute: 30, days: {1}),
+        AlarmItem(id: 'mid2', hour: 7, minute: 5, days: {1}),
+      ]);
+    expect([for (final x in m.alarms) x.id], ['early', 'mid2', 'mid', 'late']);
+  });
+
+  test('a skipped night reads as off until the skipped ring has passed', () {
+    final skipped = a.copyWith(skipDay: '2026-11-06');
+    expect(AlarmScreenView.skippedLabel(skipped, now), isNotNull);
+    // The ring after it: the skip is spent and the alarm is plainly on again.
+    expect(AlarmScreenView.skippedLabel(skipped, DateTime(2026, 11, 6, 6, 11)),
+        isNull);
   });
 }

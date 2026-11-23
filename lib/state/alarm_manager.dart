@@ -63,7 +63,11 @@ class AlarmManager extends ChangeNotifier {
   bool _loaded = false;
   StreamSubscription<void>? _systemAlarmSub;
 
-  List<AlarmItem> get alarms => List.unmodifiable(_alarms);
+  /// Earliest time of day first, whatever order they were made in. The sort is
+  /// stable, so two alarms at one time keep the order they were added.
+  List<AlarmItem> get alarms => List.unmodifiable([..._alarms]
+    ..sort((a, b) =>
+        (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute)));
   bool get syncSystem => _syncSystem;
   DateTime? get systemAlarmTime => _cachedSystemAlarmTime;
   bool get isLoaded => _loaded;

@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/data/day_label.dart';
 import 'package:openstrap_edge/state/prefs.dart';
 import 'package:openstrap_edge/ui2/screens/home_screen.dart';
+import 'package:openstrap_edge/ui2/screens/trend_view.dart' show TrendViewScreen;
 import 'package:openstrap_edge/ui2/ui2.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -202,6 +203,20 @@ void main() {
     await t.fling(_shown('First red in a while'), const Offset(-200, 0), 1500);
     await t.pumpAndSettle();
     expect(find.text('First red in a while'), findsNothing);
+  });
+
+  testWidgets('a tap on a card opens the chart it is about', (t) async {
+    t.view.physicalSize = const Size(393 * 3, 300 * 3);
+    t.view.devicePixelRatio = 3;
+    addTearDown(t.view.reset);
+    expect(DailyCardKind.firstRed.trendId, 'recovery');
+    expect(DailyCardKind.hrvHigh.trendId, 'hrv');
+    await t.pumpWidget(_app());
+    await t.tap(_shown('First red in a while'));
+    await t.pump(const Duration(milliseconds: 400));
+    final screen = t.widget<TrendViewScreen>(
+        find.byType(TrendViewScreen, skipOffstage: false));
+    expect(screen.initial, 'recovery');
   });
 
   testWidgets('render the deck at phone width', (t) async {
