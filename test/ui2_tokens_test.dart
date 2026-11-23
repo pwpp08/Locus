@@ -184,6 +184,9 @@ final _rules = <_Rule>[
       'lib/ui2/screens/home/home_get_started.dart',
       // So does the dashboard's card before the first night.
       'lib/ui2/screens/home/home_calibrating.dart',
+      // The community's team banners and page backdrops: free stock photos
+      // the user approved, all drawn through one helper there.
+      'lib/ui2/community/community_parts.dart',
     },
   ),
 ];

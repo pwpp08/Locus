@@ -19,7 +19,7 @@
 // Nothing here reads the database, the band or the repository: a gallery that
 // needs data is a gallery nobody opens on a fresh install.
 
-import '../community/community.dart' show CommunityAvatar;
+import '../community/community.dart' show CommunityAvatar, TeamBanner, TeamLogo;
 import 'dart:convert';
 import 'dart:math';
 
@@ -1812,6 +1812,8 @@ Map<String, Widget> _stateCases() => {
       'ai_orb': const AiOrb(),
       'ai_button': const AiOrb(size: 56, framed: true),
       'community_avatar': const CommunityAvatar('Ana Lopez', 210),
+      'team_logo': const TeamLogo('medal', size: 56),
+      'team_banner': const SizedBox(height: 120, child: TeamBanner('banner_1')),
       'coach_mark': const Row(mainAxisSize: MainAxisSize.min, children: [
         CoachMark(size: I.sm, color: C.white),
         SizedBox(width: S.x3),

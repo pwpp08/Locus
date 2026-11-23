@@ -691,6 +691,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    # Unsplash photos for the community (credits in the folder).
+    - assets/images/community/
     # The Free Exercise DB photos and steps (public domain), bundled so no
     # exercise picture is ever fetched. tool/gen_free_exercises.py writes them.
     - assets/exercises/

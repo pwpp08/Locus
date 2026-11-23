@@ -226,7 +226,20 @@ class DataHighlightsScreen extends StatefulWidget {
   /// repository when null.
   final Map<String, Map<String, double>>? series;
   final List<Map<String, dynamic>>? sessions;
-  const DataHighlightsScreen({super.key, this.series, this.sessions});
+
+  /// What sits above Data Highlights: a teammate's or a followed person's
+  /// card (the community's member profile), nothing for your own.
+  final List<Widget> header;
+
+  /// Whose figures these are, for the empty lines: "your" by default.
+  final String title;
+  const DataHighlightsScreen({
+    super.key,
+    this.series,
+    this.sessions,
+    this.header = const [],
+    this.title = 'Profile',
+  });
 
   @override
   State<DataHighlightsScreen> createState() => _DataHighlightsScreenState();
@@ -285,10 +298,11 @@ class _DataHighlightsScreenState extends State<DataHighlightsScreen> {
       nameOf: (a) => a.displayName(c),
     );
     return DialScaffold(
-      title: 'Profile',
+      title: widget.title,
       barHeight: PH.barHeight,
       band: true,
       children: [
+        ...widget.header,
         const SizedBox(height: PH.toHeading),
         dialHeading('Data Highlights'),
         const SizedBox(height: PH.headingGap),

@@ -25,6 +25,7 @@ class LucideIcons {
   static const IconData arrowUp = base.LucideIcons.arrowUp300;
   static const IconData arrowUpDown = base.LucideIcons.arrowUpDown300;
   static const IconData arrowUpRight = base.LucideIcons.arrowUpRight300;
+  static const IconData atSign = base.LucideIcons.atSign300;
   static const IconData audioWaveform = base.LucideIcons.audioWaveform300;
   static const IconData baby = base.LucideIcons.baby300;
   static const IconData badgeCheck = base.LucideIcons.badgeCheck300;
@@ -48,6 +49,7 @@ class LucideIcons {
   static const IconData boxes = base.LucideIcons.boxes300;
   static const IconData brain = base.LucideIcons.brain300;
   static const IconData bug = base.LucideIcons.bug300;
+  static const IconData cake = base.LucideIcons.cake300;
   static const IconData calendar = base.LucideIcons.calendar300;
   static const IconData calendarClock = base.LucideIcons.calendarClock300;
   static const IconData calendarHeart = base.LucideIcons.calendarHeart300;
@@ -236,6 +238,7 @@ class LucideIcons {
   static const IconData userCheck = base.LucideIcons.userCheck300;
   static const IconData userPen = base.LucideIcons.userPen300;
   static const IconData userRound = base.LucideIcons.userRound300;
+  static const IconData userRoundPlus = base.LucideIcons.userRoundPlus300;
   static const IconData users = base.LucideIcons.users300;
   static const IconData utensils = base.LucideIcons.utensils300;
   static const IconData vibrate = base.LucideIcons.vibrate300;
