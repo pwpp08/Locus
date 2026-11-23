@@ -34,7 +34,9 @@ import '../../gps/gps_source.dart' show GpsPermissionStatus;
 import '../../l10n/app_localizations.dart';
 import '../../l10n/display_text.dart';
 import '../../state/clock_format.dart';
+import '../../gps/route_types.dart';
 import '../../state/prefs.dart';
+import '../../state/workout_alerts.dart';
 import '../../state/units_controller.dart';
 import '../screens/home_screen.dart' show unitsOf;
 import '../charts.dart';
@@ -45,6 +47,7 @@ import 'catalogue.dart';
 import '../profile/profile.dart' show SetRow, settingsGroup;
 import 'exercise_image.dart';
 import 'exercise_picker.dart';
+import 'live_map.dart';
 import 'summary.dart';
 
 /// What the band and the phone know right now. Read once per tick.
@@ -85,6 +88,9 @@ class LiveFeed {
   final List<double?> hrCurve;
   final List<Offset> route;
 
+  /// The route so far as (lat, lng), for the live map.
+  final List<(double, double)> routeGeo;
+
   /// Whether a route recorder is actually running and taking fixes. The
   /// catalogue's `gps` flag says an activity DESERVES a route; only this says
   /// one is being recorded.
@@ -119,6 +125,7 @@ class LiveFeed {
     this.zoneLowerBpm,
     this.hrCurve = const [],
     this.route = const [],
+    this.routeGeo = const [],
     this.gpsActive = false,
     this.routeIssue,
     this.onFixRoute,
@@ -199,6 +206,9 @@ class ActivityHost {
   /// instant. Called just before [onFinish], only when the user chose it.
   final void Function(DateTime endAt)? endAt;
 
+  /// Throws the running session away: nothing is saved.
+  final Future<void> Function()? discard;
+
   const ActivityHost({
     this.feed,
     this.onStart,
@@ -208,6 +218,7 @@ class ActivityHost {
     this.bandConnected = false,
     this.quietSince,
     this.endAt,
+    this.discard,
   });
 
   /// No app behind the screens: they still render, nothing is persisted.
@@ -421,7 +432,7 @@ Widget liveFor(
         onSets: host.onSets),
     Arch.laps => LiveSwim(a,
         feed: feed, weightKg: weightKg, private: p, onFinish: onFinish),
-    Arch.flow => LiveFlow(a,
+    Arch.flow when !kMeasuredStillness.contains(a.typeKey) => LiveFlow(a,
         feed: feed, weightKg: weightKg, private: p, onFinish: onFinish),
     Arch.match => LiveMatch(a,
         feed: feed, weightKg: weightKg, private: p, onFinish: onFinish),
@@ -441,6 +452,10 @@ Widget liveFor(
       ? screen
       : _HostScope(host: host, child: screen);
 }
+
+/// Still activities with nothing to log: a countdown and the heart, on the
+/// measured screen rather than the pose logger.
+const kMeasuredStillness = {'sauna', 'cold_plunge', 'meditation', 'breathwork'};
 
 /// The host, reachable from the shell's stop without threading it through
 /// every archetype's constructor.
@@ -610,6 +625,28 @@ class LiveShellState extends State<LiveShell> {
         host!.endAt!(quiet);
       }
     }
+    if (endElapsed < 3 * 60 && host?.discard != null) {
+      final keep = await AppDialog.show(context,
+          title: 'Short session',
+          body: 'This session is under 3 minutes. Save it, or discard it?',
+          primary: 'Save',
+          destructive: 'Discard');
+      if (!mounted) return;
+      if (keep == null) {
+        _finishing = false;
+        return;
+      }
+      if (keep == DialogChoice.destructive) {
+        _t?.cancel();
+        final nav = Navigator.of(context);
+        try {
+          await host!.discard!();
+        } catch (_) {}
+        LiveDraft.clear();
+        nav.popUntil((r) => r.isFirst);
+        return;
+      }
+    }
     _t?.cancel();
     final draft = widget.result(endElapsed);
     // The app writes the session, flushes the GPS tail and hands back what it
@@ -656,13 +693,131 @@ class LiveShellState extends State<LiveShell> {
     return Builder(builder: (c) => _shell(c, P.of(c), l, a));
   }
 
+  /// The countdown set on Start Activity for this activity, in seconds.
+  late final int? _countdown = WorkoutAlerts.timerFor(
+      Prefs.getString(Prefs.activityTimer, ''), widget.a.typeKey);
+
+  /// Every screen but the strength logger (which draws its own header and
+  /// bottom bar) gets the blue header with the transport in it.
+  bool get _blue => widget.headerCenter == null && widget.bottom == null;
+
+  void _togglePause() => setState(() {
+        paused = !paused;
+        LiveDraft.current?.setPaused(paused);
+      });
+
+  Widget _blueHeader(BuildContext c, P p, AppLocalizations? l, Activity a) {
+    final top = MediaQuery.paddingOf(c).top;
+    Widget round(IconData i, String label, VoidCallback f, {bool solid = false}) =>
+        Pressable(
+          semanticLabel: label,
+          onTap: f,
+          child: Container(
+            width: S.x12,
+            height: S.x12,
+            decoration: BoxDecoration(
+                color: solid ? C.white : C.white.withValues(alpha: .18),
+                shape: BoxShape.circle),
+            child: Icon(i, size: I.md, color: solid ? C.dialStrain : C.white),
+          ),
+        );
+    return ColoredBox(
+      color: C.dialStrain,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(S.x2, top + S.x1, S.x4, S.x4),
+        child: Column(children: [
+          Row(children: [
+            Pressable(
+              onTap: () => Navigator.maybePop(c),
+              semanticLabel: l?.activityLiveMinimiseLabel ?? 'Minimise',
+              child: const SizedBox(
+                width: S.tap,
+                height: S.tap,
+                child: Icon(LucideIcons.chevronDown, size: I.lg, color: C.white),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                [a.displayName(c), if (widget.subtitle.isNotEmpty) widget.subtitle]
+                    .join(' · ')
+                    .toUpperCase(),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: F.caps.copyWith(
+                    color: C.white.withValues(alpha: .85),
+                    fontWeight: FontWeight.w800),
+              ),
+            ),
+            SizedBox(
+              width: S.tap,
+              child: widget.private
+                  ? const Icon(LucideIcons.lock, size: I.md, color: C.white)
+                  : null,
+            ),
+          ]),
+          const SizedBox(height: S.x2),
+          Padding(
+            padding: const EdgeInsets.only(left: S.x2),
+            child: Row(children: [
+              round(paused ? LucideIcons.play : LucideIcons.pause,
+                  paused
+                      ? (l?.activityLiveResumeLabel ?? 'Resume')
+                      : (l?.activityLivePauseLabel ?? 'Pause'),
+                  _togglePause),
+              Expanded(
+                child: ExcludeSemantics(
+                  child: ValueListenableBuilder<int>(
+                    valueListenable: clock,
+                    builder: (_, e, _) {
+                      final t = _countdown;
+                      return Column(mainAxisSize: MainAxisSize.min, children: [
+                        Text(_hhmmss(e),
+                            style: F.n48.copyWith(
+                                color: C.white,
+                                fontWeight: FontWeight.w700,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ])),
+                        if (t != null)
+                          Text(
+                              e >= t
+                                  ? 'TIME IS UP'
+                                  : '${clock2(t - e)} LEFT',
+                              style: F.caps.copyWith(
+                                  color: C.white.withValues(alpha: .8),
+                                  fontWeight: FontWeight.w700)),
+                        if (paused)
+                          Text('PAUSED',
+                              style: F.caps.copyWith(
+                                  color: C.white.withValues(alpha: .8),
+                                  fontWeight: FontWeight.w700)),
+                      ]);
+                    },
+                  ),
+                ),
+              ),
+              round(LucideIcons.square,
+                  l?.activityLiveFinishSessionLabel ?? 'Finish session', finish,
+                  solid: true),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+
   Widget _shell(BuildContext c, P p, AppLocalizations? l, Activity a) {
+    final blue = _blue;
     return Scaffold(
       backgroundColor: p.bg,
       // The clock reaches the header and the bottom bar too: a strength
       // session draws its timer in the header and its set clock in the pill.
       body: _LiveClock(clock, child: SafeArea(
+        top: !blue,
         child: Column(children: [
+          if (blue) _blueHeader(c, p, l, a),
+          if (!blue)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: S.x5),
             child: Row(children: [
@@ -733,10 +888,10 @@ class LiveShellState extends State<LiveShell> {
             ),
           if (widget.bottom == null && widget.footer != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: S.x5),
+              padding: EdgeInsets.fromLTRB(S.x5, 0, S.x5, blue ? S.x4 : 0),
               child: widget.footer!(c),
             ),
-          if (widget.bottom == null)
+          if (widget.bottom == null && !blue)
           Padding(
             padding: const EdgeInsets.fromLTRB(S.x5, S.x4, S.x5, S.x5),
             child: Row(children: [
@@ -752,10 +907,7 @@ class LiveShellState extends State<LiveShell> {
                   semanticLabel: paused
                       ? (l?.activityLiveResumeLabel ?? 'Resume')
                       : (l?.activityLivePauseLabel ?? 'Pause'),
-                  onTap: () => setState(() {
-                    paused = !paused;
-                    LiveDraft.current?.setPaused(paused);
-                  }),
+                  onTap: _togglePause,
                   child: Container(
                     height: S.x12 + S.x2,
                     alignment: Alignment.center,
@@ -825,6 +977,15 @@ class LiveTick extends StatelessWidget {
 }
 
 // ══════════════ SHARED PIECES ══════════════
+
+/// "00:00:08": the live header's clock, hours always shown.
+String _hhmmss(int s) {
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${two(s ~/ 3600)}:${two(s ~/ 60 % 60)}:${two(s % 60)}';
+}
+
+/// "12:41" for a countdown's remainder.
+String clock2(int s) => clock(s);
 
 /// The one big number. [F.n48] and no bigger — a display size that only
 /// exists on one screen is how seven type steps became forty.
@@ -1047,44 +1208,6 @@ Widget? _routeIssueCard(
 int? _kcal(Activity a, LiveFeed feed, double? weightKg, int elapsed) =>
     feed.calories ?? a.kcal(weightKg, (elapsed / 60).round());
 
-/// The distance/pace pair plus the common three-up, in the user's units.
-///
-/// PACE IS OMITTED, never dashed, when there isn't one yet: at the start of a
-/// run a few metres of GPS jitter divided into real elapsed time reads as
-/// something like 1000 min/km, which [UnitsController.formatPace] refuses by
-/// returning null. A stat that has no value is not drawn.
-List<Widget> _distanceStats(BuildContext ctx, P p, LiveFeed f, Activity a,
-    double? weightKg, int elapsed) {
-  final u = unitsOf(ctx);
-  final km = f.distanceKm;
-  final meters = km == null ? null : km * 1000;
-  final value = meters == null
-      ? null
-      : (u == null ? meters / 1000 : u.distanceValue(meters));
-  final unit = u?.distanceUnit ?? 'km';
-  final pacePerUnit = (meters == null || meters <= 0)
-      ? null
-      : UnitsController.formatPace(
-          elapsed / (u == null ? meters / 1000 : u.distanceValue(meters)));
-  return [
-    statRow(p, [
-      if (value != null) (value.toStringAsFixed(2), unit),
-      if (pacePerUnit != null) (pacePerUnit, '/$unit'),
-      ..._commonStats(ctx, a, f, weightKg, elapsed),
-    ].take(3).toList()),
-  ];
-}
-
-/// "5.24 km" / "3.25 mi" for a distance already known to exist.
-String _distanceText(BuildContext c, double km) {
-  final u = unitsOf(c);
-  return u == null
-      ? '${km.toStringAsFixed(2)} km'
-      : u.distance(km * 1000)!; // non-null in, non-null out
-}
-
-String _distanceUnit(BuildContext c) => unitsOf(c)?.distanceUnit ?? 'km';
-
 /// Display text for a swim stroke — [key] stays the canonical English value
 /// stored on the session (see [LiveSwim]'s `strokes` and [_baseResult]'s
 /// `stroke:`); only what the user reads is translated.
@@ -1202,12 +1325,16 @@ class LiveMeasured extends StatelessWidget {
   final bool private;
   final SessionFinish? onFinish;
 
+  /// The tab it opens on (0 strain, 1 heart rate, 2 map).
+  final int tab;
+
   const LiveMeasured(this.a,
       {super.key,
       this.feed,
       this.weightKg,
       this.private = false,
-      this.onFinish});
+      this.onFinish,
+      this.tab = 0});
 
   @override
   Widget build(BuildContext c) {
@@ -1219,75 +1346,350 @@ class LiveMeasured extends StatelessWidget {
       result: (elapsed) =>
           _baseResult(a, feed?.call() ?? LiveFeed.none, weightKg, elapsed,
               private),
-      body: (ctx, elapsed) {
-        final p = P.of(ctx);
-        final l = AppLocalizations.of(ctx);
-        final f = feed?.call() ?? LiveFeed.none;
-        return Column(children: [
-          const SizedBox(height: S.x6),
-          Text(l?.activityLiveDurationHeader ?? 'DURATION',
-              style: F.over.copyWith(color: p.ink3)),
-          const SizedBox(height: S.x3),
-          bigNum(p, clock(elapsed), ''),
-          // Only once fixes are actually arriving. The catalogue's `gps` flag
-          // says a route is WORTH recording, not that one is being recorded —
-          // it claimed "GPS ACTIVE" with location denied.
-          if (f.gpsActive) ...[
-            const SizedBox(height: S.x3),
-            Pill(l?.activityLiveRecordingRoute ?? 'Recording route', C.optimal,
-                icon: LucideIcons.mapPin),
-          ] else if (_routeIssueCard(ctx, f.routeIssue, f.onFixRoute)
-              case final card?) ...[
-            const SizedBox(height: S.x4),
-            card,
-          ],
-          const SizedBox(height: S.x8),
-          // The user's own unit system, not km hardcoded. `unitsOf` is null in
-          // a golden, and the metric fallback there is what the store holds.
-          ..._distanceStats(ctx, p, f, a, weightKg, elapsed),
-          const SizedBox(height: S.x8),
-          LiveHeart(f),
-          if (f.route.length > 1) ...[
-            const SizedBox(height: S.x5),
-            ChartFrame(
-              title: l?.activityLiveRouteSoFarTitle ?? 'Route so far',
-              unit: _distanceUnit(ctx),
-              height: 150,
-              footnote: f.distanceKm == null
-                  ? (l?.activityLiveRouteFootnoteNoDistance ??
-                      'Start pinned; distance appears once the fixes settle.')
-                  : (l?.activityLiveRouteFootnoteWithDistance(
-                          _distanceText(ctx, f.distanceKm!)) ??
-                      '${_distanceText(ctx, f.distanceKm!)} from the fixes '
-                          'recorded so far.'),
-              child: ClipRRect(
-                borderRadius: R.rLg,
+      scrollBody: false,
+      bodyFollowsClock: false,
+      body: (ctx, _) => _MeasuredTabs(a,
+          feed: feed, weightKg: weightKg, private: private, tab: tab),
+    );
+  }
+}
+
+/// ACTIVITY STRAIN, HEART RATE and, for an activity that records a route,
+/// MAP: one dark tab bar under the blue header, each page ticking itself.
+class _MeasuredTabs extends StatefulWidget {
+  final Activity a;
+  final LiveFeedSource? feed;
+  final double? weightKg;
+  final bool private;
+  final int tab;
+  const _MeasuredTabs(this.a,
+      {this.feed, this.weightKg, this.private = false, this.tab = 0});
+
+  @override
+  State<_MeasuredTabs> createState() => _MeasuredTabsState();
+}
+
+class _MeasuredTabsState extends State<_MeasuredTabs> {
+  late int _tab = widget.tab;
+
+  LiveFeed get _f => widget.feed?.call() ?? LiveFeed.none;
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final map = typeRecordsRoute(widget.a.typeKey) || _f.gpsActive;
+    final tabs = ['ACTIVITY STRAIN', 'HEART RATE', if (map) 'MAP'];
+    final i = _tab.clamp(0, tabs.length - 1);
+    return Column(children: [
+      ColoredBox(
+        color: p.card,
+        child: Row(children: [
+          for (var k = 0; k < tabs.length; k++)
+            Expanded(
+              child: Pressable(
+                onTap: () => setState(() => _tab = k),
+                semanticLabel: 'Show ${tabs[k].toLowerCase()}',
                 child: Container(
-                  color: p.card2,
-                  child: CustomPaint(
-                      size: Size.infinite,
-                      painter: RouteMap(f.route,
-                          slow: p.on(a.color),
-                          fast: p.on(a.color),
-                          pinStart: p.on(C.optimal),
-                          pinEnd: p.on(C.dialStrain),
-                          pinInk: p.card)),
+                  height: S.tap,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                          color: k == i ? C.white : const Color(0x00000000),
+                          width: 2),
+                    ),
+                  ),
+                  child: Text(tabs[k],
+                      maxLines: 1,
+                      style: F.caps.copyWith(
+                          color: k == i ? p.ink : p.ink3,
+                          fontWeight: FontWeight.w800)),
                 ),
               ),
             ),
-          ],
-          if (private) ...[
-            const SizedBox(height: S.x5),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(LucideIcons.lock, size: I.sm, color: p.ink3),
-              const SizedBox(width: S.x1),
-              Text(l?.activityLivePrivateSession ?? 'Private session',
-                  style: F.over.copyWith(color: p.ink3)),
+        ]),
+      ),
+      Expanded(
+        child: LiveTick((tc, e) {
+          final f = _f;
+          return switch (i) {
+            0 => _strainPage(tc, p, f, e),
+            1 => _heartPage(tc, p, f, e),
+            _ => _mapPage(tc, p, f, e),
+          };
+        }),
+      ),
+    ]);
+  }
+
+  Widget _page(List<Widget> children) => ListView(
+        padding: const EdgeInsets.fromLTRB(S.x5, S.x6, S.x5, S.x5),
+        children: children,
+      );
+
+  List<Widget> _issue(BuildContext c, LiveFeed f) => [
+        if (_routeIssueCard(c, f.routeIssue, f.onFixRoute) case final card?) ...[
+          const SizedBox(height: S.x5),
+          card,
+        ],
+      ];
+
+  Widget _strainPage(BuildContext c, P p, LiveFeed f, int e) {
+    final goal = double.tryParse(Prefs.getString(Prefs.activityStrainTarget, ''));
+    final w = MediaQuery.sizeOf(c).width;
+    final d = math.min(w * .62, S.x16 * 4.2);
+    final s = f.strain;
+    final kcal = _kcal(widget.a, f, widget.weightKg, e);
+    return _page([
+      Center(
+        child: SizedBox.square(
+          dimension: d,
+          child: Stack(alignment: Alignment.center, children: [
+            Positioned.fill(
+              child: CustomPaint(
+                painter: Ring((s ?? 0) / 21 /* strain scale */, C.dialStrain, p.track,
+                    stroke: d * .07,
+                    solid: true,
+                    flatStart: true,
+                    tick: goal == null ? null : goal / 21,
+                    tickColor: p.ink),
+              ),
+            ),
+            Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('ACTIVITY STRAIN',
+                  style: F.caps.copyWith(color: p.ink, fontWeight: FontWeight.w800)),
+              const SizedBox(height: S.x2),
+              Text(s == null ? '--' : s.toStringAsFixed(1),
+                  style: F.n64.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+              const SizedBox(height: S.x1),
+              if (s == null) ...[
+                Text('CALIBRATING STRAIN',
+                    style: F.caps.copyWith(color: p.ink3, fontWeight: FontWeight.w700)),
+                if (e < 60)
+                  Text('READY IN ${60 - e}',
+                      style: F.caps.copyWith(color: p.ink3)),
+              ] else if (goal != null)
+                Text('GOAL ${goal.toStringAsFixed(1)}',
+                    style: F.caps.copyWith(color: p.ink3, fontWeight: FontWeight.w700)),
             ]),
-          ],
-        ]);
-      },
-    );
+          ]),
+        ),
+      ),
+      const SizedBox(height: S.x8),
+      Text('HEART RATE',
+          style: F.caps.copyWith(color: p.ink3)),
+      const SizedBox(height: S.x1),
+      Row(crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic, children: [
+        Text(f.hr == null ? '--' : '${f.hr}',
+            style: F.n48.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+        const SizedBox(width: S.x2),
+        Text('BPM', style: F.caps.copyWith(color: p.ink3)),
+      ]),
+      const SizedBox(height: S.x3),
+      ZoneKnobBar(hr: f.hr, lowerBpm: f.zoneLowerBpm, maxHr: f.zoneMaxHr),
+      // No beat: which absence it is (band gone, or there and not reading).
+      if (f.hr == null) ...[const SizedBox(height: S.x5), LiveHeart(f)],
+      const SizedBox(height: S.x8),
+      statRow(p, [
+        (f.avgHr == null ? '--' : '${f.avgHr}', 'AVG HR'),
+        (f.maxHr == null ? '--' : '${f.maxHr}', 'MAX HR'),
+        (kcal == null ? '--' : '$kcal', 'CALORIES'),
+      ]),
+      ..._issue(c, f),
+    ]);
+  }
+
+  Widget _heartPage(BuildContext c, P p, LiveFeed f, int e) {
+    final w = MediaQuery.sizeOf(c).width;
+    final d = math.min(w * .58, S.x16 * 3.8);
+    final kcal = _kcal(widget.a, f, widget.weightKg, e);
+    final z = zoneOf(f.hr, f.zoneLowerBpm);
+    final vals = f.hrCurve.whereType<double>();
+    final lo = vals.isEmpty ? 0.0 : vals.reduce(math.min);
+    final hi = vals.isEmpty ? 0.0 : vals.reduce(math.max);
+    return _page([
+      Center(
+        child: Container(
+          width: d,
+          height: d,
+          decoration: const BoxDecoration(color: C.char, shape: BoxShape.circle),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(LucideIcons.heart,
+                size: I.lg,
+                color: z == null ? p.ink3 : p.on(ZoneKnobBar.colorOf(p, z))),
+            const SizedBox(height: S.x2),
+            Text(f.hr == null ? '--' : '${f.hr}',
+                style: F.n64.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
+            Text(z == null ? 'NO READING' : 'ZONE $z',
+                style: F.caps.copyWith(color: p.ink3, fontWeight: FontWeight.w700)),
+          ]),
+        ),
+      ),
+      const SizedBox(height: S.x6),
+      if (vals.length >= 2)
+        ExcludeSemantics(
+          child: SizedBox(
+            height: S.x16 * 1.6,
+            child: CustomPaint(
+              size: Size.infinite,
+              painter: LineChart(f.hrCurve, p.on(C.dialStrain),
+                  dotInk: p.bg,
+                  axis: AxisSpec(
+                      min: (lo - 10).floorToDouble(),
+                      max: (hi + 10).ceilToDouble(),
+                      format: (v) => '${v.round()}')),
+            ),
+          ),
+        )
+      else
+        Text('The curve starts after the first full minute.',
+            textAlign: TextAlign.center,
+            style: F.cap.copyWith(color: p.ink3)),
+      const SizedBox(height: S.x8),
+      statRow(p, [
+        (f.avgHr == null ? '--' : '${f.avgHr}', 'AVG HR'),
+        (f.strain == null ? '--' : f.strain!.toStringAsFixed(1), 'STRAIN'),
+        (kcal == null ? '--' : '$kcal', 'CALORIES'),
+      ]),
+    ]);
+  }
+
+  Widget _mapPage(BuildContext c, P p, LiveFeed f, int e) {
+    final u = unitsOf(c);
+    final km = f.distanceKm;
+    final unit = u?.distanceUnit ?? 'km';
+    final dist = km == null
+        ? null
+        : (u == null ? km : u.distanceValue(km * 1000));
+    final pace = dist == null || dist <= 0
+        ? null
+        : UnitsController.formatPace(e / dist);
+    return Column(children: [
+      Expanded(
+        child: Stack(fit: StackFit.expand, children: [
+          LiveMap(route: f.routeGeo),
+          if (!f.gpsActive)
+            Positioned(
+              left: S.x4,
+              right: S.x4,
+              top: S.x4,
+              child: _routeIssueCard(c, f.routeIssue, f.onFixRoute) ??
+                  StatusCard(
+                      f.routeGeo.isEmpty ? 'Waiting for GPS' : 'GPS paused',
+                      'The route draws once the phone has a fix and you '
+                          'start moving.',
+                      icon: LucideIcons.mapPin),
+            ),
+        ]),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(S.x5, S.x5, S.x5, S.x5),
+        child: statRow(p, [
+          (dist == null ? '--' : dist.toStringAsFixed(2), 'DISTANCE · $unit'),
+          (pace ?? '--', 'PACE · /$unit'),
+          (clock(e), 'DURATION'),
+        ]),
+      ),
+    ]);
+  }
+}
+
+/// The zone (0–5) a heart rate falls in against the five lower edges of
+/// zones 1–5; null without a reading or the edges.
+int? zoneOf(int? hr, List<num>? lower) {
+  if (hr == null || lower == null || lower.length != 5) return null;
+  var z = 0;
+  for (var i = 0; i < 5; i++) {
+    if (hr >= lower[i]) z = i + 1;
+  }
+  return z;
+}
+
+/// Zones 0–5 as one segmented bar, a knob where the heart rate is now, and
+/// the zone numbers under it.
+class ZoneKnobBar extends StatelessWidget {
+  final int? hr;
+  final List<num>? lowerBpm;
+  final num? maxHr;
+  const ZoneKnobBar({super.key, this.hr, this.lowerBpm, this.maxHr});
+
+  static Color colorOf(P p, int z) =>
+      z == 0 ? p.track : ZoneRows.pigment[z - 1];
+
+  /// 0…1 across the six segments, inside the zone by where the beat sits.
+  static double? spot(int? hr, List<num>? lower, num? maxHr) {
+    final z = zoneOf(hr, lower);
+    if (z == null) return null;
+    final lo = z == 0 ? lower![0] * .7 : lower![z - 1];
+    final hi = z == 5 ? (maxHr ?? lower[4] * 1.1) : lower[z];
+    final inside = hi <= lo ? .5 : ((hr! - lo) / (hi - lo)).clamp(0.0, 1.0);
+    return (z + inside) / 6;
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final at = spot(hr, lowerBpm, maxHr);
+    const bar = S.x3, knob = S.x5;
+    return LayoutBuilder(builder: (_, box) {
+      final w = box.maxWidth;
+      return Column(children: [
+        SizedBox(
+          height: knob,
+          child: Stack(clipBehavior: Clip.none, children: [
+            Positioned(
+              left: 0,
+              right: 0,
+              top: (knob - bar) / 2,
+              height: bar,
+              child: Row(children: [
+                for (var z = 0; z < 6; z++) ...[
+                  if (z > 0) const SizedBox(width: S.x1 / 2),
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: p.on(colorOf(p, z)).withValues(
+                            alpha: at == null || (at * 6).floor().clamp(0, 5) == z
+                                ? 1
+                                : .45),
+                        borderRadius: BorderRadius.horizontal(
+                          left: Radius.circular(z == 0 ? bar / 2 : 0),
+                          right: Radius.circular(z == 5 ? bar / 2 : 0),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ]),
+            ),
+            if (at != null)
+              Positioned(
+                left: (at * w - knob / 2).clamp(0.0, w - knob),
+                top: 0,
+                child: Container(
+                  width: knob,
+                  height: knob,
+                  decoration: BoxDecoration(
+                    color: C.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: p.bg, width: 3),
+                  ),
+                ),
+              ),
+          ]),
+        ),
+        const SizedBox(height: S.x1),
+        Row(children: [
+          for (var z = 0; z < 6; z++)
+            Expanded(
+              child: Text('$z',
+                  textAlign: TextAlign.center,
+                  style: F.cap.copyWith(color: p.ink3)),
+            ),
+        ]),
+      ]);
+    });
   }
 }
 

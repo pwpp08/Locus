@@ -58,6 +58,23 @@ class GpsSource {
     }
   }
 
+  /// Where the phone last knew it was, without asking for anything: null
+  /// unless location is on and already allowed. The start screen's map.
+  static Future<(double, double)?> lastKnown() async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) return null;
+      final perm = await Geolocator.checkPermission();
+      if (perm != LocationPermission.always &&
+          perm != LocationPermission.whileInUse) {
+        return null;
+      }
+      final p = await Geolocator.getLastKnownPosition();
+      return p == null ? null : (p.latitude, p.longitude);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Open the screen that can actually fix [issue]: the app's permission page
   /// for denied/deniedForever, the system location toggle for serviceOff.
   static Future<void> openSettingsFor(GpsPermissionStatus issue) async {

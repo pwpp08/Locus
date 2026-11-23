@@ -42,6 +42,7 @@ import '../screens/detected_activities.dart';
 import '../activity/catalogue.dart';
 import '../activity/exercise_image.dart';
 import '../activity/live.dart';
+import '../activity/live_map.dart';
 import '../screens/plus_menu.dart';
 import '../screens/coach_a2ui_view.dart';
 import '../screens/coach_history_sheet.dart';
@@ -772,6 +773,13 @@ Map<String, Widget> _chartCases() {
             title: 'Time in heart-rate zones'),
       );
     }),
+    'zone_knob_bar': const Surface(
+      child: ZoneKnobBar(hr: 141, lowerBpm: [95, 114, 133, 152, 171], maxHr: 190),
+    ),
+    'live_map': const SizedBox(
+      height: 180,
+      child: LiveMap(route: [(47.497, 19.040), (47.499, 19.043), (47.501, 19.042)]),
+    ),
     'chart_empty': const Surface(
       child: ChartFrame(
         title: 'Respiratory rate',

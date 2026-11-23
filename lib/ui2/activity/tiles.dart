@@ -53,7 +53,9 @@ const kOsmAttribution = '© OpenStreetMap contributors';
 /// basemap asks openstreetmap.org for the tiles covering the route.
 const kMapTilesConsent = 'share.map_tiles';
 
-bool get mapTilesAllowed => Prefs.getBool(kMapTilesConsent, false);
+// On by default since the person chose a real map behind workouts
+// (2026-11-23); the share sheet still turns it off.
+bool get mapTilesAllowed => Prefs.getBool(kMapTilesConsent, true);
 
 void setMapTilesAllowed(bool on) => Prefs.setBool(kMapTilesConsent, on);
 
@@ -103,7 +105,11 @@ class RouteMosaic {
 
   final double width, height;
 
-  const RouteMosaic(this.image, this.path, this.width, this.height);
+  /// Puts any other point (a fix that arrived after the fetch) on [image].
+  final Offset Function(double lat, double lng)? project;
+
+  const RouteMosaic(this.image, this.path, this.width, this.height,
+      {this.project});
 
   void dispose() => image.dispose();
 }
@@ -433,5 +439,9 @@ Future<RouteMosaic?> buildRouteMosaic(
     ],
     width.toDouble(),
     height.toDouble(),
+    project: (lat, lng) {
+      final p = tileXY(lat, lng, z);
+      return Offset((p.x - originX) * _tileSize, (p.y - originY) * _tileSize);
+    },
   );
 }

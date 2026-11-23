@@ -58,6 +58,10 @@ ActivityHost activityHost(AppState app,
     },
     quietSince: app.workoutQuietSince,
     endAt: (t) => endAt = t,
+    discard: () async {
+      final id = app.activeWorkout?.workoutId;
+      if (id != null) await app.deleteWorkout(id);
+    },
     onSets: (sets) => _bankSets(app, sets),
     history: history,
     bandConnected: app.isConnected,
@@ -96,6 +100,10 @@ LiveFeed _feedOf(AppState app) {
     // x axis is the session clock. `perMinuteHr()` is for statistics.
     hrCurve: _curveOverSession(w),
     distanceKm: app.liveDistanceKm,
+    routeGeo: [
+      for (final v in app.routeTracker?.path.value ?? const [])
+        (v.pos.latitude, v.pos.longitude),
+    ],
     gpsActive: app.routeTracking,
     bandConnected: app.isConnected,
     // Both were implemented at the state layer and read by nothing, so a

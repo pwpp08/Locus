@@ -15,6 +15,21 @@ enum WorkoutBuzz {
   timerDone,
 }
 
+/// The activities a countdown makes sense for, and the minutes it starts on.
+/// Zero: offered, but off until the person sets it.
+const Map<String, int> kTimerDefaults = {
+  'sauna': 15,
+  'cold_plunge': 3,
+  'meditation': 10,
+  'breathwork': 5,
+  'stretching': 0,
+  'yoga': 0,
+  'mobility': 0,
+};
+
+/// The lengths the start screen offers, in minutes; 0 is off.
+const List<int> kTimerChoices = [0, 3, 5, 10, 15, 20, 30, 45];
+
 class WorkoutAlerts {
   /// The strain to buzz at; null for none.
   final double? strainGoal;

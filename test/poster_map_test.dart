@@ -42,9 +42,9 @@ void main() {
           isNull);
     });
 
-    // The default is the `false` fallback in [mapTilesAllowed] — a key that
-    // was never written reads off, which is what a fresh install is. It cannot
-    // be asserted here because `Prefs` caches its store for the process.
+    // The default is the `true` fallback in [mapTilesAllowed] (the person
+    // chose a real map behind workouts). It cannot be asserted here because
+    // `Prefs` caches its store for the process.
     test('the switch is persisted, and off means off', () {
       setMapTilesAllowed(false);
       expect(mapTilesAllowed, isFalse);

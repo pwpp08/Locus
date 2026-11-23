@@ -21,6 +21,7 @@ import '../../models/alarm_item.dart';
 import '../../state/app_state.dart';
 import '../../state/clock_format.dart';
 import '../../state/prefs.dart';
+import '../../state/workout_alerts.dart';
 import '../activity/catalogue.dart';
 import '../activity/live.dart';
 import '../profile/alarm.dart' show AlarmCountdown, AlarmScreen;
@@ -65,6 +66,19 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
   Timer? _tick;
 
   bool _route = true;
+
+  /// The countdown for a timed activity, in minutes (0 off), per activity:
+  /// the last one set for it, else its default.
+  final Map<String, int> _timers = {};
+  int? get _timer {
+    final k = _a.typeKey;
+    final d = kTimerDefaults[k];
+    if (d == null) return null;
+    return _timers[k] ??= () {
+      final parts = Prefs.getString(Prefs.activityTimer, '').split('|');
+      return parts.length == 2 && parts[0] == k ? int.tryParse(parts[1]) ?? d : d;
+    }();
+  }
   bool _open = false;
   bool _starting = false;
   String? _refused;
@@ -193,6 +207,10 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
       return;
     }
     final history = await loadSetHistory();
+    // Written before the session starts: its first tick reads it.
+    final t = _timer;
+    Prefs.setString(Prefs.activityTimer,
+        t == null || t == 0 ? '' : '${_a.typeKey}|$t');
     app.startWorkout(type: _a.typeKey, trackRoute: _route);
     if (app.activeWorkout == null) {
       if (mounted) {
@@ -266,6 +284,7 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
     final rest = _rest;
     final running = _restSince != null;
     final routeable = rest == null && typeRecordsRoute(_a.typeKey);
+    final timer = rest == null ? _timer : null;
     final inset = MediaQuery.paddingOf(c);
     final headerH = inset.top + S.x2 + S.tap;
     final barH = S.x16 + S.x3 * 2 + inset.bottom;
@@ -357,6 +376,37 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
                 AppSwitch(_route, (v) => setState(() => _route = v),
                     semanticLabel: 'Track route'),
               ]),
+            ),
+          if (timer != null)
+            Positioned(
+              right: S.x4,
+              top: headerH + S.x4,
+              child: Pressable(
+                onTap: () => _pickTimer(c),
+                semanticLabel: timer == 0
+                    ? 'Timer off. Set one'
+                    : 'Timer $timer minutes. Change it',
+                child: Row(children: [
+                  Text('TIMER',
+                      style: F.caps.copyWith(color: C.white.withValues(alpha: .5))),
+                  const SizedBox(width: S.x3),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: S.x3, vertical: S.x2),
+                    decoration: BoxDecoration(
+                      color: C.white.withValues(alpha: timer == 0 ? .08 : .16),
+                      borderRadius: R.rPill,
+                    ),
+                    child: Row(children: [
+                      Icon(LucideIcons.timer, size: I.sm, color: C.white),
+                      const SizedBox(width: S.x1),
+                      Text(timer == 0 ? 'OFF' : '$timer MIN',
+                          style: F.caps.copyWith(
+                              color: C.white, fontWeight: FontWeight.w700)),
+                    ]),
+                  ),
+                ]),
+              ),
             ),
           // ── the pulse: the band's heart rate, beating ──
           Positioned(
@@ -734,8 +784,43 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
       child: Text(
           'A goal for the strain of this activity, on the same 0–21 scale as '
           'your day. Drag the dial round to set it. The live screen shows '
-          'your strain against it as you go.',
+          'your strain against it as you go, and your band buzzes twice '
+          'when you reach it.',
           style: F.body.copyWith(color: P.of(c).ink2, height: 1.45)));
+
+  /// The countdown: a row of lengths. The band buzzes a minute before the end
+  /// (on 3 minutes or more) and three times when it is up.
+  void _pickTimer(BuildContext c) {
+    final k = _a.typeKey;
+    AppSheet.show<void>(c,
+        title: 'Timer',
+        child: StatefulBuilder(builder: (sc, set) {
+          final p = P.of(sc);
+          final now = _timers[k] ?? 0;
+          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            RangeSegments(
+              [for (final m in kTimerChoices) m == 0 ? 'OFF' : '$m'],
+              math.max(0, kTimerChoices.indexOf(now)),
+              (i) {
+                set(() {});
+                setState(() => _timers[k] = kTimerChoices[i]);
+              },
+              width: null,
+            ),
+            const SizedBox(height: S.x4),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(LucideIcons.vibrate, size: I.md, color: p.ink3),
+              const SizedBox(width: S.x3),
+              Expanded(
+                child: Text(
+                    'Minutes. Your band buzzes once a minute before the end '
+                    'and three times when time is up.',
+                    style: F.cap.copyWith(color: p.ink3, height: 1.4)),
+              ),
+            ]),
+          ]);
+        }));
+  }
 
   Widget _dial(BuildContext c, P p, double h) {
     final w = MediaQuery.sizeOf(c).width;
@@ -831,10 +916,21 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
             ),
             const SizedBox(width: S.x5),
             Expanded(
-              child: Text(
-                  'A ${goal.toStringAsFixed(1)} Activity Strain represents '
-                  '${strainLevelOf(goal)} cardiovascular exertion.',
-                  style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w500)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                    'A ${goal.toStringAsFixed(1)} Activity Strain represents '
+                    '${strainLevelOf(goal)} cardiovascular exertion.',
+                    style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w500)),
+                const SizedBox(height: S.x2),
+                Row(children: [
+                  Icon(LucideIcons.vibrate, size: I.sm, color: p.ink3),
+                  const SizedBox(width: S.x2),
+                  Expanded(
+                    child: Text('Your band buzzes when you reach it.',
+                        style: F.cap.copyWith(color: p.ink3)),
+                  ),
+                ]),
+              ]),
             ),
           ]),
         ),
