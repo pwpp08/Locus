@@ -32,6 +32,11 @@ means a WHOOP number moved. Fix the change, not the golden.
   moves. Generated on CI under UTC, +05:30 and -04:00 (temporary
   `golden-regen-v119` branch).
 
+- v120, 2026-11-24: regenerated with the owner's approval. Detected
+  workouts split by breaks of 15 minutes or less merge into one. The
+  fixtures hold no such split, so only `algo_version` moves. Generated on CI
+  under UTC, +05:30 and -04:00 (temporary `golden-regen-v120` branch).
+
 - v117, 2026-11-15: regenerated with the owner's approval. Energy under the
   40 % HRR gate now prices light movement (`compute/day_energy.dart`), so
   `calories`, `calories_total` and the active share move; sleep latency comes
