@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -148,6 +147,10 @@ class DayPager extends StatelessWidget {
   /// side of it. The label shrinks to fit below that.
   final double? maxWidth;
 
+  /// The day is loading: a spinner stands in for the label, as the
+  /// reference shows while it fetches the day it moved to.
+  final bool loading;
+
   const DayPager(
       {super.key,
       required this.day,
@@ -155,13 +158,21 @@ class DayPager extends StatelessWidget {
       required this.days,
       required this.onDay,
       required this.onCalendar,
-      this.maxWidth});
+      this.maxWidth,
+      this.loading = false});
 
-  /// The width the pager keeps for "TODAY" and short dates.
-  static const base = S.x16 * 2 + S.x8;
-
+  /// Measured off the reference (36 pt avatar to scale): a 36 pt track,
+  /// 40 pt for each arrow (44 here, the least a tap may be), the label in 12 pt tracked caps with 18 pt either
+  /// side inside its lighter pill. The pill hugs the label, so TODAY is
+  /// narrower than SAT, NOV 21.
   static const _h = S.x8 + S.x1;
-  static final _r = BorderRadius.circular(S.x2 + S.half);
+  // 44 pt, not the reference's 40: the least a tap target may be.
+  static const _arrow = S.x10 + S.x1;
+  static const _pad = S.x4 + S.half;
+  static final _r = BorderRadius.circular(S.x3);
+
+  /// The narrowest the pager gets: the arrows round a short label.
+  static const base = _arrow * 2 + S.x16 + S.x3;
 
   @override
   Widget build(BuildContext c) {
@@ -187,7 +198,7 @@ class DayPager extends StatelessWidget {
         : '${weekdayShortName(dt.weekday, l)}, ${monthShortName(dt.month, l)} ${dt.day}'
             .toUpperCase();
 
-    Widget arrow(IconData i, String? to, String what) => Semantics(
+    Widget arrow(bool left, String? to, String what) => Semantics(
           label: what,
           button: true,
           enabled: to != null,
@@ -195,80 +206,80 @@ class DayPager extends StatelessWidget {
           child: Pressable(
             onTap: to == null ? null : () => onDay(to),
             child: SizedBox(
-              width: S.x8 + S.x1,
+              width: _arrow,
               height: S.tap,
               child: Center(
                 child: BoldChevron(
-                    left: i == LucideIcons.chevronLeft,
-                    height: S.x3,
-                    color: to == null ? p.ink.withValues(alpha: .22) : p.ink),
+                    left: left,
+                    height: S.x3 + S.half,
+                    color: to == null ? p.ink.withValues(alpha: .3) : p.ink),
               ),
             ),
           ),
         );
 
-    // Compact for "TODAY", wider when a long date (or a language's longer
-    // names, or larger text) needs the room, but never past [maxWidth], which
-    // clears the avatar and the battery and band either side; past that the
-    // label shrinks.
-    final most = math.min(base + S.x10, maxWidth ?? double.infinity);
-    final least = math.min(base, most);
+    final inner = loading
+        ? SizedBox.square(
+            key: const ValueKey('loading'),
+            dimension: S.x4,
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: p.ink.withValues(alpha: .6)))
+        : Text(label,
+            key: ValueKey(label),
+            maxLines: 1,
+            style: F.caps.copyWith(color: p.ink, height: 1));
+
+    // Never past [maxWidth], which clears the avatar and the battery and band
+    // either side; past that the label shrinks.
     return ConstrainedBox(
       constraints: BoxConstraints(
-          minWidth: least, maxWidth: most, minHeight: S.tap, maxHeight: S.tap),
-      child: Stack(alignment: Alignment.center, children: [
-        Positioned.fill(
-          child: Center(
-            child: Container(
-              height: _h,
-              decoration: BoxDecoration(
-                color: Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
-                borderRadius: _r,
-              ),
-            ),
+          maxWidth: maxWidth ?? double.infinity,
+          minHeight: S.tap,
+          maxHeight: S.tap),
+      child: Center(
+        child: Container(
+          height: _h,
+          decoration: BoxDecoration(
+            color: Color.alphaBlend(p.ink.withValues(alpha: .05), p.bg),
+            borderRadius: _r,
           ),
-        ),
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          arrow(LucideIcons.chevronLeft, older, 'Previous day'),
-          Flexible(
-            child: Semantics(
-              label: 'Open the calendar',
-              button: true,
-              excludeSemantics: true,
-              child: Pressable(
-                onTap: onCalendar,
-                child: SizedBox(
-                  height: S.tap,
-                  child: Center(
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            arrow(true, older, 'Previous day'),
+            Flexible(
+              child: Semantics(
+                label: 'Open the calendar',
+                button: true,
+                excludeSemantics: true,
+                child: Pressable(
+                  onTap: onCalendar,
+                  child: AnimatedSize(
+                    duration: motion(c, Motion.base),
+                    curve: Curves.easeOutCubic,
                     child: Container(
                       height: _h,
-                      constraints: BoxConstraints(
-                          minWidth: math.max(0, least - (S.x8 + S.x1) * 2)),
-                      padding: const EdgeInsets.symmetric(horizontal: S.x3),
+                      padding: const EdgeInsets.symmetric(horizontal: _pad),
                       decoration: BoxDecoration(
-                        color: Color.alphaBlend(p.ink.withValues(alpha: .2), p.bg),
+                        color: Color.alphaBlend(
+                            p.ink.withValues(alpha: .14), p.bg),
                         borderRadius: _r,
                       ),
                       alignment: Alignment.center,
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Text(label,
-                            maxLines: 1,
-                            style: F.dHero.copyWith(
-                                color: p.ink,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.2,
-                                height: 1)),
+                        child: AnimatedSwitcher(
+                          duration: motion(c, Motion.fast),
+                          child: inner,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          arrow(LucideIcons.chevronRight, newer, 'Next day'),
-        ]),
-      ]),
+            arrow(false, newer, 'Next day'),
+          ]),
+        ),
+      ),
     );
   }
 }
@@ -276,19 +287,22 @@ class DayPager extends StatelessWidget {
 class HomeDeviceStatus extends StatelessWidget {
   const HomeDeviceStatus({super.key});
 
+  /// Measured off the reference: 13 pt bold figures, a 26 pt band.
+  static final _pct = F.cap.copyWith(fontWeight: FontWeight.w700);
+  static const _band = S.x6 + S.half;
+
   /// The widest the status gets: "100%", the gap and the band with its badge.
   static double widestOf(BuildContext c) {
     final tp = TextPainter(
       text: TextSpan(
-          text: '100%',
-          style: F.n17.copyWith(fontWeight: FontWeight.w700)),
+          text: '100%', style: _pct),
       textDirection: Directionality.of(c),
       textScaler: MediaQuery.textScalerOf(c),
       maxLines: 1,
     )..layout();
     final w = tp.width.ceilToDouble();
     tp.dispose();
-    return w + S.x2 + StrapIcon.widthFor(S.x6) + S.x1;
+    return w + S.x2 + StrapIcon.widthFor(_band) + S.x1;
   }
 
   @override
@@ -299,7 +313,6 @@ class HomeDeviceStatus extends StatelessWidget {
     try {
       connected = c.select<AppState, bool>((a) => a.isConnected);
     } catch (_) {}
-    final low = battery != null && lowBattery(battery.$1, battery.$2);
     final syncing = syncingNowOf(c);
     return Pressable(
       semanticLabel: [
@@ -314,16 +327,14 @@ class HomeDeviceStatus extends StatelessWidget {
       },
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         if (battery != null) ...[
-          // Light grey, as the reference reads it; white once it runs low.
           // Never a colour: a blue percentage read as a link.
           Text('${battery.$1.round()}%',
-              style: F.n17.copyWith(
-                  color: low ? p.ink : p.ink2, fontWeight: FontWeight.w700)),
+              style: _pct.copyWith(color: p.ink)),
           const SizedBox(width: S.x2),
         ],
         StrapIcon(
           color: p.ink,
-          height: S.x6,
+          height: _band,
           badge: syncing
               ? const HomeSyncArrow()
               : Container(

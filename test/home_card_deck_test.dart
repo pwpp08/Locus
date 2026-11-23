@@ -152,6 +152,43 @@ void main() {
     },
   );
 
+  testWidgets('the badge fills pink with the swipe and drains on release', (
+    t,
+  ) async {
+    t.view.physicalSize = const Size(393 * 3, 852 * 3);
+    t.view.devicePixelRatio = 3;
+    addTearDown(t.view.reset);
+    await t.pumpWidget(_app());
+    double? pink() {
+      final f = find.byWidgetPredicate(
+        (w) => w is FractionallySizedBox && w.child is ColoredBox,
+      );
+      if (f.evaluate().isEmpty) return null;
+      final box = t.widget<FractionallySizedBox>(f.first);
+      expect((box.child! as ColoredBox).color, C.calibrate);
+      return box.heightFactor;
+    }
+
+    expect(pink(), isNull, reason: 'no pink at rest');
+    final g = await t.startGesture(t.getCenter(_shown('First red in a while')));
+    for (var i = 0; i < 6; i++) {
+      await g.moveBy(const Offset(8, 0));
+      await t.pump(const Duration(milliseconds: 50));
+    }
+    final half = pink()!;
+    expect(half, inExclusiveRange(0, 1), reason: 'part of the way');
+    await g.moveBy(const Offset(24, 0));
+    await t.pump(const Duration(milliseconds: 50));
+    expect(pink()!, greaterThan(half), reason: 'it follows the finger');
+    await t.pump(const Duration(milliseconds: 400));
+    await g.up();
+    await t.pump(const Duration(milliseconds: 60));
+    final draining = pink();
+    expect(draining == null || draining < half + .2, isTrue);
+    await t.pumpAndSettle();
+    expect(pink(), isNull, reason: 'back at rest, the pink has drained');
+  });
+
   testWidgets('reduced motion still puts a card away', (t) async {
     t.view.physicalSize = const Size(393 * 3, 852 * 3);
     t.view.devicePixelRatio = 3;

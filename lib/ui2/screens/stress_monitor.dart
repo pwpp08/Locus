@@ -127,7 +127,12 @@ class StressSource {
           final t = await repo.getDayTimeline(day);
           // A bundle served in place of the day asked for is not that day.
           return t['date'] == day ? t : null;
-        } catch (_) {
+        } catch (e) {
+          // Not kept: a read that failed while a sync was writing (the first
+          // open after waking) would otherwise stay empty for as long as the
+          // source lives.
+          debugPrint('[OpenStrap] [stress] $day read failed: $e');
+          forget(day);
           return null;
         }
       }();

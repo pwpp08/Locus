@@ -444,10 +444,18 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   HealthGlance? _health;
   StressSource? _stressSource;
 
+  int _stressAsk = 0;
+
   Future<void> _loadStress(LocalRepository repo, String day) async {
+    final ask = ++_stressAsk;
+    final clock = Stopwatch()..start();
     try {
       final d = await (_stressSource ??= StressSource(repo)).load(day);
-      if (mounted) setState(() => _stress = d);
+      debugPrint('[OpenStrap] [home] stress $day: last minute ${d.last}, '
+          'baseline ${d.baseline != null}, ${clock.elapsedMilliseconds} ms');
+      // Only the latest ask lands: Home reloads as a sync lands, and an older,
+      // slower read must not replace a newer one.
+      if (mounted && ask == _stressAsk) setState(() => _stress = d);
     } catch (e, st) {
       // Not swallowed silently: an empty Stress Monitor on Home has no other
       // trace of why.
@@ -695,6 +703,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             onDay: _goDay,
             onCalendar: () => _openCalendar(c, cur),
             maxWidth: math.max(S.x16 * 2, room),
+            loading: _loading,
           ),
           const Align(
               alignment: AlignmentDirectional.centerStart,

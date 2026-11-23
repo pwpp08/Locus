@@ -184,6 +184,9 @@ class _DailyCardDeckState extends State<DailyCardDeck>
         card,
         count: n,
         content: depth == 0 ? 1 : (depth == 1 ? rise : 0),
+        // Full at the point a release throws the card. It reads the card's
+        // offset, so it drains on the same spring that brings the card back.
+        fill: top ? (x.abs() / (_width * _throwShare)).clamp(0.0, 1.0) : 0,
         onDone: top ? () => _throw(1, 0) : null,
       );
       return Positioned.fill(
@@ -263,12 +266,17 @@ class DailyCardFace extends StatelessWidget {
   /// The badge's tap. Null on a card that is not on top.
   final VoidCallback? onDone;
 
+  /// How far the card has been swiped towards being put away, 0–1: the badge
+  /// fills with pink from the bottom by that much.
+  final double fill;
+
   const DailyCardFace(
     this.card, {
     super.key,
     required this.count,
     this.content = 1,
     this.onDone,
+    this.fill = 0,
   });
 
   @override
@@ -284,35 +292,57 @@ class DailyCardFace extends StatelessWidget {
           minWidth: S.x6,
           minHeight: S.x12 - S.half,
         ),
-        padding: const EdgeInsets.symmetric(vertical: S.x1),
         decoration: BoxDecoration(
           color: p.ink.withValues(alpha: .1),
           borderRadius: R.rSm,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            Icon(LucideIcons.check, size: I.sm, color: p.ink),
-            const SizedBox(height: S.x1),
-            AnimatedSwitcher(
-              duration: motion(c, Motion.base),
-              switchInCurve: Ease.standard,
-              switchOutCurve: Ease.standard,
-              transitionBuilder: (child, a) => FadeTransition(
-                opacity: a,
-                child: SlideTransition(
-                  position: Tween(
-                    begin: const Offset(0, .6),
-                    end: Offset.zero,
-                  ).animate(a),
-                  child: child,
+            if (fill > .005)
+              Positioned.fill(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: FractionallySizedBox(
+                    heightFactor: fill,
+                    widthFactor: 1,
+                    // The app's pink, as the calibration marks wear it.
+                    child: const ColoredBox(color: C.calibrate),
+                  ),
                 ),
               ),
-              child: Text(
-                '$count',
-                key: ValueKey(count),
-                style: F.num(F.body).copyWith(color: p.ink2, height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: S.x1),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(LucideIcons.check, size: I.sm, color: p.ink),
+                  const SizedBox(height: S.x1),
+                  AnimatedSwitcher(
+                    duration: motion(c, Motion.base),
+                    switchInCurve: Ease.standard,
+                    switchOutCurve: Ease.standard,
+                    transitionBuilder: (child, a) => FadeTransition(
+                      opacity: a,
+                      child: SlideTransition(
+                        position: Tween(
+                          begin: const Offset(0, .6),
+                          end: Offset.zero,
+                        ).animate(a),
+                        child: child,
+                      ),
+                    ),
+                    child: Text(
+                      '$count',
+                      key: ValueKey(count),
+                      style: F.num(
+                        F.body,
+                      ).copyWith(color: fill > .5 ? p.ink : p.ink2, height: 1),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -323,11 +353,7 @@ class DailyCardFace extends StatelessWidget {
       width: double.infinity,
       decoration: panelDecoration(c).copyWith(
         boxShadow: const [
-          BoxShadow(
-            color: DC.cardHalo,
-            blurRadius: S.x5,
-            spreadRadius: S.hair,
-          ),
+          BoxShadow(color: DC.cardHalo, blurRadius: S.x5, spreadRadius: S.hair),
         ],
       ),
       child: Opacity(
@@ -362,10 +388,7 @@ class DailyCardFace extends StatelessWidget {
                         ],
                       ),
                     ),
-                    if (art != null) ...[
-                      SizedBox(width: art.gap),
-                      art.picture,
-                    ],
+                    if (art != null) ...[SizedBox(width: art.gap), art.picture],
                   ],
                 ),
               ),
@@ -410,14 +433,15 @@ _Art? _artOf(DailyCard card) {
   return switch (card.kind) {
     DailyCardKind.hrvBest => coin(LucideIcons.activity),
     DailyCardKind.rhrLowest => coin(LucideIcons.heartPulse),
-    DailyCardKind.firstRed || DailyCardKind.backToGreen when card.bars != null => (
+    DailyCardKind.firstRed ||
+    DailyCardKind.backToGreen when card.bars != null => (
       picture: _WeekBars(card.bars!, card.lit ?? C.recRed),
       gap: S.x6 + S.x1,
       right: S.x12 + S.x1,
       pad: S.x6 + S.hair,
     ),
-    DailyCardKind.stepGoal || DailyCardKind.stepGoalToday =>
-      picture(CardPicture.steps),
+    DailyCardKind.stepGoal ||
+    DailyCardKind.stepGoalToday => picture(CardPicture.steps),
     DailyCardKind.targetMet ||
     DailyCardKind.targetReached => picture(CardPicture.summit),
     DailyCardKind.greenTarget => picture(CardPicture.signal),
@@ -573,8 +597,7 @@ class _CoinPaint extends CustomPainter {
     for (var i = _depth; i >= 1; i--) {
       canvas.drawOval(
         oval(0, Offset(i * 1.15, i * .2)),
-        Paint()
-          ..color = Color.lerp(DC.coinEdgeHi, DC.coinEdgeLo, i / _depth)!,
+        Paint()..color = Color.lerp(DC.coinEdgeHi, DC.coinEdgeLo, i / _depth)!,
       );
     }
     final face = oval(0);
