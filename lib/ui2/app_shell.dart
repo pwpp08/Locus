@@ -34,6 +34,7 @@ import 'logo.dart' show LocusMarkPainter;
 
 import '../l10n/app_localizations.dart';
 import '../state/prefs.dart';
+import 'glyphs.dart';
 import 'grammar.dart';
 import 'theme.dart';
 
@@ -53,6 +54,11 @@ enum ShellDomain {
 
   final String label;
   final IconData icon;
+
+  /// The tab's mark: the icon set's, except Community's group of three.
+  Widget glyph(double size, Color color) => this == ShellDomain.community
+      ? Glyph.group(size: size, color: color)
+      : Icon(icon, size: size, color: color);
 
   /// [label] in the user's language. Own keys rather than the screen titles,
   /// so two tabs can never end up with the same translated word.
@@ -597,11 +603,11 @@ class _Tab extends StatelessWidget {
                           isLabelVisible: CommunityService.instance.unread > 0,
                           smallSize: S.x2,
                           backgroundColor: C.dialStrain,
-                          child: Icon(domain.icon, size: I.lg, color: tabColor),
+                          child: domain.glyph(I.lg, tabColor),
                         ),
                       )
                     else
-                      Icon(domain.icon, size: I.lg, color: tabColor),
+                      domain.glyph(I.lg, tabColor),
                     const SizedBox(height: S.half),
                     MediaQuery.withClampedTextScaling(
                       maxScaleFactor: 1.3,
@@ -687,7 +693,7 @@ class _NavBarEditorState extends State<NavBarEditor> {
                           size: I.md, color: p.ink3),
                     ),
                   ),
-                  Icon(d.icon, size: I.md, color: p.ink2),
+                  d.glyph(I.md, p.ink2),
                   const SizedBox(width: S.x3),
                   Expanded(
                     child: Text(d.title(c),

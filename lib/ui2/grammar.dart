@@ -49,6 +49,7 @@ import 'lucide.dart';
 import '../data/journal_fields.dart' show formatMinuteOfDay;
 import '../models/metric.dart';
 import 'charts.dart';
+import 'glyphs.dart';
 import 'marks.dart';
 import 'scroll_hint.dart';
 import 'theme.dart';
@@ -2693,12 +2694,16 @@ class BigButton extends StatelessWidget {
 
   /// The coach's mark ([CoachMark]) in place of [icon]: the coach does it.
   final bool coach;
+
+  /// One of our own [Glyph]s in place of [icon].
+  final GlyphKind? mark;
   final VoidCallback? onTap;
 
   const BigButton(
     this.label, {
     super.key,
     this.icon,
+    this.mark,
     this.coach = false,
     this.color,
     this.soft = false,
@@ -2730,9 +2735,11 @@ class BigButton extends StatelessWidget {
             child: CircularProgressIndicator(strokeWidth: 2, color: ink))
         : coach
             ? CoachMark(size: I.md, color: ink)
-            : icon == null
-                ? null
-                : Icon(icon, size: I.md, color: ink);
+            : mark != null
+                ? Glyph(mark!, size: I.md, color: ink)
+                : icon == null
+                    ? null
+                    : Icon(icon, size: I.md, color: ink);
     if (round) {
       return Pressable(
         onTap: onTap,

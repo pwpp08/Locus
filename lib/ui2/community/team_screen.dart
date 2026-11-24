@@ -82,7 +82,7 @@ class _TeamScreenState extends State<TeamScreen> {
           padding: const EdgeInsets.fromLTRB(S.gutter, 0, S.gutter, S.x4),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             if (!_team.isOpen) ...[
-              _actionRow(s, LucideIcons.users, 'Add team members',
+              _actionRow(s, const Glyph.group(color: C.white), 'Add team members',
                   () => Navigator.of(s).pop('invite')),
               const SizedBox(height: S.x3),
             ],
@@ -132,16 +132,13 @@ class _TeamScreenState extends State<TeamScreen> {
   Widget build(BuildContext c) {
     final p = P.of(c);
     final tabs = _tabs;
-    final bannerH = MediaQuery.sizeOf(c).height * (_tab == _Tab.info ? .36 : .34);
     return Scaffold(
       backgroundColor: p.bg,
-      body: Stack(children: [
-        _Backdrop(TeamBanner(_team.banner),
-            height: bannerH,
-            strength: _tab == _Tab.info ? .95 : (_tab == _Tab.chat ? .3 : .6)),
-        SafeArea(
+      body: SafeArea(
           bottom: false,
           child: Column(children: [
+            // Solid, so the name and the tabs read the same over every
+            // banner: the picture lives inside the tabs, not behind them.
             SizedBox(
               height: S.x16,
               child: Padding(
@@ -150,14 +147,21 @@ class _TeamScreenState extends State<TeamScreen> {
                   _RingButton(LucideIcons.chevronLeft, 'Back',
                       () => Navigator.maybePop(c)),
                   Expanded(
-                    child: Text(_team.name.toUpperCase(),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: F.caps.copyWith(
-                            color: p.ink,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 2)),
+                    child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          TeamLogo(_team.logo, size: S.x8),
+                          const SizedBox(width: S.x3),
+                          Flexible(
+                            child: Text(_team.name.toUpperCase(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: F.caps.copyWith(
+                                    color: p.ink,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 2)),
+                          ),
+                        ]),
                   ),
                   _RingButton(LucideIcons.ellipsis, 'Team options', _menu),
                 ]),
@@ -179,7 +183,7 @@ class _TeamScreenState extends State<TeamScreen> {
                             fit: BoxFit.scaleDown,
                             child: Text(t.name.toUpperCase(),
                                 style: F.over.copyWith(
-                                    color: t == _tab ? p.ink : p.ink2,
+                                    color: t == _tab ? p.ink : p.ink3,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 1.4)),
                           ),
@@ -195,6 +199,7 @@ class _TeamScreenState extends State<TeamScreen> {
                   ),
               ]),
             ),
+            Divider(color: p.line, height: S.hair),
             Expanded(
               child: switch (_tab) {
                 _Tab.info => _InfoTab(
@@ -219,7 +224,6 @@ class _TeamScreenState extends State<TeamScreen> {
             ),
           ]),
         ),
-      ]),
     );
   }
 }
@@ -235,20 +239,38 @@ class _InfoTab extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     final n = team.members ?? people.length;
+    const logo = S.x16 + S.x4;
     return ListView(
-      padding: EdgeInsets.fromLTRB(
-          S.gutter, MediaQuery.sizeOf(c).height * .17, S.gutter, S.x10),
+      padding: const EdgeInsets.only(bottom: S.x10),
       children: [
-        Row(children: [
-          TeamLogo(team.logo, size: S.x16 + S.x2),
-          const SizedBox(width: S.x5),
-          Expanded(
-            child: Text(team.name.toUpperCase(),
-                style: F.t2.copyWith(
-                    color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 2)),
+        Stack(clipBehavior: Clip.none, children: [
+          _Backdrop(TeamBanner(team.banner), height: S.x16 * 2.6, strength: .95),
+          Positioned(
+            left: S.gutter,
+            bottom: -logo / 2,
+            child: Container(
+              decoration: BoxDecoration(
+                  shape: BoxShape.circle, border: Border.all(color: p.bg, width: 4)),
+              child: TeamLogo(team.logo, size: logo),
+            ),
           ),
         ]),
-        const SizedBox(height: S.x8),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(S.gutter, logo / 2 + S.x4, S.gutter, 0),
+          child: _infoBody(c, p, team, n),
+        ),
+      ],
+    );
+  }
+
+  Widget _infoBody(BuildContext c, P p, CommunityTeam team, int n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(team.name.toUpperCase(),
+            style: F.t2.copyWith(
+                color: p.ink, fontWeight: FontWeight.w800, letterSpacing: 2)),
+        const SizedBox(height: S.x6),
         _label(c, 'About'),
         const SizedBox(height: S.x2),
         if (team.description.isNotEmpty)
@@ -290,7 +312,7 @@ class _InfoTab extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: C.dialStrain, width: S.half),
                   ),
-                  child: Icon(LucideIcons.users, size: I.md, color: C.dialStrain),
+                  child: Glyph.group(size: I.md, color: C.dialStrain),
                 ),
                 const SizedBox(width: S.x3),
                 _label(c, 'Add members'),

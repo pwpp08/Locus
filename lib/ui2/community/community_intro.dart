@@ -212,12 +212,15 @@ class _TeamsMock extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    Widget row(IconData i, String t) => Container(
+    Widget row(IconData? i, String t, {GlyphKind? mark}) => Container(
           margin: const EdgeInsets.only(top: S.x2),
           padding: const EdgeInsets.symmetric(horizontal: S.x3, vertical: S.x3),
           decoration: BoxDecoration(color: p.card2, borderRadius: R.rMd),
           child: Row(children: [
-            Icon(i, size: I.sm, color: p.ink3),
+            if (mark != null)
+              Glyph(mark, size: I.sm, color: p.ink3)
+            else
+              Icon(i, size: I.sm, color: p.ink3),
             const SizedBox(width: S.x3),
             Text(t, style: F.over.copyWith(color: p.ink, fontWeight: FontWeight.w800)),
           ]),
@@ -252,7 +255,7 @@ class _TeamsMock extends StatelessWidget {
         Text('Teams', style: F.head.copyWith(color: p.ink)),
         const SizedBox(height: S.x2),
         Text('GETTING STARTED', style: F.over.copyWith(color: p.ink3)),
-        row(LucideIcons.users, 'ENTER INVITE CODE'),
+        row(null, 'ENTER INVITE CODE', mark: GlyphKind.groupSearch),
         row(LucideIcons.circlePlus, 'CREATE TEAM'),
         const SizedBox(height: S.x4),
         Text('RECOMMENDED TEAMS', style: F.over.copyWith(color: p.ink3)),

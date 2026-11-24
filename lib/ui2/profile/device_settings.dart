@@ -458,7 +458,10 @@ class _DeviceSettingsViewState extends State<DeviceSettingsView> {
         return Stack(
           children: [
             Positioned(
-              left: box.maxWidth * .645 - bandW,
+              // Off the phone's own proportion the band must not drift to the
+              // middle: in a wider window it keeps to the left edge, where it
+              // sits on a phone, rather than following the width.
+              left: math.min(box.maxWidth * .645 - bandW, S.x3),
               top: h * .235,
               width: bandW,
               height: bandH,

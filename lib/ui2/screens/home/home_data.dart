@@ -435,10 +435,14 @@ class HomeData {
 
   static Future<HomeData> loadForDay(LocalRepository repo, String date,
       [AppLocalizations? l]) async {
-    final profile = await repo.getProfile();
-    final overview = await repo.getDayOverview(date);
-    final strain = await repo.getDayStrain(date);
-    final sleep = await repo.getDaySleepV2(date);
+    final reads = await Future.wait([
+      repo.getProfile(),
+      repo.getDayOverview(date),
+      repo.getDayStrain(date),
+      repo.getDaySleepV2(date),
+    ]);
+    final profile = reads[0], overview = reads[1];
+    final strain = reads[2], sleep = reads[3];
     final needMin = (sleep['need_min'] as num?)?.toDouble() ??
         (profile['sleep_need_min'] as num?)?.toDouble() ??
         480.0;

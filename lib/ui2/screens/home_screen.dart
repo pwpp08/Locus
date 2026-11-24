@@ -327,7 +327,33 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   @override
   void reload() => _load();
 
-  Future<void> _load() async {
+  /// One read at a time: a tap on the day arrows while a read runs asks for
+  /// the next one to start when it ends, instead of piling a read on top of it
+  /// (the screen only ever shows the newest). [fresh] false is a day switch:
+  /// the series every card draws (all days at once) are kept, and only what
+  /// belongs to the day is read.
+  bool _busy = false, _again = false, _againFresh = false;
+
+  Future<void> _load({bool fresh = true}) async {
+    if (_busy) {
+      _again = true;
+      _againFresh = _againFresh || fresh;
+      return;
+    }
+    _busy = true;
+    try {
+      await _loadOnce(fresh);
+    } finally {
+      _busy = false;
+      if (_again && mounted) {
+        final again = _againFresh;
+        _again = _againFresh = false;
+        unawaited(_load(fresh: again));
+      }
+    }
+  }
+
+  Future<void> _loadOnce(bool fresh) async {
     final repo = repoOf(context);
     if (repo == null) {
       if (mounted) setState(() => _loading = false);
@@ -337,11 +363,12 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     try {
       final day = _day;
       final l = AppLocalizations.of(context);
+      final reuse = !fresh && _loader != null && _days.isNotEmpty;
       final d = day == null || day == todayLabel()
           ? await HomeData.load(repo, l)
           : await HomeData.loadForDay(repo, day, l);
-      final days = await repo.availableDays();
-      await _loadExtras(repo, d);
+      final days = reuse ? _days : await repo.availableDays();
+      await _loadExtras(repo, d, reuse: reuse);
       if (stillNewest(#home, t)) {
         setState(() => (_d = d, _days = days, _loading = false, _failed = false));
       }
@@ -367,7 +394,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       _day = day;
       _loading = true;
     });
-    _load();
+    _load(fresh: false);
   }
 
   Widget? _phaseStatusCard(BuildContext c, AppLocalizations? l,
@@ -466,7 +493,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   List<String> _tiles = dashboardTilesOf();
   Set<String> _expanded = dashboardExpandedOf();
 
-  Future<void> _loadExtras(LocalRepository repo, HomeData d) async {
+  Future<void> _loadExtras(LocalRepository repo, HomeData d,
+      {bool reuse = false}) async {
     final day = d.dayId ?? _day ?? todayLabel();
     // The day (and the evening before it, which its night starts in) is read
     // fresh each load; older days stay cached.
@@ -481,9 +509,14 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     var sessions = const <Map<String, dynamic>>[];
     var naps = const <Map<String, dynamic>>[];
     var detected = const <ActivitySuggestion>[];
-    try {
-      night = await repo.getDaySleepV2(day);
-    } catch (_) {}
+    // The four reads of the day are independent: asked together.
+    Future<void> readNight() async {
+      try {
+        night = await repo.getDaySleepV2(day);
+      } catch (_) {}
+    }
+
+    Future<void> readSessions() async {
     try {
       final start = localDayStartSec(day);
       final dd = DateTime.tryParse(day);
@@ -497,6 +530,9 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             .compareTo((b['start_ts'] as num?) ?? 0));
       }
     } catch (_) {}
+    }
+
+    Future<void> readDetected() async {
     try {
       detected = [
         for (final s in await repo.pendingActivities())
@@ -506,6 +542,9 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             s,
       ];
     } catch (_) {}
+    }
+
+    Future<void> readNaps() async {
     try {
       final nd = await repo.getDayNaps(day);
       final raw = (nd['naps'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
@@ -530,26 +569,33 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       naps = merged..sort((a, b) =>
           ((a['start'] as num?) ?? 0).compareTo((b['start'] as num?) ?? 0));
     } catch (_) {}
-    final loader = TrendLoader(repo);
-    final daily = <String, Map<String, double>>{};
-    for (final k in {..._tiles, 'strain', 'recovery'}) {
-      final m = trendMetricOf(k);
-      if (m != null) daily[k] = await loader.daily(m);
     }
-    // What the expanded cards draw besides the daily figure: the layers of a
-    // stacked or paired metric, and bed and wake for nights on a clock.
-    final layers = <String, List<Map<String, double>>>{};
-    Map<String, ({double bed, double wake})>? spans;
-    for (final k in _tiles) {
-      final m = trendMetricOf(k);
-      if (m == null) continue;
-      if (m.kind == TrendKind.stacked || m.kind == TrendKind.dual) {
-        layers[k] = await loader.layers(m);
-      } else if (m.kind == TrendKind.floating) {
-        spans ??= await loader.sleepSpans();
+
+    await Future.wait([readNight(), readSessions(), readDetected(), readNaps()]);
+    // Every day's figures for every card come in one read each, and none of it
+    // depends on which day is open: a day switch keeps what it has.
+    final loader = reuse ? _loader! : TrendLoader(repo);
+    final daily = reuse ? _daily : <String, Map<String, double>>{};
+    final layers = reuse ? _layers : <String, List<Map<String, double>>>{};
+    Map<String, ({double bed, double wake})>? spans = reuse ? _spans : null;
+    if (!reuse) {
+      for (final k in {..._tiles, 'strain', 'recovery'}) {
+        final m = trendMetricOf(k);
+        if (m != null) daily[k] = await loader.daily(m);
+      }
+      // What the expanded cards draw besides the daily figure: the layers of a
+      // stacked or paired metric, and bed and wake for nights on a clock.
+      for (final k in _tiles) {
+        final m = trendMetricOf(k);
+        if (m == null) continue;
+        if (m.kind == TrendKind.stacked || m.kind == TrendKind.dual) {
+          layers[k] = await loader.layers(m);
+        } else if (m.kind == TrendKind.floating) {
+          spans ??= await loader.sleepSpans();
+        }
       }
     }
-    final first = await loader.firstDay();
+    final first = reuse ? _firstDay : await loader.firstDay();
     // Today's cards only: a past day has nothing left to act on.
     var cards = const <DailyCard>[];
     if (day == todayLabel()) {

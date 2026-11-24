@@ -100,12 +100,10 @@ class _CommunityScreenState extends State<CommunityScreen> {
                         Divider(color: p.line, height: S.hair),
                         const SizedBox(height: S.x6),
                         _HumansRow(onTap: () => go(c, const _HumansScreen())),
-                        if (_recommended.isNotEmpty) ...[
-                          const SizedBox(height: S.x6),
-                          Divider(color: p.line, height: S.hair),
-                          const SizedBox(height: S.x6),
-                          ..._recommendedRow(c),
-                        ],
+                        const SizedBox(height: S.x6),
+                        Divider(color: p.line, height: S.hair),
+                        const SizedBox(height: S.x6),
+                        ..._recommendedRow(c),
                       ],
                     ),
                   ),
@@ -171,26 +169,10 @@ class _CommunityScreenState extends State<CommunityScreen> {
     final p = P.of(c);
     final teams = _svc.teams;
     return [
-      Row(children: [
-        Expanded(child: Text('My Teams', style: F.t1.copyWith(color: p.ink))),
-        Pressable(
-          onTap: () => go(c, const _ExploreTeamsScreen()),
-          semanticLabel: 'Search for teams',
-          child: SizedBox(
-            height: S.tap,
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              _label(c, 'Search for teams'),
-              const SizedBox(width: S.x2),
-              Icon(LucideIcons.arrowRight, size: I.md, color: p.ink),
-            ]),
-          ),
-        ),
-      ]),
-      const SizedBox(height: S.x3),
       if (teams.isEmpty) ...[
         _label(c, 'Getting started', color: p.ink3),
         const SizedBox(height: S.x3),
-        _actionRow(c, LucideIcons.users, 'Enter invite code',
+        _actionRow(c, const Glyph.groupSearch(color: C.white), 'Enter invite code',
             () => go(c, const _JoinByCodeScreen())),
         const SizedBox(height: S.x2),
         _actionRow(c, LucideIcons.circlePlus, 'Create team',
@@ -217,7 +199,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
         Row(children: [
           Expanded(
             child: BigButton('Enter code',
-                icon: LucideIcons.users,
+                mark: GlyphKind.groupSearch,
                 soft: true,
                 compact: true,
                 fill: true,
@@ -306,7 +288,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
   }
 }
 
-Widget _actionRow(BuildContext c, IconData icon, String text, VoidCallback onTap) {
+Widget _actionRow(BuildContext c, Object icon, String text, VoidCallback onTap) {
   final p = P.of(c);
   return _cardRow(
     c,
@@ -314,7 +296,10 @@ Widget _actionRow(BuildContext c, IconData icon, String text, VoidCallback onTap
     label: text,
     padding: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x5),
     child: Row(children: [
-      Icon(icon, size: I.lg, color: p.ink3),
+      // An icon from the set, or one of our own glyphs (drawn in the row's grey).
+      icon is Glyph
+          ? Glyph(icon.kind, size: I.lg, color: p.ink3)
+          : Icon(icon as IconData, size: I.lg, color: p.ink3),
       const SizedBox(width: S.x4),
       _label(c, text),
     ]),
@@ -366,12 +351,65 @@ class _HighFive extends StatelessWidget {
       dimension: d,
       child: CustomPaint(
         painter: _Sparks(C.rose),
-        child: Center(
-          child: Icon(LucideIcons.heartHandshake, size: I.hero, color: p.ink3),
-        ),
+        child: CustomPaint(painter: _Hands(p.ink3.withValues(alpha: .55), p.ink3)),
       ),
     );
   }
+}
+
+/// Two gloved hands meeting palm to palm, leaning in from either side.
+class _Hands extends CustomPainter {
+  final Color fill, seam;
+  const _Hands(this.fill, this.seam);
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final u = s.width / 100;
+    canvas.save();
+    canvas.scale(u);
+    for (final left in const [true, false]) {
+      canvas.save();
+      // Mirror for the right hand about the middle, then lean it in.
+      if (!left) canvas.transform(Matrix4.diagonal3Values(-1, 1, 1).storage..[12] = 100);
+      canvas.translate(50, 78);
+      canvas.rotate(-.2);
+      canvas.translate(-50, -78);
+      final hand = Path()
+        // Palm and four fingers as one mitt, its inner edge on the middle.
+        ..moveTo(50, 78)
+        ..lineTo(50, 32)
+        ..quadraticBezierTo(50, 24, 44.5, 24)
+        ..quadraticBezierTo(39, 24, 39, 32)
+        ..lineTo(39, 52)
+        ..lineTo(39, 30)
+        ..quadraticBezierTo(39, 22, 33.5, 22)
+        ..quadraticBezierTo(28, 22, 28, 30)
+        ..lineTo(28, 56)
+        // The thumb, out to the side.
+        ..quadraticBezierTo(22, 52, 19.5, 57)
+        ..quadraticBezierTo(18, 62, 23, 66)
+        ..lineTo(32, 76)
+        ..close();
+      canvas.drawPath(hand, Paint()..color = fill);
+      // The cuff.
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(
+              const Rect.fromLTWH(26, 72, 24, 9), const Radius.circular(3)),
+          Paint()..color = seam.withValues(alpha: .5));
+      canvas.drawLine(
+          const Offset(44, 34),
+          const Offset(44, 58),
+          Paint()
+            ..color = seam.withValues(alpha: .35)
+            ..strokeWidth = 1
+            ..strokeCap = StrokeCap.round);
+      canvas.restore();
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_Hands o) => o.fill != fill || o.seam != seam;
 }
 
 class _Sparks extends CustomPainter {
@@ -504,7 +542,7 @@ class _DiscoverCard extends StatelessWidget {
         width: S.x16 * 2.9,
         decoration: BoxDecoration(color: p.card, borderRadius: R.rMd),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(LucideIcons.search, size: I.hero, color: p.ink3),
+          Glyph.fileSearch(size: I.hero, color: p.ink3),
           const SizedBox(height: S.x4),
           Text('DISCOVER\nMORE',
               textAlign: TextAlign.center,
@@ -531,7 +569,7 @@ class _HumansRow extends StatelessWidget {
       label: 'Humans',
       padding: const EdgeInsets.symmetric(horizontal: S.x5, vertical: S.x5),
       child: Row(children: [
-        Icon(LucideIcons.users, size: I.xl, color: p.ink3),
+        Glyph.group(size: I.xl, color: p.ink3),
         const SizedBox(width: S.x5),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

@@ -773,6 +773,13 @@ Map<String, Widget> _chartCases() {
             title: 'Time in heart-rate zones'),
       );
     }),
+    'glyphs': const Surface(
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+        Glyph.group(size: 32, color: C.white),
+        Glyph.groupSearch(size: 32, color: C.white),
+        Glyph.fileSearch(size: 32, color: C.white),
+      ]),
+    ),
     'zone_knob_bar': const Surface(
       child: ZoneKnobBar(hr: 141, lowerBpm: [95, 114, 133, 152, 171], maxHr: 190),
     ),

@@ -9,6 +9,7 @@ export 'app_shell.dart';
 export 'charts.dart';
 export 'date_picker.dart';
 
+export 'glyphs.dart';
 export 'grammar.dart';
 export 'live_hr.dart';
 export 'logo.dart';

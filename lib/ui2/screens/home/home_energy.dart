@@ -149,15 +149,90 @@ class EnergyReserveCard extends StatelessWidget {
           ),
           if (data.activities.isNotEmpty) ...[
             const SizedBox(height: S.x3),
-            for (final a in data.activities)
-              Padding(
-                padding: const EdgeInsets.only(top: S.x1),
-                child: Text(
-                  'Activity at ${_clockOf(a.ts)} · ${a.delta}',
-                  style: F.cap.copyWith(color: p.ink2),
-                ),
-              ),
+            _ActivitiesStrip(data.activities),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The activities that drained the day, tucked into one strip: its summary
+/// shows, a tap opens the list downward.
+class _ActivitiesStrip extends StatefulWidget {
+  final List<EnergyEvent> events;
+  const _ActivitiesStrip(this.events);
+
+  @override
+  State<_ActivitiesStrip> createState() => _ActivitiesStripState();
+}
+
+class _ActivitiesStripState extends State<_ActivitiesStrip> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final ev = widget.events;
+    final total = ev.fold<int>(0, (a, e) => a + e.delta);
+    return Container(
+      decoration: BoxDecoration(
+        color: p.ink.withValues(alpha: .08),
+        borderRadius: R.rLg,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Pressable(
+            semanticLabel:
+                _open ? 'Hide the activities' : 'Show the activities',
+            onTap: () => setState(() => _open = !_open),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: S.x3, vertical: S.x3),
+              child: Row(children: [
+                Expanded(
+                  child: Text(
+                    ev.length == 1 ? '1 ACTIVITY' : '${ev.length} ACTIVITIES',
+                    style: F.over.copyWith(color: p.ink3),
+                  ),
+                ),
+                Text('$total', style: F.n17.copyWith(color: C.strainDown)),
+                const SizedBox(width: S.x2),
+                AnimatedRotation(
+                  turns: _open ? .5 : 0,
+                  duration: motion(c, Motion.base),
+                  curve: Ease.standard,
+                  child: Icon(LucideIcons.chevronDown, size: I.md, color: p.ink2),
+                ),
+              ]),
+            ),
+          ),
+          AnimatedSize(
+            duration: motion(c, Motion.base),
+            curve: Ease.standard,
+            alignment: Alignment.topCenter,
+            child: _open
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        S.x3, 0, S.x3, S.x3),
+                    child: Column(children: [
+                      for (final a in ev)
+                        Padding(
+                          padding: const EdgeInsets.only(top: S.x1),
+                          child: Row(children: [
+                            Expanded(
+                              child: Text('Activity at ${_clockOf(a.ts)}',
+                                  style: F.cap.copyWith(color: p.ink2)),
+                            ),
+                            Text('${a.delta}',
+                                style: F.cap.copyWith(color: p.ink2)),
+                          ]),
+                        ),
+                    ]),
+                  )
+                : const SizedBox(width: double.infinity),
+          ),
         ],
       ),
     );

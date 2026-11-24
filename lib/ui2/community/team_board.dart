@@ -135,28 +135,38 @@ class _BoardTabState extends State<_BoardTab> {
     final me = _svc.myId;
     final myIndex = rows.indexWhere((r) => r.userId == me);
     return Column(children: [
-      const SizedBox(height: S.x16 + S.x6),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: S.gutter),
-        child: Row(children: [
-          _RingButton(LucideIcons.sliders, 'Filter', _filter),
-          const SizedBox(width: S.x3),
-          Expanded(
-            child: _isToday
-                ? RangeSegments(
-                    [for (final x in BoardPeriod.values) x.label],
-                    _period.index,
-                    (i) {
-                      setState(() => _period = BoardPeriod.values[i]);
-                      _load();
-                    },
-                    width: null,
-                  )
-                : BigButton('Back to today', compact: true, fill: true, soft: true,
-                    onTap: () {
-                    setState(() => _anchor = DateTime.now());
-                    _load();
-                  }),
+      // The team's picture as a band, the controls on its foot (refs 1.7, 3.1).
+      SizedBox(
+        height: S.x16 * 1.8,
+        child: Stack(children: [
+          Positioned.fill(
+              child: _Backdrop(TeamBanner(widget.team.banner),
+                  height: S.x16 * 1.8, strength: .8)),
+          Positioned(
+            left: S.gutter,
+            right: S.gutter,
+            bottom: S.x2,
+            child: Row(children: [
+              _RingButton(LucideIcons.sliders, 'Filter', _filter),
+              const SizedBox(width: S.x3),
+              Expanded(
+                child: _isToday
+                    ? RangeSegments(
+                        [for (final x in BoardPeriod.values) x.label],
+                        _period.index,
+                        (i) {
+                          setState(() => _period = BoardPeriod.values[i]);
+                          _load();
+                        },
+                        width: null,
+                      )
+                    : BigButton('Back to today', compact: true, fill: true, soft: true,
+                        onTap: () {
+                        setState(() => _anchor = DateTime.now());
+                        _load();
+                      }),
+              ),
+            ]),
           ),
         ]),
       ),
