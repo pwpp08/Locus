@@ -29,6 +29,14 @@
 // stages -> its hypnogram plus stage minutes; HRV status, resting HR, SpO2,
 // respiration and stress -> attributed vendor observations.
 //
+// TWO TRANSPORTS, ONE CONVERSATION. Most watches speak GFDI over Multi-Link
+// (everything above). Older and some newer models have no Multi-Link at all:
+// GFDI runs straight over one write and one notify characteristic, COBS-framed,
+// with no registration and no handle byte ([garminLegacyPair]; Gadgetbridge's
+// "V1"/"V0"). A watch that exposes a Multi-Link pair is always driven that way;
+// the single-characteristic transport is the fallback, and from the first GFDI
+// message on the two are the same code.
+//
 // EXACTLY ONE RESPONSE for every inbound message other than a RESPONSE — an
 // unanswered message leaves the watch stalled. A type with its own reply
 // (time, device information, file chunks, protobuf) gets only that; a type
@@ -79,6 +87,26 @@ String garminMlChar(int short16) =>
   return null;
 }
 
+/// The single-characteristic GFDI pair among [chars] (lowercase 128-bit UUIDs),
+/// or null: the Vivomove-HR-era pair first, then the older Forerunner-620-era
+/// one. [notify] is the watch-to-host characteristic, [write] the host-to-watch.
+({String notify, String write})? garminLegacyPair(Iterable<String> chars) {
+  final have = {for (final c in chars) c.toLowerCase()};
+  const pairs = [
+    (kGarminGfdiV1Receive, kGarminGfdiV1Send),
+    (kGarminGfdiV0Receive, kGarminGfdiV0Send),
+  ];
+  for (final (rx, tx) in pairs) {
+    if (have.contains(rx) && have.contains(tx)) return (notify: rx, write: tx);
+  }
+  return null;
+}
+
+/// Whether [chars] carry a GFDI transport this adapter can drive: a Multi-Link
+/// pair, else a single-characteristic pair.
+bool garminHasTransport(Iterable<String> chars) =>
+    garminMlPair(chars) != null || garminLegacyPair(chars) != null;
+
 /// What a session reads as "already read": index -> (timestamp, size). Kept
 /// in `sync_cursor` as `index:timestamp:size` joined by commas.
 Map<int, (int, int)> garminDecodeReadFiles(String? s) => {
@@ -107,6 +135,14 @@ const Map<InputSignal, Duration> kGarminSignals = {
   InputSignal.deviceSpo2: Duration(days: 1),
   InputSignal.deviceStress: Duration(days: 1),
 };
+
+/// The single-characteristic GFDI characteristics. The service is
+/// 6A4E2401-… (V1) or 9B012401-BC30-CE9A-E111-0F67E491ABDE (V0); a watch is
+/// recognised by the characteristics themselves.
+const String kGarminGfdiV1Send = '6a4e4c80-667b-11e3-949a-0800200c9a66';
+const String kGarminGfdiV1Receive = '6a4ecd28-667b-11e3-949a-0800200c9a66';
+const String kGarminGfdiV0Send = 'df334c80-e6a7-d082-274d-78fc66f85e16';
+const String kGarminGfdiV0Receive = '4acbcd28-7425-868e-f447-915c8f00d0cb';
 
 /// Shown next to every value the watch computed itself.
 const String kGarminAttribution = 'Garmin';
@@ -144,6 +180,10 @@ class GarminAdapter extends BandAdapter {
   /// The multi-link characteristics this watch exposes (see [garminMlPair]).
   final List<String> mlChars;
 
+  /// The single-characteristic pair this watch exposes, used only when it has
+  /// no Multi-Link pair (see [garminLegacyPair]).
+  final ({String notify, String write})? legacyChars;
+
   /// The step totals already stored for this watch, by local day. A day's
   /// steps are one row whoever writes it last, and an earlier file of the
   /// day read again (one a past session failed on) holds a smaller running
@@ -165,6 +205,7 @@ class GarminAdapter extends BandAdapter {
     this.notReadyRetries = 3,
     this.readFiles = '',
     this.mlChars = const [kGarminNotifyChar, kGarminWriteChar],
+    this.legacyChars,
     this.maxWrite = 20,
     this.priorSteps = const {},
   });
@@ -180,16 +221,19 @@ class GarminAdapter extends BandAdapter {
   /// handle this session never registered, or a refused write — both
   /// non-fatal to the caller, which only logs and moves on.
   Future<bool> _sendGfdi(
-      BandLink link, String char, int? handle, Uint8List frame) async {
-    if (handle == null) return false;
+      BandLink link, String char, int? handle, Uint8List frame,
+      {bool legacy = false}) async {
+    if (handle == null && !legacy) return false;
     final cobs = garminCobsEncode(frame);
     final piece = maxWrite - 1 < 1 ? 1 : maxWrite - 1;
     try {
       for (var o = 0; o < cobs.length; o += piece) {
         final end = o + piece < cobs.length ? o + piece : cobs.length;
-        if (!await link.write(char, garminEncodeTx(handle, cobs.sublist(o, end)))) {
-          return false;
-        }
+        // The single-characteristic transport has no routing byte.
+        final data = legacy
+            ? cobs.sublist(o, end)
+            : garminEncodeTx(handle!, cobs.sublist(o, end));
+        if (!await link.write(char, data)) return false;
       }
       return true;
     } on ArgumentError {
@@ -205,17 +249,20 @@ class GarminAdapter extends BandAdapter {
     final closeAllDone = Completer<bool>();
     var registerDone = Completer<GarminRegisterMlResponse?>();
     final pair = garminMlPair(mlChars);
-    if (pair == null) {
-      link.log('garmin: no multi-link data characteristic; ending the session.');
+    final single = pair == null ? legacyChars : null;
+    if (pair == null && single == null) {
+      link.log('garmin: no GFDI data characteristic; ending the session.');
       return;
     }
-    var notifyChar = pair.notify;
-    var writeChar = pair.write;
+    // No Multi-Link pair: GFDI is straight on the single pair.
+    final legacy = pair == null;
+    var notifyChar = (pair?.notify ?? single!.notify);
+    var writeChar = (pair?.write ?? single!.write);
     int? gfdiHandle;
     var dispatch = Future<void>.value();
 
     Future<bool> send(Uint8List frame) =>
-        _sendGfdi(link, writeChar, gfdiHandle, frame);
+        _sendGfdi(link, writeChar, gfdiHandle, frame, legacy: legacy);
 
     // ── file sync state ──
     var syncStarted = false;
@@ -435,8 +482,24 @@ class GarminAdapter extends BandAdapter {
       if (!events.isClosed) events.close();
     }
 
+    /// COBS bytes of the GFDI stream in; every complete frame archived and
+    /// dispatched in arrival order (chunks must append in sequence).
+    void feedGfdi(Uint8List stream) {
+      for (final frame in cobs.feed(stream)) {
+        archived.add(frame);
+        final gfdi = garminParseGfdiFrame(frame);
+        if (gfdi != null) {
+          dispatch = dispatch.then((_) => ackAndDispatch(gfdi));
+        }
+      }
+    }
+
     void onNotify((int, List<int>) rec) {
       final bytes = Uint8List.fromList(rec.$2);
+      if (legacy) {
+        feedGfdi(bytes);
+        return;
+      }
       final decoded = garminDecodeMlr(bytes);
       if (decoded is GarminCloseAllAck) {
         if (!closeAllDone.isCompleted) closeAllDone.complete(true);
@@ -462,14 +525,7 @@ class GarminAdapter extends BandAdapter {
       if (decoded is GarminMlrData && handle != null && decoded.handle == handle) {
         // protocol's garminDecodeMlr already strips the routing byte
         // (protocol#70) — decoded.payload IS the COBS/GFDI stream.
-        for (final frame in cobs.feed(decoded.payload)) {
-          archived.add(frame);
-          final gfdi = garminParseGfdiFrame(frame);
-          // In arrival order: chunks must append in sequence.
-          if (gfdi != null) {
-            dispatch = dispatch.then((_) => ackAndDispatch(gfdi));
-          }
-        }
+        feedGfdi(decoded.payload);
         return;
       }
       // Control-channel noise this file has no decode for, another client's
@@ -487,53 +543,55 @@ class GarminAdapter extends BandAdapter {
     var sub = listen(notifyChar);
 
     try {
-      if (!await link.write(
-          writeChar, garminEncodeTx(0, garminCloseAllRequest()))) {
-        link.log('garmin: close-all write refused; ending the session.');
-        return;
-      }
-      final closed =
-          await closeAllDone.future.timeout(handshakeTimeout, onTimeout: () => false);
-      if (!closed) {
-        link.log('garmin: failed to close existing handles; continuing '
-            'registration.');
-      }
+      if (!legacy) {
+        if (!await link.write(
+            writeChar, garminEncodeTx(0, garminCloseAllRequest()))) {
+          link.log('garmin: close-all write refused; ending the session.');
+          return;
+        }
+        final closed =
+            await closeAllDone.future.timeout(handshakeTimeout, onTimeout: () => false);
+        if (!closed) {
+          link.log('garmin: failed to close existing handles; continuing '
+              'registration.');
+        }
 
-      GarminRegisterMlResponse? reg;
-      for (var attempt = 0; attempt < 2; attempt++) {
-        if (!await link.write(writeChar,
-            garminEncodeTx(0, garminRegisterMlRequest(kGarminServiceGfdi)))) {
-          link.log('garmin: register-ml write refused; ending the session.');
+        GarminRegisterMlResponse? reg;
+        for (var attempt = 0; attempt < 2; attempt++) {
+          if (!await link.write(writeChar,
+              garminEncodeTx(0, garminRegisterMlRequest(kGarminServiceGfdi)))) {
+            link.log('garmin: register-ml write refused; ending the session.');
+            return;
+          }
+          reg = await registerDone.future
+              .timeout(registerTimeout, onTimeout: () => null);
+          final alt = reg?.alternateChar;
+          if (attempt > 0 ||
+              reg?.status != kGarminRegisterAlreadyInUse ||
+              alt == null) {
+            break;
+          }
+          final moved = garminMlPair(mlChars, prefer: alt);
+          if (moved == null) {
+            link.log('garmin: the watch named multi-link characteristic '
+                '${alt.toRadixString(16)}, which it does not expose.');
+            return;
+          }
+          link.log('garmin: GFDI in use; registering on '
+              '${alt.toRadixString(16)} instead.');
+          await sub.cancel();
+          notifyChar = moved.notify;
+          writeChar = moved.write;
+          registerDone = Completer<GarminRegisterMlResponse?>();
+          sub = listen(notifyChar);
+        }
+        if (reg == null || !reg.accepted) {
+          link.log('garmin: the watch declined the GFDI channel (status '
+              '${reg?.status ?? "none"}).');
           return;
         }
-        reg = await registerDone.future
-            .timeout(registerTimeout, onTimeout: () => null);
-        final alt = reg?.alternateChar;
-        if (attempt > 0 ||
-            reg?.status != kGarminRegisterAlreadyInUse ||
-            alt == null) {
-          break;
-        }
-        final moved = garminMlPair(mlChars, prefer: alt);
-        if (moved == null) {
-          link.log('garmin: the watch named multi-link characteristic '
-              '${alt.toRadixString(16)}, which it does not expose.');
-          return;
-        }
-        link.log('garmin: GFDI in use; registering on '
-            '${alt.toRadixString(16)} instead.');
-        await sub.cancel();
-        notifyChar = moved.notify;
-        writeChar = moved.write;
-        registerDone = Completer<GarminRegisterMlResponse?>();
-        sub = listen(notifyChar);
+        gfdiHandle = reg.handle;
       }
-      if (reg == null || !reg.accepted) {
-        link.log('garmin: the watch declined the GFDI channel (status '
-            '${reg?.status ?? "none"}).');
-        return;
-      }
-      gfdiHandle = reg.handle;
 
       // A watch that never sends its configuration still gets synced.
       final kick = Timer(configWait, () => unawaited(startSync()));

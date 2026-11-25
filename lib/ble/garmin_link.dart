@@ -54,6 +54,13 @@ List<String> garminMlCharsOf(List<BluetoothService> services) => [
           for (final c in s.characteristics) c.uuid.str128,
     ];
 
+/// Every characteristic the watch exposes, as lowercase 128-bit UUIDs — what
+/// `garminLegacyPair` and `garminHasTransport` choose from.
+List<String> garminAllCharsOf(List<BluetoothService> services) => [
+      for (final s in services)
+        for (final c in s.characteristics) c.uuid.str128,
+    ];
+
 /// The live link to a paired Garmin watch. One instance; a second concurrent
 /// one is not a thing anyone asked for.
 class GarminLink {
@@ -155,9 +162,10 @@ class GarminLink {
           );
           _link = link;
           final ml = garminMlCharsOf(services);
-          if (garminMlPair(ml) == null) {
-            debugPrint('[garmin] ${kGarmin.label}: no multi-link data '
-                'characteristic under ${kGarminService.substring(0, 8)}.');
+          final all = garminAllCharsOf(services);
+          if (!garminHasTransport(all)) {
+            debugPrint('[garmin] ${kGarmin.label}: no multi-link or single '
+                'GFDI characteristic pair.');
             return false;
           }
           final host = _makeHost(
@@ -166,6 +174,7 @@ class GarminLink {
                 readFiles: await LocalDb.getCursor(_cursorItem(deviceId)) ?? '',
                 priorSteps: await _priorSteps(deviceId),
                 mlChars: ml,
+                legacyChars: garminLegacyPair(all),
                 maxWrite: device.mtuNow - 3,
               ));
           _host = host;

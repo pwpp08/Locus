@@ -77,8 +77,8 @@ import 'ble_state.dart'
 import 'colmi_link.dart' show ColmiLink;
 import 'session_link.dart' show SessionLink;
 import 'coros_link.dart' show CorosLink;
-import 'adapters/garmin.dart' show garminMlPair;
-import 'garmin_link.dart' show GarminLink, garminMlCharsOf;
+import 'adapters/garmin.dart' show garminHasTransport;
+import 'garmin_link.dart' show GarminLink, garminAllCharsOf;
 import 'miband_link.dart' show MiBand234Link;
 import 'oura_link.dart' show OuraLink;
 import 'pebble_link.dart' show PebbleLink;
@@ -803,7 +803,7 @@ class HrsLink {
       // A Garmin watch's data characteristic varies, so the generic list
       // cannot name it; its own check stands in.
       if (entry.id == kGarmin.id &&
-          garminMlPair(garminMlCharsOf(services)) == null) {
+          !garminHasTransport(garminAllCharsOf(services))) {
         link.close();
         return 'That device answered, but it does not expose the '
             '${entry.label} data this needs. Nothing was saved.';

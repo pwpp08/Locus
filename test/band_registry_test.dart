@@ -11,11 +11,10 @@ import 'package:openstrap_protocol/openstrap_protocol.dart';
 
 void main() {
   test('ids are unique and stable — they are stamped as device_family', () {
-    // This build scans for the two WHOOP generations only: `kBandRegistry` was
-    // trimmed to them when the app was narrowed to WHOOP. The other entries
-    // still exist as constants (their adapter tests pump them directly) but
-    // are not scanned for or paired. Adding one back means adding its id here.
-    expect(kBandRegistry.map((e) => e.id).toList(), <String>['gen4', 'gen5']);
+    // The WHOOP generations come first; the other bands' entries follow.
+    // Only the two WHOOP bands are FRAMED (offload-engine) bands.
+    expect(kBandRegistry.map((e) => e.id).take(2).toList(),
+        <String>['gen4', 'gen5']);
     expect(kBandRegistry.map((e) => e.id).toSet(), hasLength(kBandRegistry.length));
   });
 
