@@ -27,6 +27,7 @@ import '../../state/app_state.dart';
 import '../../state/clock_format.dart';
 import '../../state/units_controller.dart';
 import '../community/community.dart' show CommunityScreen;
+import 'import_hub.dart' show ImportHubScreen;
 import '../screens/coach.dart' show CoachSetup, openCoachSheet;
 import '../screens/coach_memory_screen.dart' show CoachMemoryScreen;
 import '../screens/heart_rate_settings.dart' show HeartRateSettingsScreen;
@@ -609,6 +610,9 @@ class IntegrationsSettings extends StatelessWidget {
             onTap: () => toggleHealthSync(app)),
       ]),
       settingsGroup(c, 'Other apps', [
+        SetRow(LucideIcons.download, C.dialStrain, 'Import your history',
+            sub: '$store and Strava: workouts, sleep, steps and heart rate',
+            onTap: () => goto(c, const ImportHubScreen())),
         SetRow(LucideIcons.upload, C.dialStrain, 'Import WHOOP data',
             sub: 'Your recovery, sleep, strain and workouts from a WHOOP '
                 'export',

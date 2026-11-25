@@ -84,6 +84,7 @@ import '../screens/reports.dart' show ScoreRing;
 import '../screens/home/card_pictures.dart';
 import '../onboarding/setup_parts.dart';
 import 'setup_guide.dart';
+import 'import_hub.dart';
 import '../screens/home/home_insights.dart';
 import 'source_plan.dart';
 import '../screens/locus_age.dart' show LocusAgeTrends;
@@ -784,6 +785,32 @@ Map<String, Widget> _chartCases() {
       ]),
     ),
     'setup_guide': SetupGuideCard(kSetupGuides['oura']!),
+    'import_hub': SizedBox(
+      height: 560,
+      child: ImportHubView(
+        now: DateTime(2026, 11, 25, 12),
+        sources: [
+          ImportSourceState(
+            icon: LucideIcons.heartPulse,
+            name: 'Health Connect',
+            brings: 'Workouts, sleep, steps and heart rate from the last 30 days.',
+            stored: 'Stored: 12 workouts · 29 nights · 30 days of steps and heart rate',
+            last: DateTime(2026, 11, 25, 9, 40),
+            result: 'Brought in 2 workouts, 1 night.',
+            actions: [(label: 'Refresh', onTap: () {}, soft: false)],
+          ),
+          ImportSourceState(
+            icon: LucideIcons.activity,
+            name: 'Strava',
+            brings: 'Your activities from the last 90 days.',
+            actions: [
+              (label: 'Refresh', onTap: () {}, soft: false),
+              (label: 'Sign out', onTap: () {}, soft: true),
+            ],
+          ),
+        ],
+      ),
+    ),
     'insight_unlocked': InsightUnlockedCard(
       titles: const ['Alcohol', 'Late caffeine', 'Reading in bed', 'Cold shower'],
       onOpen: () {},

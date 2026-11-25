@@ -314,7 +314,7 @@ const _notComponents = {
   // shell and routing
   'AppShell', 'Domain', 'GalleryScreen',
   // daytime / sleep source choice: reads paired devices and writes the choice
-  'SourcePlanScreen',
+  'SourcePlanScreen', 'ImportHubScreen',
   // the Fitbit Air guide: a route that opens Health Connect and the comparison
   'HealthConnectGuideScreen',
   // onboarding routes
