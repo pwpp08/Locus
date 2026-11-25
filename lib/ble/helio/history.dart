@@ -91,9 +91,7 @@ class GdspStartReply extends GdspResponse {
 
 class GdspTransferComplete extends GdspResponse {
   final Uint8List extra;
-  GdspTransferComplete(int status, Uint8List extra)
-      : extra = extra,
-        super(kGdspTransfer, status, extra);
+  GdspTransferComplete(int status, this.extra) : super(kGdspTransfer, status, extra);
   int? get crc32 => extra.length >= 4 ? u32(extra, 0) : null;
 }
 

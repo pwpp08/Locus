@@ -317,6 +317,8 @@ const _notComponents = {
   'SourcePlanScreen', 'ImportHubScreen',
   // the Fitbit Air guide: a route that opens Health Connect and the comparison
   'HealthConnectGuideScreen',
+  // the Helio key card (reads the keychain) and the Zepp sign-in route (a WebView)
+  'HelioKeyCard', 'ZeppSignInScreen',
   // onboarding routes
   'BootSplash', 'WelcomeScreen', 'WelcomeView', 'PairingScreen', 'PairingView',
   'OnboardingPage',

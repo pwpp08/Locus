@@ -64,6 +64,7 @@ import '../../data/db.dart' show LocalDb;
 import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
 import '../ui2.dart';
+import 'helio_key.dart' show HelioKeyCard;
 import 'profile.dart';
 import 'setup_guide.dart';
 import 'wearable_numbers.dart' show WearableUnlocks;
@@ -336,6 +337,7 @@ class _PairSensorScreenState extends State<PairSensorScreen> {
     paired: _paired,
     busyRemoteId: _busy,
     keyController: widget.onPickedWithKey == null ? null : _key,
+    extra: widget.entry.id == kHelio.id ? const HelioKeyCard() : null,
     onScan: _scan,
     onPick: _pick,
     onForget: _forget,
@@ -363,6 +365,9 @@ class PairSensorView extends StatelessWidget {
   /// The optional "pair with the key it already holds" field. Null hides it.
   final TextEditingController? keyController;
 
+  /// A card of the device's own, drawn under its setup guide (the Helio's key).
+  final Widget? extra;
+
   final VoidCallback? onScan;
   final void Function(BandCandidate)? onPick;
   final void Function(String id)? onForget;
@@ -378,6 +383,7 @@ class PairSensorView extends StatelessWidget {
     this.paired,
     this.busyRemoteId,
     this.keyController,
+    this.extra,
     this.onScan,
     this.onPick,
     this.onForget,
@@ -403,6 +409,7 @@ class PairSensorView extends StatelessWidget {
               children: [
                 if (paired != null) ..._pairedSection(c, paired!),
                 if (setupGuideFor(adapterId) case final g?) SetupGuideCard(g),
+                ?extra,
                 Section(
                   paired == null
                       ? (l?.pairSensorWhatThisAdds ?? 'What this adds')

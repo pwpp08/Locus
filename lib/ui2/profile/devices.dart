@@ -52,6 +52,7 @@ import '../../ble/adapters/_registry.dart'
         kColmi,
         kCoros,
         kGarmin,
+        kHelio,
         kMiBand234,
         kMiScale2,
         kMiScaleComposition,
@@ -65,6 +66,7 @@ import '../../ble/adapters/signals.dart' show InputSignal, kRankedSignals;
 import '../../ble/colmi_link.dart' show ColmiLink;
 import '../../ble/coros_link.dart' show CorosLink;
 import '../../ble/garmin_link.dart' show GarminLink;
+import '../../ble/helio_link.dart' show HelioLink, pairHelio;
 import '../../ble/hrs_link.dart' show HrsLink, HrsReading;
 import '../../ble/miband_link.dart' show MiBand234Link, pairMiBand234;
 import '../../ble/oura_link.dart'
@@ -943,7 +945,7 @@ IconData sensorIcon(String? adapterId) => switch (adapterId) {
       'ultrahuman' => LucideIcons.circle,
       'thermometer' => LucideIcons.thermometer,
       'miscale_bc' || 'miscale2' => LucideIcons.scale,
-      'garmin' || 'miband234' || 'pebble' => LucideIcons.watch,
+      'garmin' || 'miband234' || 'pebble' || 'helio' => LucideIcons.watch,
       _ => LucideIcons.heartPulse,
     };
 
@@ -1218,6 +1220,14 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
     // implements. The Multi-Link/GFDI handshake runs inside the adapter's
     // own session, once connected.
     pick: null,
+  ),
+  (
+    entry: kHelio,
+    blurb: 'An Amazfit Helio Strap. It needs the key Zepp made when you first '
+        'linked it; the pairing screen fetches that from your Zepp account '
+        'once. Reads heart rate, steps, sleep stages, HRV, SpO2, stress and '
+        'skin temperature. Experimental: nobody has tried it on a real strap.',
+    pick: pairHelio,
   ),
   (
     entry: kUltrahuman,
@@ -1992,6 +2002,7 @@ class _DeviceDetailState extends State<DeviceDetail> {
         'oura' => () => _syncRing(c, s.family),
         'coros' => () => _syncCorosWatch(c),
         'garmin' => () => _syncGarminWatch(c),
+        'helio' => () => _syncHelio(c),
         'ultrahuman' => () => _syncUltrahumanRing(c),
         'miband234' => () => _syncMiband(c),
         'pebble' => () => _syncPebble(c),
@@ -2123,6 +2134,24 @@ Future<void> _syncUltrahumanRing(BuildContext c) async {
         : (l?.devicesCouldNotReachRing ??
             'Could not reach the ring. It has to be nearby, and not connected '
                 'to another app.')),
+  ));
+}
+
+/// Read the Helio Strap, now, because the user asked. Says what went wrong in
+/// the strap's own terms when the link can tell (a rejected key, for one).
+Future<void> _syncHelio(BuildContext c) async {
+  final l = AppLocalizations.of(c);
+  final messenger = ScaffoldMessenger.maybeOf(c);
+  messenger?.showSnackBar(
+      SnackBar(content: Text(l?.devicesSyncing ?? 'Syncing')));
+  final ok = await HelioLink.instance.sync();
+  if (!c.mounted) return;
+  messenger?.showSnackBar(SnackBar(
+    content: Text(ok
+        ? (l?.devicesSynced ?? 'Synced.')
+        : (HelioLink.instance.problem ??
+            'Could not reach the strap. It has to be nearby, and not '
+                'connected to the Zepp app.')),
   ));
 }
 

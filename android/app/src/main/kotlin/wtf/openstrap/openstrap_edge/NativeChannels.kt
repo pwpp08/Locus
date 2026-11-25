@@ -47,6 +47,7 @@ object NativeChannels {
     private const val BLE_NATIVE_CHANNEL = "openstrap/ble_native"
     private const val SYSTEM_ALARM_CHANNEL = "openstrap/system_alarm"
     const val TASKER_CHANNEL = "openstrap/tasker"
+    private const val ZEPP_COOKIES_CHANNEL = "openstrap/zepp_cookies"
     const val ACTION_DOUBLE_TAP = "wtf.openstrap.openstrap_edge.DOUBLE_TAP"
     private const val TASKER_TOKEN_KEY = "tasker_auth_token"
 
@@ -268,6 +269,22 @@ object NativeChannels {
         } else {
             app.registerReceiver(alarmReceiver, alarmFilter)
         }
+
+        // The Zepp sign-in page's session cookies, read from the WebView's own
+        // jar. JavaScript cannot see HttpOnly cookies and the WebView plugin has
+        // no read call, so this is the one way the Dart side learns that the
+        // owner finished signing in. `get` returns the Cookie header the page
+        // would send to [url] (or null); `clear` forgets every cookie, so the
+        // sign-in does not outlive its one use.
+        MethodChannel(engine.dartExecutor.binaryMessenger, ZEPP_COOKIES_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                val jar = android.webkit.CookieManager.getInstance()
+                when (call.method) {
+                    "get" -> result.success(jar.getCookie(call.argument<String>("url") ?: ""))
+                    "clear" -> jar.removeAllCookies { result.success(null) }
+                    else -> result.notImplemented()
+                }
+            }
 
         MethodChannel(engine.dartExecutor.binaryMessenger, TASKER_CHANNEL)
             .setMethodCallHandler { call, result ->

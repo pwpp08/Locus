@@ -607,6 +607,8 @@ String deviceCategoryBlurb(AppLocalizations? l, BandEntry e) {
       'pebble' => l?.devicePickerBlurbPebble ??
           'Pebble 2 or Pebble 2 SE only. Syncs steps and sleep, and heart '
               'rate on a Pebble 2 (the SE has no heart-rate sensor).',
+      'helio' => 'Amazfit Helio Strap: heart rate, steps, sleep stages, HRV, '
+          'SpO2 and stress, read directly once you have its key from Zepp.',
       'thermometer' => l?.devicePickerBlurbThermometer ??
           'Saves each reading as a body temperature.',
       'miscale_bc' => l?.devicePickerBlurbMiscaleBc ??

@@ -26,6 +26,7 @@ import '../ble/colmi_link.dart';
 import '../ble/session_link.dart';
 import '../ble/coros_link.dart';
 import '../ble/garmin_link.dart';
+import '../ble/helio_link.dart';
 import '../ble/miband_link.dart';
 import '../ble/oura_link.dart';
 import '../ble/pebble_link.dart';
@@ -425,6 +426,12 @@ Future<bool> runHeadlessSync({BandLease? lease}) async {
       await GarminLink.instance.sync();
     } catch (e) {
       debugPrint('[bgsync] garmin sync skipped: $e');
+    }
+    // Same piggyback for a paired Helio Strap: no-ops when nothing is paired.
+    try {
+      await HelioLink.instance.sync();
+    } catch (e) {
+      debugPrint('[bgsync] helio sync skipped: $e');
     }
     // Same piggyback, same reasoning: UltrahumanLink.sync() no-ops when
     // nothing is paired and never throws, but this call must not be allowed

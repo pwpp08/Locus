@@ -79,6 +79,7 @@ import 'session_link.dart' show SessionLink;
 import 'coros_link.dart' show CorosLink;
 import 'adapters/garmin.dart' show garminHasTransport;
 import 'garmin_link.dart' show GarminLink, garminAllCharsOf;
+import 'helio_link.dart' show HelioLink;
 import 'miband_link.dart' show MiBand234Link;
 import 'oura_link.dart' show OuraLink;
 import 'pebble_link.dart' show PebbleLink;
@@ -910,6 +911,10 @@ class HrsLink {
     }
     if (row?['adapter_id'] == kGarmin.id) {
       await GarminLink.forget(id);
+      return;
+    }
+    if (row?['adapter_id'] == kHelio.id) {
+      await HelioLink.forget(id);
       return;
     }
     if (row?['adapter_id'] == kUltrahuman.id) {

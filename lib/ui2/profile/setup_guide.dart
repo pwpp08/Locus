@@ -115,6 +115,25 @@ const Map<String, SetupGuideSpec> kSetupGuides = {
     gives: 'Steps, heart rate, sleep, HRV, stress and Body Battery, read from the files the watch stores.',
     lacks: 'Live heart rate unless the watch broadcasts it. Experimental until tested on a real watch.',
   ),
+  'helio': SetupGuideSpec(
+    paths: [
+      SetupPath(
+        'Helio Strap',
+        [
+          'Link the strap in the Zepp app first, the normal way, if you have not. Locus reads the key Zepp made for it.',
+          'Do step 1 below: sign in to Zepp with your email and password. Google and Apple sign-in do not work there.',
+          'Close the Zepp app completely (Android: App info, then Force stop). The strap talks to one app at a time.',
+          'Put the strap on its charger and keep it next to your phone.',
+          'Tap Find my device below and pick your strap.',
+        ],
+        note: 'Do not unlink the strap in Zepp. That makes a new key and the '
+            'old one stops working. To use Zepp again, open it; it takes the '
+            'strap back when Locus is not connected.',
+      ),
+    ],
+    gives: 'Heart rate, steps, sleep stages, HRV, SpO2, stress and skin temperature, read straight from the strap.',
+    lacks: 'Alarms and live heart rate. Experimental until tested on a real strap.',
+  ),
   'ble_hrs': SetupGuideSpec(
     paths: [
       SetupPath(
