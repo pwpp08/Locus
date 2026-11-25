@@ -24,6 +24,7 @@ import '../../data/journal_fields.dart';
 import '../../l10n/app_localizations.dart';
 import '../../l10n/display_text.dart';
 import '../../state/app_state.dart';
+import '../../state/alarm_wake_answer.dart';
 import '../../state/prefs.dart';
 import '../../state/units_controller.dart';
 import '../ui2.dart';
@@ -183,19 +184,48 @@ class _JournalComposeState extends State<JournalCompose> {
     return null;
   }
 
+  /// A question answered from the band, with the sentence that says why.
+  final Map<String, String> _autoWhy = {};
+
   Future<void> _openDay(String day) async {
     final repo = context.read<AppState>().repo;
     if (repo == null) return;
     final values = await repo.getJournalMetrics(day);
+    // "Woke up to an alarm?": answered from the ring and the wake time, when
+    // the person has not answered it. Shown as an answer they can change.
+    String? why;
+    if (!values.containsKey('bhv_alarm') && _selected.contains('bhv_alarm')) {
+      try {
+        final start = localDayStartSec(day);
+        final night = await repo.getDaySleepV2(day);
+        final a = start == null
+            ? null
+            : alarmWakeAnswer(
+                dayStart: start,
+                firedSec: await loadAlarmFired(),
+                wakeTs: (night['wake_ts'] as num?)?.toInt());
+        if (a != null) {
+          values['bhv_alarm'] = JournalMetricValue(a.woke ? 1.0 : 0.0);
+          why = a.why;
+        }
+      } catch (_) {/* nothing to fill in */}
+    }
     Map<String, dynamic>? row;
     for (final e in await repo.getJournal(range: _rangeFor(day))) {
       if (e['date'] == day) row = e;
     }
     if (!mounted) return;
     setState(() {
+      _autoWhy
+        ..clear()
+        ..addAll({'bhv_alarm': ?why});
       _date = day;
       _values = {...values};
-      _loadedValues = {...values};
+      // What was filled in is not what was stored, so saving writes it.
+      _loadedValues = {
+        for (final e in values.entries)
+          if (!_autoWhy.containsKey(e.key)) e.key: e.value,
+      };
       _tags = {...?(row?['tags'] as List?)?.map((t) => t.toString())};
       _loadedTags = {..._tags};
       _note.text = (row?['note'] as String?) ?? '';
@@ -464,7 +494,11 @@ class _JournalComposeState extends State<JournalCompose> {
       return JournalYesNoRow(
         question: q,
         value: _yesNoOf(key),
-        onChanged: (v) => _answer(key, v),
+        hint: _autoWhy[key] == null ? null : uiText(c, _autoWhy[key]!),
+        onChanged: (v) {
+          _autoWhy.remove(key);
+          _answer(key, v);
+        },
       );
     }
     if (spec.isRating) {
@@ -938,6 +972,7 @@ class JournalYesNoRow extends StatelessWidget {
     required this.question,
     required this.value,
     required this.onChanged,
+    this.hint,
   });
 
   final String question;
@@ -946,12 +981,23 @@ class JournalYesNoRow extends StatelessWidget {
   final bool? value;
   final ValueChanged<bool?> onChanged;
 
+  /// Why the answer is what it is, when the app filled it in.
+  final String? hint;
+
   @override
   Widget build(BuildContext c) => _RowCard(
     child: Row(
       children: [
         Expanded(
-          child: Text(question, style: JC.row.copyWith(color: JC.ink)),
+          child: hint == null
+              ? Text(question, style: JC.row.copyWith(color: JC.ink))
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(question, style: JC.row.copyWith(color: JC.ink)),
+                    const SizedBox(height: S.half),
+                    Text(hint!, style: F.over.copyWith(color: P.of(c).ink3)),
+                  ]),
         ),
         const SizedBox(width: S.x2),
         _Answer(

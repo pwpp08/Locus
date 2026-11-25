@@ -69,6 +69,7 @@ import '../data/auto_backup.dart' as backup
     show runBackupIfDue, selectedBackupFolder, saveBackupFolder, deleteAutomaticBackups;
 import 'alarm_schedule.dart';
 import 'alarm_manager.dart';
+import 'alarm_wake_answer.dart' show recordAlarmFired;
 import 'alarm_shake.dart';
 import 'clock_format.dart';
 import '../platform/device_actions.dart';
@@ -5175,6 +5176,7 @@ class AppState extends ChangeNotifier {
         // First, before the re-arm below plans tomorrow's watch.
         _onAlarmBuzzing();
         _alarmFiredAt = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
+        unawaited(recordAlarmFired(ts).catchError((Object _) {}));
         unawaited(SharedPreferences.getInstance()
             .then((p) => p.setInt('alarm_fired_at', ts))
             .catchError((Object e) {
