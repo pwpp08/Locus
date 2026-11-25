@@ -39,7 +39,8 @@ bool get isAppleHealth => Platform.isIOS;
 enum HealthImport {
   profile('health_import_profile_at'),
   workouts('health_import_workouts_at'),
-  history('health_import_history_at');
+  history('health_import_history_at'),
+  strava('strava_import_at');
 
   const HealthImport(this.key);
   final String key;

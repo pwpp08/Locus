@@ -477,7 +477,12 @@ class CommunityService extends ChangeNotifier {
   Future<void> _start() async {
     try {
       await Supabase.initialize(
-          url: kCommunityUrl, publishableKey: kCommunityKey);
+          url: kCommunityUrl,
+          publishableKey: kCommunityKey,
+          // Only the sign-in link is Supabase's: Strava's callback also carries
+          // a `code` and must not be taken for a session.
+          authOptions: FlutterAuthClientOptions(
+              detectSessionInUriPredicate: (u) => u.host == 'login-callback'));
     } catch (e) {
       // Already initialised (a hot restart): carry on with it.
       debugPrint('community init: $e');
