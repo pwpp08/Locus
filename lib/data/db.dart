@@ -304,6 +304,8 @@ class LocalDb {
     'activity_review_meta',
     'activity_review_days',
     'imported_workout',
+    'imported_sleep',
+    'imported_daily',
     'workout_route',
     'workout_split',
     // The only copy of what a paired sensor measured during a session.
@@ -1306,6 +1308,7 @@ class LocalDb {
     // version number here would collide with the other branches reaching for
     // the next one, and buy nothing a no-op CREATE does not already do.
     await _createImportedWorkout(db);
+    await _createImportedHistory(db);
     await _createObservation(db);
     await _createCycleSymptom(db);
     await _ensureSessionSchema(db);
@@ -3066,6 +3069,91 @@ class LocalDb {
       'CREATE INDEX IF NOT EXISTS idx_imported_workout_start '
       'ON imported_workout(start_ts)',
     );
+  }
+
+  /// A night, and a day of steps and heart rate, that ANOTHER app or device
+  /// recorded, each held apart from ours for the reason `imported_workout` is:
+  /// nothing that reads our own tables can reach them by accident.
+  ///
+  /// DISPLAY ONLY, never an input to a score, a baseline or a calibration, and
+  /// never summed with ours. `source` is NOT NULL: a number shown without the
+  /// app or device that measured it is a number this app is claiming.
+  ///
+  /// `imported_daily` is keyed by (day, kind, source), so two apps' step counts
+  /// for one day are two rows, never one total. Kinds: `steps`, `hr_avg`,
+  /// `hr_min`, `hr_max`. Additive with no backfill, created on the every-open
+  /// repair path like `imported_workout`.
+  static Future<void> _createImportedHistory(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS imported_sleep (
+        uuid TEXT PRIMARY KEY,
+        start_ts INTEGER NOT NULL,
+        end_ts INTEGER NOT NULL,
+        asleep_s INTEGER,
+        deep_s INTEGER,
+        rem_s INTEGER,
+        light_s INTEGER,
+        source TEXT NOT NULL
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_imported_sleep_start '
+      'ON imported_sleep(start_ts)',
+    );
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS imported_daily (
+        day TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        source TEXT NOT NULL,
+        value REAL NOT NULL,
+        PRIMARY KEY (day, kind, source)
+      )
+    ''');
+  }
+
+  static Future<int> _putAll(String table, List<Map<String, Object?>> rows) async {
+    if (rows.isEmpty) return 0;
+    final db = await instance;
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+      for (final r in rows) {
+        batch.insert(table, r, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      await batch.commit(noResult: true);
+    });
+    return rows.length;
+  }
+
+  /// Upsert imported nights. Idempotent on the source's uuid.
+  static Future<int> putImportedSleep(List<Map<String, Object?>> rows) =>
+      _putAll('imported_sleep', rows);
+
+  /// Upsert imported daily values. Idempotent on (day, kind, source).
+  static Future<int> putImportedDaily(List<Map<String, Object?>> rows) =>
+      _putAll('imported_daily', rows);
+
+  /// Imported nights, newest first.
+  static Future<List<Map<String, dynamic>>> importedSleep({int limit = 60}) async =>
+      (await instance).query('imported_sleep', orderBy: 'start_ts DESC', limit: limit);
+
+  /// Imported daily values on or after [fromDay], newest day first.
+  static Future<List<Map<String, dynamic>>> importedDaily({String fromDay = ''}) async =>
+      (await instance).query('imported_daily',
+          where: 'day >= ?', whereArgs: [fromDay], orderBy: 'day DESC');
+
+  /// How many rows each imported table holds, and per source for the workouts,
+  /// so the Import screen can say what is here.
+  static Future<Map<String, int>> importedCounts() async {
+    final db = await instance;
+    Future<int> n(String sql) async =>
+        (Sqflite.firstIntValue(await db.rawQuery(sql))) ?? 0;
+    return {
+      'sleep': await n('SELECT COUNT(*) FROM imported_sleep'),
+      'days': await n('SELECT COUNT(DISTINCT day) FROM imported_daily'),
+      'workouts': await n('SELECT COUNT(*) FROM imported_workout'),
+      'strava': await n(
+          "SELECT COUNT(*) FROM imported_workout WHERE source = 'Strava'"),
+    };
   }
 
   /// Upsert imported workouts. Idempotent on the health store's uuid.
@@ -10204,6 +10292,8 @@ class LocalDb {
       // source app may have deleted since. `workout_route` is already in this
       // list above and carries the imported routes too.
       'imported_workout',
+      'imported_sleep',
+      'imported_daily',
       // The archive of frames we could not decode (kept, except the thinning
       // in [thinRawArchiveBefore]). exportCopy() is a whole-database
       // VACUUM INTO, so these rows DO leave the device —
@@ -10994,6 +11084,8 @@ class LocalDb {
       'external_hr',
       'imported_measurement',
       'imported_workout',
+      'imported_sleep',
+      'imported_daily',
       'observation',
       'device',
       'device_coverage',

@@ -38,7 +38,8 @@ bool get isAppleHealth => Platform.isIOS;
 /// button for someone who has been refreshing for months.
 enum HealthImport {
   profile('health_import_profile_at'),
-  workouts('health_import_workouts_at');
+  workouts('health_import_workouts_at'),
+  history('health_import_history_at');
 
   const HealthImport(this.key);
   final String key;

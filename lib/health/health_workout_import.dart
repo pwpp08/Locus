@@ -112,6 +112,10 @@ bool _isOwn(HealthDataPoint p, String? ownApp) =>
     ownApp.isNotEmpty &&
     (p.sourceId == ownApp || p.sourceName == ownApp);
 
+/// Whether [p] was written by this app (see [workoutsFrom]); the history import
+/// skips ours the same way.
+bool isOwnHealthPoint(HealthDataPoint p, String? ownApp) => _isOwn(p, ownApp);
+
 /// Turn raw health-store points into workout rows, dropping anything unusable.
 /// Pure, so the filtering is testable without a store.
 ///
