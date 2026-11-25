@@ -162,14 +162,56 @@ Future<(String, String)?> activeWearable() async {
   return (id, adapter);
 }
 
+/// The device whose NIGHT is used, by `devices.id`, when it is not the day's
+/// wearable: a watch worn through the day and a ring worn to bed. Unset (the
+/// default), or the device gone or flagged off, the night follows the day's
+/// wearable ([activeWearable]) and nothing differs from one wearable at a time.
+const String kSleepWearableCursor = 'sleep_wearable';
+
+/// The wearable that supplies the night, as (device id, adapter id), or the
+/// day's wearable ([activeWearable]) when no other is chosen. Null with none.
+Future<(String, String)?> sleepWearable() async {
+  final id = await LocalDb.getCursor(kSleepWearableCursor);
+  if (id != null && id.isNotEmpty && id != kNoActiveWearable) {
+    final row = await LocalDb.deviceRow(id);
+    final adapter = row?['adapter_id'] as String?;
+    if (row != null &&
+        adapter != null &&
+        isWearableRow(row) &&
+        await wearableEnabled(adapter)) {
+      return (id, adapter);
+    }
+  }
+  return activeWearable();
+}
+
+/// The one or two wearables in use: the day's and, when it is another device,
+/// the night's. The day source first.
+Future<List<(String, String)>> wearablesInUse() async {
+  final day = await activeWearable();
+  final night = await sleepWearable();
+  return [?day, if (night != null && night.$1 != day?.$1) night];
+}
+
 /// Called with the days a wearable change moved, to re-derive them. Set by
 /// the app at start-up; null (tests, a headless run) re-derives nothing.
 Future<void> Function(Set<String> days)? onWearableDaysChanged;
 
 /// Every day the active wearable has rows for, empty with none.
-Future<Set<String>> _wearableDays() async {
-  final w = await activeWearable();
-  return w == null ? const {} : (await wearableRecTsMaxByDay(w)).keys.toSet();
+Future<Set<String>> _wearableDays() async =>
+    (await wearablesRecTsMaxByDay()).keys.toSet();
+
+/// [wearableRecTsMaxByDay] over every wearable in use ([wearablesInUse]): per
+/// day the latest second any of them has.
+Future<Map<String, int>> wearablesRecTsMaxByDay() async {
+  final out = <String, int>{};
+  for (final w in await wearablesInUse()) {
+    for (final MapEntry(key: d, value: t)
+        in (await wearableRecTsMaxByDay(w)).entries) {
+      out[d] = math.max(out[d] ?? t, t);
+    }
+  }
+  return out;
 }
 
 /// Every day with substrate a derive can read: decoded band rows plus the
@@ -261,9 +303,19 @@ Future<Set<String>> _stampedSessionDays(Set<String> sensors) async {
 /// without it, and clearing it would delete the band's history). Keep the
 /// per-device values apart at derive time if that share must go too.
 Future<Map<String, bool>> _wearableShapedDays() async {
-  final w = await activeWearable();
-  if (w == null) return const {};
-  final id = w.$1;
+  final out = <String, bool>{};
+  final ws = await wearablesInUse();
+  for (final w in ws) {
+    // A day two wearables shaped is sole for neither.
+    for (final MapEntry(key: d, value: sole)
+        in (await _shapedDaysOf(w.$1)).entries) {
+      out[d] = ws.length == 1 && sole && (out[d] ?? true);
+    }
+  }
+  return out;
+}
+
+Future<Map<String, bool>> _shapedDaysOf(String id) async {
   final db = await LocalDb.instance;
   final out = <String, bool>{};
   for (final r in await db.rawQuery(
@@ -303,6 +355,22 @@ Future<Set<String>> setActiveWearable(String? deviceId) =>
       await LocalDb.setCursor(
           kActiveWearableCursor, deviceId ?? kNoActiveWearable);
       await refreshSessionSensorSources();
+    });
+
+/// [deviceId] as the night's wearable with its adapter's flag on: one
+/// re-derive for the whole change.
+Future<Set<String>> useSleepDevice(String deviceId, String adapterId) =>
+    _rederiveAround(() async {
+      await LocalDb.setCursor(wearableEnabledCursor(adapterId), '1');
+      await LocalDb.setCursor(kSleepWearableCursor, deviceId);
+      await refreshSessionSensorSources();
+    });
+
+/// Makes [deviceId] the wearable whose NIGHT is used (null = the day's own)
+/// and re-derives the days that moves.
+Future<Set<String>> setSleepWearable(String? deviceId) =>
+    _rederiveAround(() async {
+      await LocalDb.setCursor(kSleepWearableCursor, deviceId ?? '');
     });
 
 /// Turns [adapterId]'s flag on or off (the developer setting) and re-derives
@@ -503,7 +571,7 @@ Substrate _withStrapBeats(Substrate sub, List<Map<String, Object?>> beats) {
 /// comes after the ring's own night and stands only where that one does not. Null otherwise, which is
 /// every WHOOP-only install.
 Future<VendorNight?> wearableNight(int from, int to) async =>
-    switch (await activeWearable()) {
+    switch (await sleepWearable()) {
       (final id, kUltrahumanFamily) => ultrahumanNight(id, from, to),
       (final id, kColmiFamily) => colmiNight(id, from, to),
       (final id, kOuraFamily) => ouraNight(id, from, to),
@@ -517,7 +585,7 @@ Future<VendorNight?> wearableNight(int from, int to) async =>
 /// so a flagged-on device someone switched away from stages none either. The
 /// primary's own are kept.
 Future<List<VendorNight>> enabledVendorNights(List<VendorNight> nights) async {
-  final active = (await activeWearable())?.$1;
+  final active = (await sleepWearable())?.$1;
   return [
     for (final n in nights)
       if (n.deviceId == LocalDb.kPrimaryDeviceId || n.deviceId == active) n,
@@ -527,7 +595,7 @@ Future<List<VendorNight>> enabledVendorNights(List<VendorNight> nights) async {
 /// End of the newest banked vendor sleep epoch of the primary or the active
 /// wearable ([enabledVendorNights]), or null when neither has one.
 Future<int?> enabledVendorSleepEndTs() async {
-  final active = (await activeWearable())?.$1;
+  final active = (await sleepWearable())?.$1;
   int? last;
   for (final MapEntry(key: id, value: t)
       in (await LocalDb.lastVendorSleepEndTsByDevice()).entries) {
@@ -622,9 +690,7 @@ Future<Map<String, int>> _strapSessionRecTsMaxByDay() async {
 /// The active wearable's last row second, standing in as "now, in data
 /// time" on an install with no band data; null with no wearable chosen.
 Future<int?> wearableLastTs() async {
-  final wearable = await activeWearable();
-  if (wearable == null) return null;
-  final byDay = await wearableRecTsMaxByDay(wearable);
+  final byDay = await wearablesRecTsMaxByDay();
   return byDay.isEmpty ? null : byDay.values.reduce(math.max);
 }
 

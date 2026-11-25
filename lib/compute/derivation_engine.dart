@@ -3679,20 +3679,33 @@ class DerivationEngine {
     // "Saw" is the calendar day, the same test the scope and the re-derive
     // use (`decodedRecTsMaxByDay`): band rows only in the next morning's nap
     // buffer do not keep the wearable off a day it alone covers.
-    final wearable =
-        napSub.slice(dayStart, dayEnd).isEmpty ? await activeWearable() : null;
+    final bandEmpty = napSub.slice(dayStart, dayEnd).isEmpty;
+    // THE NIGHT MAY COME FROM ANOTHER WEARABLE than the day (a watch by day, a
+    // ring to bed): [nightW] is that one. With none chosen it is the day's
+    // wearable and nothing below differs from one wearable at a time.
+    final nightW = bandEmpty ? await sleepWearable() : null;
+    var wearable = bandEmpty ? (await activeWearable() ?? nightW) : null;
     if (wearable != null) {
       await _resolveSparseOwnership(
           unionFrom, unionTo, wearable.$1, ownership, priority);
       napSub = await wearableSubstrate(
           wearable, dayStart, dayEnd - 1 + napBoundaryBufferSec);
+      // A day the day's wearable was not worn is the night wearable's whole.
+      if (nightW != null &&
+          nightW.$1 != wearable.$1 &&
+          napSub.slice(dayStart, dayEnd).isEmpty) {
+        wearable = nightW;
+        napSub = await wearableSubstrate(
+            wearable, dayStart, dayEnd - 1 + napBoundaryBufferSec);
+      }
     }
+    final nightSrc = nightW ?? wearable;
     final daySub = napSub.slice(dayStart, dayEnd);
     Substrate sleepSub = Substrate.empty;
     if (candidate.present &&
         candidate.sleepOffsetSec > candidate.sleepOnsetSec) {
-      sleepSub = wearable != null
-          ? await wearableSubstrate(wearable, candidate.sleepOnsetSec,
+      sleepSub = nightSrc != null
+          ? await wearableSubstrate(nightSrc, candidate.sleepOnsetSec,
               candidate.sleepOffsetSec - 1)
           : await _loadSubstrateRange(
               candidate.sleepOnsetSec,
@@ -3728,9 +3741,9 @@ class DerivationEngine {
         candidate.sleepSource != 'manual') {
       try {
         final from = candidate.sleepOnsetSec - kBedLookbackSec;
-        final lead = wearable != null
+        final lead = nightSrc != null
             ? await wearableSubstrate(
-                wearable, from, candidate.sleepOnsetSec - 1)
+                nightSrc, from, candidate.sleepOnsetSec - 1)
             : await _loadSubstrateRange(from, candidate.sleepOnsetSec - 1,
                 dayId: dayId, stats: stats, ownership: ownership);
         bedTs = bedTimeIn(lead, candidate.sleepOnsetSec);
@@ -4565,12 +4578,9 @@ class DerivationEngine {
     final rawByDay = await LocalDb.decodedRecTsMaxByDay();
     // Days only the active wearable saw (inputs/canonical.dart) are up for
     // derivation too. No wearable chosen and flagged on = unchanged.
-    final wearable = await activeWearable();
-    if (wearable != null) {
-      for (final MapEntry(:key, :value)
-          in (await wearableRecTsMaxByDay(wearable)).entries) {
-        rawByDay.putIfAbsent(key, () => value);
-      }
+    for (final MapEntry(:key, :value)
+        in (await wearablesRecTsMaxByDay()).entries) {
+      rawByDay.putIfAbsent(key, () => value);
     }
     if (rawByDay.isEmpty) {
       return const _DeriveScope(
@@ -4970,9 +4980,8 @@ class DerivationEngine {
 
       // The active wearable's days are days with substrate too (none when no
       // wearable is on, so a band-only install rescans as before).
-      final wearable = await activeWearable();
       final rawByDay = {
-        if (wearable != null) ...await wearableRecTsMaxByDay(wearable),
+        ...await wearablesRecTsMaxByDay(),
         ...await LocalDb.decodedRecTsMaxByDay(),
       };
       if (rawByDay.isEmpty) {
@@ -6019,9 +6028,13 @@ class DerivationEngine {
     final scalars =
         (bundle['scalars'] as Map?)?.cast<String, dynamic>() ?? const {};
     double? sc(String k) => (scalars[k] as num?)?.toDouble();
+    final nightW = await sleepWearable();
     final ring = daySub.deviceFamily == kOuraFamily
         ? (await activeWearable())?.$1
-        : null;
+        : (nightW?.$2 == kOuraFamily &&
+                day.sleepSub.deviceFamily == kOuraFamily
+            ? nightW!.$1
+            : null);
     final strapNight = ring != null &&
         await ouraStrapOwnsNight(ring, day.sleepJson['window']);
     await LocalDb.putDayResult(

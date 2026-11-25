@@ -83,6 +83,8 @@ import '../screens/training_status_card.dart' show TrainingStatusView;
 import '../screens/reports.dart' show ScoreRing;
 import '../screens/home/card_pictures.dart';
 import '../onboarding/setup_parts.dart';
+import 'setup_guide.dart';
+import 'source_plan.dart';
 import '../screens/locus_age.dart' show LocusAgeTrends;
 import '../../compute/stress_monitor.dart' show StressBaseline;
 import 'settings_tree.dart'
@@ -779,6 +781,14 @@ Map<String, Widget> _chartCases() {
         Glyph.groupSearch(size: 32, color: C.white),
         Glyph.fileSearch(size: 32, color: C.white),
       ]),
+    ),
+    'setup_guide': SetupGuideCard(kSetupGuides['oura']!),
+    'source_plan': const SizedBox(
+      height: 520,
+      child: SourcePlanView(devices: [
+        (id: 'g1', adapter: 'garmin', label: 'Garmin watch'),
+        (id: 'o1', adapter: 'oura', label: 'Oura Ring'),
+      ], dayId: 'g1', nightId: 'o1'),
     ),
     'zone_knob_bar': const Surface(
       child: ZoneKnobBar(hr: 141, lowerBpm: [95, 114, 133, 152, 171], maxHr: 190),

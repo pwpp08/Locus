@@ -45,18 +45,30 @@ import 'package:provider/provider.dart';
 import '../../ble/adapters/_registry.dart'
     show
         BandEntry,
+        DeviceCategory,
+        categoryOf,
         kBandRegistry,
         kBleHrs,
+        kColmi,
+        kCoros,
+        kGarmin,
+        kMiBand234,
+        kMiScale2,
+        kMiScaleComposition,
+        kOura,
+        kPebble,
         kPolarPmd,
+        kThermometer,
+        kUltrahuman,
         declaredSignals;
 import '../../ble/adapters/signals.dart' show InputSignal, kRankedSignals;
 import '../../ble/colmi_link.dart' show ColmiLink;
 import '../../ble/coros_link.dart' show CorosLink;
 import '../../ble/garmin_link.dart' show GarminLink;
 import '../../ble/hrs_link.dart' show HrsLink, HrsReading;
-import '../../ble/miband_link.dart' show MiBand234Link;
+import '../../ble/miband_link.dart' show MiBand234Link, pairMiBand234;
 import '../../ble/oura_link.dart'
-    show OuraLink, OuraSyncCategory;
+    show OuraLink, OuraSyncCategory, pairOuraRing;
 import '../../ble/pebble_link.dart' show PebbleLink;
 import '../../ble/polar_pmd_link.dart' show PolarPmdLink;
 import '../../ble/session_link.dart' show SessionLink;
@@ -82,6 +94,7 @@ import '../screens/home_screen.dart' show syncedThroughLine;
 import '../ui2.dart';
 import 'profile.dart';
 import 'settings.dart' show backToRoot;
+import 'source_plan.dart' show SourcePlanScreen;
 import 'wearable_numbers.dart' show DeviceUseSwitch, WearableDayScreen;
 
 /// Measurement quality, which is the ONLY thing that decides precedence.
@@ -1123,6 +1136,7 @@ class _MyDevicesState extends State<MyDevices> {
       onAddSensor: () => addSensor(c),
       contendedSignals: contendedSignals(app),
       onSignalPriority: () => goto(c, const SignalPriorityScreen()),
+      onSourcePlan: () => goto(c, const SourcePlanScreen()),
     );
   }
 }
@@ -1134,7 +1148,115 @@ class _MyDevicesState extends State<MyDevices> {
 /// them is which entry the picker filters on and what has to happen once the
 /// user taps one. `PairSensorScreen` is generic over exactly that.
 final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDevice)? pick})>
-    kPairableSensors = const [];
+    kPairableSensors = [
+  (
+    entry: kBleHrs,
+    blurb: 'A chest strap or armband. Beat timing measured electrically, '
+        'which a wrist pulse cannot match. Runs during a workout.',
+    // Null means the plain notify-class pairing, which is the whole of what a
+    // heart-rate sensor needs.
+    pick: null,
+  ),
+  (
+    entry: kOura,
+    blurb: 'Reads the ring directly, with no Oura account and no subscription. '
+        'Either factory reset the ring FIRST (remove/unpair it in the Oura '
+        'app) so this app can give it a key of its own, or paste the key the '
+        'Oura app already uses and pair without a reset. Pairing with a new '
+        'key replaces the Oura app\'s key, so that app stops working with the '
+        'ring. Close the Oura app before pairing here.',
+    pick: pairOuraRing,
+  ),
+  (
+    entry: kPolarPmd,
+    blurb: 'A Polar Verity Sense or OH1. Beat timing measured optically, '
+        'streamed during a workout, same as a chest strap.',
+    // Null: no handshake and no key — the START/STOP toggle this sensor
+    // needs belongs to the workout session, not to pairing. Same as
+    // [kBleHrs].
+    pick: null,
+  ),
+  (
+    entry: kThermometer,
+    blurb: 'A Bluetooth thermometer, such as the Femometer Vinca 2 basal '
+        'thermometer. Sets its clock and saves each reading as a body '
+        'temperature. No account or key needed.',
+    pick: null,
+  ),
+  (
+    entry: kMiScaleComposition,
+    blurb: 'The Mi Body Composition Scale. Saves each settled weight and '
+        'its bio-impedance reading. Step on it with the app open.',
+    pick: null,
+  ),
+  (
+    entry: kMiScale2,
+    blurb: 'The Mi Smart Scale 2. Saves each settled weight and reads back '
+        'the weights the scale stored while the phone was away.',
+    pick: null,
+  ),
+  (
+    entry: kCoros,
+    blurb: 'A Coros sports watch. Reads battery, model/serial/firmware and '
+        'live heart rate. Disconnect it from the COROS app first; newer '
+        'firmware may ask to pair. Recorded runs, sleep and steps '
+        'stay on the watch; there is no public way to pull them off yet.',
+    // Null means the plain notify-class pairing — no key needed before the
+    // row can be written.
+    pick: null,
+  ),
+  (
+    entry: kGarmin,
+    blurb: 'A Garmin sports watch. Before pairing here, put the watch into '
+        'its own Settings → Sensors & Accessories → Phone → Pair Phone '
+        'screen — it will not accept a new connection otherwise. Reads its '
+        'model, firmware and battery, and the health files it stores: heart '
+        'rate, steps, sleep stages and HRV status. On iPhone the watch is '
+        'found only if it advertises its Garmin service; if the list stays '
+        'empty, this watch cannot be paired here yet.',
+    // Null means the plain notify-class pairing — no key exchange this pass
+    // implements. The Multi-Link/GFDI handshake runs inside the adapter's
+    // own session, once connected.
+    pick: null,
+  ),
+  (
+    entry: kUltrahuman,
+    blurb: 'Reads the ring directly. No account, no key exchange — just pair '
+        'it like a chest strap.',
+    // Null: this wire has no auth at all, so there is no key/handshake step
+    // beyond the plain notify-class pairing — same as `kBleHrs`.
+    pick: null,
+  ),
+  (
+    entry: kMiBand234,
+    blurb: 'A Mi Band 2 or 3. It must have no key installed yet — one '
+        'still bound to Mi Fit or Zepp will refuse to pair. Unpair it from '
+        'that app first, or use a factory-reset unit. If the band buzzes '
+        'while pairing, tap it to confirm. Syncs its stored heart '
+        'rate, steps and sleep. (Mi Band 4 needs the vendor pairing and is '
+        'not supported.)',
+    pick: pairMiBand234,
+  ),
+  (
+    entry: kPebble,
+    blurb: 'Pebble 2 or Pebble 2 SE only — older Pebbles need Bluetooth '
+        'Classic, which this app cannot reach. Syncs the watch\'s health log: '
+        'steps and sleep, and heart rate on a Pebble 2 (the SE has no '
+        'heart-rate sensor).',
+    // Same generic notify-class pairing as the chest strap above — no key,
+    // no pre-pairing step.
+    pick: null,
+  ),
+  (
+    entry: kColmi,
+    blurb: 'A Colmi ring. No account, no handshake. Syncs heart rate, sleep '
+        'stages, steps, SpO2, HRV and stress; values the ring computes '
+        "itself are labelled as Colmi's. Experimental.",
+    // Null: no auth step, so the plain notify-class pairing is the whole of
+    // what this ring needs — same as [kBleHrs].
+    pick: null,
+  ),
+];
 
 /// Choose which kind of sensor to pair, then hand off to the pairing screen.
 Future<void> addSensor(BuildContext c) async {
@@ -1287,6 +1409,10 @@ class MyDevicesView extends StatelessWidget {
   final List<InputSignal> contendedSignals;
   final VoidCallback? onSignalPriority;
 
+  /// The daytime / sleep source screen; the row shows once a watch or ring is
+  /// paired.
+  final VoidCallback? onSourcePlan;
+
   /// `loadBatteryForecast`, for the "days left" line on the band's card.
   final BatteryForecast? bandForecast;
 
@@ -1303,6 +1429,7 @@ class MyDevicesView extends StatelessWidget {
     this.status,
     this.contendedSignals = const [],
     this.onSignalPriority,
+    this.onSourcePlan,
   });
 
   @override
@@ -1431,6 +1558,20 @@ class MyDevicesView extends StatelessWidget {
                             'A heart-rate strap or a ring, alongside the band',
                         onTap: onAddSensor),
                   ),
+                if (onSourcePlan != null &&
+                    sources.any((s) =>
+                        s.deviceId != null &&
+                        categoryOf(s.family) == DeviceCategory.wearable)) ...[
+                  const SizedBox(height: S.x3),
+                  Surface(
+                    pad: const EdgeInsets.symmetric(horizontal: S.x4),
+                    child: SetRow(LucideIcons.sunMoon, C.dialStrain,
+                        uiText(c, 'Daytime and sleep'),
+                        sub: uiText(c,
+                            'Use a watch by day and a ring for sleep'),
+                        onTap: onSourcePlan),
+                  ),
+                ],
                 // ONLY when something can actually contend. A reorder screen
                 // over one device is a control with nothing to order, which is
                 // the empty-rung problem this screen already refuses (§6.5).

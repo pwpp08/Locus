@@ -65,6 +65,7 @@ import '../../l10n/app_localizations.dart';
 import '../../state/app_state.dart';
 import '../ui2.dart';
 import 'profile.dart';
+import 'setup_guide.dart';
 import 'wearable_numbers.dart' show WearableUnlocks;
 
 /// A sensor this phone already has a `device` row for.
@@ -401,6 +402,7 @@ class PairSensorView extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
               children: [
                 if (paired != null) ..._pairedSection(c, paired!),
+                if (setupGuideFor(adapterId) case final g?) SetupGuideCard(g),
                 Section(
                   paired == null
                       ? (l?.pairSensorWhatThisAdds ?? 'What this adds')
@@ -462,7 +464,10 @@ class PairSensorView extends StatelessWidget {
                   BigButton(
                     scanning
                         ? (l?.pairSensorSearching ?? 'Searching…')
-                        : (l?.pairSensorSearchForSensors ?? 'Search for sensors'),
+                        : (setupGuideFor(adapterId) != null
+                            ? uiText(c, 'Find my device')
+                            : (l?.pairSensorSearchForSensors ??
+                                'Search for sensors')),
                     icon: LucideIcons.bluetooth,
                     color: C.dialStrain,
                     onTap: scanning || busy ? null : onScan,
