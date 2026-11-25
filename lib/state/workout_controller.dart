@@ -162,6 +162,9 @@ class WorkoutController {
   /// its first tick (so a session resumed after a relaunch gets them too).
   WorkoutAlerts? _alerts;
   String? _alertsFor;
+
+  /// The per-workout zone ceiling set on Start Activity, read once a session.
+  ZoneLimitAlert? _zoneLimit;
   final LocalRepository? Function() _repo;
   final bool Function() _hostDisposed;
 
@@ -1245,6 +1248,15 @@ class WorkoutController {
         elapsedSec: w.elapsed.inSeconds,
         strain: w.strain,
       );
+      final zl = ZoneLimitAlert.parse(Prefs.getString(Prefs.activityZoneLimit, ''));
+      _zoneLimit = zl == null ? null : ZoneLimitAlert(limitZone: zl);
+    }
+    // Above the zone ceiling: three short buzzes, and again every 30 seconds
+    // while the heart rate stays above it.
+    if (hr != null && (_zoneLimit?.onTick(DateTime.now(), _zoneFor(hr)) ?? false)) {
+      final beats = _buzzBeats;
+      unawaited(beats != null ? beats(3, false) : _buzz());
+      _log('Workout alert: above zone ${_zoneLimit!.limitZone}.');
     }
     final due = _alerts?.onTick(elapsedSec: w.elapsed.inSeconds, strain: w.strain);
     if (due != null) {

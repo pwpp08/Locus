@@ -108,7 +108,9 @@ void main() {
     expect(find.text('TRACK ROUTE'), findsOneWidget);
     expect(find.text('START ACTIVITY'), findsOneWidget);
     expect(find.text('STRAIN TARGET'), findsOneWidget);
-    expect(find.text('OFF'), findsOneWidget);
+    // The strain target and the zone limit both start off.
+    expect(find.text('ZONE LIMIT'), findsOneWidget);
+    expect(find.text('OFF'), findsNWidgets(2));
     expect(find.text('--'), findsOneWidget);
 
     // Swiped up, the dock opens on the dial.

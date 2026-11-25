@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/state/zone_alert.dart';
 
 void main() {
+  zoneLimitTests();
   final t0 = DateTime(2026, 9, 18, 7, 0);
   DateTime at(int sec) => t0.add(Duration(seconds: sec));
 
@@ -93,6 +94,63 @@ void main() {
       a.onTick(at(0), 3);
       a.onTick(at(1), 0);
       expect(a.onTick(at(6), 0), isTrue);
+    });
+  });
+}
+
+/// The per-workout ceiling: buzz above it, repeat while above, silent below.
+void zoneLimitTests() {
+  final t0 = DateTime(2026, 9, 18, 7, 0);
+  DateTime at(int sec) => t0.add(Duration(seconds: sec));
+
+  group('ZoneLimitAlert', () {
+    test('inside the limit never buzzes, however long', () {
+      final a = ZoneLimitAlert(limitZone: 3);
+      for (var s = 0; s < 120; s++) {
+        expect(a.onTick(at(s), 3), isFalse);
+      }
+    });
+
+    test('above it buzzes once the debounce has held, then every 30 seconds', () {
+      final a = ZoneLimitAlert(limitZone: 3);
+      expect(a.onTick(at(0), 4), isFalse);
+      expect(a.onTick(at(4), 4), isFalse);
+      expect(a.onTick(at(5), 4), isTrue);
+      expect(a.onTick(at(20), 4), isFalse);
+      expect(a.onTick(at(35), 4), isTrue);
+      expect(a.onTick(at(60), 4), isFalse);
+      expect(a.onTick(at(65), 4), isTrue);
+    });
+
+    test('a blip above for under the debounce says nothing', () {
+      final a = ZoneLimitAlert(limitZone: 3);
+      expect(a.onTick(at(0), 4), isFalse);
+      expect(a.onTick(at(3), 3), isFalse);
+      expect(a.onTick(at(4), 4), isFalse);
+      expect(a.onTick(at(8), 4), isFalse);
+    });
+
+    test('coming back down is silent, and going above again buzzes anew', () {
+      final a = ZoneLimitAlert(limitZone: 2);
+      a.onTick(at(0), 3);
+      expect(a.onTick(at(5), 3), isTrue);
+      expect(a.onTick(at(10), 2), isFalse);
+      a.onTick(at(11), 3);
+      expect(a.onTick(at(16), 3), isTrue);
+    });
+
+    test('zone 0 (no zones set) is never above anything', () {
+      final a = ZoneLimitAlert(limitZone: 1);
+      for (var s = 0; s < 60; s++) {
+        expect(a.onTick(at(s), 0), isFalse);
+      }
+    });
+
+    test('a stored limit reads back, and nonsense is none', () {
+      expect(ZoneLimitAlert.parse('3'), 3);
+      expect(ZoneLimitAlert.parse(''), isNull);
+      expect(ZoneLimitAlert.parse('5'), isNull);
+      expect(ZoneLimitAlert.parse('x'), isNull);
     });
   });
 }

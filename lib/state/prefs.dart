@@ -115,6 +115,10 @@ class Prefs {
   /// plunge, meditation…): 'type_key|minutes'; empty when none.
   static const String activityTimer = 'activity.timer';
 
+  /// The highest zone (1 to 4) the person set for the next workout on Start
+  /// Activity; the band buzzes above it. Empty when none.
+  static const String activityZoneLimit = 'activity.zone_limit';
+
   /// A sleep or a nap started by hand and not yet ended: 'sleep|(epoch ms)' or
   /// 'nap|(epoch ms)'. Empty when none is running.
   static const String restPending = 'rest.pending';

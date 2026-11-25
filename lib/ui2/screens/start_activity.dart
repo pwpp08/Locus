@@ -23,6 +23,7 @@ import '../../state/app_state.dart';
 import '../../state/clock_format.dart';
 import '../../state/prefs.dart';
 import '../../state/workout_alerts.dart';
+import '../../state/zone_alert.dart' show ZoneLimitAlert;
 import '../activity/catalogue.dart';
 import '../activity/live.dart';
 import '../activity/live_map.dart';
@@ -85,6 +86,8 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
       return parts.length == 2 && parts[0] == k ? int.tryParse(parts[1]) ?? d : d;
     }();
   }
+  /// The highest zone the band lets you reach before it buzzes (1 to 4); 0 off.
+  int _zoneLimit = 0;
   bool _open = false;
   bool _starting = false;
   String? _refused;
@@ -105,6 +108,8 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
     try {
       _liveHrOwner = context.read<AppState>()..retainLiveHrView();
     } catch (_) {}
+    _zoneLimit =
+        ZoneLimitAlert.parse(Prefs.getString(Prefs.activityZoneLimit, '')) ?? 0;
     final saved = double.tryParse(Prefs.getString(Prefs.activityStrainTarget, ''));
     if (saved != null) {
       _on = true;
@@ -220,6 +225,8 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
     final t = _timer;
     Prefs.setString(Prefs.activityTimer,
         t == null || t == 0 ? '' : '${_a.typeKey}|$t');
+    Prefs.setString(
+        Prefs.activityZoneLimit, _zoneLimit == 0 ? '' : '$_zoneLimit');
     app.startWorkout(type: _a.typeKey, trackRoute: _route);
     if (app.activeWorkout == null) {
       if (mounted) {
@@ -394,6 +401,37 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
                 AppSwitch(_route, (v) => setState(() => _route = v),
                     semanticLabel: 'Track route'),
               ]),
+            ),
+          if (rest == null)
+            Positioned(
+              left: S.x4,
+              top: headerH + S.x4,
+              child: Pressable(
+                onTap: () => _pickZoneLimit(c),
+                semanticLabel: _zoneLimit == 0
+                    ? 'Zone limit off. Set one'
+                    : 'Zone limit, zone $_zoneLimit. Change it',
+                child: Row(children: [
+                  Text('ZONE LIMIT',
+                      style: F.caps.copyWith(color: C.white.withValues(alpha: .5))),
+                  const SizedBox(width: S.x3),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: S.x3, vertical: S.x2),
+                    decoration: BoxDecoration(
+                      color: C.white.withValues(alpha: _zoneLimit == 0 ? .08 : .16),
+                      borderRadius: R.rPill,
+                    ),
+                    child: Row(children: [
+                      Icon(LucideIcons.heartPulse, size: I.sm, color: C.white),
+                      const SizedBox(width: S.x1),
+                      Text(_zoneLimit == 0 ? 'OFF' : 'ZONE $_zoneLimit',
+                          style: F.caps.copyWith(
+                              color: C.white, fontWeight: FontWeight.w700)),
+                    ]),
+                  ),
+                ]),
+              ),
             ),
           if (timer != null)
             Positioned(
@@ -805,6 +843,40 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
           'your strain against it as you go, and your band buzzes twice '
           'when you reach it.',
           style: F.body.copyWith(color: P.of(c).ink2, height: 1.45)));
+
+  /// The zone ceiling: off, or the highest zone to stay in. The band buzzes
+  /// once the heart rate goes above it, and again every 30 seconds until it
+  /// comes back down.
+  void _pickZoneLimit(BuildContext c) {
+    AppSheet.show<void>(c,
+        title: 'Zone limit',
+        child: StatefulBuilder(builder: (sc, set) {
+          final p = P.of(sc);
+          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            RangeSegments(
+              const ['OFF', '1', '2', '3', '4'],
+              _zoneLimit,
+              (i) {
+                set(() {});
+                setState(() => _zoneLimit = i);
+              },
+              width: null,
+            ),
+            const SizedBox(height: S.x4),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(LucideIcons.vibrate, size: I.md, color: p.ink3),
+              const SizedBox(width: S.x3),
+              Expanded(
+                child: Text(
+                    'The highest zone you want to stay in. Your band buzzes '
+                    'three times when your heart rate goes above it, and again '
+                    'every 30 seconds until you ease off.',
+                    style: F.cap.copyWith(color: p.ink3, height: 1.4)),
+              ),
+            ]),
+          ]);
+        }));
+  }
 
   /// The countdown: a row of lengths. The band buzzes a minute before the end
   /// (on 3 minutes or more) and three times when it is up.

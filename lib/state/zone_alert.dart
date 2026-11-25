@@ -68,3 +68,48 @@ class ZoneCrossingAlert {
     return true;
   }
 }
+
+/// A ceiling on the live zone, set per workout on Start Activity: buzz when the
+/// heart rate goes ABOVE [limitZone] (1..4), and again every [repeat] while it
+/// stays above, so it is felt until the effort eases. The other alert
+/// ([ZoneCrossingAlert]) is about crossing into or out of one zone; this one
+/// is a limit, and says nothing on the way back down.
+///
+/// Fed once per 1 Hz workout tick. [debounce] keeps one noisy second at a zone
+/// edge from buzzing. Zone 0 (no reading, or no zone set at all) is never
+/// above anything.
+class ZoneLimitAlert {
+  ZoneLimitAlert({
+    required this.limitZone,
+    this.debounce = const Duration(seconds: 5),
+    this.repeat = const Duration(seconds: 30),
+  });
+
+  final int limitZone;
+  final Duration debounce;
+  final Duration repeat;
+
+  DateTime? _aboveSince;
+  DateTime? _lastBuzz;
+
+  /// True when the band should buzz now.
+  bool onTick(DateTime now, int zone) {
+    if (zone <= limitZone) {
+      _aboveSince = null;
+      _lastBuzz = null;
+      return false;
+    }
+    _aboveSince ??= now;
+    if (now.difference(_aboveSince!) < debounce) return false;
+    final last = _lastBuzz;
+    if (last != null && now.difference(last) < repeat) return false;
+    _lastBuzz = now;
+    return true;
+  }
+
+  /// The zone a stored limit means ('' or out of range is none).
+  static int? parse(String stored) {
+    final z = int.tryParse(stored);
+    return z == null || z < 1 || z > 4 ? null : z;
+  }
+}
