@@ -269,7 +269,8 @@ Widget homeDayButton(P p, IconData icon, String label, VoidCallback onTap) =>
       onTap: onTap,
       semanticLabel: label[0] + label.substring(1).toLowerCase(),
       child: Container(
-        height: 40.0,
+        // 20% under the 40 it was: a pair of quiet buttons, not a banner.
+        height: 32.0,
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: S.x2),
         decoration: BoxDecoration(
@@ -279,9 +280,11 @@ Widget homeDayButton(P p, IconData icon, String label, VoidCallback onTap) =>
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: I.sm, color: p.ink),
+            Icon(icon, size: I.sm * .8, color: p.ink),
             const SizedBox(width: S.x2),
-            Text(label, style: F.caps.copyWith(color: p.ink, letterSpacing: .6)),
+            Text(label,
+                textScaler: const TextScaler.linear(.8),
+                style: F.caps.copyWith(color: p.ink, letterSpacing: .6)),
           ]),
         ),
       ),

@@ -612,6 +612,11 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       } catch (_) {}
     }
     if (!mounted) return;
+    // Each stretch of effort says which activity it was, where one was logged.
+    if (energy != null) {
+      energy = energy.withActivities(
+          nameEnergyEvents(energy.activities, sessions, detected));
+    }
     _energy = energy;
     _energyMidnight = midnight;
     _cards = cards;

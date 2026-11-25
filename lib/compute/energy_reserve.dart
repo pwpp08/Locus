@@ -52,7 +52,14 @@ const int _gapSec = 300;
 
 class EnergyEvent {
   final int ts, delta;
-  const EnergyEvent(this.ts, this.delta);
+
+  /// The activity it was, when one was logged or found over this stretch;
+  /// null for effort no activity explains.
+  final String? name;
+
+  /// How that activity got here ("Added later", "Found by your band").
+  final String? origin;
+  const EnergyEvent(this.ts, this.delta, {this.name, this.origin});
 }
 
 class EnergyReserve {
@@ -68,6 +75,19 @@ class EnergyReserve {
   /// effort: the pace of an ordinary minute today. Null with under
   /// [kEnergyProjectMinMin] such minutes to go on.
   final double? restRate;
+
+  /// This reserve with its activities swapped for [named] (the same events,
+  /// each carrying the activity it was).
+  EnergyReserve withActivities(List<EnergyEvent> named) => EnergyReserve(
+        level: level,
+        wokeLevel: wokeLevel,
+        wokeTs: wokeTs,
+        charged: charged,
+        drained: drained,
+        points: points,
+        activities: named,
+        restRate: restRate,
+      );
 
   const EnergyReserve({
     required this.level,

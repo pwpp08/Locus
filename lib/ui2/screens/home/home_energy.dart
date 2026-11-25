@@ -1,9 +1,12 @@
 // Energy reserve on Home: what is left today, and what charged and drained it.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../../../compute/energy_reserve.dart';
+import '../../../models/activity_suggestion.dart';
 import '../../../state/clock_format.dart';
+import '../../activity/catalogue.dart' show activityByName;
 import '../../ui2.dart';
 
 Color _tone(double level) => level >= 67
@@ -22,7 +25,54 @@ int _nextMidnight(int midnight) {
 String _clockOf(int ts) =>
     formatClockOf(DateTime.fromMillisecondsSinceEpoch(ts * 1000));
 
-class EnergyReserveCard extends StatelessWidget {
+/// Seconds either side of an activity that still count as inside it: the
+/// effort the heart rate shows starts a little after the workout is started,
+/// and runs on a little after it ends.
+const int _kNameSlackSec = 5 * 60;
+
+/// [events] each named after the activity it fell inside: a saved session
+/// (started in Locus, or added later) first, then one the band found and has
+/// not had named. Effort no activity explains keeps no name.
+List<EnergyEvent> nameEnergyEvents(
+  List<EnergyEvent> events,
+  List<Map<String, dynamic>> sessions,
+  List<ActivitySuggestion> detected,
+) {
+  String? origin(Map<String, dynamic> s) {
+    final src = s['source']?.toString() ?? '';
+    if (src == 'manual') return 'Added later';
+    if (src.contains('auto') || src.contains('detect')) return 'Found by your band';
+    return 'Started in Locus';
+  }
+
+  EnergyEvent named(EnergyEvent e) {
+    for (final s in sessions) {
+      final a = (s['start_ts'] as num?)?.toInt();
+      final b = (s['end_ts'] as num?)?.toInt() ?? a;
+      if (a == null || b == null) continue;
+      if (e.ts >= a - _kNameSlackSec && e.ts <= b + _kNameSlackSec) {
+        final act = activityByName(s['type']?.toString());
+        return EnergyEvent(e.ts, e.delta,
+            name: act?.name ?? s['title']?.toString() ?? 'Activity',
+            origin: origin(s));
+      }
+    }
+    for (final d in detected) {
+      if (e.ts >= d.startTs - _kNameSlackSec &&
+          e.ts <= d.endTs + _kNameSlackSec) {
+        final act = activityByName(d.sport);
+        return EnergyEvent(e.ts, e.delta,
+            name: act == null ? 'Activity' : '${act.name}?',
+            origin: 'Found by your band');
+      }
+    }
+    return e;
+  }
+
+  return [for (final e in events) named(e)];
+}
+
+class EnergyReserveCard extends StatefulWidget {
   final EnergyReserve data;
   final int midnight;
   const EnergyReserveCard({
@@ -30,6 +80,60 @@ class EnergyReserveCard extends StatelessWidget {
     required this.data,
     required this.midnight,
   });
+
+  @override
+  State<EnergyReserveCard> createState() => _EnergyReserveCardState();
+}
+
+class _EnergyReserveCardState extends State<EnergyReserveCard> {
+  /// The second under the finger on the chart, or null at rest.
+  int? _scrub;
+  int _lastBucket = -1;
+
+  EnergyReserve get data => widget.data;
+  int get midnight => widget.midnight;
+
+  /// The chart's left gutter, as the painter lays it.
+  static const double _left = S.x8;
+
+  /// The reserve at [t]: the line between the two readings around it.
+  double _levelAt(int t) {
+    final pts = data.points;
+    if (t <= pts.first.$1) return pts.first.$2;
+    for (var i = 1; i < pts.length; i++) {
+      if (pts[i].$1 >= t) {
+        final (t0, v0) = pts[i - 1];
+        final (t1, v1) = pts[i];
+        return t1 == t0 ? v1 : v0 + (v1 - v0) * (t - t0) / (t1 - t0);
+      }
+    }
+    return pts.last.$2;
+  }
+
+  void _onScrub(double f, double width) {
+    final plot = width - _left;
+    if (plot <= 0 || data.points.length < 2) return;
+    final day = _nextMidnight(midnight) - midnight;
+    final x = (f * width - _left).clamp(0.0, plot);
+    final t = (midnight + x / plot * day).round();
+    // Held to where the line has been: nothing is read past the last reading.
+    final clamped =
+        t.clamp(data.points.first.$1, data.points.last.$1).toInt();
+    final bucket = clamped ~/ 900;
+    if (bucket != _lastBucket) {
+      _lastBucket = bucket;
+      HapticFeedback.selectionClick();
+    }
+    setState(() => _scrub = clamped);
+  }
+
+  /// The activity the scrubbed second falls inside, if any.
+  EnergyEvent? _activityAt(int t) {
+    for (final a in data.activities) {
+      if ((a.ts - t).abs() <= 10 * 60) return a;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext c) {
@@ -117,20 +221,75 @@ class EnergyReserveCard extends StatelessWidget {
             'Woke at ${_clockOf(data.wokeTs)} with ${data.wokeLevel.round()}%',
             style: F.cap.copyWith(color: p.ink3),
           ),
-          const SizedBox(height: S.x4),
-          ExcludeSemantics(
-            child: CustomPaint(
-              size: const Size(double.infinity, S.x16 * 1.6),
-              painter: _ChartPainter(
-                data,
-                midnight,
-                projected: projected,
-                axis: p.ink3,
-                grid: p.ink.withValues(alpha: .1),
-                dotRing: p.bg,
-              ),
-            ),
+          const SizedBox(height: S.x3),
+          // What the finger is on: the time and the reserve there, and the
+          // activity if it falls in one. Holds its height at rest.
+          SizedBox(
+            height: S.x5,
+            child: _scrub == null
+                ? null
+                : Builder(builder: (c) {
+                    final t = _scrub!;
+                    final at = _activityAt(t);
+                    return Row(children: [
+                      Text(_clockOf(t),
+                          style: F.cap.copyWith(color: p.ink2)),
+                      const SizedBox(width: S.x2),
+                      Text('${_levelAt(t).round()}%',
+                          style: F.n17.copyWith(color: _tone(_levelAt(t)))),
+                      if (at?.name != null) ...[
+                        const SizedBox(width: S.x3),
+                        Flexible(
+                          child: Text(at!.name!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: F.cap.copyWith(color: C.strainDown)),
+                        ),
+                      ],
+                    ]);
+                  }),
           ),
+          LayoutBuilder(builder: (c, box) {
+            final width = box.maxWidth;
+            return Scrubber(
+              value: _scrub == null
+                  ? null
+                  : (_left +
+                          (_scrub! - midnight) /
+                              (_nextMidnight(midnight) - midnight) *
+                              (width - _left)) /
+                      width,
+              onChanged: (f) => _onScrub(f, width),
+              onLift: () => setState(() {
+                _scrub = null;
+                _lastBucket = -1;
+              }),
+              yieldToScroll: true,
+              label: 'Energy reserve through the day',
+              describe: (f) {
+                final plot = width - _left;
+                final day = _nextMidnight(midnight) - midnight;
+                final t = (midnight +
+                        ((f * width - _left).clamp(0.0, plot)) / plot * day)
+                    .round();
+                return '${_clockOf(t)}, ${_levelAt(t).round()} percent';
+              },
+              child: CustomPaint(
+                size: const Size(double.infinity, S.x16 * 1.6),
+                painter: _ChartPainter(
+                  data,
+                  midnight,
+                  projected: projected,
+                  axis: p.ink3,
+                  grid: p.ink.withValues(alpha: .1),
+                  dotRing: p.bg,
+                  scrub: _scrub,
+                  scrubLevel: _scrub == null ? null : _levelAt(_scrub!),
+                  guide: p.ink.withValues(alpha: .35),
+                ),
+              ),
+            );
+          }),
           if (projected != null) ...[
             const SizedBox(height: S.x2),
             Text(
@@ -222,8 +381,17 @@ class _ActivitiesStripState extends State<_ActivitiesStrip> {
                           padding: const EdgeInsets.only(top: S.x1),
                           child: Row(children: [
                             Expanded(
-                              child: Text('Activity at ${_clockOf(a.ts)}',
-                                  style: F.cap.copyWith(color: p.ink2)),
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(a.name ?? 'Raised heart rate',
+                                        style: F.cap.copyWith(color: p.ink)),
+                                    Text(
+                                        a.origin == null
+                                            ? _clockOf(a.ts)
+                                            : '${_clockOf(a.ts)} · ${a.origin}',
+                                        style: F.over.copyWith(color: p.ink3)),
+                                  ]),
                             ),
                             Text('${a.delta}',
                                 style: F.cap.copyWith(color: p.ink2)),
@@ -265,15 +433,22 @@ class _TicksPainter extends CustomPainter {
 class _ChartPainter extends CustomPainter {
   final EnergyReserve d;
   final int midnight;
-  final Color axis, grid, dotRing;
+  final Color axis, grid, dotRing, guide;
   final List<(int, double)>? projected;
+
+  /// The second under the finger and the reserve there; null at rest.
+  final int? scrub;
+  final double? scrubLevel;
   const _ChartPainter(
     this.d,
     this.midnight, {
     this.projected,
+    this.scrub,
+    this.scrubLevel,
     required this.axis,
     required this.grid,
     required this.dotRing,
+    required this.guide,
   });
 
   @override
@@ -387,9 +562,26 @@ class _ChartPainter extends CustomPainter {
     final end = Offset(x(pts.last.$1), y(pts.last.$2));
     canvas.drawCircle(end, S.x1 + S.half, Paint()..color = dotRing);
     canvas.drawCircle(end, S.x1, Paint()..color = tone);
+    // The finger: a guide down the chart and a ringed dot on the line.
+    final st = scrub, sl = scrubLevel;
+    if (st != null && sl != null) {
+      final gx = x(st);
+      canvas.drawLine(
+          Offset(gx, 0),
+          Offset(gx, h),
+          Paint()
+            ..color = guide
+            ..strokeWidth = S.hair);
+      final dot = Offset(gx, y(sl));
+      canvas.drawCircle(dot, S.x1 + S.half, Paint()..color = dotRing);
+      canvas.drawCircle(dot, S.x1, Paint()..color = _tone(sl));
+    }
   }
 
   @override
   bool shouldRepaint(_ChartPainter o) =>
-      o.d != d || o.midnight != midnight || o.projected != projected;
+      o.d != d ||
+      o.midnight != midnight ||
+      o.projected != projected ||
+      o.scrub != scrub;
 }
