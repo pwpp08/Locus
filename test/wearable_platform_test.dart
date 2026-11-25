@@ -32,14 +32,15 @@ const List<int> _hrWithTwoRr = <int>[0x16, 120, 0xF4, 0x01, 0x00, 0x02];
 
 void main() {
   test('every registry entry carries its category', () {
-    // This build scans for the two WHOOP generations only (`kBandRegistry` was
-    // trimmed to them); the other adapters keep their category on the entry
-    // but are not in the registry, so `categoryOf` answers null for them.
-    expect({for (final e in kBandRegistry) e.id: e.category}, {
-      'gen4': DeviceCategory.wearable,
-      'gen5': DeviceCategory.wearable,
-    });
-    expect(categoryOf('garmin'), isNull);
+    // Every adapter is in the registry again, so each one answers.
+    final cats = {for (final e in kBandRegistry) e.id: e.category};
+    expect(cats['gen4'], DeviceCategory.wearable);
+    expect(cats['gen5'], DeviceCategory.wearable);
+    for (final id in ['garmin', 'helio', 'oura', 'miband234']) {
+      expect(cats[id], DeviceCategory.wearable, reason: id);
+    }
+    expect(cats['ble_hrs'], DeviceCategory.workoutSensor);
+    expect(categoryOf('garmin'), DeviceCategory.wearable);
     expect(categoryOf('nothing-we-speak'), isNull);
   });
 

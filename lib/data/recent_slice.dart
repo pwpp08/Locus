@@ -56,6 +56,8 @@ const Map<String, (SliceKeep, String?, String)> kSliceTables = {
   'sync_quarantine': (SliceKeep.recent, 'created_at', 'rejected chunks with their payloads'),
   'external_hr': (SliceKeep.highRate, 'ts', 'per-second heart rate from chest straps'),
   'imported_measurement': (SliceKeep.recent, 'ts', 'Health app samples, can be per-minute'),
+  'imported_sleep': (SliceKeep.recent, 'start_ts', 'nights imported from the health store'),
+  'imported_daily': (SliceKeep.all, null, 'one imported value per day, small'),
   'observation': (SliceKeep.recent, 'ts_ms', 'per-reading values from other wearables'),
   'vendor_sleep_epoch': (SliceKeep.recent, 'start_ts', 'per-epoch sleep stages from other wearables'),
   'live_coverage': (SliceKeep.recent, 'end_ts', 'live-stream coverage intervals'),
