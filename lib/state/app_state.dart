@@ -113,6 +113,8 @@ import '../platform/tasker_bridge.dart';
 import '../data/models.dart';
 import '../notify/device_alerts.dart';
 import '../notify/notification_relay.dart';
+import '../notify/alarm_headsup.dart'
+    show armAlarmHeadsUp, onAlarmListChangedByAction;
 import '../notify/notification_service.dart';
 import '../notify/tap_router.dart';
 import '../notify/water_buzzer.dart';
@@ -2773,6 +2775,10 @@ class AppState extends ChangeNotifier {
     await _seedAlarmScheduleFromLegacyIfNeeded();
     await alarmManager.init(legacySchedule: _schedule);
     alarmManager.addListener(_onAlarmManagerChanged);
+    // A heads-up button pressed while the app was open changes the stored list;
+    // the live manager reads it back, which re-arms the band.
+    onAlarmListChangedByAction = alarmManager.reloadFromStore;
+    unawaited(_armAlarmHeadsUp());
     DeviceActions.ensureInitialized();
     DeviceActions.onPhoneShakeDismiss = () {
       _log('[alarm] phone shaken - dismissing alarm and stopping haptics');
@@ -4497,9 +4503,19 @@ class AppState extends ChangeNotifier {
 
   void _onAlarmManagerChanged() {
     notifyListeners();
+    unawaited(_armAlarmHeadsUp());
     if (isConnected) {
       unawaited(_armNextAlarmOccurrence());
     }
+  }
+
+  /// Re-arm the "alarm in 30 minutes" heads-up from the stored list.
+  Future<void> _armAlarmHeadsUp() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await armAlarmHeadsUp(NotificationService.instance,
+          sp.getString(AlarmManager.kAlarmsList));
+    } catch (_) {}
   }
 
   // ── shake to stop ───────────────────────────────────────────────────────────

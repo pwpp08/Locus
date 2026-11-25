@@ -38,6 +38,13 @@ class AlarmItem {
   /// comes round" reading.
   final int? onceAt;
 
+  /// One day's later ring, as a local `YYYY-MM-DD` and the minutes it moves:
+  /// that day's occurrence rings [moveMin] minutes later, every other day
+  /// rings at the set time. Set from the heads-up notification's delay
+  /// buttons; a date in the past is simply never matched again.
+  final String? moveDay;
+  final int moveMin;
+
   /// False for a schedule that only says when you wake: the planner plans
   /// bed and wake times round it, and nothing is ever armed on the band
   /// ("Don't use an alarm"). It has no next ring, so every armer skips it.
@@ -54,6 +61,8 @@ class AlarmItem {
     this.mode = AlarmMode.exact,
     this.skipDay,
     this.onceAt,
+    this.moveDay,
+    this.moveMin = 0,
     this.ring = true,
   });
 
@@ -110,12 +119,12 @@ class AlarmItem {
       // Ring once
       final at = onceAt;
       if (at != null) {
-        final t = DateTime.fromMillisecondsSinceEpoch(at);
+        final t = _moved(DateTime.fromMillisecondsSinceEpoch(at));
         return t.isAfter(from) ? t : null;
       }
       final candidate = DateTime(from.year, from.month, from.day, hour, minute);
-      if (candidate.isAfter(from)) {
-        return candidate;
+      if (_moved(candidate).isAfter(from)) {
+        return _moved(candidate);
       }
       return candidate.add(const Duration(days: 1));
     }
@@ -125,12 +134,47 @@ class AlarmItem {
       final date = from.add(Duration(days: offset));
       if (days.contains(date.weekday)) {
         final candidate = DateTime(date.year, date.month, date.day, hour, minute);
-        if (candidate.isAfter(from) && dayKey(candidate) != skipDay) {
-          return candidate;
+        final rings = _moved(candidate);
+        if (rings.isAfter(from) && dayKey(candidate) != skipDay) {
+          return rings;
         }
       }
     }
     return null;
+  }
+
+  /// [t] with this alarm's one later morning applied, when it is that day.
+  DateTime _moved(DateTime t) => moveDay != null &&
+          moveMin != 0 &&
+          dayKey(DateTime(t.year, t.month, t.day)) == moveDay
+      ? t.add(Duration(minutes: moveMin))
+      : t;
+
+  /// This alarm with its next ring dropped: a repeating alarm skips that
+  /// morning only, a ring-once alarm turns off. Null when nothing is ahead.
+  AlarmItem? skippedNext(DateTime now) {
+    if (days.isEmpty) {
+      return nextOccurrence(now) == null
+          ? null
+          : copyWith(enabled: false, clearOnce: true, clearMove: true);
+    }
+    final next = nextUnskipped(now);
+    return next == null
+        ? null
+        : copyWith(skipDay: dayKey(next), clearMove: true);
+  }
+
+  /// This alarm with its next ring [minutes] later, that morning only. Null
+  /// when nothing is ahead.
+  AlarmItem? delayedNext(int minutes, DateTime now) {
+    final next = nextOccurrence(now);
+    if (next == null) return null;
+    // The morning's own set time; [next] already carries any move made earlier
+    // that day, so the new move is that plus [minutes].
+    final set = DateTime(next.year, next.month, next.day, hour, minute);
+    return copyWith(
+        moveDay: dayKey(set),
+        moveMin: next.difference(set).inMinutes + minutes);
   }
 
   /// The occurrence the next skip would drop: the next one, ignoring any skip
@@ -152,6 +196,9 @@ class AlarmItem {
     int? onceAt,
     bool clearOnce = false,
     bool? ring,
+    String? moveDay,
+    int? moveMin,
+    bool clearMove = false,
   }) =>
       AlarmItem(
         id: id ?? this.id,
@@ -164,6 +211,8 @@ class AlarmItem {
         mode: mode ?? this.mode,
         skipDay: clearSkip ? null : (skipDay ?? this.skipDay),
         onceAt: clearOnce ? null : (onceAt ?? this.onceAt),
+        moveDay: clearMove ? null : (moveDay ?? this.moveDay),
+        moveMin: clearMove ? 0 : (moveMin ?? this.moveMin),
         ring: ring ?? this.ring,
       );
 
@@ -204,6 +253,10 @@ class AlarmItem {
         'mode': mode.name,
         if (skipDay != null) 'skipDay': skipDay,
         if (onceAt != null) 'onceAt': onceAt,
+        if (moveDay != null && moveMin != 0) ...{
+          'moveDay': moveDay,
+          'moveMin': moveMin,
+        },
         if (!ring) 'ring': false,
       };
 
@@ -218,6 +271,8 @@ class AlarmItem {
         mode: AlarmMode.fromName(json['mode']),
         skipDay: json['skipDay'] as String?,
         onceAt: (json['onceAt'] as num?)?.toInt(),
+        moveDay: json['moveDay'] as String?,
+        moveMin: (json['moveMin'] as num?)?.toInt() ?? 0,
         ring: json['ring'] != false,
       );
 

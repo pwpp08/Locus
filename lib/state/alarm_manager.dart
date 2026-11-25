@@ -269,6 +269,30 @@ class AlarmManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Ring [minutes] later on the next morning only.
+  Future<void> delayNext(String id, int minutes, DateTime now) async {
+    final idx = _alarms.indexWhere((a) => a.id == id);
+    if (idx == -1) return;
+    final moved = _alarms[idx].delayedNext(minutes, now);
+    if (moved == null) return;
+    _alarms[idx] = moved;
+    await _persist();
+    notifyListeners();
+  }
+
+  /// Read the stored list again: a notification button pressed while the app
+  /// was closed changed it behind this object's back.
+  Future<void> reloadFromStore() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    final stored = prefs.getString(_kAlarmsList);
+    if (stored == null || stored.isEmpty) return;
+    final fresh = AlarmItem.decodeList(stored);
+    if (AlarmItem.encodeList(fresh) == AlarmItem.encodeList(_alarms)) return;
+    _alarms = fresh;
+    notifyListeners();
+  }
+
   /// Ring on the skipped morning after all.
   Future<void> clearSkip(String id) async {
     final idx = _alarms.indexWhere((a) => a.id == id);

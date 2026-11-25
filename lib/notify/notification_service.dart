@@ -31,6 +31,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'alarm_headsup.dart';
 import 'notification_event.dart';
 import 'notification_ids.dart';
 
@@ -128,6 +129,7 @@ class NotificationService {
   static const int idEveningBrief = 2006; // scheduled daily (AI evening recap)
   static const int idAlarmLatchFailed = 2007; // immediate ("alarm not confirmed")
   static const int idAlarmNightCheck = 2008; // scheduled daily, one-shot 19:00
+  static const int idAlarmHeadsUp = 2009; // one-shot, 30 min before the next alarm
   static const int idStillness = 2200; // provisional one-shot ("time to move", issue #123)
   static const int idCheckIn = 2201; // daily ("how was today?" → the journal)
   static const int idCheckInLater = 2202; // one-off "remind me later" (journal)
@@ -202,6 +204,7 @@ class NotificationService {
     idCheckIn,
     idCheckInLater,
     idAlarmNightCheck,
+    idAlarmHeadsUp,
   };
 
   /// Whether [id] is one of the hydration slots. A band rather than a set
@@ -261,14 +264,25 @@ class NotificationService {
 
     const AndroidInitializationSettings android =
         AndroidInitializationSettings('@mipmap/launcher_icon');
-    const DarwinInitializationSettings darwin = DarwinInitializationSettings(
+    final DarwinInitializationSettings darwin = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
       requestSoundPermission: false,
+      notificationCategories: [
+        DarwinNotificationCategory(
+          kAlarmHeadsUpCategory,
+          actions: [
+            DarwinNotificationAction.plain(kAlarmActionSkip, 'Turn off today'),
+            DarwinNotificationAction.plain(kAlarmActionPlus15, '+15 min'),
+            DarwinNotificationAction.plain(kAlarmActionPlus30, '+30 min'),
+          ],
+        ),
+      ],
     );
     await _plugin.initialize(
-      const InitializationSettings(android: android, iOS: darwin),
+      InitializationSettings(android: android, iOS: darwin),
       onDidReceiveNotificationResponse: _onTap,
+      onDidReceiveBackgroundNotificationResponse: alarmHeadsUpBackground,
     );
     final androidImpl = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
@@ -280,6 +294,11 @@ class NotificationService {
   }
 
   void _onTap(NotificationResponse r) {
+    // A button on the alarm heads-up, not a tap on the card.
+    if (r.actionId != null && r.actionId!.isNotEmpty) {
+      unawaited(handleAlarmHeadsUpAction(r));
+      return;
+    }
     final route = r.payload;
     if (route != null && route.isNotEmpty) _taps.add(route);
   }
@@ -582,6 +601,52 @@ class NotificationService {
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
         payload: route,
+      );
+    } catch (_) {}
+  }
+
+  /// The heads-up before an alarm: a one-shot at [at], with a button to turn
+  /// today's ring off and two to push it later. Never throws.
+  Future<void> scheduleAlarmHeadsUp({
+    required DateTime at,
+    required String title,
+    required String body,
+    required String payload,
+  }) async {
+    try {
+      if (!_maySchedule(idAlarmHeadsUp)) return;
+      if (!await ensurePermission(allowPrompt: false)) return;
+      final ch = _channelFor(NotifCategory.reminders);
+      await _plugin.zonedSchedule(
+        idAlarmHeadsUp,
+        title,
+        body,
+        tz.TZDateTime.from(at, tz.local),
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            ch.id,
+            ch.name,
+            channelDescription: ch.description,
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/launcher_icon',
+            category: AndroidNotificationCategory.reminder,
+            actions: const [
+              AndroidNotificationAction(kAlarmActionSkip, 'Turn off today',
+                  cancelNotification: true),
+              AndroidNotificationAction(kAlarmActionPlus15, '+15 min',
+                  cancelNotification: true),
+              AndroidNotificationAction(kAlarmActionPlus30, '+30 min',
+                  cancelNotification: true),
+            ],
+          ),
+          iOS: const DarwinNotificationDetails(
+              categoryIdentifier: kAlarmHeadsUpCategory),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload,
       );
     } catch (_) {}
   }

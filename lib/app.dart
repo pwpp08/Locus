@@ -94,6 +94,7 @@ class _OpenStrapAppState extends State<OpenStrapApp> with WidgetsBindingObserver
       unawaited(context.read<CoachConfig>().refreshKeyOnResume());
       app.maybeFinishFromLiveActivity();
       unawaited(app.maybeStopBreathingFromLiveActivity());
+      unawaited(app.alarmManager.reloadFromStore());
       app.alarmManager.refreshSystemAlarm();
       app.refreshAppStatus(); // re-check OTA + admin banner on every foreground
       app.runCadenceChecks(); // evening wind-down / weekly recap nudges (best-effort)

@@ -37,8 +37,10 @@ import '../data/db.dart';
 import '../ecg/ecg_guard_store.dart';
 import '../ecg/ecg_recovery.dart';
 import '../ecg/ecg_transport.dart';
+import '../notify/alarm_headsup.dart' show armAlarmHeadsUp;
 import '../notify/notification_center.dart';
 import '../notify/notification_event.dart';
+import '../notify/notification_service.dart' show NotificationService;
 import '../platform/system_alarm.dart';
 import '../state/alarm_manager.dart' show AlarmManager;
 import '../state/alarm_schedule.dart';
@@ -277,6 +279,11 @@ Future<void> rearmHeadlessAlarm(BleEngine engine) async {
           // No platform channel in this isolate: the list alone.
         }
       }
+      try {
+        final svc = NotificationService.instance;
+        await svc.init();
+        await armAlarmHeadsUp(svc, stored);
+      } catch (_) {}
       final next = AlarmManager.nextFromStored(stored, DateTime.now(),
           systemAlarm: system);
       await headlessArmAndConfirm(

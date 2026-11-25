@@ -33,7 +33,9 @@ import '../ai/reminder_plan.dart';
 import '../data/day_label.dart';
 import '../data/journal_fields.dart';
 import '../data/med_store.dart';
+import '../state/alarm_manager.dart' show AlarmManager;
 import '../state/clock_format.dart' show formatClockMinute;
+import 'alarm_headsup.dart';
 import 'fired_keys.dart';
 import 'notification_event.dart';
 import 'notification_prefs.dart';
@@ -353,6 +355,10 @@ class NotificationCenter {
     // call started with — the awaits above (zone resolve + every slot ahead
     // of this one) are real wall-clock time, and this is the one slot whose
     // hour boundary (19:00) a stale `nowMin` could cross mid-call.
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await armAlarmHeadsUp(svc, sp.getString(AlarmManager.kAlarmsList));
+    } catch (_) {}
     final freshNow = DateTime.now();
     final freshNightCheck = alarmNightCheckSlot(prefs,
         armedTonight: armedTonight, nowMin: freshNow.hour * 60 + freshNow.minute);
