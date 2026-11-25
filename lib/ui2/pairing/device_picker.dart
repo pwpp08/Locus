@@ -32,6 +32,7 @@ import '../../l10n/display_text.dart';
 // does not rebuild what is already there.
 
 import 'dart:async' show unawaited;
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -49,6 +50,7 @@ import '../onboarding/welcome.dart' show OnboardingLink;
 import '../screens/dial_parts.dart' show kDialGround, kDialMargin;
 import '../ui2.dart';
 import '../profile/devices.dart' show kPairableSensors, sensorIcon;
+import '../profile/health_connect_guide.dart' show HealthConnectGuideScreen;
 import '../profile/pair_sensor.dart' show PairSensorScreen;
 import '../profile/profile.dart' show SetRow;
 
@@ -275,6 +277,12 @@ class _DevicePickerScreenState extends State<DevicePickerScreen> {
       onPickNearby: _pickNearby,
       onOpenEntry: _openEntry,
       onSkip: widget.onSkip,
+      // Not Bluetooth: Google Health owns the Air and writes to Health
+      // Connect, which exists on Android only.
+      onFitbitAir: Platform.isAndroid && !widget.includeBand
+          ? () => Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => const HealthConnectGuideScreen()))
+          : null,
     );
   }
 
@@ -311,6 +319,9 @@ class DevicePickerView extends StatelessWidget {
   final void Function(BandEntry)? onOpenEntry;
   final VoidCallback? onSkip;
 
+  /// The Fitbit Air row (Health Connect, no scan); null hides it.
+  final VoidCallback? onFitbitAir;
+
   const DevicePickerView({
     super.key,
     required this.query,
@@ -326,6 +337,7 @@ class DevicePickerView extends StatelessWidget {
     this.onPickNearby,
     this.onOpenEntry,
     this.onSkip,
+    this.onFitbitAir,
   });
 
   @override
@@ -381,6 +393,21 @@ class DevicePickerView extends StatelessWidget {
                     icon: LucideIcons.circleAlert,
                   ),
                 ],
+                  if (onFitbitAir != null)
+                    Section(
+                      uiText(c, 'Through Health Connect'),
+                      Surface(
+                        pad: const EdgeInsets.symmetric(horizontal: S.x4),
+                        child: _sensorRow(
+                          icon: LucideIcons.watch,
+                          color: C.dialStrain,
+                          title: uiText(c, 'Fitbit Air'),
+                          sub: uiText(c,
+                              'Read from Google Health, shown beside your numbers. No Bluetooth pairing.'),
+                          onTap: busy ? null : onFitbitAir,
+                        ),
+                      ),
+                    ),
                   if (categories.isNotEmpty)
                     Section(
                       l?.devicePickerBrowseByCategory ?? 'Browse by category',

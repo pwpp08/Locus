@@ -116,7 +116,6 @@ const Map<String, SetupGuideSpec> kSetupGuides = {
     lacks: 'Live heart rate unless the watch broadcasts it. Experimental until tested on a real watch.',
   ),
   'ble_hrs': SetupGuideSpec(
-    question: 'Which heart rate sensor is it?',
     paths: [
       SetupPath(
         'Strap or armband',
@@ -126,20 +125,40 @@ const Map<String, SetupGuideSpec> kSetupGuides = {
           'Tap Find my device below and pick it.',
         ],
       ),
-      SetupPath(
-        'Fitbit Air',
-        [
-          'Keep the Air paired in the Google Health app. Google owns that pairing, and Locus cannot take it over.',
-          'In Google Health open the device and turn on Share heart rate.',
-          'Wear the Air and tap Find my device below.',
-        ],
-        note: 'Share heart rate only sends a live pulse while it is on. The '
-            'Air does not hand over sleep, steps or history over Bluetooth, '
-            'so those stay in Google Health.',
-      ),
     ],
     gives: 'Live heart rate during a workout.',
     lacks: 'Sleep, steps and history. A sensor nobody has tested here yet is experimental.',
+  ),
+  // The Fitbit Air does not pair over Bluetooth: Google Health owns its link
+  // and writes what it measures into Health Connect, which Locus reads.
+  'fitbit_air': SetupGuideSpec(
+    question: 'Where are you in setting it up?',
+    paths: [
+      SetupPath(
+        'Set up',
+        [
+          'Pair the Air in the Google Health app, the way you normally do. Locus does not connect to it directly.',
+          'In Google Health open its settings and turn on sharing with Health Connect. Allow heart rate, sleep and steps.',
+          'Wear the Air and let Google Health sync.',
+          'Back here, tap Open watch comparison and allow Locus to read from Health Connect.',
+          'Pick the Google Health entry in the source list.',
+        ],
+        note: 'Locus shows the Air’s numbers beside your own, under its '
+            'source’s name. Nothing is sent anywhere.',
+      ),
+      SetupPath(
+        'Not showing up',
+        [
+          'Tap Open Health Connect below, then App permissions. Check Google Health may write and Locus may read.',
+          'Open Google Health and sync the Air, so there is new data to read.',
+          'Come back and open the watch comparison again.',
+        ],
+        note: 'Google Health decides what it writes and when, so a night can '
+            'arrive late.',
+      ),
+    ],
+    gives: 'Whatever Google Health writes to Health Connect, usually heart rate, sleep and steps, shown next to your own numbers. Its workouts can be imported from Workout, History.',
+    lacks: 'Scores. The Air’s numbers are shown, never used in your recovery, sleep or strain. Android only.',
   ),
 };
 
