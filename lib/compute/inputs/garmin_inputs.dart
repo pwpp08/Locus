@@ -28,6 +28,7 @@ import 'pebble_inputs.dart';
 import 'ultrahuman_inputs.dart';
 
 const String kGarminFamily = 'garmin';
+const String kHelioFamily = 'helio';
 
 /// The widest gap, in seconds, between two readings still taken as one 1 Hz
 /// run (a strap's seconds laid over a wearable's day): a dropped second or
@@ -43,6 +44,7 @@ const int kOneHzRunGapSec = 3;
 /// A family missing here gets no substrate at all (calibrationFor refuses).
 const Map<String, int> kHrCadenceSec = {
   kGarminFamily: 60,
+  kHelioFamily: 60,
   kPebbleFamily: 60,
   kMiBandFamily: 60,
   kUltrahumanFamily: 300,
@@ -59,6 +61,7 @@ const Map<String, String> kMethodFamily = {
   'gen4': 'hr_1hz',
   'gen5': 'hr_1hz',
   kGarminFamily: 'hr_1min',
+  kHelioFamily: 'hr_1min',
   kPebbleFamily: 'hr_1min',
   kMiBandFamily: 'hr_1min',
   kUltrahumanFamily: 'hr_5min',

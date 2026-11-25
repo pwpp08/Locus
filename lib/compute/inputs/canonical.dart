@@ -423,6 +423,7 @@ Future<Substrate> wearableSubstrate(
 ) async {
   final own = await switch (wearable.$2) {
     kGarminFamily ||
+    kHelioFamily ||
     kPebbleFamily ||
     kMiBandFamily => sparseHrSubstrate(wearable.$2, wearable.$1, from, to),
     kUltrahumanFamily => ultrahumanSubstrate(wearable.$1, from, to),
@@ -645,6 +646,7 @@ Future<Map<String, int>> wearableRecTsMaxByDay(
   final out = {
     ...await switch (wearable.$2) {
       kGarminFamily ||
+      kHelioFamily ||
       kPebbleFamily ||
       kMiBandFamily ||
       kUltrahumanFamily ||
@@ -1162,7 +1164,7 @@ void tagEnvelopes(Map? clinical, String? family) {
 /// [adapterId]'s column of the metric x device table, or null for a device
 /// with none (every band, sensor and scale).
 Map<String, Cell>? columnFor(String? adapterId) => switch (adapterId) {
-  kGarminFamily => kGarminColumn,
+  kGarminFamily || kHelioFamily => kGarminColumn,
   kPebbleFamily => kPebbleColumn,
   kMiBandFamily => kMiBandColumn,
   kUltrahumanFamily => kUltrahumanColumn,

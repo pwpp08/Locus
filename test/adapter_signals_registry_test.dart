@@ -9,12 +9,15 @@
 // A test has no cycle to worry about, so it compares both sides directly:
 // membership AND the declared cadence.
 
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openstrap_edge/ble/adapters/_registry.dart';
 import 'package:openstrap_edge/ble/adapters/ble_hrs.dart';
 import 'package:openstrap_edge/ble/adapters/colmi.dart';
 import 'package:openstrap_edge/ble/adapters/coros.dart';
 import 'package:openstrap_edge/ble/adapters/garmin.dart';
+import 'package:openstrap_edge/ble/adapters/helio.dart';
 import 'package:openstrap_edge/ble/adapters/miband234.dart';
 import 'package:openstrap_edge/ble/adapters/oura.dart';
 import 'package:openstrap_edge/ble/adapters/pebble.dart';
@@ -37,6 +40,7 @@ void main() {
       'polar_pmd': const PolarPmdAdapter().signals,
       'coros': const CorosAdapter().signals,
       'garmin': const GarminAdapter().signals,
+      'helio': HelioAdapter(authKey: Uint8List(16)).signals,
       'ultrahuman': UltrahumanAdapter().signals,
       'miband234': MiBand234Adapter(key: const [0]).signals,
       'pebble': kPebbleAdapter.signals,

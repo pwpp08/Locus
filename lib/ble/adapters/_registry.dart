@@ -781,6 +781,44 @@ const BandEntry kGarmin = BandEntry.notify(
   timeAnchor: TimeAnchor.arrival,
 );
 
+/// The Amazfit Helio Strap's service and its three characteristics. The
+/// Huami base is `0000xxxx-0000-3512-2118-0009af100700`: 0016 carries commands
+/// and the strap's ACKs, 0017 its data messages and ours ACKs, 0005 the bulk
+/// history packets.
+const String kHelioService = '0000fee0-0000-1000-8000-00805f9b34fb';
+const String kHelioCmdChar = '00000016-0000-3512-2118-0009af100700';
+const String kHelioDataChar = '00000017-0000-3512-2118-0009af100700';
+const String kHelioGdspChar = '00000005-0000-3512-2118-0009af100700';
+
+/// The names a Helio Strap advertises (one is its codename).
+bool _looksLikeHelio(String lowercaseName) =>
+    lowercaseName.contains('helio strap') || lowercaseName == 'stuttgart';
+
+/// The Amazfit Helio Strap, read directly after a one-time key lookup from the
+/// owner's own Zepp account (`ble/helio/zepp_cloud.dart`).
+///
+/// FOUND BY NAME, like [kMiBand234]: the strap is not known to advertise its
+/// service in a way the OS filter can use. The iOS picker cannot match on a
+/// name alone, so on iPhone it is found only if it advertises the service.
+///
+/// [TimeAnchor.measured]: every record carries its own time.
+///
+/// EXPERIMENTAL (ASSUMPTIONS R6): nobody on this project owns one. HR and skin
+/// temperature land as sparse samples, sleep as the strap's own hypnogram, the
+/// rest as attributed observations; none of it reaches a metric unless the
+/// default-off `wearable_enabled:helio` flag is on and it is the active
+/// wearable.
+const BandEntry kHelio = BandEntry.notify(
+  id: 'helio',
+  category: DeviceCategory.wearable,
+  label: 'Amazfit Helio Strap',
+  service: kHelioService,
+  characteristics: <String>[kHelioCmdChar, kHelioDataChar],
+  timeAnchor: TimeAnchor.measured,
+  nameMatcher: _looksLikeHelio,
+  scanByName: true,
+);
+
 /// The Ultrahuman Ring Air. A fetch-by-index band with no auth and no
 /// envelope: a bare `[opcode, ...body]` request and a
 /// `[opcode, result, count, payload…, trailer(2)]` response, both on ONE
@@ -1032,6 +1070,7 @@ const List<BandEntry> kBandRegistry = <BandEntry>[
   kPebble,
   kColmi,
   kGarmin,
+  kHelio,
   kThermometer,
   kMiScaleComposition,
   kMiScale2,
@@ -1091,6 +1130,7 @@ const List<BandEntry> kAskPickerSensors = <BandEntry>[
   kMiBand234,
   kPebble,
   kGarmin,
+  kHelio,
   kThermometer,
   kMiScaleComposition,
   kMiScale2,
@@ -1230,6 +1270,15 @@ const Map<String, Map<InputSignal, Duration>> kAdapterSignals =
     InputSignal.deviceStages: Duration.zero,
     InputSignal.deviceHrv: Duration(days: 1),
     InputSignal.deviceResp: Duration(days: 1),
+    InputSignal.deviceSpo2: Duration(days: 1),
+    InputSignal.deviceStress: Duration(days: 1),
+  },
+  'helio': {
+    InputSignal.hrSparse: Duration(minutes: 1),
+    InputSignal.steps: Duration(days: 1),
+    InputSignal.skinTempC: Duration(minutes: 1),
+    InputSignal.deviceStages: Duration.zero,
+    InputSignal.deviceHrv: Duration(days: 1),
     InputSignal.deviceSpo2: Duration(days: 1),
     InputSignal.deviceStress: Duration(days: 1),
   },
