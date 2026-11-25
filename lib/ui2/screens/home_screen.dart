@@ -52,6 +52,9 @@ import '../../compute/energy_reserve.dart';
 import 'home/home_energy.dart';
 import 'home/home_card_deck.dart';
 import 'home/home_cards.dart';
+import 'home/home_insights.dart';
+import 'behavior_insights.dart' show BehaviorInsightsData, BehaviorInsightsScreen;
+import '../../compute/insights_unlocked.dart';
 import 'home/home_daily_cards.dart';
 import 'home/home_dashboard_editor.dart';
 import 'home/home_data.dart';
@@ -612,6 +615,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       } catch (_) {}
     }
     if (!mounted) return;
+    unawaited(_refreshInsights(repo, day));
     // Each stretch of effort says which activity it was, where one was logged.
     if (energy != null) {
       energy = energy.withActivities(
@@ -727,6 +731,26 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
   }
 
   EnergyReserve? _energy;
+
+  /// Behaviors whose insight has just unlocked, waiting to be announced.
+  List<String> _insightTitles = const [];
+
+  /// Looks for newly unlocked behavior insights, once a day (it reads 90 days),
+  /// and shows what is waiting.
+  Future<void> _refreshInsights(LocalRepository repo, String day) async {
+    if (day != todayLabel()) return;
+    try {
+      const store = InsightsUnlockedStore();
+      if (await store.dueOn(day)) {
+        final r = await BehaviorInsightsData.load(repo, day);
+        await store.update(r.data.behaviors, day);
+      }
+      final titles = await store.pendingTitles();
+      if (mounted && titles.join('|') != _insightTitles.join('|')) {
+        setState(() => _insightTitles = titles);
+      }
+    } catch (_) {/* no card rather than a wrong one */}
+  }
   int _energyMidnight = 0;
   Map<String, Map<String, double>> _daily = const {};
   List<DailyCard> _cards = const [];
@@ -1103,6 +1127,23 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       if (isToday && _energy != null) ...[
         const SizedBox(height: S.x3),
         EnergyReserveCard(data: _energy!, midnight: _energyMidnight),
+      ],
+
+      if (isToday && _insightTitles.isNotEmpty) ...[
+        const SizedBox(height: S.x3),
+        InsightUnlockedCard(
+          titles: _insightTitles,
+          onOpen: () {
+            const InsightsUnlockedStore().dismiss();
+            final shown = _insightTitles;
+            setState(() => _insightTitles = const []);
+            if (shown.isNotEmpty) go(c, BehaviorInsightsScreen(day: d.dayId));
+          },
+          onDismiss: () {
+            const InsightsUnlockedStore().dismiss();
+            setState(() => _insightTitles = const []);
+          },
+        ),
       ],
 
       _SectionHead(

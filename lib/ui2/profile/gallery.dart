@@ -84,6 +84,7 @@ import '../screens/reports.dart' show ScoreRing;
 import '../screens/home/card_pictures.dart';
 import '../onboarding/setup_parts.dart';
 import 'setup_guide.dart';
+import '../screens/home/home_insights.dart';
 import 'source_plan.dart';
 import '../screens/locus_age.dart' show LocusAgeTrends;
 import '../../compute/stress_monitor.dart' show StressBaseline;
@@ -783,6 +784,11 @@ Map<String, Widget> _chartCases() {
       ]),
     ),
     'setup_guide': SetupGuideCard(kSetupGuides['oura']!),
+    'insight_unlocked': InsightUnlockedCard(
+      titles: const ['Alcohol', 'Late caffeine', 'Reading in bed', 'Cold shower'],
+      onOpen: () {},
+      onDismiss: () {},
+    ),
     'source_plan': const SizedBox(
       height: 520,
       child: SourcePlanView(devices: [
