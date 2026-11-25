@@ -115,6 +115,32 @@ const Map<String, SetupGuideSpec> kSetupGuides = {
     gives: 'Steps, heart rate, sleep, HRV, stress and Body Battery, read from the files the watch stores.',
     lacks: 'Live heart rate unless the watch broadcasts it. Experimental until tested on a real watch.',
   ),
+  'ble_hrs': SetupGuideSpec(
+    question: 'Which heart rate sensor is it?',
+    paths: [
+      SetupPath(
+        'Strap or armband',
+        [
+          'Put it on, with the strap wet or the electrodes moistened.',
+          'Close any other app that is connected to it. Most straps talk to one phone at a time.',
+          'Tap Find my device below and pick it.',
+        ],
+      ),
+      SetupPath(
+        'Fitbit Air',
+        [
+          'Keep the Air paired in the Google Health app. Google owns that pairing, and Locus cannot take it over.',
+          'In Google Health open the device and turn on Share heart rate.',
+          'Wear the Air and tap Find my device below.',
+        ],
+        note: 'Share heart rate only sends a live pulse while it is on. The '
+            'Air does not hand over sleep, steps or history over Bluetooth, '
+            'so those stay in Google Health.',
+      ),
+    ],
+    gives: 'Live heart rate during a workout.',
+    lacks: 'Sleep, steps and history. A sensor nobody has tested here yet is experimental.',
+  ),
 };
 
 /// The guide on a pairing screen: the situation picker, the numbered steps,
