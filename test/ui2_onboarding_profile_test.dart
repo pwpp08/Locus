@@ -8,11 +8,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
+import 'package:openstrap_edge/compute/profile.dart' show birthDateOf;
 import 'package:openstrap_edge/notify/notification_prefs.dart';
 import 'package:openstrap_edge/state/alarm_schedule.dart';
 import 'package:openstrap_edge/state/locale_controller.dart';
 import 'package:openstrap_edge/ui2/onboarding/pairing.dart';
 import 'package:openstrap_edge/ui2/onboarding/profile_setup.dart';
+import 'package:openstrap_edge/ui2/onboarding/setup_parts.dart';
 import 'package:openstrap_edge/ui2/onboarding/splash.dart';
 import 'package:openstrap_edge/ui2/onboarding/welcome.dart';
 import 'package:openstrap_edge/ui2/profile/alarm.dart';
@@ -233,5 +235,23 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('—'), findsNothing, reason: entry.key);
     }
+  });
+
+  testWidgets('a flick on the birth wheels runs on past one row', (t) async {
+    Map<String, dynamic>? done;
+    t.view.physicalSize = const Size(390 * 2, 840 * 2);
+    t.view.devicePixelRatio = 2;
+    addTearDown(t.view.reset);
+    await t.pumpWidget(MaterialApp(
+        theme: buildTheme(),
+        home: BirthdayPage(
+            now: DateTime(2026, 5, 22), onDone: (f) => done = f)));
+    // The year wheel is the third: a quick upward flick goes to later years.
+    await t.fling(find.byType(SetupWheel).at(2), const Offset(0, -90), 900);
+    await t.pumpAndSettle();
+    await t.tap(find.text('NEXT'));
+    await t.pump();
+    final born = birthDateOf(done!)!;
+    expect(born.year, greaterThan(1999), reason: 'it opened on 1996');
   });
 }

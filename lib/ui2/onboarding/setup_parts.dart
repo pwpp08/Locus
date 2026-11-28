@@ -59,80 +59,118 @@ class SetupFrame extends StatelessWidget {
     this.titleGap = S.x8,
   });
 
+  /// The screen height the reference gaps were drawn for. A shorter one gives
+  /// up the room above the picture first.
+  static const _drawnFor = S.x16 * 12;
+
   @override
-  Widget build(BuildContext c) => Scaffold(
-        backgroundColor: DC.bgFoot,
-        resizeToAvoidBottomInset: true,
-        body: DecoratedBox(
-          decoration: kDialGround,
-          child: SafeArea(
-            child: CustomScrollView(slivers: [
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      kSetupMargin, 0, kSetupMargin, S.x3),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SizedBox(
-                        height: S.x12 + S.x2,
-                        child: Align(
-                          alignment: AlignmentDirectional.centerStart,
-                          child: onBack == null
-                              ? null
-                              : Pressable(
-                                  semanticLabel: 'Back',
-                                  onTap: onBack,
-                                  child: SizedBox.square(
-                                    dimension: S.tap,
-                                    child: Align(
-                                      alignment:
-                                          AlignmentDirectional.centerStart,
-                                      child: Padding(
-                                        padding: const EdgeInsetsDirectional
-                                            .only(start: S.x3),
-                                        child: Icon(LucideIcons.chevronLeft,
-                                            size: I.xl, color: DC.pure),
-                                      ),
-                                    ),
+  Widget build(BuildContext c) {
+    // With the keyboard up there is no room for the picture.
+    final typing = MediaQuery.viewInsetsOf(c).bottom > 0;
+    return Scaffold(
+      backgroundColor: DC.bgFoot,
+      resizeToAvoidBottomInset: true,
+      body: DecoratedBox(
+        decoration: kDialGround,
+        child: SafeArea(
+          // Never scrolls: what is above the button is set to fit, and shrinks
+          // as one piece on a screen too short even with the gaps closed.
+          child: LayoutBuilder(builder: (c, box) {
+            final short = math.max(0.0, _drawnFor - box.maxHeight);
+            final top = typing ? 0.0 : math.max(S.x2, pictureTop - short);
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  kSetupMargin, 0, kSetupMargin, S.x3),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    height: S.x12 + S.x2,
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: onBack == null
+                          ? null
+                          : Pressable(
+                              semanticLabel: 'Back',
+                              onTap: onBack,
+                              child: SizedBox.square(
+                                dimension: S.tap,
+                                child: Align(
+                                  alignment: AlignmentDirectional.centerStart,
+                                  child: Padding(
+                                    padding: const EdgeInsetsDirectional.only(
+                                        start: S.x3),
+                                    child: Icon(LucideIcons.chevronLeft,
+                                        size: I.xl, color: DC.pure),
                                   ),
                                 ),
+                              ),
+                            ),
+                    ),
+                  ),
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (c, room) => FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.topCenter,
+                        child: SizedBox(
+                          width: room.maxWidth,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // The same three slots with the keyboard up,
+                              // so a field below keeps its focus.
+                              if (picture case final pic?) ...[
+                                SizedBox(height: top),
+                                Offstage(
+                                  offstage: typing,
+                                  child: Align(
+                                      alignment:
+                                          AlignmentDirectional.centerStart,
+                                      child: pic),
+                                ),
+                                SizedBox(
+                                    height: typing
+                                        ? 0
+                                        : math.max(
+                                            S.x3,
+                                            titleGap -
+                                                math.max(0.0,
+                                                    short - pictureTop))),
+                              ],
+                              Semantics(
+                                header: true,
+                                child: Text(title,
+                                    style: OB.title.copyWith(color: DC.pure)),
+                              ),
+                              if (body case final b?) ...[
+                                const SizedBox(height: S.x2),
+                                Text(b,
+                                    style: OB.body.copyWith(color: OB.sub)),
+                              ],
+                              ...children,
+                            ],
+                          ),
                         ),
                       ),
-                      if (picture case final pic?) ...[
-                        SizedBox(height: pictureTop),
-                        Align(
-                            alignment: AlignmentDirectional.centerStart,
-                            child: pic),
-                        SizedBox(height: titleGap),
-                      ],
-                      Semantics(
-                        header: true,
-                        child: Text(title,
-                            style: OB.title.copyWith(color: DC.pure)),
-                      ),
-                      if (body case final b?) ...[
-                        const SizedBox(height: S.x2),
-                        Text(b, style: OB.body.copyWith(color: OB.sub)),
-                      ],
-                      ...children,
-                      const Spacer(),
-                      const SizedBox(height: S.x6),
-                      SetupNext(
-                        label: action,
-                        progress: progress,
-                        onTap: onNext,
-                        finish: finish,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: S.x3),
+                  SetupNext(
+                    label: action,
+                    progress: progress,
+                    onTap: onNext,
+                    finish: finish,
+                  ),
+                ],
               ),
-            ]),
-          ),
+            );
+          }),
         ),
-      );
+      ),
+    );
+  }
 }
 
 /// The word and the ring at a setup page's foot.
@@ -414,7 +452,9 @@ class _SetupWheelState extends State<SetupWheel> {
   void didUpdateWidget(SetupWheel old) {
     super.didUpdateWidget(old);
     // A switch of units moves the wheel to the same body in the new unit.
-    if (old.count != widget.count || old.initial != widget.initial) {
+    // Not when the page hands back the row the wheel is already on: a jump
+    // then stops the fling after every notch.
+    if (old.count != widget.count || widget.initial != _at) {
       _at = widget.initial;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_ctl.hasClients) _ctl.jumpToItem(widget.initial);

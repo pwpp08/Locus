@@ -320,7 +320,7 @@ class _BirthdayPageState extends State<BirthdayPage> {
               initial: year,
               squeeze: 1.57,
               rowHeight: S.x8,
-              width: S.x16 * 2 - S.x1 - S.hair,
+              width: S.x16 * 2 - S.x4 - S.hair,
               label: (i) => '${_y0 + i}',
               onChanged: (i) => setState(() => _year = _y0 + i),
             ),
