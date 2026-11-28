@@ -835,14 +835,13 @@ class _StartActivityScreenState extends State<StartActivityScreen> {
     ]);
   }
 
-  void _explain(BuildContext c) => AppSheet.show<void>(c,
-      title: 'Strain target',
-      child: Text(
-          'A goal for the strain of this activity, on the same 0–21 scale as '
-          'your day. Drag the dial round to set it. The live screen shows '
-          'your strain against it as you go, and your band buzzes twice '
-          'when you reach it.',
-          style: F.body.copyWith(color: P.of(c).ink2, height: 1.45)));
+  void _explain(BuildContext c) => showInfoSheet(
+      c,
+      'Strain target',
+      'A goal for the strain of this activity, on the same 0–21 scale as '
+      'your day. Drag the dial round to set it. The live screen shows '
+      'your strain against it as you go, and your band buzzes twice '
+      'when you reach it.');
 
   /// The zone ceiling: off, or the highest zone to stay in. The band buzzes
   /// once the heart rate goes above it, and again every 30 seconds until it

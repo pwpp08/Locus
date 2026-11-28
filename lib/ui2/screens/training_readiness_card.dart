@@ -260,22 +260,18 @@ class TrainingReadinessView extends StatelessWidget {
   }
 
   void _info(BuildContext c) {
-    final p = P.of(c);
-    AppSheet.show<void>(
+    showInfoSheet(
       c,
-      title: 'Training readiness',
-      child: Text(
-        'How ready today is for hard training, 0 to 100. Each row is one '
-        'thing that feeds it, scored 0 to 100: last night’s sleep and the '
-        'two nights before, your recovery, your HRV against its usual range, '
-        'your load ratio (the last week’s load over the last six weeks’; up '
-        'to 1.30 is productive, past it the score falls, to 0 at 2.00), your stress '
-        'over the last three days, and the recovery time still owed from '
-        'recent sessions. The score is their average, pulled toward the '
-        'weakest, so one poor input holds the day back. A row with nothing '
-        'stored is left out.',
-        style: F.body.copyWith(color: p.ink2, height: 1.4),
-      ),
+      'Training readiness',
+      'How ready today is for hard training, 0 to 100. Each row is one '
+      'thing that feeds it, scored 0 to 100: last night’s sleep and the '
+      'two nights before, your recovery, your HRV against its usual range, '
+      'your load ratio (the last week’s load over the last six weeks’; up '
+      'to 1.30 is productive, past it the score falls, to 0 at 2.00), your stress '
+      'over the last three days, and the recovery time still owed from '
+      'recent sessions. The score is their average, pulled toward the '
+      'weakest, so one poor input holds the day back. A row with nothing '
+      'stored is left out.',
     );
   }
 }

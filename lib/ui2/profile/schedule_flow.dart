@@ -98,10 +98,7 @@ class _ScheduleFlowSheetState extends State<ScheduleFlowSheet> {
                   'suggested from it; nothing buzzes.'
         ),
     };
-    final p = P.of(context);
-    AppSheet.show<void>(context,
-        title: title,
-        child: Text(body, style: F.body.copyWith(color: p.ink2, height: 1.45)));
+    showInfoSheet(context, title, body);
   }
 
   @override

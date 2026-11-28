@@ -790,31 +790,21 @@ class _StressMonitorScreenState extends State<StressMonitorScreen>
   }
 
   void _info(BuildContext c, StressMonitorData? d) {
-    final p = P.of(c);
     final b = d?.baseline;
-    AppSheet.show<void>(
+    showInfoSheet(
       c,
-      title: 'How stress is measured',
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(
-          'A reading from 0 (calm) to 3 (your highest) for every minute. It '
-          'compares your heart rate and your HRV, in that minute, with what is '
-          'usual for you: the last 14 days of quiet, awake minutes. Movement '
-          'is taken into account so exercise is not read as stress. Under 1 is '
-          'low, 1 to 2 medium, 2 and over high.',
-          style: F.body.copyWith(color: p.ink2, height: 1.4),
-        ),
-        if (b != null) ...[
-          const SizedBox(height: S.x4),
-          Text(
-            'Your baseline: heart rate ${b.hr.round()} bpm, from '
-            '${b.days} days.'
-            '${b.motionKnown ? '' : ' This strap gave no motion reading, so a '
-                'hard workout can raise the score.'}',
-            style: F.cap.copyWith(color: p.ink3, height: 1.4),
-          ),
-        ],
-      ]),
+      'How stress is measured',
+      'A reading from 0 (calm) to 3 (your highest) for every minute. It '
+      'compares your heart rate and your HRV, in that minute, with what is '
+      'usual for you: the last 14 days of quiet, awake minutes. Movement '
+      'is taken into account so exercise is not read as stress. Under 1 is '
+      'low, 1 to 2 medium, 2 and over high.',
+      note: b == null
+          ? ''
+          : 'Your baseline: heart rate ${b.hr.round()} bpm, from '
+              '${b.days} days.'
+              '${b.motionKnown ? '' : ' This strap gave no motion reading, '
+                  'so a hard workout can raise the score.'}',
     );
   }
 }
@@ -1148,17 +1138,14 @@ class _StressTrendCardState extends State<StressTrendCard> {
   }
 
   void _info(BuildContext c) {
-    final p = P.of(c);
-    AppSheet.show<void>(
+    showInfoSheet(
       c,
-      title: '30-day trend',
-      child: Text(
-        'Each column is one day\'s average stress, 0 to 3, across the minutes '
-        'it could be scored, in its level’s colour: blue low, green medium, '
-        'orange high. A day needs six hours '
-        'scored to be shown. The dashed line is the average of the days shown.',
-        style: F.body.copyWith(color: p.ink2, height: 1.4),
-      ),
+      '30-day trend',
+      'Each column is one day\'s average stress, 0 to 3, across the minutes '
+      'it could be scored, in its level’s colour: blue low, green medium, '
+      'orange high. A day needs six hours '
+      'scored to be shown. The dashed line is the average of the days shown.',
+      accent: infoAccent('stress'),
     );
   }
 }

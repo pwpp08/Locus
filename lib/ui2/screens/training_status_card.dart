@@ -221,22 +221,18 @@ class TrainingStatusView extends StatelessWidget {
   }
 
   void _info(BuildContext c) {
-    final p = P.of(c);
-    AppSheet.show<void>(
+    showInfoSheet(
       c,
-      title: 'Training status',
-      child: Text(
-        'What your last week of training is doing, in one word. It reads '
-        'your load ratio (the last week’s load over the last six weeks’): under '
-        '0.80 is detraining, or recovering if the week before was above your '
-        'norm; 0.80 to 1.00 is maintaining; 1.00 to 1.30 is productive; past '
-        '1.30 is overreaching. Your HRV over the last week is the check on '
-        'it: when it sits below its usual range, productive reads as '
-        'maintaining and a ratio past 1.10 reads as overreaching. It needs '
-        '$kStatusMinDays days of strain in the last 28, and is a guide, not '
-        'a measurement.',
-        style: F.body.copyWith(color: p.ink2, height: 1.4),
-      ),
+      'Training status',
+      'What your last week of training is doing, in one word. It reads '
+      'your load ratio (the last week’s load over the last six weeks’): under '
+      '0.80 is detraining, or recovering if the week before was above your '
+      'norm; 0.80 to 1.00 is maintaining; 1.00 to 1.30 is productive; past '
+      '1.30 is overreaching. Your HRV over the last week is the check on '
+      'it: when it sits below its usual range, productive reads as '
+      'maintaining and a ratio past 1.10 reads as overreaching. It needs '
+      '$kStatusMinDays days of strain in the last 28, and is a guide, not '
+      'a measurement.',
     );
   }
 }

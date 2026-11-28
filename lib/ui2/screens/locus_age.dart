@@ -1050,12 +1050,23 @@ class _InsightCard extends StatelessWidget {
       Container(
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(S.x4, S.x4, S.x4, S.x4),
-        decoration: const BoxDecoration(color: AC.card, borderRadius: R.rXl),
+        decoration: washCard(AC.coach, AC.card),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: AC.rowTitle.copyWith(color: DC.ink)),
-            const SizedBox(height: S.x1),
+            Row(
+              children: [
+                accentDisc(c, AC.coach, LucideIcons.sparkles),
+                const SizedBox(width: S.x3),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: AC.rowTitle.copyWith(color: DC.ink),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: S.x3),
             Text(body, style: AC.body.copyWith(color: DC.ink2)),
             const SizedBox(height: S.x3),
             _LinkLabel('ASK THE COACH ABOUT THIS', AC.coach, onCoach),
@@ -1075,7 +1086,8 @@ class _NotchPainter extends CustomPainter {
       ..lineTo(s.width / 2, 0)
       ..lineTo(s.width, s.height)
       ..close(),
-    Paint()..color = AC.card,
+    Paint()
+      ..color = Color.alphaBlend(AC.coach.withValues(alpha: .24), AC.card),
   );
   @override
   bool shouldRepaint(_NotchPainter old) => false;

@@ -280,6 +280,12 @@ Map<String, Widget> componentCases() => {
       ),
       'goal_trajectory': const GoalTrajectory(
           'Weight', '78.4 kg', '75 kg', '0.3 kg per week', .62, C.stressLow),
+      'info_sheet': const InfoSheetBody(
+        'Sleep efficiency',
+        'The share of your time in bed you were asleep. A few restless '
+            'minutes are normal. 85% or more is generally good.',
+        note: 'From your last 14 nights.',
+      ),
       'observation': const Observation(
         'Your resting heart rate has risen on six of the last seven nights',
         'From 51 to 58 bpm, alongside a 0.4° skin-temperature rise.',

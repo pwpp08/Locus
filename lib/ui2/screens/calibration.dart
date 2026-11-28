@@ -555,14 +555,13 @@ class MilestoneCard extends StatelessWidget {
       if (!m.done)
         Pressable(
           semanticLabel: 'About ${m.title.toLowerCase()}',
-          onTap: () => AppSheet.show<void>(c,
-              title: m.title,
-              child: Text(
-                  '${m.about}\n\nIt unlocks once Locus has '
-                  '${m.need} ${m.days ? (m.need == 1 ? 'day' : 'days') : (m.need == 1 ? 'night' : 'nights')} '
-                  'of yours to compare with, so the number is yours and not '
-                  'a guess.',
-                  style: F.body.copyWith(color: p.ink2))),
+          onTap: () => showInfoSheet(
+              c,
+              m.title,
+              '${m.about}\n\nIt unlocks once Locus has '
+              '${m.need} ${m.days ? (m.need == 1 ? 'day' : 'days') : (m.need == 1 ? 'night' : 'nights')} '
+              'of yours to compare with, so the number is yours and not '
+              'a guess.'),
           child: SizedBox(
             width: S.x8,
             height: S.x8,

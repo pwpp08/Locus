@@ -1237,6 +1237,156 @@ class _TrendCardState extends State<TrendCard> {
   }
 }
 
+// ══════════════════ COLOUR ON EXPLANATIONS ══════════════════
+
+/// A card washed in [accent] from its top-left corner: what an explanation or
+/// something noticed sits on.
+BoxDecoration washCard(Color accent, Color base) => BoxDecoration(
+  borderRadius: R.rXl,
+  gradient: LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color.alphaBlend(accent.withValues(alpha: .26), base),
+      Color.alphaBlend(accent.withValues(alpha: .05), base),
+    ],
+  ),
+);
+
+/// A washed card's glyph, in a filled disc of its colour.
+Widget accentDisc(BuildContext c, Color accent, IconData icon) {
+  final p = P.of(c);
+  final fill = p.fill(accent);
+  return Container(
+    width: S.x8,
+    height: S.x8,
+    decoration: BoxDecoration(color: fill, shape: BoxShape.circle),
+    child: Icon(icon, size: I.md, color: p.inkOn(fill)),
+  );
+}
+
+/// The colour and glyph of what a ⓘ explanation is about, from its title.
+({Color color, IconData icon}) infoAccent(String title) {
+  final t = title.toLowerCase();
+  bool has(List<String> words) => words.any(t.contains);
+  if (has(['sleep', 'nap', 'bed', 'wake', 'alarm'])) {
+    return (color: C.trendRem, icon: LucideIcons.moon);
+  }
+  if (has(['stress'])) return (color: C.stressHigh, icon: LucideIcons.activity);
+  if (has(['strain', 'strength', 'status', 'load'])) {
+    return (color: C.dialStrain, icon: LucideIcons.flame);
+  }
+  if (has(['recovery', 'readiness', 'hrv', 'variability'])) {
+    return (color: C.recGreen, icon: LucideIcons.batteryCharging);
+  }
+  if (has(['heart'])) return (color: C.recRed, icon: LucideIcons.heartPulse);
+  if (has(['energy'])) return (color: C.recYellow, icon: LucideIcons.zap);
+  if (has(['age'])) return (color: AC.coach, icon: LucideIcons.hourglass);
+  return (color: C.dialStrain, icon: LucideIcons.info);
+}
+
+/// An explanation's sentences, one point each; its own line breaks hold too.
+List<String> infoPoints(String body) => [
+  for (final line in body.split('\n'))
+    for (final s in line.split(RegExp(r'(?<=[.!?])\s+(?=[A-Z0-9])')))
+      if (s.trim().isNotEmpty) s.trim(),
+];
+
+/// What a ⓘ opens on: the first sentence on its subject's colour, the rest as
+/// short points marked in it. [note] is a last, quieter line.
+class InfoSheetBody extends StatelessWidget {
+  final String title, body, note;
+
+  /// Null takes both from [title] ([infoAccent]).
+  final ({Color color, IconData icon})? accent;
+
+  const InfoSheetBody(
+    this.title,
+    this.body, {
+    super.key,
+    this.note = '',
+    this.accent,
+  });
+
+  @override
+  Widget build(BuildContext c) {
+    final p = P.of(c);
+    final a = accent ?? infoAccent(title);
+    final points = infoPoints(body);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (points.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.all(S.x4),
+            decoration: washCard(a.color, p.card),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                accentDisc(c, a.color, a.icon),
+                const SizedBox(width: S.x3),
+                Expanded(
+                  child: Text(
+                    points.first,
+                    style: F.body.copyWith(
+                      color: p.ink,
+                      fontWeight: FontWeight.w600,
+                      height: 1.45,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        for (final point in points.skip(1))
+          Padding(
+            padding: const EdgeInsets.fromLTRB(S.x4, S.x3, 0, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: S.x2),
+                  child: Container(
+                    width: S.x2,
+                    height: S.x2,
+                    decoration: BoxDecoration(
+                      color: a.color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: S.x3),
+                Expanded(
+                  child: Text(
+                    point,
+                    style: F.body.copyWith(color: p.ink2, height: 1.45),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (note.isNotEmpty) ...[
+          const SizedBox(height: S.x4),
+          Text(note, style: F.cap.copyWith(color: p.ink3, height: 1.4)),
+        ],
+      ],
+    );
+  }
+}
+
+/// Opens a ⓘ explanation in a sheet.
+void showInfoSheet(
+  BuildContext c,
+  String title,
+  String body, {
+  String note = '',
+  ({Color color, IconData icon})? accent,
+}) => AppSheet.show<void>(
+  c,
+  title: title,
+  child: InfoSheetBody(title, body, note: note, accent: accent),
+);
+
 // ══════════════════ D · INSIGHT ══════════════════
 /// Something the system noticed. Recommendation → reason → action.
 class InsightCard extends StatelessWidget {
@@ -2220,14 +2370,14 @@ class Observation extends StatelessWidget {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(S.x5),
-        decoration: panelDecoration(c),
+        decoration: washCard(C.strainDown, p.card),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(LucideIcons.stethoscope, size: I.md, color: ink),
-                const SizedBox(width: S.x2),
+                accentDisc(c, C.strainDown, LucideIcons.stethoscope),
+                const SizedBox(width: S.x3),
                 Flexible(
                   child: Text(
                     uiText(c, 'HEALTH OBSERVATION'),
@@ -2251,7 +2401,7 @@ class Observation extends StatelessWidget {
             Text(detail, style: F.cap.copyWith(color: p.ink2, height: 1.5)),
             if (advice.isNotEmpty) ...[
               const SizedBox(height: S.x2),
-              Text(advice, style: F.cap.copyWith(color: p.ink3, height: 1.5)),
+              Text(advice, style: F.cap.copyWith(color: p.ink2, height: 1.5)),
             ],
             if (onTap != null) ...[
               const SizedBox(height: S.x3),

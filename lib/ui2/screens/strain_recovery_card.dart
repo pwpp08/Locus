@@ -154,18 +154,14 @@ class StrainRecoveryCard extends StatelessWidget {
   }
 
   void _info(BuildContext c) {
-    final p = P.of(c);
-    AppSheet.show<void>(
+    showInfoSheet(
       c,
-      title: 'Strain & recovery',
-      child: Text(
-        'Strain (blue, left scale, 0 to 21) is how hard the day was on your '
-        'heart. Recovery (grey, right scale, 0 to 100%) is how ready you were '
-        'for it that morning: green from 67%, yellow from 34%, red below. '
-        'Reading them side by side shows whether you are asking for more than '
-        'your body has to give.',
-        style: F.body.copyWith(color: p.ink2, height: 1.4),
-      ),
+      'Strain & recovery',
+      'Strain (blue, left scale, 0 to 21) is how hard the day was on your '
+      'heart. Recovery (grey, right scale, 0 to 100%) is how ready you were '
+      'for it that morning: green from 67%, yellow from 34%, red below. '
+      'Reading them side by side shows whether you are asking for more than '
+      'your body has to give.',
     );
   }
 }

@@ -179,18 +179,16 @@ class _EnergyReserveCardState extends State<EnergyReserveCard> {
               ),
               Pressable(
                 semanticLabel: 'About energy reserve',
-                onTap: () => AppSheet.show<void>(
+                onTap: () => showInfoSheet(
                   c,
-                  title: 'Energy reserve',
-                  child: Text(
-                    'An estimate of how much you have left today. Your '
-                    'recovery sets the level you wake with, sleep charges it, '
-                    'and raised heart rate drains it, effort most of all. '
-                    'Time off the wrist changes nothing.\n\n'
-                    'It is a guide built from your heart rate, not a '
-                    'measurement.',
-                    style: F.body.copyWith(color: p.ink2),
-                  ),
+                  'Energy reserve',
+                  'An estimate of how much you have left today. Your '
+                  'recovery sets the level you wake with, sleep charges it, '
+                  'and raised heart rate drains it, effort most of all. '
+                  'Time off the wrist changes nothing.\n\n'
+                  'It is a guide built from your heart rate, not a '
+                  'measurement.',
+                  accent: infoAccent('energy'),
                 ),
                 child: Icon(LucideIcons.info, size: I.md, color: p.ink2),
               ),

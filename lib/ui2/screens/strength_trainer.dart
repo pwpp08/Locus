@@ -164,15 +164,14 @@ class _StrengthTrainerScreenState extends State<StrengthTrainerScreen> {
     }
   }
 
-  void _info() => AppSheet.show<void>(context,
-      title: 'Strength trainer',
-      child: Text(
-          'Volume load is every set\'s reps times its load, added up. A '
-          'personal record is your heaviest load for a lift, or your most '
-          'reps for one done with your body alone. They come from the sets '
-          'you log; you can add one by hand or change one, and it stands '
-          'until a logged set beats it.',
-          style: F.body.copyWith(color: P.of(context).ink2, height: 1.45)));
+  void _info() => showInfoSheet(
+      context,
+      'Strength trainer',
+      'Volume load is every set\'s reps times its load, added up. A '
+      'personal record is your heaviest load for a lift, or your most '
+      'reps for one done with your body alone. They come from the sets '
+      'you log; you can add one by hand or change one, and it stands '
+      'until a logged set beats it.');
 
   @override
   Widget build(BuildContext c) {

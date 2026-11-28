@@ -417,9 +417,7 @@ class DialInfo extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     return Pressable(
-      onTap: () => AppSheet.show<void>(c,
-          title: title,
-          child: Text(body, style: F.dBody.copyWith(color: P.of(c).ink2))),
+      onTap: () => showInfoSheet(c, title, body),
       semanticLabel: 'About $title',
       child: const Icon(LucideIcons.info, size: I.md, color: DC.ink2),
     );
