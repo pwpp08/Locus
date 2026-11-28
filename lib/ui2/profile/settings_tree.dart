@@ -577,7 +577,8 @@ class InfoCard extends StatelessWidget {
               onTap: onLink,
               semanticLabel: link,
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text(link.toUpperCase(), style: setRowTitle(p)),
+                Flexible(
+                  child: Text(link.toUpperCase(), style: setRowTitle(p))),
                 const SizedBox(width: S.x2),
                 Icon(LucideIcons.arrowRight, size: I.md, color: p.ink),
               ]),

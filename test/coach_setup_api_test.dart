@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:openstrap_edge/coach/coach_config.dart';
+import 'package:openstrap_edge/ui2/profile/profile.dart' show SetDropdown;
 import 'package:openstrap_edge/ui2/screens/coach.dart';
 import 'package:openstrap_edge/ui2/screens/journal_compose.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
@@ -58,7 +59,7 @@ Future<void> _preset(WidgetTester tester, String name) async {
   scrollable.position.jumpTo(0);
   await tester.pumpAndSettle();
   // The providers are a dropdown: open it, then pick from the menu.
-  await tester.tap(find.byType(AppDropdown));
+  await tester.tap(find.byType(SetDropdown));
   await tester.pumpAndSettle();
   await tester.tap(find.text(name).last);
   await tester.pumpAndSettle();
@@ -98,13 +99,36 @@ void main() {
     FlutterSecureStorage.setMockInitialValues({});
   });
 
-  testWidgets('every preset chooses its API without inspecting the model', (
-    tester,
-  ) async {
+  testWidgets('a first setup starts on Gemini and saves it', (tester) async {
     final config = CoachConfig();
     addTearDown(config.dispose);
     await _mount(tester, config);
-    expect(_selectedApi(tester), CoachApi.responses);
+    expect(find.text('Get a free API key'), findsOneWidget);
+    expect(_apiField, findsNothing);
+
+    await _enter(tester, 'API key', 'placeholder-key');
+    await _save(tester);
+    expect(config.apiBase, contains('generativelanguage.googleapis.com'));
+    expect(config.model, 'gemini-3.8-flash');
+    expect(config.api, CoachApi.chatCompletions);
+    expect(tester.takeException(), isNull);
+  });
+
+  test('a saved Gemini setup on Responses reads as Chat Completions', () async {
+    SharedPreferences.setMockInitialValues({
+      'coach_base_url': 'https://generativelanguage.googleapis.com/v1beta/openai',
+      'coach_api': 'responses',
+    });
+    final config = CoachConfig();
+    addTearDown(config.dispose);
+    await config.load();
+    expect(config.api, CoachApi.chatCompletions);
+  });
+
+  testWidgets('every preset chooses its API without asking', (tester) async {
+    final config = CoachConfig();
+    addTearDown(config.dispose);
+    await _mount(tester, config);
 
     for (final entry in {
       'Ollama': CoachApi.chatCompletions,
@@ -113,13 +137,10 @@ void main() {
       'Anthropic': CoachApi.chatCompletions,
       'OpenRouter': CoachApi.chatCompletions,
     }.entries) {
-      await _chooseApi(
-        tester,
-        entry.value == CoachApi.responses
-            ? CoachApi.chatCompletions
-            : CoachApi.responses,
-      );
       await _preset(tester, entry.key);
+      expect(_apiField, findsNothing, reason: entry.key);
+      if (entry.key.startsWith('L') || entry.key == 'Ollama') continue;
+      await _preset(tester, 'Custom');
       expect(_selectedApi(tester), entry.value, reason: entry.key);
     }
     expect(tester.takeException(), isNull);
@@ -181,6 +202,7 @@ void main() {
       await config.save(model: 'legacy-model', apiKey: 'placeholder-key');
       await _mount(tester, config);
 
+      await _preset(tester, 'Custom');
       await _chooseApi(tester, CoachApi.chatCompletions);
       await _enter(tester, 'Base URL', 'https://api.openai.com/custom/v1/');
       expect(_selectedApi(tester), CoachApi.chatCompletions);

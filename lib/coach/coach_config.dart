@@ -317,6 +317,11 @@ class CoachConfig extends ChangeNotifier {
       'chatCompletions' => CoachApi.chatCompletions,
       _ => CoachApi.defaultFor(_baseUrl),
     };
+    // Gemini has no Responses API: a saved choice of it only ever errored.
+    if (coachEndpointOrigin(_baseUrl) ==
+        'https://generativelanguage.googleapis.com') {
+      _api = CoachApi.chatCompletions;
+    }
     _model = prefs.getString(_kModel) ?? '';
     _foodModel = prefs.getString(_kFoodModel) ?? '';
     _timeoutSeconds = prefs.getInt(_kTimeoutSeconds) ?? defaultTimeoutSeconds;

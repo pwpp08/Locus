@@ -134,6 +134,7 @@ class LucideIcons {
   static const IconData importBox = base.LucideIcons.import300;
   static const IconData inboxDown = base.LucideIcons.import300;
   static const IconData info = base.LucideIcons.info300;
+  static const IconData keyRound = base.LucideIcons.keyRound300;
   static const IconData laugh = base.LucideIcons.laugh300;
   static const IconData layers = base.LucideIcons.layers300;
   static const IconData layoutGrid = base.LucideIcons.layoutGrid300;

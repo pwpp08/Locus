@@ -29,6 +29,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../ai/briefing.dart';
@@ -43,7 +44,10 @@ import 'coach_figures.dart';
 import 'coach_history_sheet.dart';
 import 'coach_memory_screen.dart';
 import 'coach_parts.dart';
-import '../profile/profile.dart' show goto;
+import '../profile/profile.dart'
+    show SetDropdown, goto, moreCard, settingsGroup;
+import '../profile/settings.dart' show settingsPage;
+import '../profile/settings_tree.dart' show InfoCard;
 import 'coach_workout.dart';
 import '../../coach/workout_plan.dart';
 import 'home_screen.dart' show go, pad, repoOf;
@@ -1361,12 +1365,22 @@ class _Preset {
   const _Preset(this.label, this.sub, this.baseUrl, {this.local = false});
 }
 
+const _geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/openai';
+const _geminiKeyUrl = 'https://aistudio.google.com/apikey';
+
+/// Offered before the endpoint has been asked; the first is the default. All
+/// three are on Google's free tier (checked 2026-11-28).
+const _geminiModels = [
+  'gemini-3.8-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash-lite',
+];
+
 List<_Preset> _presets(BuildContext c) {
   final local = AppLocalizations.of(c)?.coachLocalSub ??
       'On this network. Nothing leaves your machine.';
   return <_Preset>[
-    _Preset('Google Gemini', 'generativelanguage.googleapis.com',
-        'https://generativelanguage.googleapis.com/v1beta/openai'),
+    _Preset('Google Gemini', 'Has a free tier', _geminiUrl),
     _Preset('Ollama', local, 'http://localhost:11434/v1', local: true),
     _Preset('LM Studio', local, 'http://localhost:1234/v1', local: true),
     _Preset('OpenAI', 'api.openai.com', 'https://api.openai.com/v1'),
@@ -1410,6 +1424,25 @@ class _CoachSetupState extends State<CoachSetup> {
   /// origin change and was later sent to the new endpoint.
   bool _pendingKeyDelete = false;
 
+  /// Their own address: picked from the list, or typed over a preset's. Sticks
+  /// until a preset is picked, so a field being typed in never disappears.
+  bool _custom = false;
+
+  static bool _isPreset(String url) => const [
+        _geminiUrl,
+        'http://localhost:11434/v1',
+        'http://localhost:1234/v1',
+        'https://api.openai.com/v1',
+        'https://api.anthropic.com/v1',
+        'https://openrouter.ai/api/v1',
+      ].contains(url.trim());
+
+  bool get _isGemini => _base.text.contains('googleapis.com');
+
+  /// The wire format is only a question for a server of their own out on the
+  /// internet: every preset and every local server has one right answer.
+  bool get _asksApi => _custom && !_isLocal;
+
   @override
   void initState() {
     super.initState();
@@ -1420,7 +1453,19 @@ class _CoachSetupState extends State<CoachSetup> {
     _timeout = TextEditingController(text: cfg.timeoutSeconds.toString());
     _api = cfg.api;
     _model = cfg.model;
-    _keyOrigin = coachEndpointOrigin(cfg.baseUrl);
+    // Nothing set up yet: start on Gemini, whose key costs nothing.
+    if (!cfg.hasKey &&
+        !cfg.keyUnreadable &&
+        !cfg.keyUndetermined &&
+        cfg.model.isEmpty &&
+        cfg.baseUrl == CoachConfig.defaultBaseUrl) {
+      _base.text = _geminiUrl;
+      _api = CoachApi.chatCompletions;
+      _model = _geminiModels.first;
+    }
+    if (_isGemini) _models = _geminiModels;
+    _custom = !_isPreset(_base.text);
+    _keyOrigin = coachEndpointOrigin(_base.text);
     // The base URL decides which preset is lit and whether a key is needed, and
     // the search box filters the list — both are read during build, so both
     // have to rebuild it.
@@ -1445,6 +1490,7 @@ class _CoachSetupState extends State<CoachSetup> {
   /// against a new local/private endpoint (or vice versa) without the user
   /// re-entering it.
   void _onBaseChanged() {
+    if (!_isPreset(_base.text)) _custom = true;
     final origin = coachEndpointOrigin(_base.text);
     if (origin != _keyOrigin) {
       _keyOrigin = origin;
@@ -1474,12 +1520,10 @@ class _CoachSetupState extends State<CoachSetup> {
     });
     try {
       var ids = await CoachEngine.fetchModels(_base.text, _key.text);
-      if (ids.isEmpty && _base.text.contains('googleapis.com')) {
-        ids = const [
-          'gemini-2.5-flash',
-          'gemini-2.5-pro',
-          'gemini-2.5-flash-lite',
-        ];
+      if (_isGemini) {
+        // Google lists them as `models/…`; both spellings are accepted.
+        ids = [for (final id in ids) id.replaceFirst('models/', '')];
+        if (ids.isEmpty) ids = _geminiModels;
       }
       if (!mounted) return;
       final l = AppLocalizations.of(context);
@@ -1531,7 +1575,7 @@ class _CoachSetupState extends State<CoachSetup> {
         // here means food logging uses the coach's model, rather than one the
         // user can no longer see or change.
         foodModel: '',
-        api: _api,
+        api: _asksApi ? _api : CoachApi.defaultFor(_base.text),
         timeoutSeconds: timeoutSeconds,
       );
     } catch (e) {
@@ -1564,202 +1608,208 @@ class _CoachSetupState extends State<CoachSetup> {
               if (m.toLowerCase().contains(q)) m,
           ];
     final presets = _presets(c);
-    final presetAt =
-        presets.indexWhere((x) => x.baseUrl == _base.text.trim());
-    return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: S.x4),
-              child: NavBar('Provider',
-                  sub: l?.coachSetupNavSub ?? 'Bring your own model'),
-            ),
-            Expanded(
-              child: ListView(
-                padding: pad,
-                children: [
-                  AppDropdown(
-                    label: l?.coachWhereModelRuns ?? 'Where the model runs',
-                    options: [for (final x in presets) x.label],
-                    index: presetAt,
-                    hint: 'Custom endpoint',
-                    onChanged: (i) => setState(() {
-                      final preset = presets[i];
-                      // BEFORE assigning _base.text: that assignment fires
-                      // _onBaseChanged synchronously, which may set _msg to
-                      // explain a cleared key — clearing _msg after it runs
-                      // would silently discard that explanation.
-                      _msg = null;
-                      _base.text = preset.baseUrl;
-                      _api = CoachApi.defaultFor(preset.baseUrl);
-                      if (preset.baseUrl.contains('googleapis.com')) {
-                        _models = const [
-                          'gemini-2.5-flash',
-                          'gemini-2.5-pro',
-                          'gemini-2.5-flash-lite',
-                        ];
-                        _model = 'gemini-2.5-flash';
-                      } else {
-                        _models = const [];
-                        _model = '';
-                      }
-                    }),
-                  ),
-                  const SizedBox(height: S.x2),
-                  OsTextField(
-                    controller: _base,
-                    label: l?.coachBaseUrlLabel ?? 'Base URL',
-                    hint: 'http://localhost:11434/v1',
-                  ),
-                  const SizedBox(height: S.x4),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(l?.coachApiFormatLabel ?? 'API',
-                          style: F.over.copyWith(color: p.ink3)),
-                      const SizedBox(height: S.x2),
-                      RangeSegments(
-                        const ['RESPONSES', 'CHAT COMPLETIONS'],
-                        _api == CoachApi.chatCompletions ? 1 : 0,
-                        (i) => setState(() => _api = i == 1
-                            ? CoachApi.chatCompletions
-                            : CoachApi.responses),
-                        width: null,
-                      ),
-                      const SizedBox(height: S.x2),
-                      Text(
-                        l?.coachApiFormatHelp ??
-                            'Choose the API your endpoint supports. Responses '
-                                'supports OpenAI reasoning with tools.',
-                        style: F.cap.copyWith(color: p.ink3, height: 1.5),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: S.x4),
-                  OsTextField(
-                    controller: _key,
-                    label: _isLocal
-                        ? (l?.coachApiKeyLocalLabel ?? 'API key (not needed locally)')
-                        : (l?.coachApiKeyLabel ?? 'API key'),
-                    hint: 'sk-…',
-                  ),
-                  const SizedBox(height: S.x3),
-                  // The one sentence that decides whether a cloud key is a
-                  // reasonable choice. It is here, next to the field, and not
-                  // in a settings page nobody opens. Private hosts only: a
-                  // 100.64.0.0/10 address needs no key but may not be yours.
-                  Text(
-                    isPrivateCoachHost(_base.text.trim())
-                        ? (l?.coachLocalDataNote ??
-                            'Your questions and the rows the coach reads stay on '
-                                'your own machine.')
-                        : (l?.coachCloudDataNote ??
-                            'Your questions and the rows the coach reads are sent '
-                                'to this endpoint. See exactly what that is on '
-                                '"What was sent".'),
-                    style: F.cap.copyWith(color: p.ink3, height: 1.5),
-                  ),
-                  const SizedBox(height: S.x4),
-                  BigButton(
-                    _loading ? (l?.coachAsking ?? 'Asking…') : (l?.coachListModels ?? 'List models'),
-                    icon: LucideIcons.refreshCw,
-                    color: kCoachAccent,
-                    soft: true,
-                    onTap: _loading ? null : _fetch,
-                  ),
-                  if (_msg != null) ...[
-                    const SizedBox(height: S.x3),
-                    Text(coachPresentationText(l, _msg!), style: F.cap.copyWith(color: p.ink3)),
-                  ],
-                  const SizedBox(height: S.x4),
-                  OsTextField(
-                    controller: _search,
-                    label: l?.coachModelLabel ?? 'Model',
-                    hint: l?.coachModelHint ?? 'search, or type an id',
-                  ),
-                  const SizedBox(height: S.x1),
-                  if (q.isEmpty && shown.length < _models.length)
-                    Padding(
-                      padding: const EdgeInsets.only(top: S.x1),
+    final presetAt = _custom
+        ? -1
+        : presets.indexWhere((x) => x.baseUrl == _base.text.trim());
+    final preset = presetAt < 0 ? null : presets[presetAt];
+    final note = F.cap.copyWith(color: p.ink3, height: 1.5);
+    return settingsPage(c, 'Provider', [
+      settingsGroup(c, '', [
+        SetDropdown(
+          LucideIcons.server,
+          uiText(c, 'Provider'),
+          [for (final x in presets) x.label, uiText(c, 'Custom')],
+          presetAt < 0 ? presets.length : presetAt,
+          sub: preset?.sub ?? uiText(c, 'Your own address'),
+          onChanged: (i) => setState(() {
+            // BEFORE assigning _base.text: that assignment fires
+            // _onBaseChanged synchronously, which may set _msg to explain a
+            // cleared key — clearing _msg after it runs would silently
+            // discard that explanation.
+            _msg = null;
+            if (i == presets.length) {
+              _custom = true;
+              return;
+            }
+            final url = presets[i].baseUrl;
+            _base.text = url;
+            _custom = false;
+            _api = CoachApi.defaultFor(url);
+            _models = _isGemini ? _geminiModels : const [];
+            _model = _isGemini ? _geminiModels.first : '';
+          }),
+        ),
+      ]),
+      if (preset == null || preset.local) ...[
+        const SizedBox(height: S.x4),
+        OsTextField(
+          controller: _base,
+          label: l?.coachBaseUrlLabel ?? 'Base URL',
+          hint: 'http://localhost:11434/v1',
+        ),
+      ],
+      if (_asksApi) ...[
+        const SizedBox(height: S.x4),
+        Text(uiText(c, 'API FORMAT'), style: F.over.copyWith(color: p.ink3)),
+        const SizedBox(height: S.x2),
+        RangeSegments(
+          const ['RESPONSES', 'CHAT COMPLETIONS'],
+          _api == CoachApi.chatCompletions ? 1 : 0,
+          (i) => setState(() => _api =
+              i == 1 ? CoachApi.chatCompletions : CoachApi.responses),
+          width: null,
+        ),
+        const SizedBox(height: S.x2),
+        Text(
+          uiText(c,
+              'Most servers use Chat Completions. Pick Responses only if yours asks for it.'),
+          style: note,
+        ),
+      ],
+      if (_isGemini && !context.read<CoachConfig>().hasKey) ...[
+        const SizedBox(height: S.x4),
+        InfoCard(
+          uiText(c, 'Get a free API key'),
+          uiText(c,
+              '1.  Sign in to Google AI Studio.\n'
+              '2.  Press "Create API key".\n'
+              '3.  Copy the key and paste it below.\n'
+              '4.  Press Save.\n\n'
+              'No card needed. The free tier has daily limits.'),
+          icon: LucideIcons.keyRound,
+          link: uiText(c, 'Open Google AI Studio'),
+          onLink: () => launchUrl(Uri.parse(_geminiKeyUrl),
+              mode: LaunchMode.externalApplication),
+        ),
+      ],
+      const SizedBox(height: S.x4),
+      if (!(preset?.local ?? false)) ...[
+        OsTextField(
+          controller: _key,
+          label: _isLocal
+              ? (l?.coachApiKeyLocalLabel ?? 'API key (not needed locally)')
+              : (l?.coachApiKeyLabel ?? 'API key'),
+          hint: _isGemini ? uiText(c, 'Paste your key') : 'sk-…',
+        ),
+        const SizedBox(height: S.x2),
+      ],
+      // The one sentence that decides whether a cloud key is a reasonable
+      // choice. It is here, next to the field, and not in a settings page
+      // nobody opens. Private hosts only: a 100.64.0.0/10 address needs no key
+      // but may not be yours.
+      Text(
+        isPrivateCoachHost(_base.text.trim())
+            ? (l?.coachLocalDataNote ??
+                'Your questions and the rows the coach reads stay on your own '
+                    'machine.')
+            : (l?.coachCloudDataNote ??
+                'Your questions and the rows the coach reads are sent to this '
+                    'endpoint. See exactly what that is on "What was sent".'),
+        style: note,
+      ),
+      if (_isGemini) ...[
+        const SizedBox(height: S.x2),
+        Text(
+          uiText(c,
+              'On the free tier Google may use what you send to improve its products, and people may read it. In the EEA, Switzerland and the UK its paid data terms apply to free use too.'),
+          style: note,
+        ),
+      ],
+      const SizedBox(height: S.x6),
+      if (!_isGemini || _models.length > _geminiModels.length) ...[
+        OsTextField(
+          controller: _search,
+          label: l?.coachModelLabel ?? 'Model',
+          hint: l?.coachModelHint ?? 'search, or type an id',
+        ),
+        if (q.isEmpty && shown.length < _models.length) ...[
+          const SizedBox(height: S.x2),
+          Text(
+            'Previews, pinned builds and image, audio and embedding models are '
+            'hidden. Search to see all ${_models.length}.',
+            style: note,
+          ),
+        ],
+      ] else
+        Text(uiText(c, 'MODEL'), style: F.over.copyWith(color: p.ink3)),
+      if (shown.isNotEmpty) ...[
+        const SizedBox(height: S.x2),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: ST.inset),
+          decoration: moreCard(p),
+          child: Column(children: [
+            for (final m in shown.take(60))
+              Pressable(
+                onTap: () => setState(() => _model = m),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: S.tap),
+                  child: Row(children: [
+                    Expanded(
                       child: Text(
-                        'Previews, pinned builds and image, audio and '
-                        'embedding models are hidden. Search to see all '
-                        '${_models.length}.',
-                        style: F.cap.copyWith(color: p.ink3, height: 1.5),
+                        m,
+                        style: F.cap.copyWith(
+                            color: m == _model ? p.ink : p.ink2),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  Builder(
-                    builder: (_) => Padding(
-                      padding: const EdgeInsets.only(top: S.x2),
-                      child: Column(
-                        children: [
-                          for (final m in shown.take(60))
-                            Pressable(
-                              onTap: () => setState(() => _model = m),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: S.x3,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      m == _model
-                                          ? LucideIcons.circleCheck
-                                          : LucideIcons.circle,
-                                      size: I.sm,
-                                      color: m == _model
-                                          ? p.on(kCoachAccent)
-                                          : p.ink3,
-                                    ),
-                                    const SizedBox(width: S.x3),
-                                    Expanded(
-                                      child: Text(
-                                        m,
-                                        style: F.cap.copyWith(color: p.ink),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
+                    const SizedBox(width: S.x3),
+                    Icon(
+                      m == _model ? LucideIcons.circleCheck : LucideIcons.circle,
+                      size: I.sm,
+                      color: m == _model ? p.on(kCoachAccent) : p.ink3,
                     ),
-                  ),
-                  if (_isLocal) ...[
-                    const SizedBox(height: S.x4),
-                    OsTextField(
-                      controller: _timeout,
-                      label: uiText(c, 'Request timeout (seconds)'),
-                      hint: '300',
-                      keyboard: TextInputType.number,
-                    ),
-                    const SizedBox(height: S.x3),
-                    Text(
-                      uiText(
-                        c,
-                        'A local model can take a while to load before its first reply. Default is 5 minutes (300s). Cloud providers always use 2 minutes.',
-                      ),
-                      style: F.cap.copyWith(color: p.ink3, height: 1.5),
-                    ),
-                  ],
-                  const SizedBox(height: S.x4),
-                  BigButton(
-                    l?.actionSave ?? 'Save',
-                    icon: LucideIcons.check,
-                    color: kCoachAccent,
-                    onTap: _save,
-                  ),
-                ],
+                  ]),
+                ),
               ),
-            ),
-          ],
+          ]),
+        ),
+      ],
+      Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: Pressable(
+          onTap: _loading ? null : _fetch,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: S.tap),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(LucideIcons.refreshCw, size: I.sm, color: p.ink2),
+              const SizedBox(width: S.x2),
+              Text(
+                _loading
+                    ? (l?.coachAsking ?? 'Asking…')
+                    : (l?.coachListModels ?? 'List models'),
+                style: F.cap.copyWith(color: p.ink),
+              ),
+            ]),
+          ),
         ),
       ),
-    );
+      if (_msg != null)
+        Text(coachPresentationText(l, _msg!), style: note),
+      if (_isLocal) ...[
+        const SizedBox(height: S.x4),
+        OsTextField(
+          controller: _timeout,
+          label: uiText(c, 'Request timeout (seconds)'),
+          hint: '300',
+          keyboard: TextInputType.number,
+        ),
+        const SizedBox(height: S.x2),
+        Text(
+          uiText(
+            c,
+            'A local model can take a while to load before its first reply. Default is 5 minutes (300s). Cloud providers always use 2 minutes.',
+          ),
+          style: note,
+        ),
+      ],
+      const SizedBox(height: S.x6),
+      BigButton(
+        l?.actionSave ?? 'Save',
+        icon: LucideIcons.check,
+        color: kCoachAccent,
+        onTap: _save,
+      ),
+    ]);
   }
 }
