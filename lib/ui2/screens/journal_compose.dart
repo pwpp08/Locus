@@ -42,7 +42,10 @@ const kJournalSelectionPref = 'journal.behaviors';
 const kJournalStripDays = 30;
 
 class JournalCompose extends StatefulWidget {
-  const JournalCompose({super.key, this.date, this.embedded = false});
+  const JournalCompose({super.key, this.date, this.embedded = false, this.ask});
+
+  /// A question to put first whether or not it is one of the chosen ones.
+  final String? ask;
 
   /// Living in a tab: no close button, and Done saves and stays.
   final bool embedded;
@@ -460,9 +463,11 @@ class _JournalComposeState extends State<JournalCompose> {
   /// The questions on the page: the chosen ones in their order, then anything
   /// the day already holds an answer to, so nothing logged is ever hidden.
   List<String> get _rows {
+    final ask = widget.ask;
     final out = <String>[
+      if (ask != null && _spec(ask) != null) ask,
       for (final k in _selected)
-        if (_spec(k) != null) k,
+        if (k != ask && _spec(k) != null) k,
     ];
     for (final k in _values.keys) {
       if (!out.contains(k) && _spec(k) != null) out.add(k);

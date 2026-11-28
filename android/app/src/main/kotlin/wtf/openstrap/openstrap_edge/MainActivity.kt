@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import io.flutter.embedding.android.FlutterFragmentActivity
+import io.flutter.embedding.engine.FlutterEngineCache
+import io.flutter.plugin.common.MethodChannel
 
 /**
  * Attaches to the single long-lived engine owned by [EdgeApplication] (created lazily
@@ -27,6 +29,10 @@ class MainActivity : FlutterFragmentActivity() {
     companion object {
         @Volatile
         var activityAttached: Boolean = false
+
+        /** An intent extra naming the screen a native notification is about. */
+        const val EXTRA_ROUTE = "locus_route"
+        private const val CHANNEL = "openstrap/activity"
     }
 
     override fun getCachedEngineId(): String = EdgeApplication.ENGINE_ID
@@ -36,14 +42,40 @@ class MainActivity : FlutterFragmentActivity() {
         // The shared engine is created lazily now (EdgeApplication.ensureEngine).
         // getCachedEngineId() is consulted during super.onCreate, so the cache
         // entry must exist before it runs.
+        // True when Dart was already running before this window: the app was
+        // swiped away and reopened, or the tracking service started it.
+        val warm = FlutterEngineCache.getInstance().contains(EdgeApplication.ENGINE_ID)
         EdgeApplication.ensureEngine(applicationContext)
         activityAttached = true
         clearPendingHeadlessBoot()
         super.onCreate(savedInstanceState)
+        // A null state is a new window, not one Android is putting back. Dart
+        // still holds the last screen and has not read this window's intent
+        // (which is where a tapped notification is), so say so.
+        if (savedInstanceState == null) {
+            val route = routeOf(intent)
+            if (warm) tellDart("relaunched", route)
+            else if (route != null) tellDart("open", route)
+        }
         CompanionBridge.currentActivity = this
         // Re-arm CDM device-presence observation for an already-associated band
         // (idempotent; no-op below API 31 or when nothing is associated).
         CompanionBridge.ensureObserving(applicationContext)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        routeOf(intent)?.let { tellDart("open", it) }
+    }
+
+    /** Not for an intent replayed from the recents list: that tap is spent. */
+    private fun routeOf(intent: Intent?): String? =
+        if (intent == null || intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) null
+        else intent.getStringExtra(EXTRA_ROUTE)
+
+    private fun tellDart(method: String, route: String?) {
+        val engine = FlutterEngineCache.getInstance().get(EdgeApplication.ENGINE_ID) ?: return
+        MethodChannel(engine.dartExecutor.binaryMessenger, CHANNEL).invokeMethod(method, route)
     }
 
     override fun onStart() {

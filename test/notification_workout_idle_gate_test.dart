@@ -80,12 +80,10 @@ void main() {
     });
   });
 
-  test('the tap lands on the Workouts tab, where the live session bar is', () {
+  test('the tap asks for the live session', () {
     final t = resolveTapRoute(kRouteWorkoutIdle);
-    expect(t.tab, 4);
-    expect(t.screen, isNull,
-        reason: 'the tab IS the destination — this route has no sub-screen '
-            'to push (app.dart\'s screenForRoute answers null for it), so it '
-            'is a tab route, not a screen route');
+    expect(t.tab, 0);
+    expect(t.screen, kRouteWorkoutIdle,
+        reason: 'the shell opens the live screen on this request');
   });
 }

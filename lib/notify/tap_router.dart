@@ -39,8 +39,7 @@ const String kRouteWorkoutSuggestion = '/workouts/suggestion';
 /// only it) through while every other reminders event stays dropped — the same
 /// mechanism `kRouteWorkoutSuggestion` uses.
 ///
-/// Lands on Home (Today) and pushes nothing: there is no move screen to push,
-/// and Today is where the rings/steps a nudge points at already live.
+/// Opens today's steps, which is what the nudge is about.
 const String kRouteMovement = '/today/movement';
 
 /// "Your recovery is ready" — the morning recovery note. DEDICATED PATH for
@@ -63,9 +62,8 @@ String workoutSuggestionRoute(String id) =>
     Uri(path: kRouteWorkoutSuggestion, queryParameters: {'id': id}).toString();
 
 /// The forgotten-workout nudge ("Still working out?" — see
-/// `WorkoutIdleWatch`). Lands on the Workouts tab: the live session bar and
-/// its finish control are what the notification is about. A dedicated path
-/// rather than the bare `/workouts` tab route, because `classOf`'s sanction
+/// `WorkoutIdleWatch`) and the live workout's own notification. Opens the live
+/// session screen. A dedicated path rather than the bare `/workouts` tab route, because `classOf`'s sanction
 /// for it is route-keyed and the tab route must not open the
 /// reminders-at-normal pair for everything that names it.
 const String kRouteWorkoutIdle = '/workouts/idle';
@@ -134,12 +132,6 @@ const Map<String, int> _tabRoutes = {
   '/today': 0,
   '/body': 0,
   '/workouts': 0,
-  // The forgotten-workout nudge. The Workouts tab IS its destination — the
-  // live session bar with the finish control is pinned to the shell there and
-  // `screenForRoute` has nothing to push — so it belongs in the tab table,
-  // not `_screenRoutes`. (It keeps its own path because `classOf`'s sanction
-  // is route-keyed — see kRouteWorkoutIdle above.)
-  kRouteWorkoutIdle: 4,
 };
 
 // Sub-screen routes → the shell tab they sit on top of. Most briefing/journal
@@ -172,6 +164,9 @@ const Map<String, int> _screenRoutes = {
   kRouteSteps: 0,
   kRouteHealth: 0,
   kRouteSleep: 0,
+  // The running session: the shell opens its live screen.
+  kRouteWorkoutIdle: 0,
+  kRouteMovement: 0,
 };
 
 TapTarget resolveTapRoute(String route) {

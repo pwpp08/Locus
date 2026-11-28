@@ -192,6 +192,8 @@ object LiveActivityNotifier {
         val i = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)
             ?: Intent(ctx, MainActivity::class.java)
         i.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        // The live session screen (kRouteWorkoutIdle in Dart).
+        i.putExtra(MainActivity.EXTRA_ROUTE, "/workouts/idle")
         return PendingIntent.getActivity(
             ctx, 0, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )

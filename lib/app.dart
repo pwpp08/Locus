@@ -435,10 +435,10 @@ Widget? screenForRoute(String route) => switch (routePath(route)) {
       kRouteAiEvening =>
         const AiBriefingScreen(period: BriefingPeriod.evening),
       kRouteJournalCompose => const JournalCompose(),
+      // The journal with the water row on it, chosen or not: one tap on + logs
+      // the glass the reminder asked about.
+      kRouteWater => const JournalCompose(ask: 'water_ml'),
       kRouteBreathing => const CalmBreathing(),
-      // The hydration reminder lands on the food log, where the water tile
-      // carries its own − / + beside the food it belongs with. Nutrition is a
-      // pushed page of Activity now, so it is pushed here too.
       // The medication reminder lands on the checklist itself: Wellness is a
       // pushed page now, so the sub-tab is a constructor argument.
       kRouteMeds => const WellnessScreen(initialTab: WellnessScreen.medsTab),
@@ -461,7 +461,7 @@ Widget? screenForRoute(String route) => switch (routePath(route)) {
       // only as a notification you could dismiss into nothing.
       kRouteRecap => const WhatChangedScreen(),
       kRouteRecovery => const ReadinessDetail(),
-      kRouteSteps => const DayStepsDetail(),
+      kRouteSteps || kRouteMovement => const DayStepsDetail(),
       kRouteHealth => const HealthMonitorScreen(),
       kRouteSleep => const SleepDetail(),
       _ => null,
@@ -496,6 +496,7 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     _app = context.read<AppState>();
     _app!.navRequest.addListener(_consumeSoon);
     _app!.screenRequest.addListener(_consumeSoon);
+    _app!.relaunch.addListener(_startOver);
     // Cold launch from a tapped notification: the route may already be set
     // before this shell mounted (so the listener never fired). Consume it once
     // attached.
@@ -528,6 +529,18 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     }
   }
 
+  /// Reopened after being swiped away: a fresh Home, with nothing open over it
+  /// and no tab, day or scroll position left from before.
+  void _startOver() {
+    if (!mounted) return;
+    homeDayRequest.value = null;
+    Navigator.of(context).popUntil((r) => r.isFirst);
+    setState(() {
+      _domain = ShellDomain.today;
+      _rev++;
+    });
+  }
+
   bool _pending = false;
 
   /// Both requests come from ONE tap and are written one after the other, so
@@ -556,6 +569,9 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     app.screenRequest.value = null;
     app.navRequest.value = -1;
     if ((s == null || s.isEmpty) && tab < 0) return;
+    final toSession = s != null && routePath(s) == kRouteWorkoutIdle;
+    // Already on the live screen: popping it to push it again loses its place.
+    if (toSession && LiveShellState.showing > 0) return;
     // Back to the shell first: a tap while another screen is open used to
     // switch the tab underneath it, and nothing visible changed.
     Navigator.of(context).popUntil((r) => r.isFirst);
@@ -563,6 +579,7 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     // the base the payload was built with, not a second destination.
     if (s != null && s.isNotEmpty) {
       _go(domainForRoute(s));
+      if (toSession) unawaited(_resumeLiveSession(context));
       final screen = screenForRoute(s);
       if (screen != null) {
         Navigator.of(context)
@@ -586,6 +603,7 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _app?.navRequest.removeListener(_consumeSoon);
     _app?.screenRequest.removeListener(_consumeSoon);
+    _app?.relaunch.removeListener(_startOver);
     super.dispose();
   }
 
@@ -615,6 +633,24 @@ class _ShellState extends State<_Shell> with WidgetsBindingObserver {
   }
 }
 
+/// Opens the live screen of the running session; nothing when there is none.
+Future<void> _resumeLiveSession(BuildContext c) async {
+  final app = c.read<AppState>();
+  final draft = LiveDraft.current;
+  final a = _LiveSessionBar._activityFor(app);
+  if (a == null) return;
+  final nav = Navigator.of(c);
+  // The lifter's previous and best. Absent renders as "First time on this
+  // lift", which would be a false claim on a resumed session.
+  final history = await loadSetHistory();
+  await nav.push(MaterialPageRoute<void>(
+    builder: (_) => liveFor(a,
+        private: draft?.private ?? false,
+        weightKg: draft?.weightKg,
+        host: activityHost(app, history: history)),
+  ));
+}
+
 /// The way back into a session that is running while its screen is not on
 /// screen — minimised, or left behind when the app was killed and relaunched.
 ///
@@ -639,23 +675,6 @@ class _LiveSessionBar extends StatelessWidget {
   /// every later workout while one is open.
   static Activity? _activityFor(AppState app) => activityByName(
       LiveDraft.current?.activityKey ?? app.activeWorkout?.type);
-
-  Future<void> _resume(BuildContext c) async {
-    final app = c.read<AppState>();
-    final draft = LiveDraft.current;
-    final a = _activityFor(app);
-    if (a == null) return;
-    final nav = Navigator.of(c);
-    // The lifter's previous and best. Absent renders as "First time on this
-    // lift", which would be a false claim on a resumed session.
-    final history = await loadSetHistory();
-    await nav.push(MaterialPageRoute<void>(
-      builder: (_) => liveFor(a,
-          private: draft?.private ?? false,
-          weightKg: draft?.weightKg,
-          host: activityHost(app, history: history)),
-    ));
-  }
 
   @override
   Widget build(BuildContext c) {
@@ -687,7 +706,7 @@ class _LiveSessionBar extends StatelessWidget {
     }
     return Pressable(
         semanticLabel: 'Back to your ${a.name.toLowerCase()} session',
-        onTap: () => _resume(c),
+        onTap: () => _resumeLiveSession(c),
         child: Padding(
           padding: const EdgeInsets.symmetric(
               horizontal: S.x4, vertical: S.x3),

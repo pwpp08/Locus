@@ -565,6 +565,10 @@ class LiveShell extends StatefulWidget {
 }
 
 class LiveShellState extends State<LiveShell> {
+  /// How many live screens are up, so a tapped workout notification does not
+  /// open a second one.
+  static int showing = 0;
+
   /// Seeded from the draft, so reopening a minimised session — or relaunching
   /// after a kill — carries on from where the session actually is rather than
   /// from zero.
@@ -582,6 +586,7 @@ class LiveShellState extends State<LiveShell> {
   @override
   void initState() {
     super.initState();
+    showing++;
     // The session clock is real time, not motion: it runs whether or not the
     // platform wants animation, and it stops in dispose so nothing outlives
     // the screen. With a draft it is READ from wall time rather than counted
@@ -600,6 +605,7 @@ class LiveShellState extends State<LiveShell> {
 
   @override
   void dispose() {
+    showing--;
     _t?.cancel();
     clock.dispose();
     super.dispose();

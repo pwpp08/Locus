@@ -15,7 +15,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:flutter/services.dart' show HapticFeedback;
+import 'package:flutter/services.dart'
+    show HapticFeedback, MethodCall, MethodChannel;
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:openstrap_analytics/onehz.dart' as ana;
 import 'package:openstrap_protocol/openstrap_protocol.dart' as proto;
@@ -1511,6 +1512,25 @@ class AppState extends ChangeNotifier {
   ValueNotifier<int> get insightsRevision => _deriveCoordinator.insightsRevision;
   StreamSubscription<String>? _tapSub;
 
+  /// Bumped when Android opens a new window onto this already-running app
+  /// (swiped away and reopened). The shell goes back to Home.
+  final ValueNotifier<int> relaunch = ValueNotifier<int>(0);
+
+  /// What `MainActivity.kt` says about its windows.
+  static const MethodChannel _activityChannel =
+      MethodChannel('openstrap/activity');
+
+  Future<void> _onActivityCall(MethodCall call) async {
+    if (call.method == 'relaunched') {
+      relaunch.value++;
+      // The plugin only reads a tapped notification off a window when asked,
+      // and the ask at launch happened long before this window existed.
+      await NotificationService.instance.consumeLaunchRoute();
+    }
+    final route = call.arguments;
+    if (route is String) _handleTapRoute(route);
+  }
+
   void _handleTapRoute(String route) {
     final t = resolveTapRoute(route); // pure — lib/notify/tap_router.dart
     if (t.screen != null) screenRequest.value = t.screen;
@@ -1664,6 +1684,7 @@ class AppState extends ChangeNotifier {
     // Notification taps → request a tab switch (the shell listens to navRequest).
     _tapSub = NotificationService.instance.taps.listen(_handleTapRoute);
     unawaited(NotificationService.instance.consumeLaunchRoute());
+    _activityChannel.setMethodCallHandler(_onActivityCall);
     unawaited(checkPendingSiriRoute());
   }
 
@@ -2322,7 +2343,7 @@ class AppState extends ChangeNotifier {
         title: 'Time to move',
         body: "You've been still for a couple of hours.",
         at: at,
-        route: '/today',
+        route: kRouteMovement,
       );
     } catch (_) {
       /* best-effort */

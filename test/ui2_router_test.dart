@@ -29,9 +29,11 @@ import 'package:openstrap_edge/ui2/onboarding/pairing.dart';
 import 'package:openstrap_edge/ui2/onboarding/profile_setup.dart';
 import 'package:openstrap_edge/ui2/onboarding/welcome.dart'
     show isEncryptedBackup;
+import 'package:openstrap_edge/ui2/screens/day_steps.dart' show DayStepsDetail;
 import 'package:openstrap_edge/ui2/screens/detected_activities.dart'
     show DetectedActivitiesScreen, IdentifyActivityScreen;
 import 'package:openstrap_edge/ui2/profile/devices.dart';
+import 'package:openstrap_edge/ui2/screens/journal_compose.dart' show JournalCompose;
 import 'package:openstrap_edge/ui2/profile/profile.dart';
 import 'package:openstrap_edge/ui2/ui2.dart';
 
@@ -152,9 +154,9 @@ void main() {
       routes.forEach((route, domain) {
         expect(domainForRoute(route), domain, reason: route);
       });
-      // The water reminders went with the meal tracker; an old one lands on
-      // Home and opens nothing over it.
-      expect(screenForRoute(kRouteWater), isNull);
+      // The water reminder opens the journal on its water row.
+      expect((screenForRoute(kRouteWater)! as JournalCompose).ask, 'water_ml');
+      expect(screenForRoute(kRouteMovement), isA<DayStepsDetail>());
       expect(domainForRoute('/profile'), ShellDomain.more);
       expect(screenForRoute('/profile'), isA<ProfileHome>(),
           reason: 'the battery notification promises the band, not Today');
