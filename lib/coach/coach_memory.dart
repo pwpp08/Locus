@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../state/prefs.dart';
+import 'coach_recent.dart';
 
 /// What a note is about; the memory page has a tab for each.
 enum MemoryKind {
@@ -156,7 +157,10 @@ class CoachMemory {
     await _write(list);
   }
 
-  static Future<void> clear() => _write(const []);
+  static Future<void> clear() async {
+    await CoachRecent.clear();
+    await _write(const []);
+  }
 
   /// The notes as a prompt section, or '' when there are none.
   static String promptSection(List<String> notes) {

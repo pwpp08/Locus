@@ -32,6 +32,7 @@ import 'coach_db.dart';
 import 'coach_prompt.dart';
 import 'coach_figure_spec.dart';
 import 'coach_memory.dart';
+import 'coach_recent.dart';
 import 'coach_responses.dart';
 import 'coach_web.dart';
 import 'coach_style.dart';
@@ -706,6 +707,10 @@ class CoachEngine {
             ],
     });
 
+    // Read before this message is kept, so it is not echoed back as news.
+    final recent = CoachRecent.promptSection(await CoachRecent.lines(repo: api));
+    await CoachRecent.said(shown ?? userText);
+
     const maxIters = 10;
     for (var i = 0; i < maxIters; i++) {
       onStatus(_shenanigans[_rand.nextInt(_shenanigans.length)]);
@@ -720,6 +725,7 @@ class CoachEngine {
             kCoachSystemPrompt,
             CoachStyle.promptSection(),
             if (memory.isNotEmpty) memory,
+            if (recent.isNotEmpty) recent,
             'Today is ${_today()} (device-local date; all day-keyed data uses '
                 'these local dates).',
           ].join('\n\n'),
