@@ -32,7 +32,9 @@ import 'home_screen.dart';
 import 'metric_detail.dart';
 import 'movement_lane.dart';
 import 'nap_detail.dart' show NapDetailScreen;
-import 'stress_monitor.dart' show StressMonitorScreen, StressSource;
+import '../../compute/stress_monitor.dart' show StressLevel;
+import 'stress_monitor.dart'
+    show StressMonitorScreen, StressSource, stressLevelColor;
 import 'trend_view.dart' show TrendViewScreen, shiftDay;
 import 'window_editor.dart';
 
@@ -918,7 +920,7 @@ class _SleepHero extends StatelessWidget {
                     ? null
                     : (stressPct < 1 ? 2 : (stressPct <= 5 ? 1 : 0)),
                 onTap: () => Navigator.of(c).push(MaterialPageRoute(
-                    builder: (_) => const StressMonitorScreen()))),
+                    builder: (_) => StressMonitorScreen(day: d.day)))),
             const SizedBox(height: S.x3 + S.half),
             Container(
               height: S.x8,
@@ -2402,9 +2404,9 @@ class _StressCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(S.x6 + S.hair, S.x5, S.x6 + S.hair, 0),
             child: Column(children: [
-              _StressRow('HIGH', s.high, s.scored, C.poor),
-              _StressRow('MEDIUM', s.medium, s.scored, C.optimal),
-              _StressRow('LOW', s.low, s.scored, DC.line2, last: true),
+              _StressRow('HIGH', s.high, s.scored, C.stressHigh),
+              _StressRow('MEDIUM', s.medium, s.scored, C.stressMedium),
+              _StressRow('LOW', s.low, s.scored, C.stressLow, last: true),
             ]),
           ),
       ]),
@@ -2582,13 +2584,14 @@ class _StressPaint extends CustomPainter {
           ..shader = LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            stops: const [0, .3, .5, .75, 1],
-            colors: [
-              C.poor,
-              Color.lerp(C.poor, C.optimal, .55)!,
-              C.optimal,
-              Color.lerp(C.optimal, DC.line2, .6)!,
-              DC.line2,
+            stops: const [0, 1 / 3, 2 / 3, .9, 1],
+            // The Stress Monitor's scale, top of the plot (3) to bottom (0).
+            colors: const [
+              C.stressHigh,
+              C.stressWarm,
+              C.stressMedium,
+              C.stressLow,
+              C.stressLow,
             ],
           ).createShader(plot));
 
@@ -2778,11 +2781,11 @@ class _SleepWeek extends StatelessWidget {
         title: 'Sleep stress',
         metricId: 'sleep_debt',
         onOpen: () => Navigator.of(c).push(MaterialPageRoute(
-            builder: (_) => const StressMonitorScreen())),
-        legend: weekLegend(const [
-          ('High', C.poor),
-          ('Medium', C.optimal),
-          ('Low', DC.line2),
+            builder: (_) => StressMonitorScreen(day: week.last))),
+        legend: weekLegend([
+          ('High', stressLevelColor(StressLevel.high)),
+          ('Medium', stressLevelColor(StressLevel.medium)),
+          ('Low', stressLevelColor(StressLevel.low)),
         ]),
         chart: WeekChart(
           days: week,
@@ -2794,9 +2797,9 @@ class _SleepWeek extends StatelessWidget {
                 WeekColumn(
                   hi: 100,
                   stack: [
-                    (s.low / s.scored * 100, DC.line2),
-                    (s.medium / s.scored * 100, C.optimal),
-                    (s.high / s.scored * 100, C.poor),
+                    (s.low / s.scored * 100, C.stressLow),
+                    (s.medium / s.scored * 100, C.stressMedium),
+                    (s.high / s.scored * 100, C.stressHigh),
                   ],
                   top: clockDur(s.high),
                   topColor: C.poor,

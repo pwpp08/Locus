@@ -142,6 +142,20 @@ void main() {
     expect(dayLabelOf(DateTime(2026, 5, 21)), '2026-05-21');
   });
 
+  test("the night on the monitor is Sleep stress's own curve", () async {
+    final src = StressSource(_Repo());
+    final night = (await src.sleepStressOf(today))!;
+    final d = await src.load(today);
+    // The night began at 23:00 the evening before, an hour ahead of midnight.
+    for (final m in [30, 200, 380]) {
+      expect(d.scores[m], night.curve[night.curveLead + 60 + m], reason: '$m');
+    }
+    // Its first hour is on yesterday: shaded there, and the same readings.
+    final y = await src.load(shiftDay(today, -1));
+    expect(y.scores[23 * 60 + 30], night.curve[night.curveLead + 30]);
+    expect(y.sleep.last, (23 * 60, 1440));
+  });
+
   test('the 30-day axis squeezes the stress levels no day reaches', () {
     // A calm month: nothing above 1.4, so 1-2 is full and 2-3 squeezed.
     final calm = StressAxis.of([0.4, 1.4, 0.9]);

@@ -8,17 +8,20 @@
 // one. When there is no baseline yet the screen says so; it does not guess.
 
 import '../../state/duration_format.dart';
+import 'dart:async';
 import 'dart:isolate';
 
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../compute/sleep_stress.dart';
 import '../../compute/stress_monitor.dart';
 import '../../data/day_label.dart';
 import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../state/app_state.dart';
 import '../activity/catalogue.dart' show activityByName, kUnknownActivityIcon;
 import '../../state/clock_format.dart';
 import '../ui2.dart';
@@ -35,7 +38,8 @@ Color stressColor(double score) {
   return Color.lerp(stops[i], stops[i + 1], t - i)!;
 }
 
-Color _levelColor(StressLevel l) => switch (l) {
+/// A level's colour, on every screen that splits stress into three.
+Color stressLevelColor(StressLevel l) => switch (l) {
       StressLevel.low => C.stressLow,
       StressLevel.medium => C.stressMedium,
       StressLevel.high => C.stressHigh,
@@ -111,6 +115,37 @@ double _meanScore(List<double?> scores) {
   return xs.reduce((a, b) => a + b) / xs.length;
 }
 
+/// A day's scores as every screen reads them: awake minutes against the waking
+/// baseline, minutes asleep against the sleeping one ([sleepStress]), so the
+/// Stress Monitor's night and Sleep stress are the same curve. [nights] is
+/// keyed by wake day. A night that cannot be judged keeps the waking scores.
+/// [asleep], when given, is marked for every minute a night replaced.
+List<double?> _dayScores(StressDayInput d, StressBaseline base,
+    Map<String, NightWindow> nights, Map<String, StressDayInput> days,
+    [List<bool>? asleep]) {
+  final out = stressScores(d, base);
+  // The night that ended on this day, and the one starting on its evening.
+  for (final wake in [d.day, shiftDay(d.day, 1)]) {
+    final night = nights[wake];
+    if (night == null) continue;
+    final s = sleepStress(
+        night,
+        [for (var i = 1; i <= 10; i++) ?nights[shiftDay(wake, -i)]],
+        days);
+    if (s == null) continue;
+    for (var i = s.curveLead; i < s.curve.length; i++) {
+      final ts = night.onset + (i - s.curveLead) * 60;
+      if (ts >= night.wake) break;
+      final at = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
+      if (dayLabelOf(at) != d.day) continue;
+      final k = at.hour * 60 + at.minute;
+      out[k] = s.curve[i];
+      asleep?[k] = true;
+    }
+  }
+  return out;
+}
+
 /// Reads and scores days, keeping each day's series so paging back and forth
 /// does not decode the same bundle twice.
 
@@ -158,6 +193,14 @@ class StressSource {
     return (onset: on.toInt(), wake: off.toInt());
   }
 
+  /// The nights that ended on any of [days], by wake day.
+  Future<Map<String, NightWindow>> _nights(Iterable<String> days) async {
+    final got = await Future.wait([for (final d in days) _night(d)]);
+    return {
+      for (final (i, d) in days.indexed) d: ?got[i],
+    };
+  }
+
   /// High sleep stress for the night that ended on [day], against the nights
   /// before it. Null when it cannot be said (see [sleepStress]).
   Future<SleepStress?> sleepStressOf(String day) async {
@@ -201,12 +244,13 @@ class StressSource {
     final inputs = <String, StressDayInput>{};
     final need = {
       for (final d in days)
-        for (var i = 0; i <= 14; i++) shiftDay(d, -i),
+        for (var i = -1; i <= 14; i++) shiftDay(d, -i),
     };
     for (final d in need) {
       final got = await _input(d);
       if (got != null) inputs[d] = got;
     }
+    final nights = await _nights(need);
     final want = [...days];
     final prior = {
       for (final d in want)
@@ -219,7 +263,7 @@ class StressSource {
         if (today == null) continue;
         final base = stressBaseline([for (final p in prior[d]!) ?inputs[p]]);
         if (base == null) continue;
-        final scores = stressScores(today, base);
+        final scores = _dayScores(today, base, nights, inputs);
         if (scores.where((s) => s != null).length >= kStressDayMinScored) {
           out[d] = read(scores);
         }
@@ -229,12 +273,14 @@ class StressSource {
   }
 
   Future<StressMonitorData> load(String day) async {
-    final fetched = await Future.wait([
-      _input(day),
-      for (var i = 1; i <= 14; i++) _input(shiftDay(day, -i)),
-    ]);
+    final wanted = [
+      day,
+      shiftDay(day, 1), // the night starting this evening ends there
+      for (var i = 1; i <= 14; i++) shiftDay(day, -i),
+    ];
+    final fetched = await Future.wait([for (final d in wanted) _input(d)]);
     final today = fetched.first;
-    final prior = [for (final d in fetched.skip(1)) ?d];
+    final prior = [for (final d in fetched.skip(2)) ?d];
     final baseline = stressBaseline(prior);
     if (today == null || baseline == null) {
       return StressMonitorData(
@@ -243,14 +289,25 @@ class StressSource {
           baseline: baseline,
           usableDays: stressUsableDays(prior));
     }
-    final scores = stressScores(today, baseline);
+    final days = {
+      for (final d in fetched)
+        if (d != null) d.day: d,
+    };
+    final nights = await _nights(wanted);
+    final asleep = [...today.asleep];
+    final scores = _dayScores(today, baseline, nights, days, asleep);
 
-    // How a typical day splits, from the days before, on the same baseline.
+    // How a typical day splits, from the days before, on the same baselines.
+    // ponytail: the oldest few of these days have fewer than three earlier
+    // nights in hand, so their sleep stays on the waking baseline; fetch ten
+    // more days here if the typical split ever needs to be exact.
     final spent = [
       for (final d in prior)
-        if (stressScores(d, baseline).where((s) => s != null).length >= 360)
-          stressMinutes(stressScores(d, baseline)),
-    ];
+        _dayScores(d, baseline, nights, days),
+    ]
+        .where((s) => s.where((x) => x != null).length >= kStressDayMinScored)
+        .map(stressMinutes)
+        .toList();
     final typical = spent.length < 3
         ? null
         : (
@@ -262,7 +319,7 @@ class StressSource {
     final sleep = <(int, int)>[];
     int? from;
     for (var i = 0; i <= 1440; i++) {
-      final on = i < 1440 && today.asleep[i];
+      final on = i < 1440 && asleep[i];
       if (on && from == null) from = i;
       if (!on && from != null) {
         sleep.add((from, i));
@@ -305,15 +362,19 @@ class StressMonitorScreen extends StatefulWidget {
   /// Injected by tests; production builds its own from the repo.
   final StressSource? source;
   final String? today;
-  const StressMonitorScreen({super.key, this.source, this.today});
+
+  /// The day it opens on; today when null.
+  final String? day;
+  const StressMonitorScreen({super.key, this.source, this.today, this.day});
 
   @override
   State<StressMonitorScreen> createState() => _StressMonitorScreenState();
 }
 
-class _StressMonitorScreenState extends State<StressMonitorScreen> {
+class _StressMonitorScreenState extends State<StressMonitorScreen>
+    with RevisionReload {
   StressSource? _source;
-  late String _day = widget.today ?? todayLabel();
+  late String _day = widget.day ?? _today;
   StressMonitorData? _data;
   String? _loaded;
   bool _zoom = false;
@@ -328,7 +389,28 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _load();
+      // Looking at it now: pull what the band has banked since the last
+      // offload, which can be a quarter of an hour old. The derive that
+      // follows lands in [reload].
+      if (widget.source == null && mounted && _day == _today) {
+        try {
+          unawaited(context.read<AppState>().foregroundCatchUp());
+        } catch (_) {
+          // No AppState above a golden or the gallery.
+        }
+      }
+    });
+  }
+
+  /// A sync or a derive wrote newer minutes: read the day again, in place.
+  @override
+  void reload() {
+    for (var i = -1; i <= 1; i++) {
+      _source?.forget(shiftDay(_day, i));
+    }
+    _load();
   }
 
   Future<void> _load() async {
@@ -341,8 +423,9 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
       _source = widget.source ?? StressSource(repo!);
     }
     final day = _day;
+    final ask = beginRead(#day);
     final d = await _source!.load(day);
-    if (!mounted || day != _day) return;
+    if (!stillNewest(#day, ask) || day != _day) return;
     setState(() {
       _data = d;
       _loaded = day;
@@ -633,7 +716,7 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
                 flex: math.max(1, (parts[i] / total * 1000).round()),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: _levelColor(StressLevel.values[i]).withValues(alpha: alpha),
+                    color: stressLevelColor(StressLevel.values[i]).withValues(alpha: alpha),
                     borderRadius: BorderRadius.circular(R.sm / 3),
                   ),
                 ),
@@ -682,7 +765,7 @@ class _StressMonitorScreenState extends State<StressMonitorScreen> {
                     style: F.n24.copyWith(color: p.ink, fontWeight: FontWeight.w700)),
                 const SizedBox(height: S.x1),
                 Text(_levelName(lvl),
-                    style: F.over.copyWith(color: _levelColor(lvl), fontWeight: FontWeight.w700)),
+                    style: F.over.copyWith(color: stressLevelColor(lvl), fontWeight: FontWeight.w700)),
                 if (typ != null && typ > 0) ...[
                   const SizedBox(height: S.x2),
                   _VsTypical(today: mins.toDouble(), typical: typ),
@@ -803,7 +886,7 @@ class _Gauge extends StatelessWidget {
                 if (level != null)
                   Text(_levelName(level),
                       style: F.caps.copyWith(
-                          color: _levelColor(level), fontWeight: FontWeight.w700)),
+                          color: stressLevelColor(level), fontWeight: FontWeight.w700)),
                 if (time != null) ...[
                   const SizedBox(height: S.x2),
                   Text(time!, style: F.cap.copyWith(color: p.ink2)),
@@ -1038,7 +1121,7 @@ class _StressTrendCardState extends State<StressTrendCard> {
               // One colour per level, as the gauge's legend has them: a
               // blend between stops made a calm day and a medium one two
               // shades of the same teal.
-              colorOf: (_, v) => _levelColor(stressLevel(v)),
+              colorOf: (_, v) => stressLevelColor(stressLevel(v)),
               fraction: squeeze.fraction,
               height: ScrubColumns.chrome +
                   (S.x16 * 3 + S.x10 - ScrubColumns.chrome) * squeeze.share,

@@ -503,7 +503,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
     // fresh each load; older days stay cached.
     _stressSource
       ?..forget(day)
-      ..forget(shiftDay(day, -1));
+      ..forget(shiftDay(day, -1))
+      ..forget(shiftDay(day, 1));
     // Started first and left to run beside the rest: fifteen days of minutes
     // are read for it, and it used to start only once every dashboard series
     // had loaded (or never, when one of them threw), so the card sat empty.
@@ -1207,9 +1208,19 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             comingSoon: firstWeeks,
           ),
           kStressTile: HomeStressCard(
-            data: isToday ? _stress : null,
+            // Only the day on screen's own scores: the last day's would show
+            // under the new date while its read is still running.
+            data: _stress?.day == (d.dayId ?? _day ?? todayLabel(widget.now))
+                ? _stress
+                : null,
+            past: !isToday,
             calibrating: isToday && !cal.stress ? cal.milestones[2] : null,
-            onOpen: () => go(c, const StressMonitorScreen()),
+            onOpen: () => go(
+                c,
+                StressMonitorScreen(
+                    day: isToday
+                        ? null
+                        : d.dayId ?? _day ?? todayLabel(widget.now))),
           ),
         },
       ),

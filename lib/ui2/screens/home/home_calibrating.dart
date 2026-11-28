@@ -28,12 +28,16 @@ class HomeStressCard extends StatelessWidget {
   /// Now, for the empty chart's last label; the clock when null.
   final DateTime? now;
 
+  /// An earlier day: it ran to midnight, and nothing more is coming.
+  final bool past;
+
   const HomeStressCard({
     super.key,
     required this.data,
     required this.onOpen,
     this.calibrating,
     this.now,
+    this.past = false,
   });
 
   @override
@@ -43,7 +47,7 @@ class HomeStressCard extends StatelessWidget {
     final last = d?.last;
     final at = now ?? DateTime.now();
     final has = d != null && last != null;
-    final end = has ? last : at.hour * 60 + at.minute;
+    final end = has ? last : (past ? 1439 : at.hour * 60 + at.minute);
     final values = has
         ? d.scores.sublist(0, end + 1)
         : List<double?>.filled(end + 1, null);
@@ -78,7 +82,12 @@ class HomeStressCard extends StatelessWidget {
             textBaseline: TextBaseline.alphabetic,
             children: [
           Expanded(
-            child: Text('Last updated ${clock(end)}',
+            child: Text(
+                !past
+                    ? 'Last updated ${clock(end)}'
+                    : has
+                        ? 'Recorded to ${clock(end)}'
+                        : 'No reading for this day',
                 style: F.num(F.cap).copyWith(color: p.ink2)),
           ),
           if (score != null) ...[
