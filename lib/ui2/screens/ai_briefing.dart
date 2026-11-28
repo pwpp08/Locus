@@ -14,7 +14,6 @@ import 'coach_text.dart';
 
 import '../../l10n/display_text.dart';
 import 'package:flutter/material.dart';
-import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:provider/provider.dart';
 
 import '../../ai/briefing.dart';
@@ -24,7 +23,7 @@ import '../../coach/coach_engine.dart' show CoachException;
 import '../../l10n/app_localizations.dart';
 import '../ui2.dart';
 import 'coach.dart' show CoachSetup, kCoachAccent;
-import 'coach_parts.dart' show tightParagraphs;
+import 'coach_parts.dart' show aiMarkdown;
 import 'home_screen.dart' show go, pad, repoOf;
 
 class AiBriefingScreen extends StatefulWidget {
@@ -134,9 +133,13 @@ class _AiBriefingScreenState extends State<AiBriefingScreen> {
                           ),
                           if (b.breakdownMd.isNotEmpty) ...[
                             const SizedBox(height: S.x3),
-                            GptMarkdown(
-                              tightParagraphs(b.breakdownMd),
-                              style: F.cap.copyWith(color: p.ink2, height: 1.6),
+                            aiMarkdown(
+                              c,
+                              b.breakdownMd,
+                              F.body.copyWith(
+                                  color: p.ink2,
+                                  fontWeight: FontWeight.w400,
+                                  height: 1.6),
                             ),
                           ],
                         ],

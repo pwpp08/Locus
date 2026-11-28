@@ -5,6 +5,8 @@ import 'package:openstrap_edge/ai/briefing.dart';
 import 'package:openstrap_edge/ai/briefing_engine.dart';
 import 'package:openstrap_edge/coach/coach_engine.dart';
 import 'package:openstrap_edge/coach/coach_memory.dart';
+import 'package:openstrap_edge/coach/coach_prompt.dart'
+    show withoutChartLinks;
 import 'package:openstrap_edge/coach/coach_style.dart';
 import 'package:openstrap_edge/coach/coach_web.dart';
 import 'package:openstrap_edge/ui2/screens/coach_history_sheet.dart';
@@ -96,12 +98,18 @@ void main() {
     });
   });
 
-  test('paragraphs fold to single line breaks, code and tables kept', () {
-    expect(tightParagraphs('Hi,\n\nHappy Monday!\n\n\n- one\n- two'),
-        'Hi,\nHappy Monday!\n- one\n- two');
-    expect(tightParagraphs('Text\n\n| a | b |\n|---|---|'),
+  test('paragraphs are aired out and lists kept tight', () {
+    expect(
+        spacedParagraphs('Hi,\n\n\n\nToday:\n- one\n\n- two\nRest well.'),
+        'Hi,\n\nToday:\n\n- one\n- two\n\nRest well.');
+    expect(spacedParagraphs('Text\n\n| a | b |\n|---|---|'),
         'Text\n\n| a | b |\n|---|---|');
-    expect(tightParagraphs('```\na\n\nb\n```'), '```\na\n\nb\n```');
+    expect(spacedParagraphs('```\na\n\nb\n```'), '```\na\n\nb\n```');
+    expect(spacedParagraphs('HRV was **[62 ms](chart:hrv)**.'),
+        'HRV was [62 ms](chart:hrv).');
+    expect(withoutChartLinks('HRV was [62 ms](chart:hrv).'), 'HRV was 62 ms.');
+    expect(chartIdFor('recovery 67%'), 'recovery');
+    expect(chartIdFor('go easy today'), isNull);
   });
 
   group('memory kinds', () {

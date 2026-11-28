@@ -724,6 +724,7 @@ class CoachEngine {
           'content': [
             kCoachSystemPrompt,
             CoachStyle.promptSection(),
+            kChartLinkRule,
             if (memory.isNotEmpty) memory,
             if (recent.isNotEmpty) recent,
             'Today is ${_today()} (device-local date; all day-keyed data uses '

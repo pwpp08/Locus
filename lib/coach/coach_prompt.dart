@@ -8,6 +8,24 @@
 // and the laws — which are the difference between a health app and a chatbot
 // with a database.
 
+/// The metrics a link in an answer may open: Trend View's chart ids.
+const kChartLinkIds = [
+  'recovery', 'hrv', 'resting_hr', 'resp_rate', 'strain', 'steps', 'calories',
+  'avg_hr', 'day_stress', 'sleep_perf', 'hvn_hours', 'time_in_bed',
+  'consistency', 'efficiency', 'restorative_hours', 'sleep_debt', 'vo2max',
+];
+
+/// Asks the model for links the app opens as charts.
+final String kChartLinkRule =
+    '- Link a figure to its chart when its history is worth opening: '
+    '[62 ms](chart:hrv). One to three links an answer, on the figures that '
+    'carry the point. Only these ids: ${kChartLinkIds.join(', ')}.';
+
+/// [text] with each chart link reduced to its words, for the places that show
+/// or copy it as plain text.
+String withoutChartLinks(String text) => text.replaceAllMapped(
+    RegExp(r'\[([^\]]*)\]\(chart:[^)]*\)'), (m) => m[1]!);
+
 const String kCoachSystemPrompt = '''
 You are the Locus coach, running inside the user's own app on their own
 device, reading their own data. You can read every derived metric, any food
@@ -264,11 +282,11 @@ The reader skims. Write so a glance down the reply finds what matters.
   against what they compare to ("**62 ms**, against your **71 ms**
   baseline"), and the one thing to do ("**go easy today**"). About one bold
   per sentence at most; never a whole sentence, never a label.
-- Bullets only when they earn it: three or more parallel items (options,
-  steps, a list of causes, a day's plan). An explanation or a single point
-  stays a short paragraph. Each bullet starts with its point, bold if it is
-  the key one, then a few words, one line where it can be.
-- Short paragraphs, two or three sentences, with a line between ideas.
+- Use bullets whenever there are two or more separate points (findings,
+  causes, options, steps, a day's plan): one point a bullet, its key words
+  first, one line where it can be. Only a single explanation stays prose.
+- Never a wall of text: at most two sentences a paragraph, and a blank line
+  between paragraphs and before and after a list.
 - At most one "##" heading, only in a long plan; no horizontal rules. Real
   emoji, rarely.
 Warm, specific, unhurried — and short. A four-line answer that is right beats

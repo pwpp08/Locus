@@ -23,6 +23,7 @@ import '../coach/coach_config.dart';
 import '../coach/coach_db.dart';
 import '../coach/coach_engine.dart';
 import '../coach/coach_memory.dart';
+import '../coach/coach_prompt.dart' show kChartLinkRule, withoutChartLinks;
 import '../coach/coach_recent.dart';
 import '../data/day_label.dart';
 import '../data/db.dart';
@@ -465,7 +466,8 @@ String _sweepSystemPrompt() =>
         'that matters most. No markdown.\n'
         'Line 2: ---\n'
         'Then 2-3 markdown bullet points (each starting with "- "), max 14 '
-        'words each. One fact or one action per bullet, nothing else.';
+        'words each. One fact or one action per bullet, nothing else.\n'
+        '$kChartLinkRule Never in line 1.';
 
 String briefingSystemPrompt(
   BriefingPeriod period, {
@@ -537,7 +539,9 @@ String briefingSystemPrompt(
         'at a glance, for a card on the home screen. No markdown, no '
         'greeting.\n'
         'Line 2: ---\n'
-        'Then the outlook itself, in markdown. $body',
+        'Then the outlook itself, in markdown, with a blank line between '
+        'paragraphs and around each list. $body',
+    '$kChartLinkRule Never in line 1.',
     if (memory.isNotEmpty) memory,
   ].join('\n');
 }
@@ -621,7 +625,9 @@ String buildBriefingUserPrompt(
     rest = firstIdx < 0 ? '' : lines.skip(firstIdx + 1).join('\n');
   }
   // One-liner is plain text: drop bullet/heading markers, clamp length.
-  one = one.replaceFirst(RegExp(r'^\s*[-*#>]+\s*'), '').trim();
+  one = withoutChartLinks(one)
+      .replaceFirst(RegExp(r'^\s*[-*#>]+\s*'), '')
+      .trim();
   if (one.length > 200) one = '${one.substring(0, 199)}…';
   rest = rest.trim();
   // A model that returns a single line (no bullets) has no distinct breakdown.

@@ -9,7 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 
+import '../../coach/coach_prompt.dart'
+    show kChartLinkIds, withoutChartLinks;
 import '../ui2.dart';
+import 'trend_view.dart' show TrendViewScreen;
 
 /// The coach's ground: warm taupe under the header, through slate and navy,
 /// into the near-black floor. The fall is a fixed [C.coachDusk] deep, so a
@@ -121,15 +124,14 @@ class CoachAnswer extends StatelessWidget {
             child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            GptMarkdown(
-              // Paragraphs sit close, a line apart rather than a blank line.
-              tightParagraphs(text),
+            aiMarkdown(
+              c,
+              text,
               // The prose sits a step back so the bold figures lead the eye.
-              style: F.body.copyWith(
+              F.body.copyWith(
                   color: C.white.withValues(alpha: .74),
                   fontWeight: FontWeight.w400,
-                  height: 1.4),
-              inlineComponents: kCoachInlineMarkdown,
+                  height: 1.6),
             ),
             if (actions)
               // The glyphs sit on the text's left edge; their tap areas
@@ -157,6 +159,70 @@ class CoachAnswer extends StatelessWidget {
       );
 }
 
+/// A model's words, as every screen shows them: aired out, bold leading the
+/// eye, and figures that open their chart underlined.
+Widget aiMarkdown(BuildContext context, String text, TextStyle style) =>
+    GptMarkdown(
+      spacedParagraphs(text),
+      style: style,
+      inlineComponents: kCoachInlineMarkdown,
+      // Our own chart links; any other link keeps the package's look and,
+      // as before, opens nothing.
+      linkBuilder: (c, span, url, base) {
+        final id = _chartIdOfUrl(url);
+        if (!url.startsWith(_chartScheme)) return Text.rich(span);
+        return Text(span.toPlainText(),
+            // The paragraph already scales its inline widgets.
+            textScaler: TextScaler.noScaling,
+            style: base.copyWith(
+                color: C.white,
+                fontWeight: FontWeight.w700,
+                decoration: id == null ? null : TextDecoration.underline,
+                decorationColor: C.dialStrain,
+                decorationThickness: 2));
+      },
+      onLinkTap: (url, _) {
+        final id = _chartIdOfUrl(url);
+        if (id == null) return;
+        Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => TrendViewScreen(initial: id)));
+      },
+    );
+
+const _chartScheme = 'chart:';
+
+String? _chartIdOfUrl(String url) {
+  if (!url.startsWith(_chartScheme)) return null;
+  final id = url.substring(_chartScheme.length);
+  return kChartLinkIds.contains(id) ? id : null;
+}
+
+final _chartWords = [
+  (RegExp(r'\bhrv\b'), 'hrv'),
+  (RegExp(r'\brecovery\b'), 'recovery'),
+  (RegExp(r'resting (heart rate|hr)\b|\brhr\b'), 'resting_hr'),
+  (RegExp(r'respiratory rate'), 'resp_rate'),
+  (RegExp(r'\bstrain\b'), 'strain'),
+  (RegExp(r'\bsteps\b'), 'steps'),
+  (RegExp(r'sleep performance'), 'sleep_perf'),
+  (RegExp(r'sleep debt'), 'sleep_debt'),
+  (RegExp(r'sleep efficiency'), 'efficiency'),
+  (RegExp(r'\bof sleep\b|\basleep\b'), 'hvn_hours'),
+  (RegExp(r'\bstress\b'), 'day_stress'),
+  (RegExp(r'\bcalories\b|\bkcal\b'), 'calories'),
+];
+
+/// The chart a bold phrase is about, when it states a figure and names its
+/// metric ("**recovery 67%**"): a link even when the model wrote none.
+String? chartIdFor(String bold) {
+  if (bold.length > 32 || !bold.contains(RegExp(r'\d'))) return null;
+  final t = bold.toLowerCase();
+  for (final (words, id) in _chartWords) {
+    if (words.hasMatch(t)) return id;
+  }
+  return null;
+}
+
 /// Markdown's inline syntaxes with bold made the answer's anchor: full white
 /// and heavier than the dimmed prose round it, so a glance down the reply
 /// lands on the figures and the verdicts.
@@ -174,6 +240,11 @@ class CoachBoldMd extends BoldMd {
       style: (config.style ?? const TextStyle())
           .copyWith(color: C.white, fontWeight: FontWeight.w700),
     );
+    final id = chartIdFor('${match?[1]}');
+    if (id != null && config.linkBuilder != null) {
+      return buildLinkSpan(context, conf,
+          url: '$_chartScheme$id', label: '${match?[1]}');
+    }
     return TextSpan(
       children: MarkdownComponent.generate(
           context, '${match?[1]}', conf, false),
@@ -185,22 +256,43 @@ class CoachBoldMd extends BoldMd {
 /// The coach's mark beside each answer.
 const double kCoachAvatar = 20;
 
-/// [md] with each run of blank lines folded into one line break, outside
-/// code fences. Tables keep their blank line before them.
-String tightParagraphs(String md) {
+final _listLine = RegExp(r'^\s*([-*+]|\d+[.)])\s');
+final _boldRoundLink =
+    RegExp(r'\*\*\s*(\[[^\]]*\]\(chart:[a-z0-9_]+\))\s*\*\*');
+final _boldInLink = RegExp(r'\[\*\*([^\]*]*)\*\*\](?=\(chart:)');
+
+/// [md] laid out to be skimmed, outside code fences: one blank line between
+/// blocks and round a list, none between a list's own items. Bold around or
+/// inside a chart link is dropped (the link is bold already).
+String spacedParagraphs(String md) {
   final out = StringBuffer();
   var fenced = false;
   var blank = false;
-  for (final line in md.split('\n')) {
-    if (line.trimLeft().startsWith('```')) fenced = !fenced;
+  var wasItem = false;
+  for (var line in md.split('\n')) {
+    final fence = line.trimLeft().startsWith('```');
     if (!fenced && line.trim().isEmpty) {
       blank = true;
       continue;
     }
-    if (out.isNotEmpty) {
-      out.write(blank && line.trimLeft().startsWith('|') ? '\n\n' : '\n');
+    final item = !fenced && _listLine.hasMatch(line);
+    // An indented line under an item belongs to it.
+    final continues = wasItem && !item && line.startsWith('  ');
+    if (!fenced && !fence) {
+      line = line
+          .replaceAllMapped(_boldRoundLink, (m) => m[1]!)
+          .replaceAllMapped(_boldInLink, (m) => '[${m[1]}]');
     }
+    if (out.isNotEmpty) {
+      final gap = !fenced &&
+          !continues &&
+          !(item && wasItem) &&
+          (blank || item != wasItem);
+      out.write(gap ? '\n\n' : '\n');
+    }
+    if (fence) fenced = !fenced;
     blank = false;
+    wasItem = item || continues;
     out.write(line);
   }
   return out.toString();
@@ -227,7 +319,8 @@ class _CopyButtonState extends State<_CopyButton> {
   @override
   Widget build(BuildContext c) => Pressable(
         onTap: () async {
-          await Clipboard.setData(ClipboardData(text: widget.text));
+          await Clipboard.setData(
+              ClipboardData(text: withoutChartLinks(widget.text)));
           if (!mounted) return;
           setState(() => _done = true);
           _t?.cancel();
