@@ -291,7 +291,7 @@ class StressSource {
     }
     final days = {
       for (final d in fetched)
-        if (d != null) d.day: d,
+        if (d != null) d.day: d, // ignore: use_null_aware_elements
     };
     final nights = await _nights(wanted);
     final asleep = [...today.asleep];

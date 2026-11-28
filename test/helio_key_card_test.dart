@@ -48,7 +48,7 @@ void main() {
   for (final scale in [1.0, 3.1]) {
     testWidgets('the key card renders with no key yet at ${scale}x', (t) async {
       await _pump(t, scale: scale);
-      expect(tester_faults(t), isEmpty);
+      expect(layoutFaults(t), isEmpty);
       expect(find.text('No key yet.'), findsOneWidget);
       expect(find.text('SIGN IN TO ZEPP'), findsOneWidget);
       expect(find.text('ENTER IT'), findsOneWidget);
@@ -67,7 +67,7 @@ void main() {
 }
 
 /// Layout exceptions the framework caught while pumping.
-List<Object> tester_faults(WidgetTester t) {
+List<Object> layoutFaults(WidgetTester t) {
   final out = <Object>[];
   Object? e;
   while ((e = t.takeException()) != null) {
